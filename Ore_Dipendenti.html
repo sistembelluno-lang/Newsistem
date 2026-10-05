@@ -92,7 +92,7 @@ dialog{border:1px solid var(--bd);border-radius:12px;background:var(--card);colo
     </div>
     <div class="ft"><button id="fa" hidden>Annulla modifica</button><button class="p" id="fv">Salva</button></div>
   </div>
-  <div class="mnav"><button id="mp">‹</button><b id="ml"></b><button id="mn">›</button><span style="flex:1"></span><button id="rf" title="Rileggi esiti e lavori dal server">⟳ Aggiorna</button><button id="pr">Stampa report del mese</button></div>
+  <div class="mnav"><button id="mp">‹</button><b id="ml"></b><button id="mn">›</button><span style="flex:1"></span><button id="rf" title="Rileggi l'elenco dei lavori dal server">⟳ Aggiorna</button><button id="pr">Stampa report del mese</button></div>
   <div class="kpi" id="kpi"></div>
   <div id="days"></div>
 </section>
@@ -117,23 +117,21 @@ const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const TIPI={lavoro:'Ore su lavoro',ferie:'Ferie',permesso:'Permesso',malattia:'Malattia',nota:'Nota del giorno'};
 const MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const GGS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
-// Stato di una registrazione: 'ok' approvata, 'no' rifiutata, 'inv' inviata (anche se modificata dopo l'ultimo esito)
-function stOf(E,v){const e=E&&E[v.u];return e&&(+e.t||0)>=(+v.t||0)?e.s:'inv'}
-// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers, E, tutte}
+// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers}
 function repMonth(o){
   const N=v=>parseFloat(v)||0,X=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const F=v=>v?v.toLocaleString('it-IT',{maximumFractionDigits:2}):'',FE=v=>v?v.toLocaleString('it-IT',{style:'currency',currency:'EUR'}):'';
   const S=(L,k)=>L.reduce((s,x)=>s+N(x[k]),0);
   const [Y,M]=o.mese.split('-').map(Number),nd=new Date(Y,M,0).getDate();
-  const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok'));
+  const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese));
   const P=(o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese));
-  const T={h:0,tr:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='',star=false;
+  const T={h:0,tr:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='';
   for(let i=1;i<=nd;i++){const ds=o.mese+'-'+String(i).padStart(2,'0'),dw=new Date(Y,M-1,i).getDay();
     const vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds),pt=t=>S(pp.filter(p=>p.tipo===t),'h');
     const h=S(vv,'h'),tr=S(vv.filter(v=>v.tr),'h'),km=S(vv,'km'),sp=S(vv,'sp'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
     if(h>0)T.gg++;T.h+=h;T.tr+=tr;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
     vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,tr:0,km:0,sp:0};L.h+=N(v.h);if(v.tr)L.tr+=N(v.h);L.km+=N(v.km);L.sp+=N(v.sp)});
-    const lav=vv.map(v=>{const s=stOf(o.E,v)!=='ok';if(s)star=true;return`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${v.tr?' (trasf.)':''}${s?' *':''}`}).join('<br>');
+    const lav=vv.map(v=>`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${v.tr?' (trasf.)':''}`).join('<br>');
     const note=[...vv.filter(v=>v.note).map(v=>X(v.cod)+': '+X(v.note)),...pp.filter(p=>p.note||p.tipo==='nota').map(p=>(p.tipo==='nota'?'':TIPI[p.tipo]+': ')+X(p.note))].join('<br>');
     rows+=`<tr class="${dw===0||dw===6?'we':''}"><td>${GGS[dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
   const LL=Object.values(byL).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true}));
@@ -141,15 +139,15 @@ function repMonth(o){
 <table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore lavoro</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Permessi h</th><th class="n">Malattia h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
 <tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
 <h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">di cui trasf.</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.tr)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="7">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
-<p class="rn">${star?'* registrazione non ancora approvata. ':''}Le registrazioni rifiutate non sono incluse. Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
+<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
 <div class="firme"><div>Firma dipendente</div><div>Firma responsabile</div></div></section>`}
 // Elenco piatto per Excel (una riga per registrazione), adatto a tabelle pivot
 function repCsv(list){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round((parseFloat(v)||0)*100)/100).replace('.',',');
   const R=[];list.forEach(o=>{
-    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok')).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),v.tr?'sì':'',num(v.km),num(v.sp),v.note,stOf(o.E,v)==='ok'?'approvata':'da approvare']));
-    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','',p.note,'']))});
+    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),v.tr?'sì':'',num(v.km),num(v.sp),v.note]));
+    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','',p.note]))});
   R.sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1]));
-  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Trasferta','Km','Spese €','Note','Stato'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
+  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Trasferta','Km','Spese €','Note'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
 /*CONDIVISO-FINE*/
 const $=id=>document.getElementById(id);
 const n=v=>parseFloat(v)||0;
@@ -163,7 +161,7 @@ function ask(m){return new Promise(res=>{$('askm').textContent=m;const d=$('ask'
 function banner(m){$('ban').hidden=!m;$('ban').innerHTML=m||''}
 function show(v){['vcfg','vlog','vapp'].forEach(x=>$(x).hidden=x!==v)}
 
-let DIPF=null,COD={lav:[]},E={},cur=null,adm=false,D=null,mese=oggi().slice(0,7),edit=null,sel=null,tries=0;
+let DIPF=null,COD={lav:[]},cur=null,adm=false,D=null,mese=oggi().slice(0,7),edit=null,sel=null,tries=0;
 const perm=()=>Object.assign({lav:'tutti',ass:true},cur&&cur.perm);
 const CK=id=>'ore_cache:'+id;
 
@@ -203,8 +201,8 @@ async function openDip(){hdr();show('vapp');edit=null;D={dip:cur.id,voci:[],pers
   if(cache){merge(D,cache.d);if(cache.dirty)await persist()}
   fillForm();draw()}
 async function refresh(first){
-  try{COD=await rj('codici.json',{lav:[]});E=(await rj('esiti.json',{e:{}})).e||{};const r=await rj('ore/'+cur.id+'.json',null);merge(D,r);if(!first)banner('')}
-  catch(e){banner('⚠ Server non raggiungibile: lavori ed esiti potrebbero non essere aggiornati. Quello che inserisci resta su questo PC e viene inviato appena il server torna disponibile.')}
+  try{COD=await rj('codici.json',{lav:[]});const r=await rj('ore/'+cur.id+'.json',null);merge(D,r);if(!first)banner('')}
+  catch(e){banner('⚠ Server non raggiungibile: l\'elenco dei lavori potrebbe non essere aggiornato. Quello che inserisci resta su questo PC e viene inviato appena il server torna disponibile.')}
   fillCod()}
 $('rf').onclick=async()=>{await refresh();draw();toast('Aggiornato')};
 
@@ -246,19 +244,17 @@ function draw(){
   const [Y,M]=mese.split('-').map(Number),nd=new Date(Y,M,0).getDate();$('ml').textContent=MESI[M-1]+' '+Y;
   const V=D.voci.filter(v=>!v.del&&String(v.d).startsWith(mese)),P=D.pers.filter(p=>!p.del&&String(p.d).startsWith(mese));
   const S=(L,k)=>L.reduce((s,x)=>s+n(x[k]),0),pt=t=>S(P.filter(p=>p.tipo===t),'h');
-  const ninv=V.filter(v=>stOf(E,v)==='inv').length,nno=V.filter(v=>stOf(E,v)==='no').length;
-  $('kpi').innerHTML=[['Ore lavoro',fmt(S(V.filter(v=>stOf(E,v)!=='no'),'h'))],['di cui trasferta',fmt(S(V.filter(v=>v.tr&&stOf(E,v)!=='no'),'h'))],['Ferie (h)',fmt(pt('ferie'))],['Permessi (h)',fmt(pt('permesso'))],['Malattia (h)',fmt(pt('malattia'))],['Km',fmt(S(V,'km'))],['Spese',eur(S(V,'sp'))],['Da approvare',ninv],['Rifiutate',`<span class="${nno?'neg':''}">${nno}</span>`]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
+  $('kpi').innerHTML=[['Ore lavoro',fmt(S(V,'h'))],['di cui trasferta',fmt(S(V.filter(v=>v.tr),'h'))],['Ferie (h)',fmt(pt('ferie'))],['Permessi (h)',fmt(pt('permesso'))],['Malattia (h)',fmt(pt('malattia'))],['Km',fmt(S(V,'km'))],['Spese',eur(S(V,'sp'))]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
   const td=oggi();let h='';
   for(let i=1;i<=nd;i++){const ds=mese+'-'+String(i).padStart(2,'0'),dw=new Date(Y,M-1,i).getDay(),vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds);
-    const items=[...vv.map(v=>{const s=stOf(E,v),e=E[v.u];return`<div class="it"><span class="tag t-${s}">${s==='ok'?'Approvata':s==='no'?'Rifiutata':'Inviata'}</span><b>${esc(v.cod)}</b> ${esc(v.nome)} · <b>${fmt(v.h)} h</b>${v.tr?' <span class="tag t-tr">trasferta</span>':''}${n(v.km)?' · '+fmt(v.km)+' km':''}${n(v.sp)?' · '+eur(v.sp):''}${v.note?' · <span class="mu">'+esc(v.note)+'</span>':''}${s==='no'&&e&&e.m?' <span class="neg">Motivo: '+esc(e.m)+'</span>':''}<span class="ac">${s==='ok'?'':`<button data-e="voci|${v.u}">✎</button><button class="d" data-x="voci|${v.u}">✕</button>`}</span></div>`}),
+    const items=[...vv.map(v=>{return`<div class="it"><b>${esc(v.cod)}</b> ${esc(v.nome)} · <b>${fmt(v.h)} h</b>${v.tr?' <span class="tag t-tr">trasferta</span>':''}${n(v.km)?' · '+fmt(v.km)+' km':''}${n(v.sp)?' · '+eur(v.sp):''}${v.note?' · <span class="mu">'+esc(v.note)+'</span>':''}<span class="ac"><button data-e="voci|${v.u}">✎</button><button class="d" data-x="voci|${v.u}">✕</button></span></div>`}),
       ...pp.map(p=>`<div class="it"><span class="tag t-pers">${TIPI[p.tipo]}</span>${p.h?'<b>'+fmt(p.h)+' h</b>':''}${p.note?' <span class="mu">'+esc(p.note)+'</span>':''}<span class="ac"><button data-e="pers|${p.u}">✎</button><button class="d" data-x="pers|${p.u}">✕</button></span></div>`)].join('');
-    const tot=S(vv.filter(v=>stOf(E,v)!=='no'),'h')+S(pp.filter(p=>p.tipo!=='nota'),'h');
+    const tot=S(vv,'h')+S(pp.filter(p=>p.tipo!=='nota'),'h');
     h+=`<div class="day ${dw===0||dw===6?'we':''} ${ds===td?'today':''}"><div class="dl">${GGS[dw]} ${i}<small>${ds===td?'oggi':''}</small></div><div>${items||'<span class="mu">—</span>'}</div><div><div class="tot">${tot?fmt(tot)+' h':''}</div><button class="add" data-a="${ds}" title="Aggiungi in questo giorno">+</button></div></div>`}
   $('days').innerHTML=h}
 $('days').onclick=async e=>{const t=e.target;
   if(t.dataset.a){resetForm(t.dataset.a);window.scrollTo({top:0,behavior:'smooth'});($('ft').value==='lavoro'?$('fl'):$('fo')).focus();return}
   const [k,u]=(t.dataset.e||t.dataset.x||'').split('|');if(!u)return;const x=D[k].find(y=>y.u===u);if(!x)return;
-  if(k==='voci'&&stOf(E,x)==='ok'){toast('Registrazione già approvata: non modificabile');return}
   if(t.dataset.x){if(!await ask('Eliminare questa registrazione del '+x.d.split('-').reverse().join('/')+'?'))return;Object.keys(x).forEach(q=>{if(q!=='u')delete x[q]});x.del=true;x.t=Date.now();await persist();draw();return}
   edit={k,u};$('fh').textContent='Modifica registrazione';$('fa').hidden=false;$('ft').value=k==='voci'?'lavoro':x.tipo;tipo();
   $('fd').value=x.d;$('fo').value=x.h??'';$('fn').value=x.note||'';
@@ -266,7 +262,7 @@ $('days').onclick=async e=>{const t=e.target;
   window.scrollTo({top:0,behavior:'smooth'})};
 const mv=k=>{const [Y,M]=mese.split('-').map(Number),d=new Date(Y,M-1+k,1);mese=ymd(d).slice(0,7);draw()};
 $('mp').onclick=()=>mv(-1);$('mn').onclick=()=>mv(1);
-$('pr').onclick=()=>{$('print').innerHTML=repMonth({nome:cur.nome,mese,voci:D.voci,pers:D.pers,E,tutte:true});window.print()};
+$('pr').onclick=()=>{$('print').innerHTML=repMonth({nome:cur.nome,mese,voci:D.voci,pers:D.pers});window.print()};
 init();
 </script>
 </body>

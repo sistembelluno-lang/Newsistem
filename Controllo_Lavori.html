@@ -145,23 +145,21 @@ const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const TIPI={lavoro:'Ore su lavoro',ferie:'Ferie',permesso:'Permesso',malattia:'Malattia',nota:'Nota del giorno'};
 const MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const GGS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
-// Stato di una registrazione: 'ok' approvata, 'no' rifiutata, 'inv' inviata (anche se modificata dopo l'ultimo esito)
-function stOf(E,v){const e=E&&E[v.u];return e&&(+e.t||0)>=(+v.t||0)?e.s:'inv'}
-// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers, E, tutte}
+// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers}
 function repMonth(o){
   const N=v=>parseFloat(v)||0,X=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const F=v=>v?v.toLocaleString('it-IT',{maximumFractionDigits:2}):'',FE=v=>v?v.toLocaleString('it-IT',{style:'currency',currency:'EUR'}):'';
   const S=(L,k)=>L.reduce((s,x)=>s+N(x[k]),0);
   const [Y,M]=o.mese.split('-').map(Number),nd=new Date(Y,M,0).getDate();
-  const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok'));
+  const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese));
   const P=(o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese));
-  const T={h:0,tr:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='',star=false;
+  const T={h:0,tr:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='';
   for(let i=1;i<=nd;i++){const ds=o.mese+'-'+String(i).padStart(2,'0'),dw=new Date(Y,M-1,i).getDay();
     const vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds),pt=t=>S(pp.filter(p=>p.tipo===t),'h');
     const h=S(vv,'h'),tr=S(vv.filter(v=>v.tr),'h'),km=S(vv,'km'),sp=S(vv,'sp'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
     if(h>0)T.gg++;T.h+=h;T.tr+=tr;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
     vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,tr:0,km:0,sp:0};L.h+=N(v.h);if(v.tr)L.tr+=N(v.h);L.km+=N(v.km);L.sp+=N(v.sp)});
-    const lav=vv.map(v=>{const s=stOf(o.E,v)!=='ok';if(s)star=true;return`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${v.tr?' (trasf.)':''}${s?' *':''}`}).join('<br>');
+    const lav=vv.map(v=>`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${v.tr?' (trasf.)':''}`).join('<br>');
     const note=[...vv.filter(v=>v.note).map(v=>X(v.cod)+': '+X(v.note)),...pp.filter(p=>p.note||p.tipo==='nota').map(p=>(p.tipo==='nota'?'':TIPI[p.tipo]+': ')+X(p.note))].join('<br>');
     rows+=`<tr class="${dw===0||dw===6?'we':''}"><td>${GGS[dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
   const LL=Object.values(byL).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true}));
@@ -169,15 +167,15 @@ function repMonth(o){
 <table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore lavoro</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Permessi h</th><th class="n">Malattia h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
 <tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
 <h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">di cui trasf.</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.tr)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="7">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
-<p class="rn">${star?'* registrazione non ancora approvata. ':''}Le registrazioni rifiutate non sono incluse. Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
+<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
 <div class="firme"><div>Firma dipendente</div><div>Firma responsabile</div></div></section>`}
 // Elenco piatto per Excel (una riga per registrazione), adatto a tabelle pivot
 function repCsv(list){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round((parseFloat(v)||0)*100)/100).replace('.',',');
   const R=[];list.forEach(o=>{
-    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok')).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),v.tr?'sì':'',num(v.km),num(v.sp),v.note,stOf(o.E,v)==='ok'?'approvata':'da approvare']));
-    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','',p.note,'']))});
+    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),v.tr?'sì':'',num(v.km),num(v.sp),v.note]));
+    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','',p.note]))});
   R.sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1]));
-  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Trasferta','Km','Spese €','Note','Stato'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
+  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Trasferta','Km','Spese €','Note'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
 /*CONDIVISO-FINE*/
 </script>
 <script>
@@ -197,10 +195,10 @@ const n=v=>parseFloat(v)||0;
 const eur=v=>v.toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function rate(r){const d=[r.data,r.scad].find(x=>/^\d{4}-\d\d-\d\d$/.test(x))||new Date().toISOString().slice(0,10);const P=[...S.periods].sort((a,b)=>a.from>b.from?1:-1);return P.find(p=>p.from<=d&&(!p.to||d<=p.to))||P.filter(p=>p.from<=d).pop()||P[0]||{h:0,t:0}}
-// Ore dei dipendenti (approvate) di un lavoro: registro ore + interventi Worksite arrivati dal programma Ore Dipendenti.
-// Le ore in trasferta contano come le «Ore trasferta» inserite a mano: tariffa oraria + tariffa trasferta, ciascuna del periodo della data.
-function dipOre(r){let h=0,tr=0,km=0,sp=0,vh=0;[...(r.ore||[]),...(r.iv||[]).filter(x=>x.u)].forEach(x=>{const p=rate({data:x.d}),o=n(x.h);h+=o;vh+=o*n(p.h);if(x.tr){tr+=o;vh+=o*n(p.t)}km+=n(x.km);sp+=n(x.sp)});return{h,tr,km,sp,vh}}
-function calc(r){const p=rate(r),D=dipOre(r),o=n(r.hTot)*n(p.h)+n(r.hTr)*n(p.t)+D.vh,k=(n(r.km)+D.km)*S.km,s=n(r.spTr)+n(r.spPa)+n(r.spEx)+D.sp;return{ore:o,km:k,sp:s,tot:o+k+s,rim:n(r.prev)-n(r.fatt),D}}
+// Ore arrivate dai dipendenti (registro ore + interventi Worksite con u): sono già sommate in Ore totali, Ore trasferta, Km ed Extra €;
+// qui servono solo per mostrare «di cui dai dipendenti».
+function dipOre(r){let h=0,tr=0;[...(r.ore||[]),...(r.iv||[])].forEach(x=>{if(!x.u||!x.t)return;h+=n(x.h);if(x.tr)tr+=n(x.h)});return{h,tr}}
+function calc(r){const p=rate(r),o=n(r.hTot)*n(p.h)+n(r.hTr)*n(p.t),k=n(r.km)*S.km,s=n(r.spTr)+n(r.spPa)+n(r.spEx);return{ore:o,km:k,sp:s,tot:o+k+s,rim:n(r.prev)-n(r.fatt),D:dipOre(r)}}
 function svb(r){const v=r.sv||[];if(!v.length)return'';const d=v.filter(x=>x.ok).length;return`<span class="tag ${d===v.length?'sg':'sr'}">${d}/${v.length}</span>`}
 // Dati di servizio (date di backup/modifica) tenuti a parte: la forma di S e del backup .json non cambia.
 const MK=KEY+'_meta';let M={};try{M=JSON.parse(localStorage.getItem(MK))||{}}catch(e){}
@@ -234,11 +232,11 @@ function openEdit(id){
     const v=esc(r[k]??'');
     const inp=t==='sel'?`<select name="${k}">${[...new Set([...STATI,r[k]].filter(Boolean))].map(s=>`<option ${s===r[k]?'selected':''}>${esc(s)}</option>`).join('')}</select>`:t==='area'?`<textarea name="${k}" rows="2">${v}</textarea>`:`<input name="${k}" value="${v}" ${t==='num'?'type="number" step="any"':t==='date'?'type="date"':''}>`;
     return `<label class="${t==='f'||t==='area'?'f':''}">${l}${inp}</label>`}).join('')+'</div><h3 style="font-size:14px;margin:12px 0 6px">Servizi da svolgere</h3><div id="svb"></div><button type="button" id="sva">+ Aggiungi servizio</button>'+((r.ore||[]).length?'<h3 style="font-size:14px;margin:12px 0 6px">Ore registrate dai dipendenti</h3><div id="oreb"></div>':'')+'<div class="calc" id="cl"></div><div class="ft"><span>'+(id?'<button type="button" class="d" id="del">Elimina</button>':'')+'</span><span class="btns"><button type="button" id="can">Annulla</button><button type="button" class="p" id="sv">Salva</button></span></div>';
-  const upd=()=>{const t={};F.forEach(([k])=>t[k]=$('frm').elements[k].value);t.ore=r.ore;t.iv=r.iv;const c=calc(t);$('cl').innerHTML=`${t.loc?(geo(t.loc)?`<span>📍 ${esc(geo(t.loc).a)} (${geo(t.loc).p})</span>`:'<span class="neg">📍 località non trovata sulla mappa</span>'):''}<span>Tariffa: <b>${rate(t).h} €/h</b></span><span>Monte ore: <b>${fmt(n(t.hTot)+c.D.h)} h</b>${c.D.h?` <small>(a mano ${fmt(n(t.hTot))} + dipendenti ${fmt(c.D.h)})</small>`:''}</span><span>Ore trasferta: <b>${fmt(n(t.hTr)+c.D.tr)} h</b>${c.D.tr?` <small>(dipendenti ${fmt(c.D.tr)})</small>`:''}</span><span>€ ore: <b>${eur(c.ore)}</b></span><span>€ km: <b>${eur(c.km)}</b></span><span>€ spese: <b>${eur(c.sp)}</b></span><span>Costo totale: <b>${eur(c.tot)}</b></span><span>Rimanente: <b>${eur(c.rim)}</b></span>`};
+  const upd=()=>{const t={};F.forEach(([k])=>t[k]=$('frm').elements[k].value);t.ore=r.ore;t.iv=r.iv;const c=calc(t);$('cl').innerHTML=`${t.loc?(geo(t.loc)?`<span>📍 ${esc(geo(t.loc).a)} (${geo(t.loc).p})</span>`:'<span class="neg">📍 località non trovata sulla mappa</span>'):''}<span>Tariffa: <b>${rate(t).h} €/h</b></span>${c.D.h?`<span>👥 Dalle ore dei dipendenti: <b>${fmt(c.D.h)} h</b> già comprese in Ore totali${c.D.tr?`, di cui <b>${fmt(c.D.tr)} h</b> in Ore trasferta`:''}</span>`:''}<span>€ ore: <b>${eur(c.ore)}</b></span><span>€ km: <b>${eur(c.km)}</b></span><span>€ spese: <b>${eur(c.sp)}</b></span><span>Costo totale: <b>${eur(c.tot)}</b></span><span>Rimanente: <b>${eur(c.rim)}</b></span>`};
   $('frm').oninput=upd;upd();
   const oreL=(r.ore||[]).map(x=>({...x}));
-  const ro=()=>{if(!$('oreb'))return;const L=[...oreL].sort((a,b)=>(a.d||'')<(b.d||'')?1:-1);$('oreb').innerHTML=`<div class="tw"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th><th></th></tr></thead><tbody>${L.map(x=>`<tr><td>${dIt(x.d)}</td><td>${esc(x.op)}</td><td class="n">${fmt(n(x.h))}${x.tr?' <span class="tag">trasferta</span>':''}</td><td class="n">${x.km===''?'':fmt(n(x.km))}</td><td class="n">${n(x.sp)?eur2(x.sp):''}</td><td class="w">${esc(x.note)}</td><td><button type="button" class="d" data-ou="${esc(x.u)}" title="Togli dal registro">✕</button></td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2"><b>Totale</b></td><td class="n"><b>${fmt(oreL.reduce((s,x)=>s+n(x.h),0))}</b></td><td class="n">${fmt(oreL.reduce((s,x)=>s+n(x.km),0))}</td><td class="n">${eur2(oreL.reduce((s,x)=>s+n(x.sp),0))}</td><td colspan="2" class="rates">di cui trasferta ${fmt(oreL.filter(x=>x.tr).reduce((s,x)=>s+n(x.h),0))} h · già comprese nel monte ore e nel costo del lavoro</td></tr></tfoot></table></div>`};
-  ro();if($('oreb'))$('oreb').onclick=async e=>{const u=e.target.dataset.ou;if(u!==undefined&&await ask('Togliere questa registrazione dal registro del lavoro? (Il dipendente la vedrà ancora come approvata)')){oreL.splice(oreL.findIndex(x=>x.u===u),1);ro()}};
+  const ro=()=>{if(!$('oreb'))return;const L=[...oreL].sort((a,b)=>(a.d||'')<(b.d||'')?1:-1);$('oreb').innerHTML=`<div class="tw"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${L.map(x=>`<tr><td>${dIt(x.d)}</td><td>${esc(x.op)}</td><td class="n">${fmt(n(x.h))}${x.tr?' <span class="tag">trasferta</span>':''}</td><td class="n">${x.km===''?'':fmt(n(x.km))}</td><td class="n">${n(x.sp)?eur2(x.sp):''}</td><td class="w">${esc(x.note)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2"><b>Totale</b></td><td class="n"><b>${fmt(oreL.reduce((s,x)=>s+n(x.h),0))}</b></td><td class="n">${fmt(oreL.reduce((s,x)=>s+n(x.km),0))}</td><td class="n">${eur2(oreL.reduce((s,x)=>s+n(x.sp),0))}</td><td class="rates" style="white-space:normal">di cui trasferta ${fmt(oreL.filter(x=>x.tr).reduce((s,x)=>s+n(x.h),0))} h · già sommate nei campi del lavoro; si modificano dal programma Ore Dipendenti</td></tr></tfoot></table></div>`};
+  ro();
   const sv=(r.sv||[]).map(x=>({...x}));
   const rs=()=>{$('svb').innerHTML=sv.map((x,i)=>`<div class="sv ${x.ok?'sg':'sr'}"><input type="checkbox" data-i="${i}" data-f="ok" ${x.ok?'checked':''} title="Eseguito nei tempi"><input data-i="${i}" data-f="t" value="${esc(x.t)}" placeholder="Servizio da svolgere"><input type="date" data-i="${i}" data-f="d" value="${esc(x.d)}" title="Scadenza servizio"><button type="button" data-x="${i}">✕</button></div>`).join('')};
   rs();
@@ -271,7 +269,7 @@ function openWs(id){const r=S.rows.find(x=>x.id==id);if(!r)return;r.iv=r.iv||[];
     $('wtot').innerHTML=`<span>Interventi: <b>${A.length}</b></span><span>Ore: <b>${fmt(sum(A,'h'))}</b></span><span>Km: <b>${fmt(sum(A,'km'))}</b></span><span class="pos">Contabilizzati: <b>${C.length}</b></span><span class="${T.length?'neg':''}">Da contabilizzare: <b>${T.length}</b> · ${fmt(sum(T,'h'))} h · ${fmt(sum(T,'km'))} km${sum(T,'sp')?' · '+eur2(sum(T,'sp'))+' spese':''} · valore stimato <b>${eur(ivVal(T))}</b></span>`};
   const draw=()=>{sortIv();
     d.innerHTML=`<h2 style="margin:0 0 4px;font-size:17px">Interventi cantiere</h2><p class="rates" style="margin:0 0 10px">${esc(r.cod)} · ${esc(r.nome)}${r.cliente?' · '+esc(r.cliente):''}</p><datalist id="opl">${ops.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
-<div class="tw"><table class="wt"><thead><tr><th style="width:150px">Data intervento</th><th class="n" style="width:80px">Ore</th><th style="width:50px;text-align:center" title="Ore in trasferta">Trasf.</th><th class="n" style="width:80px">Km</th><th class="n" style="width:90px">Spese €</th><th style="width:150px">Operatore</th><th>Note</th><th style="width:60px;text-align:center">Contab.</th><th style="width:40px"></th></tr></thead><tbody>${r.iv.length?r.iv.map((x,i)=>`<tr data-i="${i}" class="${x.ok?'ivok':''} ${i&&K(x)!==K(r.iv[i-1])?'nd':''}"><td><input type="date" data-f="d" value="${esc(x.d)}"></td><td><input type="number" step="any" min="0" data-f="h" value="${esc(x.h)}"></td><td style="text-align:center"><input type="checkbox" data-f="tr" ${x.tr?'checked':''} title="Ore in trasferta"></td><td><input type="number" step="any" min="0" data-f="km" value="${esc(x.km)}"></td><td><input type="number" step="any" min="0" data-f="sp" value="${esc(x.sp)}"></td><td><input data-f="op" list="opl" value="${esc(x.op)}"></td><td><input data-f="note" value="${esc(x.note)}"></td><td style="text-align:center"><input type="checkbox" data-f="ok" ${x.ok?'checked':''} title="Contabilizzato (fatturato)"></td><td><button type="button" class="d" data-x="${i}" title="Elimina intervento">✕</button></td></tr>`).join(''):'<tr><td colspan="9" class="em">Nessun intervento: usa «+ Aggiungi intervento».</td></tr>'}</tbody></table></div>
+<div class="tw"><table class="wt"><thead><tr><th style="width:150px">Data intervento</th><th class="n" style="width:80px">Ore</th><th style="width:50px;text-align:center" title="Ore in trasferta">Trasf.</th><th class="n" style="width:80px">Km</th><th class="n" style="width:90px">Spese €</th><th style="width:150px">Operatore</th><th>Note</th><th style="width:60px;text-align:center">Contab.</th><th style="width:40px"></th></tr></thead><tbody>${r.iv.length?r.iv.map((x,i)=>`<tr data-i="${i}" class="${x.ok?'ivok':''} ${i&&K(x)!==K(r.iv[i-1])?'nd':''}"><td><input type="date" data-f="d" ${x.u?'disabled':''} value="${esc(x.d)}"></td><td><input type="number" step="any" min="0" data-f="h" ${x.u?'disabled':''} value="${esc(x.h)}"></td><td style="text-align:center"><input type="checkbox" data-f="tr" ${x.u?'disabled':''} ${x.tr?'checked':''} title="Ore in trasferta"></td><td><input type="number" step="any" min="0" data-f="km" ${x.u?'disabled':''} value="${esc(x.km)}"></td><td><input type="number" step="any" min="0" data-f="sp" ${x.u?'disabled':''} value="${esc(x.sp)}"></td><td><input data-f="op" ${x.u?'disabled':''} list="opl" value="${esc(x.op)}"></td><td><input data-f="note" ${x.u?'disabled':''} value="${esc(x.note)}"></td><td style="text-align:center"><input type="checkbox" data-f="ok" ${x.ok?'checked':''} title="Contabilizzato (fatturato)"></td><td>${x.u?'<span title="Inserito dal dipendente: si modifica dal programma Ore Dipendenti">👤</span>':`<button type="button" class="d" data-x="${i}" title="Elimina intervento">✕</button>`}</td></tr>`).join(''):'<tr><td colspan="9" class="em">Nessun intervento: usa «+ Aggiungi intervento».</td></tr>'}</tbody></table></div>
 <div class="calc" id="wtot"></div><div class="ft"><span class="btns"><button type="button" class="p" id="wad">+ Aggiungi intervento</button><button type="button" id="wcsv">Esporta Excel</button></span><button type="button" id="wcl">Chiudi</button></div>`;tot()};
   draw();
   d.oninput=e=>{const t=e.target,tr=t.closest('tr[data-i]');if(!tr||!t.dataset.f)return;const x=r.iv[+tr.dataset.i],f=t.dataset.f;
@@ -310,62 +308,67 @@ ${sv||!L.length?'':`<div class="calc"><span>Ore: <b>${fmt(L.reduce((s,o)=>s+n(o.
   if(!d.open)d.showModal()}
 // ===== Ore dipendenti =====
 // Il programma «Ore Dipendenti» scrive nella cartella condivisa (ore/<id>.json); qui l'amministratore gestisce dipendenti e PIN,
-// approva le registrazioni (che entrano nei lavori: interventi Worksite o registro ore) e stampa i report mensili.
-const OD={f:{v:1,admin:{},dip:[]},E:{},ore:{},tab:'app',err:'',dir:''};
+// riceve in automatico le registrazioni (sommate nei campi del lavoro) e stampa i report mensili.
+const OD={f:{v:1,admin:{},dip:[]},ore:{},miss:[],tab:'app',err:'',dir:''};
 let pcT;
 function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=>{
   const L=S.rows.filter(r=>r.stato!=='Non fare'&&(M.odFin||!/^finit/i.test(r.stato||''))).map(r=>({id:r.id,cod:String(r.cod??''),nome:r.nome||'',cliente:r.cliente||'',ws:!!r.ws}));
   try{await VFS.write('codici.json',JSON.stringify({agg:Date.now(),lav:L}));M.odPub={t:Date.now(),n:L.length};saveMeta()}catch(e){}},800)}
 async function odLoad(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
-  OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};OD.E=(await rj('esiti.json',{e:{}})).e||{};
-  const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',{voci:[],pers:[]});OD.ore=O;odBadge();
-  if(M.odAuto){const P=odVoci().filter(x=>x.s==='inv'&&odRow(x.v));if(P.length)await odDecide(P,'ok',null,true)}
-  return true}
-  catch(e){OD.err=String(e&&e.message||e);return false}}
-const odVoci=()=>OD.f.dip.flatMap(d=>((OD.ore[d.id]||{}).voci||[]).filter(v=>!v.del).map(v=>({v,d,s:stOf(OD.E,v)})));
-function odBadge(){const k=odVoci().filter(x=>x.s==='inv').length;$('odbtn').innerHTML='👥 Ore dipendenti'+(k?` <span class="tag sr">${k}</span>`:'')}
+  OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};
+  const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',null);OD.ore=O}
+  catch(e){OD.err=String(e&&e.message||e);return false}
+  odSync();return true}
+const odVoci=()=>OD.f.dip.flatMap(d=>((OD.ore[d.id]||{}).voci||[]).filter(v=>!v.del).map(v=>({v,d})));
+// Le registrazioni dei dipendenti entrano subito nel lavoro, senza approvazione: le ore si sommano a «Ore totali»
+// (e a «Ore trasferta» se in trasferta), i km a «Km», le spese a «Extra €». Ogni registrazione importata resta
+// annotata nel lavoro (r.ore, o r.iv per i cantieri) con il suo id u e la versione t: se il dipendente la modifica
+// o la cancella, qui si toglie la vecchia e si aggiunge la nuova. Mai durante la modifica di una scheda aperta.
+const odBusy=()=>['dlg','wd'].some(i=>$(i).open);
+const R2=v=>Math.max(0,Math.round(v*100)/100);
+function odApply(r,x,sg){r.hTot=R2(n(r.hTot)+sg*n(x.h));if(x.tr)r.hTr=R2(n(r.hTr)+sg*n(x.h));if(n(x.km))r.km=R2(n(r.km)+sg*n(x.km));if(n(x.sp))r.spEx=R2(n(r.spEx)+sg*n(x.sp))}
+function odImported(){const m=new Map();S.rows.forEach(r=>[...(r.ore||[]),...(r.iv||[])].forEach(x=>{if(x.u)m.set(x.u,{x,r})}));return m}
+function odUnimport(u){S.rows.forEach(r=>['ore','iv'].forEach(k=>{if(!r[k])return;const i=r[k].findIndex(x=>x.u===u);if(i<0)return;if(r[k][i].t)odApply(r,r[k][i],-1);r[k].splice(i,1)}))}
+function odSync(){OD.miss=[];if(odBusy())return 0;let ch=0;const okm=new Map(),want=new Map();
+  OD.f.dip.forEach(d=>{const f=OD.ore[d.id];if(f)(f.voci||[]).forEach(v=>{if(v&&v.u)want.set(v.u,{v,d})})});
+  // file del dipendente non letto o registrazione sconosciuta: si lascia com'è (mai togliere ore per un file mancante)
+  odImported().forEach(({x,r},u)=>{const w=want.get(u);if(!w)return;
+    if(w.v.del||!x.t||+w.v.t!==+x.t||odRow(w.v)!==r||x.op!==w.d.nome){okm.set(u,x.ok);odUnimport(u);ch++}});
+  const have=odImported();
+  want.forEach(({v,d},u)=>{if(v.del||have.has(u))return;const r=odRow(v);if(!r){OD.miss.push({v,d});return}
+    const it={u,t:v.t,di:d.id,d:v.d,h:v.h,tr:!!v.tr,km:v.km??'',sp:v.sp??'',op:d.nome,note:v.note||''};
+    if(r.ws)(r.iv=r.iv||[]).push({...it,ok:!!okm.get(u)});else(r.ore=r.ore||[]).push(it);odApply(r,it,1);ch++});
+  if(ch){save();render()}odBadge();return ch}
+function odBadge(){const k=(OD.miss||[]).length;$('odbtn').innerHTML='👥 Ore dipendenti'+(k?` <span class="tag sr" title="Registrazioni con lavoro non trovato">${k} ⚠</span>`:'')}
 function odRow(v){const c=String(v.cod??'');return S.rows.find(r=>r.id==v.lav&&String(r.cod??'')===c)||(c?S.rows.find(r=>String(r.cod??'')===c):null)||S.rows.find(r=>r.id==v.lav&&r.nome===v.nome)}
 function askText(m,ph){return new Promise(res=>{$('askm').innerHTML=esc(m)+'<input id="askt" style="width:100%;margin-top:8px" placeholder="'+esc(ph||'')+'">';const d=$('ask');d.showModal();$('askt').focus();
   $('asky').onclick=()=>{const v=$('askt').value;d.close();res(v)};$('askn').onclick=()=>{d.close();res(null)}})}
 async function openOD(tab){const d=$('od');if(tab)OD.tab=tab;d.innerHTML='<p class="rates">Caricamento dalla cartella condivisa…</p>';if(!d.open)d.showModal();
   if(!await odLoad()&&OD.err==='cartella condivisa non impostata')OD.tab='imp';odDraw()}
 $('odbtn').onclick=()=>openOD();
-function odDraw(){const d=$('od'),np=odVoci().filter(x=>x.s==='inv').length;
-  const T=[['app','Da approvare'],['rep','Report mensile'],['ass','Ferie, permessi e note'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
-  d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><span class="btns">${VFS.sim?'<button type="button" id="odpv">Prova come dipendente</button>':''}<button type="button" id="odx">Chiudi</button></span></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np}</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
+function odDraw(){const d=$('od'),np=(OD.miss||[]).length;
+  const T=[['app','Registrazioni'],['rep','Report mensile'],['ass','Ferie, permessi e note'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
+  d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><span class="btns">${VFS.sim?'<button type="button" id="odpv">Prova come dipendente</button>':''}<button type="button" id="odx">Chiudi</button></span></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np} ⚠</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
   ({app:odApp,rep:odRep,ass:odAss,dip:odDip,imp:odImp})[OD.tab]();
   $('odx').onclick=()=>d.close();if($('odpv'))$('odpv').onclick=openOrePreview;
   d.querySelector('.tabs').onclick=e=>{const t=e.target.closest('[data-t]');if(t){OD.tab=t.dataset.t;odDraw()}}}
 const dipSel=(id,v,all)=>`<select id="${id}"><option value="">${all}</option>${OD.f.dip.map(d=>`<option value="${esc(d.id)}" ${v===d.id?'selected':''}>${esc(d.nome)}${d.attivo===false?' (non attivo)':''}</option>`).join('')}</select>`;
-function odApp(){const b=$('odb'),f=OD.fa=OD.fa||{dip:'',st:'inv',m:''};
-  const L=odVoci().filter(x=>(!f.dip||x.d.id===f.dip)&&(f.st==='all'||x.s===f.st)&&(!f.m||String(x.v.d).startsWith(f.m)));
+function odApp(){const b=$('odb'),f=OD.fa=OD.fa||{dip:'',m:oggiL().slice(0,7)},imp=odImported();
+  const L=odVoci().filter(x=>(!f.dip||x.d.id===f.dip)&&(!f.m||String(x.v.d).startsWith(f.m)));
   L.sort((a,b)=>a.v.d<b.v.d?1:a.v.d>b.v.d?-1:a.d.nome.localeCompare(b.d.nome));
-  b.innerHTML=`<div class="flt">${dipSel('oa1',f.dip,'Tutti i dipendenti')}<select id="oa2">${[['inv','Da approvare'],['ok','Approvate'],['no','Rifiutate'],['all','Tutte']].map(([k,l])=>`<option value="${k}" ${f.st===k?'selected':''}>${l}</option>`).join('')}</select><input type="month" id="oa3" value="${f.m}" title="Mese (vuoto = tutti)"><button type="button" id="oa4">⟳ Aggiorna</button></div>
-<p class="rates" style="margin:0 0 8px">Approvando, le ore entrano nel monte ore e nel costo del lavoro (quelle in trasferta anche come ore di trasferta): nei cantieri compaiono tra gli interventi Worksite, negli altri lavori nel registro «Ore registrate dai dipendenti» della scheda.</p>
-<div class="tw ls"><table class="wt"><thead><tr><th style="width:30px"><input type="checkbox" id="oaall" title="Seleziona tutte"></th><th>Data</th><th>Dipendente</th><th>Cod</th><th>Lavoro</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th><th>Stato</th><th></th></tr></thead><tbody>${L.length?L.map((x,i)=>{const v=x.v,r=odRow(v),e=OD.E[v.u];return`<tr class="${x.s==='ok'?'ivok':''}"><td><input type="checkbox" data-i="${i}" ${x.s==='ok'||!r?'disabled':''}></td><td>${dIt(v.d)}</td><td>${esc(x.d.nome)}</td><td>${esc(v.cod)}</td><td class="w">${esc(v.nome)}${r?(r.ws?' <span class="tag">cantiere</span>':''):' <span class="neg">(lavoro non trovato)</span>'}</td><td class="n">${fmt(n(v.h))}${v.tr?'<br><span class="tag">trasferta</span>':''}</td><td class="n">${v.km===''||v.km==null?'':fmt(n(v.km))}</td><td class="n">${n(v.sp)?eur2(v.sp):''}</td><td class="w">${esc(v.note)}</td><td>${x.s==='ok'?'<span class="tag sg">Approvata</span>':x.s==='no'?`<span class="tag sr">Rifiutata</span>${e&&e.m?'<br><small>'+esc(e.m)+'</small>':''}`:'<span class="tag">Da approvare</span>'}</td><td style="white-space:nowrap">${x.s!=='ok'?`<button type="button" class="p" data-ok="${i}" ${r?'':'disabled'} title="Approva">✓</button> `:''}${x.s!=='no'?`<button type="button" class="d" data-no="${i}" title="${x.s==='ok'?'Annulla approvazione e rifiuta':'Rifiuta'}">✕</button>`:''}</td></tr>`}).join(''):'<tr><td colspan="11" class="em">Nessuna registrazione.</td></tr>'}</tbody></table></div>
-<div class="ft"><span class="rates">${L.length} registrazioni · ${fmt(L.reduce((s,x)=>s+n(x.v.h),0))} ore</span><button type="button" class="p" id="oasel">Approva selezionate</button></div>`;
-  b.onchange=e=>{const t=e.target;if(t.id==='oa1')f.dip=t.value;else if(t.id==='oa2')f.st=t.value;else if(t.id==='oa3')f.m=t.value;else if(t.id==='oaall'){b.querySelectorAll('tbody input[data-i]:not(:disabled)').forEach(c=>c.checked=t.checked);return}else return;odApp()};
-  b.onclick=async e=>{const t=e.target;
-    if(t.id==='oa4'){await odLoad();odDraw()}
-    else if(t.dataset.ok!==undefined)odDecide([L[+t.dataset.ok]],'ok');
-    else if(t.dataset.no!==undefined){const m=await askText('Motivo del rifiuto (lo vedrà il dipendente):','es. ore da correggere');if(m!==null)odDecide([L[+t.dataset.no]],'no',m.trim())}
-    else if(t.id==='oasel'){const X=[...b.querySelectorAll('tbody input[data-i]:checked')].map(c=>L[+c.dataset.i]);if(!X.length){toast('Seleziona almeno una registrazione');return}odDecide(X,'ok')}}}
-function odUnimport(u){S.rows.forEach(r=>{if(r.iv)r.iv=r.iv.filter(x=>x.u!==u);if(r.ore)r.ore=r.ore.filter(x=>x.u!==u)})}
-async function odDecide(L,s,m,quiet){let E2;try{E2=await rj('esiti.json',{e:{}})}catch(e){toast('Cartella condivisa non raggiungibile: niente è stato modificato');return}
-  E2.e=E2.e||{};let k=0,miss=0;
-  for(const x of L){const v=x.v;
-    if(s==='ok'){const r=odRow(v);if(!r){miss++;continue}odUnimport(v.u);const it={u:v.u,d:v.d,h:v.h,tr:!!v.tr,km:v.km??'',sp:v.sp??'',op:x.d.nome,note:v.note||''};if(r.ws)(r.iv=r.iv||[]).push({...it,ok:false});else(r.ore=r.ore||[]).push(it)}
-    else odUnimport(v.u);
-    E2.e[v.u]=m?{s,t:Date.now(),m}:{s,t:Date.now()};k++}
-  E2.agg=Date.now();
-  try{await VFS.write('esiti.json',JSON.stringify(E2))}catch(e){toast('Esito non salvato sul server: riprova');return}
-  OD.E=E2.e;save();render();odBadge();if(quiet)return;odDraw();toast((s==='ok'?k+' approvate':k+' rifiutate')+(miss?' · '+miss+' saltate: lavoro non trovato':''))}
+  b.innerHTML=`<div class="flt">${dipSel('oa1',f.dip,'Tutti i dipendenti')}<input type="month" id="oa3" value="${f.m}" title="Mese (vuoto = tutti)"><button type="button" id="oa4">⟳ Aggiorna</button></div>
+<p class="rates" style="margin:0 0 8px">Quello che i dipendenti inseriscono entra subito nel lavoro, senza approvazione: le ore si sommano a «Ore totali» (e anche a «Ore trasferta» se in trasferta), i km a «Km», le spese a «Extra €». Se il dipendente modifica o cancella una registrazione, il lavoro si aggiorna da solo.</p>
+${(OD.miss||[]).length?`<p class="neg" style="margin:0 0 8px">⚠ ${OD.miss.length} registrazioni non sono entrate perché il lavoro non esiste più nel programma (codice cambiato o lavoro eliminato).</p>`:''}
+<div class="tw ls"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th>Cod</th><th>Lavoro</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th><th>Nel lavoro</th></tr></thead><tbody>${L.length?L.map(x=>{const v=x.v,m=imp.get(v.u);return`<tr><td>${dIt(v.d)}</td><td>${esc(x.d.nome)}</td><td>${esc(v.cod)}</td><td class="w">${esc(v.nome)}</td><td class="n">${fmt(n(v.h))}${v.tr?'<br><span class="tag">trasferta</span>':''}</td><td class="n">${v.km===''||v.km==null?'':fmt(n(v.km))}</td><td class="n">${n(v.sp)?eur2(v.sp):''}</td><td class="w">${esc(v.note)}</td><td>${m?`<span class="tag sg">✓ ${m.r.ws?'cantiere':'sommata'}</span>`:'<span class="tag sr">⚠ lavoro non trovato</span>'}</td></tr>`}).join(''):'<tr><td colspan="9" class="em">Nessuna registrazione.</td></tr>'}</tbody></table></div>
+<div class="ft"><span class="rates">${L.length} registrazioni · ${fmt(L.reduce((s,x)=>s+n(x.v.h),0))} ore, di cui ${fmt(L.filter(x=>x.v.tr).reduce((s,x)=>s+n(x.v.h),0))} in trasferta</span></div>`;
+  b.onchange=e=>{const t=e.target;if(t.id==='oa1')f.dip=t.value;else if(t.id==='oa3')f.m=t.value;else return;odApp()};
+  b.onclick=async e=>{if(e.target.id==='oa4'){await odLoad();odDraw();toast('Aggiornato')}}}
 function odRepList(f){return OD.f.dip.filter(d=>f.dip?d.id===f.dip:d.attivo!==false||((OD.ore[d.id]||{}).voci||[]).some(v=>!v.del&&String(v.d).startsWith(f.m)))
-  .map(d=>({nome:d.nome,mese:f.m,voci:(OD.ore[d.id]||{}).voci,pers:(OD.ore[d.id]||{}).pers,E:OD.E,tutte:f.tutte}))}
-function odRep(){const b=$('odb'),f=OD.fr=OD.fr||{m:oggiL().slice(0,7),dip:'',tutte:true};
-  b.innerHTML=`<div class="flt"><input type="month" id="or1" value="${f.m}">${dipSel('or2',f.dip,'Tutti i dipendenti')}<label class="ck"><input type="checkbox" id="or3" ${f.tutte?'checked':''}> Includi ore non ancora approvate (segnate con *)</label><span style="flex:1"></span><button type="button" id="or4">Esporta Excel</button><button type="button" class="p" id="or5">Stampa</button></div><div id="orv"></div>`;
+  .map(d=>({nome:d.nome,mese:f.m,voci:(OD.ore[d.id]||{}).voci,pers:(OD.ore[d.id]||{}).pers}))}
+function odRep(){const b=$('odb'),f=OD.fr=OD.fr||{m:oggiL().slice(0,7),dip:''};
+  b.innerHTML=`<div class="flt"><input type="month" id="or1" value="${f.m}">${dipSel('or2',f.dip,'Tutti i dipendenti')}<span style="flex:1"></span><button type="button" id="or4">Esporta Excel</button><button type="button" class="p" id="or5">Stampa</button></div><div id="orv"></div>`;
   const L=odRepList(f);$('orv').innerHTML=L.map(repMonth).join('')||'<p class="em">Nessun dipendente.</p>';
-  b.onchange=e=>{const t=e.target;if(t.id==='or1')f.m=t.value||f.m;else if(t.id==='or2')f.dip=t.value;else if(t.id==='or3')f.tutte=t.checked;else return;odRep()};
+  b.onchange=e=>{const t=e.target;if(t.id==='or1')f.m=t.value||f.m;else if(t.id==='or2')f.dip=t.value;else return;odRep()};
   b.onclick=e=>{if(e.target.id==='or4')saveFile('report_ore_'+f.m+'.csv',repCsv(L),'text/csv');else if(e.target.id==='or5'){$('print').innerHTML=L.map(repMonth).join('');window.print()}}}
 const oggiL=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 function odAss(){const b=$('odb'),f=OD.fs=OD.fs||{m:oggiL().slice(0,7),dip:''};
@@ -393,7 +396,7 @@ function odDip(){const b=$('odb'),F=OD.dd=OD.dd||JSON.parse(JSON.stringify(OD.f)
       if(new Set(nm.map(x=>x.toLowerCase())).size!==nm.length){toast('Ci sono due dipendenti con lo stesso nome');return}
       F.dip.forEach(d=>d.nome=d.nome.trim());
       try{await VFS.write('dipendenti.json',JSON.stringify({v:1,admin:F.admin,dip:F.dip}))}catch(err){toast('Non salvato: cartella condivisa non raggiungibile');return}
-      OD.f=JSON.parse(JSON.stringify(F));OD.dd=null;F.dip.forEach(d=>OD.ore[d.id]=OD.ore[d.id]||{voci:[],pers:[]});
+      OD.f=JSON.parse(JSON.stringify(F));OD.dd=null;
       M.odOn=true;saveMeta();pubCodici();odDraw();toast('Dipendenti salvati')}}}
 // Solo nelle prove nel browser: il programma dei dipendenti si apre qui dentro e usa la stessa cartella simulata
 function openOrePreview(){const d=$('ovp');
@@ -406,9 +409,6 @@ function odImp(){const b=$('odb'),pub=M.odPub;
 ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del server è simulata qui. Per provare il programma dei dipendenti: <button type="button" id="oio">Apri Ore Dipendenti (prova)</button></p>':'<p class="rates">Crea sul server una cartella, ad esempio <b>\\\\SERVER\\ControlloLavori</b>, accessibile da tutti i PC, e sceglila qui e nel programma «Ore Dipendenti» di ogni dipendente (una sola volta per PC).</p>'}
 <h3 style="font-size:15px;margin:14px 0 6px">Lavori visibili ai dipendenti</h3>
 <p style="margin:0 0 6px">${pub?`Elenco pubblicato: <b>${pub.n}</b> lavori, aggiornato il ${new Date(pub.t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.`:'Elenco non ancora pubblicato.'} <button type="button" id="oip">Pubblica ora</button></p>
-<h3 style="font-size:15px;margin:14px 0 6px">Approvazione</h3>
-<label class="ck"><input type="checkbox" id="oia" ${M.odAuto?'checked':''}> Approva automaticamente le ore dei dipendenti (entrano subito nei lavori, senza controllo)</label>
-<p class="rates" style="margin:4px 0 0">Se attivo, il dipendente vede le ore già «Approvate» e non può più correggerle: in caso di errore le rifiuti tu dal pannello «Da approvare» (filtro «Approvate»).</p>
 <h3 style="font-size:15px;margin:14px 0 6px">Elenco lavori</h3>
 <label class="ck"><input type="checkbox" id="oif" ${M.odFin?'checked':''}> Mostra ai dipendenti anche i lavori in stato «Finito» (quelli «Non fare» non compaiono mai)</label>
 <p class="rates">L'elenco si aggiorna da solo a ogni modifica dei lavori. I dipendenti vedono solo codice, nome, cliente e se è un cantiere: non vedono importi né note.</p>
@@ -418,8 +418,10 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
     if(t.id==='oio')openOrePreview();
     else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
-  b.onchange=async e=>{if(e.target.id==='oia'){M.odAuto=e.target.checked;saveMeta();if(M.odAuto){await odLoad();odDraw();toast('Approvazione automatica attiva')}return}if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
-if(M.odOn){odLoad();pubCodici();setInterval(()=>{if(!$('od').open)odLoad()},120000)}
+  b.onchange=async e=>{if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
+if(M.odOn){odLoad();pubCodici()}
+// Aggiornamento continuo: ogni minuto e quando si torna sul programma
+setInterval(()=>{if(M.odOn&&!$('od').open)odLoad()},60000);addEventListener('focus',()=>{if(M.odOn&&!$('od').open)odLoad()});
 function ivCsv(R){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
   const L=[];R.forEach(r=>[...(r.iv||[])].sort((a,b)=>(a.d||'')>(b.d||'')?1:-1).forEach(x=>L.push([r.cod,r.nome,r.cliente,x.d,num(x.h),x.tr?'sì':'',num(x.km),num(x.sp),x.op,x.note,x.ok?'sì':'no',num(ivVal([x]))].map(q).join(';'))));
   return '\uFEFF'+[['Codice','Lavoro','Cliente','Data intervento','Ore','Trasferta','Km','Spese €','Operatore','Note','Contabilizzato','Valore stimato €'].map(q).join(';'),...L].join('\r\n')}
@@ -530,8 +532,8 @@ $('exp').onclick=async()=>{if(await saveFile(backupName(),backupData())){M.bk=Da
 function csvData(){
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
   const NF=F.filter(f=>f[2]==='num').map(f=>f[0]);
-  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi','Worksite','Interventi','Interventi da contabilizzare','Ore da contabilizzare','Ore dipendenti','di cui trasferta','Monte ore totale'];
-  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | '),r.ws?'sì':'',r.ws?(r.iv||[]).length:'',r.ws?ivOpen(r):'',r.ws?num((r.iv||[]).filter(x=>!x.ok).reduce((s,x)=>s+n(x.h),0)):'',num(c.D.h||''),num(c.D.tr||''),num(n(r.hTot)+c.D.h)].map(q).join(';')});
+  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi','Worksite','Interventi','Interventi da contabilizzare','Ore da contabilizzare','di cui ore dipendenti','di cui ore dipendenti in trasferta'];
+  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | '),r.ws?'sì':'',r.ws?(r.iv||[]).length:'',r.ws?ivOpen(r):'',r.ws?num((r.iv||[]).filter(x=>!x.ok).reduce((s,x)=>s+n(x.h),0)):'',num(c.D.h||''),num(c.D.tr||'')].map(q).join(';')});
   return '﻿'+[H.map(q).join(';'),...L].join('\r\n')}
 $('csv').onclick=()=>{if(!S.rows.length){toast('Nessun lavoro da esportare');return}saveFile('lavori_'+new Date().toISOString().slice(0,10)+'.csv',csvData(),'text/csv')};
 // Promemoria backup: se ci sono modifiche e l'ultimo backup ha più di 7 giorni (non serve col salvataggio automatico dell'app)
