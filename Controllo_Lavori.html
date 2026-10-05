@@ -417,7 +417,6 @@ function odImp(){const b=$('odb'),pub=M.odPub;
 ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del server è simulata qui. Per provare il programma dei dipendenti: <button type="button" id="oio">Apri Ore Dipendenti (prova)</button></p>':'<p class="rates">Crea sul server una cartella, ad esempio <b>\\\\SERVER\\ControlloLavori</b>, accessibile da tutti i PC, e sceglila qui e nel programma «Ore Dipendenti» di ogni dipendente (una sola volta per PC).</p>'}
 <h3 style="font-size:15px;margin:14px 0 6px">Lavori visibili ai dipendenti</h3>
 <p style="margin:0 0 6px">${pub?`Elenco pubblicato: <b>${pub.n}</b> lavori, aggiornato il ${new Date(pub.t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.`:'Elenco non ancora pubblicato.'} <button type="button" id="oip">Pubblica ora</button></p>
-<h3 style="font-size:15px;margin:14px 0 6px">Elenco lavori</h3>
 <label class="ck"><input type="checkbox" id="oif" ${M.odFin?'checked':''}> Mostra ai dipendenti anche i lavori in stato «Finito» (quelli «Non fare» non compaiono mai)</label>
 <p class="rates">L'elenco si aggiorna da solo a ogni modifica dei lavori. I dipendenti vedono solo codice, nome, cliente e se è un cantiere: non vedono importi né note.</p>
 <h3 style="font-size:15px;margin:14px 0 6px">PIN di apertura di Controllo Lavori</h3>

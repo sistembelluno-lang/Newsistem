@@ -72,8 +72,12 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Controllo Lavori e Ore Dipendenti ${{ steps.v.outputs.version }}
           make_latest: true
-          files: out/*.exe
+          files: |
+            out/*.exe
+            guida/Manuale_Controllo_Lavori.pdf
           body: |
+            **Manuale di installazione e d'uso**: `Manuale_Controllo_Lavori.pdf` (qui sotto, in Assets).
+
             **Quale file scaricare**
 
             | PC | Programma | File |
