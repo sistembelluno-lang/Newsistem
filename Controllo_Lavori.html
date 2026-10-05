@@ -62,6 +62,8 @@ tbody tr:hover td{filter:brightness(.95)}
 table.wt{min-width:640px}table.wt th{cursor:default}table.wt tbody tr{cursor:default}table.wt td{padding:4px 5px}table.wt input{padding:4px 6px;width:100%}
 table.wt input[type=checkbox]{width:18px;height:18px;padding:0}table.wt tr.nd td{border-top:2px solid var(--mu)}
 tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input:not([type=checkbox]){background:transparent;border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.kpi .kc{cursor:pointer}.kpi .kc:hover{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 7%,var(--card))}.kpi .kc small::after{content:" ›";color:var(--ac)}
+.ls{max-height:62vh;overflow:auto}.ls table.wt td{padding:7px 8px}.ls a{color:var(--ac)}
 .rem{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;border:1px solid var(--ac);border-radius:10px;background:color-mix(in srgb,var(--ac) 10%,transparent)}
 .ck{display:flex;align-items:center;gap:6px;cursor:pointer}.ck input{width:auto;padding:0;margin:0}
 #ds button{padding:2px 8px;font-size:12px}
@@ -104,6 +106,7 @@ tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input
 <dialog id="bk" style="width:min(640px,92vw)"></dialog>
 <dialog id="im" style="width:min(640px,92vw)"></dialog>
 <dialog id="wd" style="width:min(900px,96vw)"></dialog>
+<dialog id="ls" style="width:min(1000px,96vw)"></dialog>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
 
@@ -149,7 +152,7 @@ function render(){
   $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
   const sg=S.rows.map(r=>r.loc||'').join('|');if(sg!==mapSig){mapSig=sg;mapDraw()}
   const A=S.rows,tp=A.reduce((s,r)=>s+n(r.prev),0),tf=A.reduce((s,r)=>s+n(r.fatt),0),tr=A.reduce((s,r)=>s+Math.max(0,n(r.prev)-n(r.fatt)),0);
-  $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0)],['Interventi da contab.',A.reduce((q,r)=>q+(r.ws?ivOpen(r):0),0)]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
+  $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0),'sv'],['Interventi da contab.',A.reduce((q,r)=>q+(r.ws?ivOpen(r):0),0),'iv']].map(([l,v,k])=>`<div${k?` class="kc" data-k="${k}" title="Clicca per vedere l'elenco"`:''}><small>${l}</small><b>${v}</b></div>`).join('');
 }
 function openEdit(id){
   editing=id?S.rows.find(r=>r.id==id):{id:0};
@@ -204,6 +207,29 @@ function openWs(id){const r=S.rows.find(x=>x.id==id);if(!r)return;r.iv=r.iv||[];
     else if(t.id==='wcsv')saveFile('interventi_'+String(r.cod||r.id).replace(/[^\w-]+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv',ivCsv([r]),'text/csv');
     else if(t.id==='wcl')d.close()};
   d.onclose=()=>{r.iv=r.iv.filter(x=>x.d||x.h||x.km||x.note||x.op);save();render()};
+  if(!d.open)d.showModal()}
+// Elenchi trasversali aperti dai riquadri in alto: tutti i servizi aperti / tutti gli interventi da contabilizzare
+$('kpi').onclick=e=>{const k=e.target.closest('[data-k]')?.dataset.k;if(k)openList(k)};
+const dIt=v=>v?String(v).split('-').reverse().join('/'):'';
+function openList(k){const d=$('ls'),oggi=new Date().toISOString().slice(0,10),L=[],sv=k==='sv';
+  S.rows.forEach(r=>sv?(r.sv||[]).forEach(x=>{if(!x.ok)L.push({r,x})}):r.ws&&(r.iv||[]).forEach(x=>{if(!x.ok)L.push({r,x})}));
+  const K=o=>o.x.d||'9999';L.sort((a,b)=>K(a)>K(b)?1:K(a)<K(b)?-1:n(a.r.cod)-n(b.r.cod));
+  const late=x=>sv&&x.d&&x.d<oggi,lav=new Set(L.map(o=>o.r.id)).size;
+  const H=sv?['Scadenza','Servizio','Cod','Lavoro','Cliente','Stato','Fatto']:['Data','Cod','Lavoro','Ore','Km','Operatore','Note','Contab.'];
+  const row=(o,j)=>sv?`<td class="${late(o.x)?'neg':''}">${dIt(o.x.d)||'—'}${late(o.x)?' ⚠ scaduto':''}</td><td class="w">${esc(o.x.t)}</td><td>${esc(o.r.cod)}</td><td class="w"><a href="#" data-o="${o.r.id}">${esc(o.r.nome)||'(senza nome)'}</a></td><td>${esc(o.r.cliente)}</td><td><span class="tag">${esc(o.r.stato)}</span></td>`
+    :`<td>${dIt(o.x.d)||'—'}</td><td>${esc(o.r.cod)}</td><td class="w"><a href="#" data-o="${o.r.id}">${esc(o.r.nome)||'(senza nome)'}</a></td><td class="n">${o.x.h===''?'':fmt(n(o.x.h))}</td><td class="n">${o.x.km===''?'':fmt(n(o.x.km))}</td><td>${esc(o.x.op)}</td><td class="w">${esc(o.x.note)}</td>`;
+  d.innerHTML=`<h2 style="margin:0 0 4px;font-size:17px">${sv?'Servizi aperti':'Interventi da contabilizzare'}</h2><p class="rates" style="margin:0 0 10px">${L.length} ${sv?'servizi da svolgere':'interventi'} in ${lav} lavori, ordinati per ${sv?'scadenza':'data'}. ${sv?'Spunta «Fatto» quando il servizio è eseguito':'Spunta «Contab.» quando l\'intervento è fatturato'}; clicca il nome del lavoro per aprirlo.</p>
+<div class="tw ls"><table class="wt"><thead><tr>${H.map((h,i)=>`<th${i===H.length-1?' style="text-align:center"':''}>${h}</th>`).join('')}</tr></thead><tbody>${L.length?L.map((o,j)=>`<tr data-j="${j}">${row(o,j)}<td style="text-align:center"><input type="checkbox" data-j="${j}"></td></tr>`).join(''):`<tr><td colspan="${H.length}" class="em">${sv?'Nessun servizio aperto.':'Nessun intervento da contabilizzare.'}</td></tr>`}</tbody></table></div>
+${sv||!L.length?'':`<div class="calc"><span>Ore: <b>${fmt(L.reduce((s,o)=>s+n(o.x.h),0))}</b></span><span>Km: <b>${fmt(L.reduce((s,o)=>s+n(o.x.km),0))}</b></span><span>Valore stimato: <b>${eur(ivVal(L.map(o=>o.x)))}</b></span></div>`}
+<div class="ft"><button type="button" id="lscsv" ${L.length?'':'disabled'}>Esporta Excel</button><button type="button" class="p" id="lscl">Chiudi</button></div>`;
+  d.oninput=e=>{const t=e.target;if(t.dataset.j===undefined||t.type!=='checkbox')return;L[+t.dataset.j].x.ok=t.checked;t.closest('tr').classList.toggle('ivok',t.checked);save()};
+  d.onclick=e=>{const t=e.target;
+    if(t.dataset.o){e.preventDefault();d.close();sv?openEdit(t.dataset.o):openWs(t.dataset.o)}
+    else if(t.id==='lscl')d.close();
+    else if(t.id==='lscsv'){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
+      const R=sv?L.map(o=>[o.x.d,o.x.t,o.r.cod,o.r.nome,o.r.cliente,o.r.stato,o.x.ok?'sì':'no']):L.map(o=>[o.x.d,o.r.cod,o.r.nome,num(o.x.h),num(o.x.km),o.x.op,o.x.note,o.x.ok?'sì':'no']);
+      saveFile((sv?'servizi_aperti_':'interventi_da_contabilizzare_')+oggi+'.csv','﻿'+[H,...R].map(a=>a.map(q).join(';')).join('\r\n'),'text/csv')}};
+  d.onclose=()=>render();
   if(!d.open)d.showModal()}
 function ivCsv(R){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
   const L=[];R.forEach(r=>[...(r.iv||[])].sort((a,b)=>(a.d||'')>(b.d||'')?1:-1).forEach(x=>L.push([r.cod,r.nome,r.cliente,x.d,num(x.h),num(x.km),x.op,x.note,x.ok?'sì':'no',num(ivVal([x]))].map(q).join(';'))));
