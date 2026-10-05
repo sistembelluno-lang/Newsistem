@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "Controllo Lavori",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Gestionale per il controllo dei lavori",
   "main": "main.js",
   "author": "sistembelluno",
@@ -13,7 +13,8 @@
     "dist": "electron-builder --publish never && electron-builder --publish never -c electron-builder-ore.json",
     "dist:win": "electron-builder --win --publish never && electron-builder --win --publish never -c electron-builder-ore.json",
     "dist:mac": "electron-builder --mac --publish never && electron-builder --mac --publish never -c electron-builder-ore.json",
-    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json"
+    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json",
+    "dist:win7": "electron-builder --win --publish never -c electron-builder-win7.json && electron-builder --win --publish never -c electron-builder-ore-win7.json"
   },
   "build": {
     "appId": "it.sistembelluno.controllolavori",

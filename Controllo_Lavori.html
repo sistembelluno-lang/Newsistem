@@ -42,12 +42,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 .em{padding:30px;text-align:center;color:var(--mu)}
 .sv{display:flex;gap:6px;align-items:center;margin-bottom:6px;padding:6px;border-radius:8px;border:1px solid var(--bd)}
 .sv input:not([type]){flex:1;min-width:0}.sv input[type=checkbox]{width:18px;height:18px;padding:0}
-.sr{background:color-mix(in srgb,var(--ko) 14%,transparent);border-color:var(--ko)}
-.sg{background:color-mix(in srgb,var(--ok) 14%,transparent);border-color:var(--ok)}
+.sr{background:rgba(192,57,43,0.14);background:color-mix(in srgb,var(--ko) 14%,transparent);border-color:var(--ko)}
+.sg{background:rgba(26,127,75,0.14);background:color-mix(in srgb,var(--ok) 14%,transparent);border-color:var(--ok)}
 .tag.sr{color:var(--ko);font-weight:600}.tag.sg{color:var(--ok);font-weight:600}
 .rg{grid-template-columns:repeat(4,1fr) auto;align-items:end;margin-bottom:8px}
-tr.fin td{background:color-mix(in srgb,#3b9be6 15%,transparent)}
-tr.fat td{background:color-mix(in srgb,var(--ok) 20%,transparent)}
+tr.fin td{background:rgba(59,155,230,0.15);background:color-mix(in srgb,#3b9be6 15%,transparent)}
+tr.fat td{background:rgba(26,127,75,0.2);background:color-mix(in srgb,var(--ok) 20%,transparent)}
 tbody tr:hover td{filter:brightness(.95)}
 .hd{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:12px;align-items:start}
 @media(max-width:800px){.hd{grid-template-columns:1fr}}
@@ -61,8 +61,8 @@ tbody tr:hover td{filter:brightness(.95)}
 .wsc{text-align:center}.wsc input{width:18px;height:18px;padding:0;vertical-align:middle;cursor:pointer}.wsc .tag{cursor:pointer;margin-left:4px}
 table.wt{min-width:640px}table.wt th{cursor:default}table.wt tbody tr{cursor:default}table.wt td{padding:4px 5px}table.wt input{padding:4px 6px;width:100%}
 table.wt input[type=checkbox]{width:18px;height:18px;padding:0}table.wt tr.nd td{border-top:2px solid var(--mu)}
-tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input:not([type=checkbox]){background:transparent;border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
-.kpi .kc{cursor:pointer}.kpi .kc:hover{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 7%,var(--card))}.kpi .kc small::after{content:" ›";color:var(--ac)}
+tr.ivok td{background:rgba(26,127,75,0.22);background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input:not([type=checkbox]){background:transparent;border-color:rgba(26,127,75,0.45);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.kpi .kc{cursor:pointer}.kpi .kc:hover{border-color:var(--ac);background:rgba(31,95,191,0.07);background:color-mix(in srgb,var(--ac) 7%,var(--card))}.kpi .kc small::after{content:" ›";color:var(--ac)}
 .ls{max-height:62vh;overflow:auto}.ls table.wt td{padding:7px 8px}.ls a{color:var(--ac)}
 .tabs{display:flex;gap:2px;flex-wrap:wrap;border-bottom:1px solid var(--bd);margin:8px 0 12px}.tabs button{border:0;border-bottom:2px solid transparent;border-radius:0;background:none;padding:8px 12px}.tabs button.on{border-bottom-color:var(--ac);color:var(--ac);font-weight:600}
 .odh{display:flex;justify-content:space-between;align-items:center;gap:8px}.odh h2{margin:0;font-size:18px}#od .flt{align-items:center}.flt .ck input{flex:none;min-width:0}
@@ -79,11 +79,16 @@ tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input
 #print .rep{border:0;padding:0;margin:0;break-after:page;background:#fff;color:#000}#print .rep:last-child{break-after:auto}
 #print .rep th,#print .rep td{border-color:#888;padding:1px 4px;font-size:9.5pt;line-height:1.25}#print .rep h2{font-size:13pt}#print .rep h3{margin:8px 0 4px}#print .firme{margin-top:22px}#print .rep tr.we td,#print .rep tfoot td{background:#eee}#print .rep .rn{color:#444}.firme div{border-color:#000}@page{size:A4;margin:12mm}}
 /*REPORT-CSS-FINE*/
-.rem{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;border:1px solid var(--ac);border-radius:10px;background:color-mix(in srgb,var(--ac) 10%,transparent)}
+#lock{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center}
+#lock .lb{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:24px;width:min(360px,92vw);text-align:center}
+#lock input{font-size:22px;letter-spacing:6px;text-align:center;width:160px;margin:12px 0}
+.rem{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;border:1px solid var(--ac);border-radius:10px;background:rgba(31,95,191,0.1);background:color-mix(in srgb,var(--ac) 10%,transparent)}
 .ck{display:flex;align-items:center;gap:6px;cursor:pointer}.ck input{width:auto;padding:0;margin:0}
 #ds button{padding:2px 8px;font-size:12px}
 .pv{fill:var(--card);stroke:var(--bd);stroke-width:.7;vector-effect:non-scaling-stroke}
 </style>
+<script>/* Windows 7 (motore Chromium 108): color-mix non esiste; si tolgono quelle dichiarazioni e restano i colori rgba scritti subito prima */
+if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))document.querySelectorAll('style').forEach(s=>{s.textContent=s.textContent.replace(/;(background|border-color):color-mix\(in srgb,(var\(--\w+\)|#\w+) \d+%,(transparent|var\(--\w+\))\)/g,'')})</script>
 </head>
 <body>
 <main>
@@ -96,6 +101,7 @@ tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input
     <button id="exp">Esporta backup</button>
     <button id="csv">Esporta Excel</button>
     <button id="odbtn">👥 Ore dipendenti</button>
+    <button id="lkbtn" hidden title="Blocca il programma: per riaprirlo serve il PIN">🔒 Blocca</button>
     <input type="file" id="file" accept=".json,application/json" hidden>
   </div>
 </div>
@@ -128,6 +134,7 @@ tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
 <div id="print"></div>
+<div id="lock" hidden><form class="lb" onsubmit="return false"><h2 style="margin:0 0 4px;font-size:18px">Controllo Lavori</h2><p class="rates" style="margin:0">Programma riservato all'amministratore.<br>Inserisci il PIN di apertura.</p><input id="lki" type="password" inputmode="numeric" autocomplete="off" maxlength="8"><br><button class="p" id="lkb">Apri</button><p id="lke" class="neg" style="min-height:18px;margin:8px 0 0"></p></form></div>
 
 <script>
 /*CONDIVISO-INIZIO (da src/condiviso.js: non modificare qui)*/
@@ -220,7 +227,7 @@ function render(){
   L.sort((a,b)=>{const x=val(a),y=val(b);return (x>y?1:x<y?-1:0)*sortD});
   $('th').innerHTML='<tr>'+COLS.map(([k,l,c])=>`<th class="${c==='n'?'n':''}" data-k="${k}">${l}${sortK===k?(sortD>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
   $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="13" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
-  $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
+  $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:rgba(59,155,230,0.25);background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
   const sg=S.rows.map(r=>r.loc||'').join('|');if(sg!==mapSig){mapSig=sg;mapDraw()}
   const A=S.rows,tp=A.reduce((s,r)=>s+n(r.prev),0),tf=A.reduce((s,r)=>s+n(r.fatt),0),tr=A.reduce((s,r)=>s+Math.max(0,n(r.prev)-n(r.fatt)),0);
   $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0),'sv'],['Interventi da contab.',A.reduce((q,r)=>q+(r.ws?ivOpen(r):0),0),'iv']].map(([l,v,k])=>`<div${k?` class="kc" data-k="${k}" title="Clicca per vedere l'elenco"`:''}><small>${l}</small><b>${v}</b></div>`).join('');
@@ -412,10 +419,17 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
 <h3 style="font-size:15px;margin:14px 0 6px">Elenco lavori</h3>
 <label class="ck"><input type="checkbox" id="oif" ${M.odFin?'checked':''}> Mostra ai dipendenti anche i lavori in stato «Finito» (quelli «Non fare» non compaiono mai)</label>
 <p class="rates">L'elenco si aggiorna da solo a ogni modifica dei lavori. I dipendenti vedono solo codice, nome, cliente e se è un cantiere: non vedono importi né note.</p>
+<h3 style="font-size:15px;margin:14px 0 6px">PIN di apertura di Controllo Lavori</h3>
+<p style="margin:0 0 6px">${M.lockPin?'<span class="pos">Attivo ✓</span>: il programma chiede il PIN all\'apertura e dopo 20 minuti di inattività.':'<span class="neg">Non attivo</span>: chi usa questo PC può aprire il programma.'} <button type="button" id="oil">${M.lockPin?'Cambia PIN':'Imposta PIN di apertura'}</button>${M.lockPin?' <button type="button" id="oiu">Togli PIN</button>':''}</p>
+<p class="rates" style="margin:0 0 6px">Usa un PIN diverso da quelli dei dipendenti. Se lo dimentichi, i dati non si perdono (sono nel file del salvataggio automatico): vedi la guida.</p>
 <h3 style="font-size:15px;margin:14px 0 6px">Riservatezza</h3>
 <p class="rates" style="margin:0">I PIN sono salvati solo come impronta cifrata. I file nella cartella sono però leggibili da chi ha accesso alla cartella: per una riservatezza completa chiedi al tecnico di dare ai dipendenti solo lettura sulla cartella e scrittura sulla sottocartella «ore», e a te il controllo completo.</p>`;
   b.onclick=async e=>{const t=e.target;
-    if(t.id==='oio')openOrePreview();
+    if(t.id==='oil'){const v=await askText('Nuovo PIN di apertura (da 4 a 8 cifre):','es. 7350');if(v===null)return;if(!/^\d{4,8}$/.test(v.trim())){toast('Il PIN deve avere da 4 a 8 cifre');return}
+      const v2=await askText('Ripeti il PIN per conferma:','');if(v2===null)return;if(v2.trim()!==v.trim()){toast('I due PIN non coincidono');return}
+      M.lockPin=await hpin('apertura',v);saveMeta();lockUI();odDraw();toast('PIN di apertura attivo')}
+    else if(t.id==='oiu'){if(await ask('Togliere il PIN di apertura? Chiunque usi questo PC potrà aprire Controllo Lavori.')){delete M.lockPin;saveMeta();lockUI();odDraw();toast('PIN di apertura tolto')}}
+    else if(t.id==='oio')openOrePreview();
     else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
   b.onchange=async e=>{if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
@@ -559,6 +573,17 @@ async function deskInit(){if(!window.desktop)return;let r;try{r=await window.des
     if(p&&(!S.rows.length||r.mtime>(M.ch||0))){applyData(p,r.mtime);toast(p.rows.length+' lavori caricati da '+r.file);deskShow({ok:true,file:r.file,at:r.mtime});return}
     if(!p){deskShow(await window.desktop.save(backupData(),{keepOld:true}));return}}
   deskShow(await window.desktop.save(backupData()))}
+// PIN di apertura: chi si siede a questo PC non apre Controllo Lavori senza il PIN dell'amministratore.
+// Si blocca anche dopo 20 minuti senza attività. L'impronta del PIN sta nei dati locali del programma.
+let lkTries=0,lkAct=Date.now();
+function lockNow(){if(!M.lockPin)return;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('lock').hidden=false;$('lki').value='';$('lke').textContent='';setTimeout(()=>$('lki').focus(),50)}
+$('lkb').onclick=async()=>{const v=$('lki').value.trim();if(!v)return;if(lkTries>=5){$('lke').textContent='Troppi tentativi: attendi 30 secondi';return}
+  if(await hpin('apertura',v)===M.lockPin){lkTries=0;lkAct=Date.now();$('lock').hidden=true}else{lkTries++;if(lkTries>=5)setTimeout(()=>lkTries=0,30000);$('lke').textContent='PIN errato';$('lki').select()}};
+$('lkbtn').onclick=lockNow;
+['pointerdown','keydown'].forEach(ev=>addEventListener(ev,()=>{if($('lock').hidden)lkAct=Date.now()},true));
+setInterval(()=>{if(M.lockPin&&$('lock').hidden&&Date.now()-lkAct>20*60000)lockNow()},30000);
+function lockUI(){$('lkbtn').hidden=!M.lockPin}
+lockUI();if(M.lockPin)lockNow();
 render();remind();deskInit();
 </script>
 </body>

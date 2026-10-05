@@ -16,9 +16,12 @@ I due programmi si scambiano i dati attraverso una **cartella condivisa sul serv
 Ogni file ha un solo scrittore, quindi non ci sono sovrascritture. Se il server non risponde, il programma dipendente conserva le registrazioni sul PC e le invia appena possibile.
 **Niente approvazione**: quello che il dipendente inserisce entra da solo nel lavoro appena Controllo Lavori rilegge la cartella (all'avvio, ogni minuto e quando si torna sul programma). Le ore si sommano a **Ore totali** (e anche a **Ore trasferta** se il dipendente spunta «Ore in trasferta»), i km a **Km**, le spese a **Extra €**; se il dipendente modifica o cancella, il lavoro si corregge da solo. Nei cantieri la registrazione compare anche tra gli interventi Worksite; negli altri lavori nel registro «Ore registrate dai dipendenti» della scheda. Mentre una scheda è aperta non si tocca nulla, e un file dipendente illeggibile non toglie mai ore.
 Nel pannello **👥 Ore dipendenti** l'amministratore vede tutte le registrazioni, crea dipendenti e PIN, vede ferie/permessi/note e stampa il **report mensile** per dipendente (per giorno e per lavoro, con trasferta e firme) o lo esporta in Excel.
+Controllo Lavori può chiedere un **PIN di apertura** (👥 Ore dipendenti → Impostazioni), anche dopo 20 minuti di inattività.
 Il codice comune ai due HTML sta in `src/` e si copia nei file con `npm run sync`.
 
 ## Scaricare l'eseguibile
+**Windows 7 a 32 bit**: usare i file `…-Windows7-32bit-…` (artifact `Programmi-Windows7-32bit`), costruiti con Electron 22, l'ultima versione che supporta Windows 7; funzionano anche su Windows 10/11.
+
 Ogni push su GitHub avvia il workflow **Build eseguibili** (scheda *Actions*). A fine build, nella pagina del run, sezione *Artifacts*:
 - `Controllo-Lavori-Windows`: `Controllo-Lavori-…` e `Ore-Dipendenti-…`, ciascuno in versione `-portable.exe` (si avvia senza installare) e `-setup.exe` (installer);
 - `Controllo-Lavori-macOS`: `.dmg`;

@@ -1,0 +1,41 @@
+{
+  "appId": "it.sistembelluno.oredipendenti",
+  "productName": "Ore Dipendenti",
+  "electronVersion": "22.3.27",
+  "extraMetadata": {
+    "name": "ore-dipendenti",
+    "productName": "Ore Dipendenti"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "Ore_Dipendenti.html"
+  ],
+  "directories": {
+    "output": "dist"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "ia32"
+        ]
+      }
+    ]
+  },
+  "portable": {
+    "artifactName": "Ore-Dipendenti-${version}-Windows7-32bit-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "Ore-Dipendenti-${version}-Windows7-32bit-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}
