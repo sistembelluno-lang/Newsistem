@@ -1,0 +1,36 @@
+{
+  "name": "controllo-lavori",
+  "productName": "Controllo Lavori",
+  "version": "1.0.0",
+  "description": "Gestionale per il controllo dei lavori",
+  "main": "main.js",
+  "author": "sistembelluno",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac",
+    "dist:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "it.sistembelluno.controllolavori",
+    "productName": "Controllo Lavori",
+    "files": ["main.js", "Controllo_Lavori.html"],
+    "directories": { "output": "dist" },
+    "win": { "target": ["portable", "nsis"] },
+    "portable": { "artifactName": "Controllo-Lavori-${version}-portable.exe" },
+    "nsis": {
+      "artifactName": "Controllo-Lavori-${version}-setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "mac": { "target": ["dmg"], "category": "public.app-category.business" },
+    "linux": { "target": ["AppImage"] }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}
