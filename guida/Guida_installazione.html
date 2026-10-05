@@ -1,0 +1,260 @@
+<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Guida installazione</title><style>
+:root{--bg:#fff;--tx:#1c2330;--mu:#5b6575;--bd:#d5dae2;--hd:#eef1f5;--ac:#1f5fbf}
+@media (prefers-color-scheme:dark){:root{--bg:#12161c;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--hd:#1d232c;--ac:#6ea3f5}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:24px 16px 48px}h1{font-size:26px;margin:0 0 4px}h1+p{color:var(--mu);margin:0 0 20px}
+h2{font-size:20px;margin:32px 0 10px;padding-top:12px;border-top:2px solid var(--ac)}a{color:var(--ac)}
+table{border-collapse:collapse;width:100%;margin:10px 0 14px;font-size:14px}th,td{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--hd)}
+code{background:var(--hd);padding:1px 5px;border-radius:4px;font-size:.92em;word-break:break-all}li{margin:3px 0}li.task{list-style:none;margin-left:-18px}
+.tw{overflow-x:auto}
+@media print{:root{--bg:#fff;--tx:#000;--mu:#444;--bd:#999;--hd:#eee;--ac:#1f5fbf}body{font-size:11.5pt}main{max-width:none;padding:0}.pb{break-after:page}h2{break-after:avoid}tr,li{break-inside:avoid}@page{size:A4;margin:14mm}}
+</style></head><body><main><h1>Guida installazione: Controllo Lavori e Ore Dipendenti</h1>
+<p>Versione 1.7.0 · 5 ottobre 2026</p>
+<h2>Panoramica</h2>
+<p>Due programmi e una cartella sul server: i dipendenti inseriscono le ore con <strong>Ore Dipendenti</strong>, l&#39;amministratore gestisce tutto con <strong>Controllo Lavori</strong>, installato solo sul suo PC.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Programma</th>
+<th>Dove si installa</th>
+<th>Chi lo usa</th>
+<th>A cosa serve</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Controllo Lavori</td>
+<td>solo il PC dell&#39;amministratore</td>
+<td>amministratore</td>
+<td>lavori, importi, preventivi, fatture, dipendenti e PIN, report mensili per le buste paga</td>
+</tr>
+<tr>
+<td>Ore Dipendenti</td>
+<td>ogni PC dei dipendenti</td>
+<td>dipendenti, ciascuno con il proprio PIN</td>
+<td>inserire le proprie ore e assenze</td>
+</tr>
+</tbody></table></div>
+<p><strong>Cosa può fare un dipendente</strong> in Ore Dipendenti, e nient&#39;altro:</p>
+<ul>
+<li>inserire le ore lavorate su un lavoro, scelto dall&#39;elenco dei codici;</li>
+<li>spuntare <strong>Ore in trasferta</strong>;</li>
+<li>registrare le <strong>uscite in cantiere</strong> sui lavori Worksite;</li>
+<li>inserire <strong>km</strong> e <strong>spese</strong>;</li>
+<li>segnare <strong>ferie</strong> e <strong>permessi</strong> (oltre a malattia e a una nota del giorno);</li>
+<li>vedere, correggere e stampare solo le <strong>proprie</strong> registrazioni.</li>
+</ul>
+<p><strong>Cosa non può fare un dipendente:</strong></p>
+<ul>
+<li>aprire Controllo Lavori: non è installato sul suo PC e, sul PC dell&#39;amministratore, all&#39;apertura chiede un PIN che conosce solo l&#39;amministratore;</li>
+<li>vedere importi, preventivi, fatturato o note dei lavori: dalla cartella condivisa legge solo codice, nome e cliente;</li>
+<li>vedere le ore dei colleghi o cambiare dipendenti, PIN ed elenco dei lavori.</li>
+</ul>
+<p>Le ore inserite dai dipendenti entrano da sole nel lavoro, senza approvazione: si sommano a <strong>Ore totali</strong>, anche a <strong>Ore trasferta</strong> se c&#39;è la spunta, i km a <strong>Km</strong> e le spese a <strong>Extra €</strong>.</p>
+<h2>File da scaricare</h2>
+<p>Tutti i programmi si scaricano dalla pagina <a href="https://github.com/sistembelluno-lang/Newsistem/releases/latest">Controllo Lavori e Ore Dipendenti, ultima versione</a>, in fondo alla voce <strong>Assets</strong>. Se GitHub chiede di accedere, usa l&#39;account <strong>sistembelluno-lang</strong>.</p>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>PC</th>
+<th>Programma</th>
+<th>File da scaricare</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Amministratore (Windows 7, 32 bit)</td>
+<td>Controllo Lavori</td>
+<td><a href="https://github.com/sistembelluno-lang/Newsistem/releases/download/v1.7.0/Controllo-Lavori-1.7.0-Windows7-32bit-setup.exe">Controllo-Lavori-1.7.0-Windows7-32bit-setup.exe</a></td>
+</tr>
+<tr>
+<td>Ogni dipendente (Windows 7, 8, 10 o 11)</td>
+<td>Ore Dipendenti</td>
+<td><a href="https://github.com/sistembelluno-lang/Newsistem/releases/download/v1.7.0/Ore-Dipendenti-1.7.0-Windows7-32bit-setup.exe">Ore-Dipendenti-1.7.0-Windows7-32bit-setup.exe</a></td>
+</tr>
+</tbody></table></div>
+<ul>
+<li>I file <strong>Windows7-32bit</strong> funzionano su tutti i Windows dal 7 in poi: usa questi su tutti i PC, così la versione è la stessa ovunque.</li>
+<li>I file <strong>-portable.exe</strong> partono senza installazione (utili per una prova); i <strong>-setup.exe</strong> installano il programma con l&#39;icona nel menu Start: consigliati.</li>
+<li>Non dare mai ai dipendenti il file <strong>Controllo-Lavori</strong>: serve solo sul PC dell&#39;amministratore.</li>
+</ul>
+<p>Copia <code>Ore-Dipendenti-1.7.0-Windows7-32bit-setup.exe</code> in una cartella del server, ad esempio <code>\\SERVER\Programmi</code>: da lì lo installi su ogni PC senza chiavette.</p>
+<h2>Passo 1 · Server (per il tecnico, circa 10 minuti)</h2>
+<p>Sul server servono due cartelle: una condivisa con i dipendenti e una privata dell&#39;amministratore.</p>
+<ol>
+<li>Crea la cartella condivisa <strong><code>\\SERVER\ControlloLavori</code></strong> e, al suo interno, la sottocartella <strong><code>ore</code></strong>.</li>
+<li>Crea la cartella privata <strong><code>\\SERVER\Amministrazione\ControlloLavori</code></strong>, accessibile solo all&#39;amministratore. Qui finiscono i dati veri dei lavori.</li>
+<li>Crea <strong><code>\\SERVER\Programmi</code></strong> per l&#39;installatore di Ore Dipendenti.</li>
+<li>Imposta i permessi come in tabella.</li>
+<li>Includi le tre cartelle nei backup periodici del server.</li>
+</ol>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Cartella</th>
+<th>Amministratore</th>
+<th>Dipendenti</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>\\SERVER\ControlloLavori</code></td>
+<td>controllo completo</td>
+<td>sola lettura</td>
+</tr>
+<tr>
+<td><code>\\SERVER\ControlloLavori\ore</code></td>
+<td>controllo completo</td>
+<td>modifica</td>
+</tr>
+<tr>
+<td><code>\\SERVER\Amministrazione\ControlloLavori</code></td>
+<td>controllo completo</td>
+<td>nessun accesso</td>
+</tr>
+<tr>
+<td><code>\\SERVER\Programmi</code></td>
+<td>controllo completo</td>
+<td>sola lettura</td>
+</tr>
+</tbody></table></div>
+<p>Con questi permessi un dipendente può scrivere solo le proprie ore e non può modificare l&#39;elenco dei dipendenti, i PIN o l&#39;elenco dei lavori. Se i PC usano un utente Windows comune, il tecnico assegna i permessi &quot;dipendenti&quot; a quell&#39;utente.</p>
+<h2>Passo 2 · PC dell&#39;amministratore (Windows 7, 32 bit)</h2>
+<p>Si fa una volta sola, in circa 15 minuti. Tieni a portata di mano il tuo backup <code>.json</code> e i nomi dei dipendenti.</p>
+<p><strong>Installare il programma</strong></p>
+<ol>
+<li>Scarica <code>Controllo-Lavori-1.7.0-Windows7-32bit-setup.exe</code> (vedi &quot;File da scaricare&quot;) e fai doppio clic.</li>
+<li>Se compare un avviso di sicurezza, scegli <strong>Esegui</strong> (su Windows 10/11: &quot;Ulteriori informazioni&quot; → &quot;Esegui comunque&quot;).</li>
+<li>Lascia la cartella proposta, premi <strong>Installa</strong>, poi <strong>Fine</strong>. Si apre Controllo Lavori.</li>
+</ol>
+<p><strong>Caricare i tuoi dati</strong></p>
+<ol start="4">
+<li>Premi <strong>Importa dati</strong> → <strong>Scegli file .json…</strong> e scegli il tuo backup. Va fatto solo la prima volta: da qui in poi ogni modifica si salva da sola.</li>
+<li>Sotto le tariffe c&#39;è la riga &quot;Salvataggio automatico in …&quot;. Premi <strong>Cambia cartella</strong> e scegli la cartella privata <strong><code>\\SERVER\Amministrazione\ControlloLavori</code></strong>. Non scegliere mai <code>\\SERVER\ControlloLavori</code>, che è quella dei dipendenti.</li>
+</ol>
+<p><strong>Proteggere il programma</strong></p>
+<ol start="6">
+<li>Premi <strong>👥 Ore dipendenti</strong> → <strong>Impostazioni</strong> → <strong>Imposta PIN di apertura</strong>. Scegli un PIN di 4-8 cifre diverso da quelli dei dipendenti e ripetilo. Da ora Controllo Lavori chiede il PIN a ogni apertura e dopo 20 minuti senza attività; con <strong>🔒 Blocca</strong> lo chiudi subito quando ti allontani.</li>
+<li>Proteggi anche il tuo utente di Windows con una password.</li>
+</ol>
+<p><strong>Collegare il server</strong></p>
+<ol start="8">
+<li>Sempre in <strong>Impostazioni</strong>, alla voce &quot;Cartella condivisa sul server&quot;, premi <strong>Scegli cartella…</strong>. Nella finestra scrivi <code>\\SERVER\ControlloLavori</code> nella casella <strong>Cartella</strong>, premi Invio e poi <strong>Seleziona cartella</strong>.</li>
+</ol>
+<p><strong>Creare i dipendenti</strong></p>
+<ol start="9">
+<li>Apri la scheda <strong>Dipendenti e PIN</strong>.</li>
+<li>Premi <strong>Imposta PIN amministratore</strong>: è il PIN con cui entri nel programma Ore Dipendenti di qualsiasi PC.</li>
+<li>Per ogni persona: <strong>+ Aggiungi dipendente</strong>, scrivi nome e cognome, premi <strong>Imposta</strong> e scegli il suo PIN.</li>
+<li>Nella colonna &quot;Ore su lavori&quot; scegli <strong>Tutti i lavori</strong> oppure <strong>Solo cantieri (Worksite)</strong>; lascia spuntato <strong>Ferie, permessi, malattia</strong> e <strong>Attivo</strong>.</li>
+<li>Premi <strong>Salva dipendenti</strong>. L&#39;elenco dei lavori viene pubblicato sul server in automatico.</li>
+<li>Comunica a ciascuno il suo PIN di persona.</li>
+</ol>
+<p>Controllo Lavori va installato <strong>solo su questo PC</strong>: su un secondo PC avrebbe dati separati.</p>
+<h2>Passo 3 · PC di ogni dipendente</h2>
+<p>Circa 5 minuti a PC, da fare con il dipendente presente perché serve il suo PIN per la prova finale.</p>
+<ol>
+<li>Dal PC del dipendente apri <code>\\SERVER\Programmi</code> e fai doppio clic su <strong><code>Ore-Dipendenti-1.7.0-Windows7-32bit-setup.exe</code></strong>.</li>
+<li>Se compare un avviso di sicurezza: <strong>Esegui</strong> (su Windows 10/11 &quot;Ulteriori informazioni&quot; → &quot;Esegui comunque&quot;). Premi <strong>Installa</strong>, poi <strong>Fine</strong>.</li>
+<li>Al primo avvio il programma chiede la <strong>cartella condivisa</strong>: premi <strong>Scegli cartella…</strong>, scrivi <code>\\SERVER\ControlloLavori</code>, premi Invio e <strong>Seleziona cartella</strong>. Si fa una sola volta per PC.</li>
+<li>Compare &quot;Chi sei?&quot; con i nomi dei dipendenti. Il dipendente sceglie il suo nome e scrive il suo PIN.</li>
+<li><strong>Prova:</strong> inserisce un&#39;ora su un lavoro qualsiasi e preme <strong>Salva</strong>. Sul tuo PC, entro un minuto, le ore compaiono nella scheda di quel lavoro, in <strong>Ore totali</strong>. Poi il dipendente cancella la prova con ✕ e le ore spariscono anche dal lavoro.</li>
+<li>Il dipendente preme <strong>Esci</strong>.</li>
+</ol>
+<p>Su questi PC <strong>non va installato Controllo Lavori</strong>. Il programma Ore Dipendenti non contiene importi, preventivi né dati dei lavori: legge dal server solo codice, nome e cliente.</p>
+<div class="pb"></div>
+
+<h2>Guida per i dipendenti (da stampare)</h2>
+<p>Ogni giorno, o almeno a fine settimana, inserisci le tue ore nel programma <strong>Ore Dipendenti</strong>. Quello che salvi arriva subito in ufficio.</p>
+<p><strong>Entrare</strong></p>
+<ol>
+<li>Apri <strong>Ore Dipendenti</strong> dal menu Start.</li>
+<li>Clicca il tuo nome, scrivi il tuo <strong>PIN</strong> e premi <strong>Entra</strong>. Il PIN è personale: non darlo ai colleghi.</li>
+</ol>
+<p><strong>Ore su un lavoro</strong></p>
+<ol start="3">
+<li><strong>Data</strong>: il giorno in cui hai lavorato (di solito è già oggi).</li>
+<li><strong>Tipo</strong>: &quot;Ore su lavoro&quot;.</li>
+<li><strong>Lavoro</strong>: scrivi il codice o il nome e sceglilo dall&#39;elenco che compare.</li>
+<li><strong>Ore</strong>: le ore lavorate quel giorno su quel lavoro, anche con i decimali (es. 7,5).</li>
+<li>Se quel giorno eri in trasferta, spunta <strong>Ore in trasferta</strong>.</li>
+<li><strong>Km</strong> e <strong>Spese €</strong>, se ci sono; <strong>Note</strong> facoltative.</li>
+<li>Premi <strong>Salva</strong>. Se hai lavorato su più lavori nello stesso giorno, fai una riga per ciascuno.</li>
+</ol>
+<p><strong>Uscite in cantiere</strong>: per i lavori segnati &quot;cantiere&quot; nell&#39;elenco, sotto compare &quot;Cantiere: verrà registrata come uscita in cantiere&quot; e il pulsante diventa <strong>Salva uscita in cantiere</strong>. Si compila come le ore normali.</p>
+<p><strong>Ferie e permessi</strong></p>
+<ol start="10">
+<li>In <strong>Tipo</strong> scegli <strong>Ferie</strong> o <strong>Permesso</strong> (o Malattia), metti la data e le ore (per un giorno intero di ferie: 8) e premi <strong>Salva</strong>.</li>
+<li><strong>Nota del giorno</strong>: per segnalare qualcosa all&#39;ufficio (es. &quot;visita medica ore 9&quot;).</li>
+</ol>
+<p><strong>Controllare e correggere</strong></p>
+<ol start="12">
+<li>Sotto vedi il tuo mese giorno per giorno, con i totali in alto. Con <strong>‹ ›</strong> cambi mese.</li>
+<li>Per correggere premi <strong>✎</strong>, modifica e salva; per cancellare premi <strong>✕</strong>. La correzione arriva in ufficio da sola.</li>
+<li><strong>Stampa report del mese</strong> stampa il tuo riepilogo.</li>
+<li>Alla fine premi <strong>Esci</strong>.</li>
+</ol>
+<p>Se compare &quot;Server non raggiungibile&quot;, continua pure: le ore restano sul PC e partono da sole quando il server torna disponibile.</p>
+<div class="pb"></div>
+
+<h2>Uso quotidiano e situazioni frequenti</h2>
+<p>L&#39;amministratore non deve fare nulla perché le ore arrivino: Controllo Lavori rilegge il server all&#39;apertura, ogni minuto e quando ci si torna sopra. Le schede dei lavori aperte non vengono toccate finché non le chiudi.</p>
+<p><strong>Dove guardare</strong></p>
+<ul>
+<li><strong>Scheda del lavoro</strong>: Ore totali e Ore trasferta comprendono già le ore dei dipendenti; sotto, la riga &quot;Dalle ore dei dipendenti&quot; e l&#39;elenco con data, dipendente, ore, km e spese. Nei cantieri le uscite compaiono anche nella tabella Worksite (segnate 👤).</li>
+<li><strong>👥 Ore dipendenti → Registrazioni</strong>: tutto ciò che hanno inserito, per dipendente e mese.</li>
+<li><strong>👥 Ore dipendenti → Ferie, permessi e note</strong>: assenze e note del mese.</li>
+<li><strong>👥 Ore dipendenti → Report mensile</strong>: scegli mese e dipendente (o tutti), poi <strong>Stampa</strong> (un foglio A4 a testa con le firme) o <strong>Esporta Excel</strong> per il consulente delle buste paga.</li>
+</ul>
+<div class="tw"><table>
+<thead>
+<tr>
+<th>Situazione</th>
+<th>Cosa fare</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Nuovo dipendente</td>
+<td>👥 → Dipendenti e PIN → + Aggiungi dipendente → Imposta PIN → Salva dipendenti; poi Passo 3 sul suo PC</td>
+</tr>
+<tr>
+<td>Dipendente che dimentica il PIN</td>
+<td>👥 → Dipendenti e PIN → Cambia accanto al nome → Salva dipendenti</td>
+</tr>
+<tr>
+<td>Dipendente che lascia l&#39;azienda</td>
+<td>Togli la spunta Attivo e salva: le sue ore restano nei report</td>
+</tr>
+<tr>
+<td>Inserire ore al posto di un dipendente</td>
+<td>Apri Ore Dipendenti, scegli Amministratore, PIN amministratore, poi il dipendente in alto</td>
+</tr>
+<tr>
+<td>Nuovo lavoro</td>
+<td>Crealo in Controllo Lavori: compare da solo nell&#39;elenco dei dipendenti (i lavori Finito e Non fare no)</td>
+</tr>
+<tr>
+<td>Ore con lavoro non trovato (⚠ sul pulsante 👥)</td>
+<td>Il lavoro è stato cancellato o ha cambiato codice: ripristina il codice o fai correggere la riga al dipendente</td>
+</tr>
+<tr>
+<td>Server spento</td>
+<td>I dipendenti continuano: le ore partono quando il server torna; nessuna ora viene tolta ai lavori</td>
+</tr>
+<tr>
+<td>PC dell&#39;amministratore spento</td>
+<td>Le ore entrano nei lavori alla prossima apertura di Controllo Lavori</td>
+</tr>
+<tr>
+<td>Nuova versione dei programmi</td>
+<td>Esegui il nuovo setup sopra al vecchio: dati e impostazioni restano</td>
+</tr>
+<tr>
+<td>PIN di apertura dimenticato</td>
+<td>Chiudi Controllo Lavori, cancella la cartella <code>C:\Users\&lt;tuo utente&gt;\AppData\Roaming\Controllo Lavori\Local Storage</code> e riapri: i lavori si ricaricano dal salvataggio automatico sul server; poi imposta un nuovo PIN</td>
+</tr>
+</tbody></table></div>
+<p><strong>Prima di partire con tutti</strong></p>
+<ul>
+<li><input disabled="" type="checkbox"> Una settimana di prova con 1-2 dipendenti</li>
+<li><input disabled="" type="checkbox"> <strong>Esporta backup</strong> dal tuo programma il primo giorno e conservalo</li>
+<li><input disabled="" type="checkbox"> Controllare che le cartelle del server siano nei backup</li>
+</ul>
+</main></body></html>
