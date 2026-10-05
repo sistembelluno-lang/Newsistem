@@ -9,6 +9,11 @@ on:
 permissions:
   contents: write
 
+# Una nuova spinta annulla la compilazione precedente ancora in corso
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:

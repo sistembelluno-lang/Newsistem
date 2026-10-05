@@ -323,6 +323,7 @@ function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=
   try{await VFS.write('codici.json',JSON.stringify({agg:Date.now(),lav:L}));M.odPub={t:Date.now(),n:L.length};saveMeta()}catch(e){}},800)}
 async function odLoad(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
   OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};
+  if(OD.f.dip.length&&!M.odOn){M.odOn=true;saveMeta();pubCodici()}
   const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',null);OD.ore=O}
   catch(e){OD.err=String(e&&e.message||e);return false}
   odSync();return true}
@@ -433,7 +434,7 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
     else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
   b.onchange=async e=>{if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
-if(M.odOn){odLoad();pubCodici()}
+if(M.odOn){odLoad();pubCodici()}else if(!VFS.sim)VFS.get().then(g=>{if(g&&g.dir)odLoad()}).catch(()=>{})
 // Aggiornamento continuo: ogni minuto e quando si torna sul programma
 setInterval(()=>{if(M.odOn&&!$('od').open)odLoad()},60000);addEventListener('focus',()=>{if(M.odOn&&!$('od').open)odLoad()});
 function ivCsv(R){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
