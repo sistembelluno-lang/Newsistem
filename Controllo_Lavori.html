@@ -58,6 +58,10 @@ tbody tr:hover td{filter:brightness(.95)}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600}
 .mh button{padding:2px 9px}
 #mi{font-size:12px;margin-top:6px;color:var(--mu);min-height:32px}#mi a{color:var(--ac)}
+.wsc{text-align:center}.wsc input{width:18px;height:18px;padding:0;vertical-align:middle;cursor:pointer}.wsc .tag{cursor:pointer;margin-left:4px}
+table.wt{min-width:640px}table.wt th{cursor:default}table.wt tbody tr{cursor:default}table.wt td{padding:4px 5px}table.wt input{padding:4px 6px;width:100%}
+table.wt input[type=checkbox]{width:18px;height:18px;padding:0}table.wt tr.nd td{border-top:2px solid var(--mu)}
+tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input:not([type=checkbox]){background:transparent;border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
 .rem{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;border:1px solid var(--ac);border-radius:10px;background:color-mix(in srgb,var(--ac) 10%,transparent)}
 .ck{display:flex;align-items:center;gap:6px;cursor:pointer}.ck input{width:auto;padding:0;margin:0}
 #ds button{padding:2px 8px;font-size:12px}
@@ -89,7 +93,7 @@ tbody tr:hover td{filter:brightness(.95)}
   <select id="fs"><option value="">Tutti gli stati</option></select>
   <select id="fd"><option value="">Tutte le direzioni</option></select>
   <select id="fm"><option value="">Tutte le materie</option></select>
-  <select id="ff"><option value="">Altri filtri: nessuno</option><option value="rim">Con rimanente da fatturare</option><option value="ecc">Fatturato oltre preventivo</option><option value="svc">Con servizi non eseguiti</option></select>
+  <select id="ff"><option value="">Altri filtri: nessuno</option><option value="rim">Con rimanente da fatturare</option><option value="ecc">Fatturato oltre preventivo</option><option value="svc">Con servizi non eseguiti</option><option value="ws">Solo cantieri (Worksite)</option><option value="wsd">Cantieri con interventi da contabilizzare</option></select>
 </div>
 <div class="tw"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
 <p class="rates" id="cnt"></p>
@@ -99,6 +103,7 @@ tbody tr:hover td{filter:brightness(.95)}
 <dialog id="rd"></dialog>
 <dialog id="bk" style="width:min(640px,92vw)"></dialog>
 <dialog id="im" style="width:min(640px,92vw)"></dialog>
+<dialog id="wd" style="width:min(900px,96vw)"></dialog>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
 
@@ -125,24 +130,26 @@ function svb(r){const v=r.sv||[];if(!v.length)return'';const d=v.filter(x=>x.ok)
 const MK=KEY+'_meta';let M={};try{M=JSON.parse(localStorage.getItem(MK))||{}}catch(e){}
 function saveMeta(){try{localStorage.setItem(MK,JSON.stringify(M))}catch(e){}}
 function store(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Salvataggio nel browser non riuscito: esporta un backup')}}
+const ivOpen=r=>(r.iv||[]).filter(x=>!x.ok).length;
+function wsb(r){const t=(r.iv||[]).length,o=ivOpen(r);return`<span class="tag ${!t?'':o?'sr':'sg'}" data-wo="${r.id}" title="Apri gli interventi">${t?t+' interv.'+(o?' · '+o+' da contab.':' ✓'):'apri'}</span>`}
 function save(){store();M.ch=Date.now();saveMeta();deskSave();remind()}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2600)}
 function ask(m){return new Promise(res=>{$('askm').textContent=m;const d=$('ask');d.showModal();$('asky').onclick=()=>{d.close();res(true)};$('askn').onclick=()=>{d.close();res(false)}})}
 function fillSel(id,vals){const s=$(id),c=s.value,f=s.options[0].outerHTML;s.innerHTML=f+[...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${esc(v)}</option>`).join('');s.value=c}
-const COLS=[['cod','Cod'],['nome','Nome lavoro','w'],['cliente','Cliente'],['materia','Mat.'],['stato','Stato'],['dir','Dir.'],['prev','Preventivo','n'],['fatt','Fatturato','n'],['rim','Rimanente','n'],['tot','Costo €','n'],['loc','Località'],['sv','Servizi']];
+const COLS=[['cod','Cod'],['nome','Nome lavoro','w'],['cliente','Cliente'],['materia','Mat.'],['stato','Stato'],['dir','Dir.'],['prev','Preventivo','n'],['fatt','Fatturato','n'],['rim','Rimanente','n'],['tot','Costo €','n'],['loc','Località'],['sv','Servizi'],['ws','Worksite']];
 function render(){
   $('rk').value=S.km;
   fillSel('fs',S.rows.map(r=>r.stato));fillSel('fd',S.rows.map(r=>r.dir));fillSel('fm',S.rows.map(r=>r.materia));
   const q=$('q').value.toLowerCase(),fs=$('fs').value,fd=$('fd').value,fm=$('fm').value,ff=$('ff').value;
-  let L=S.rows.map(r=>({r,c:calc(r)})).filter(({r,c})=>(!q||[r.cod,r.nome,r.cliente,r.note,r.prevCode,r.fattura].join(' ').toLowerCase().includes(q))&&(!fs||r.stato===fs)&&(!fd||r.dir===fd)&&(!fm||r.materia===fm)&&(!ff||(ff==='rim'?c.rim>0.5:ff==='ecc'?c.rim<-0.5:(r.sv||[]).some(x=>!x.ok))));
-  const val=x=>['rim','tot'].includes(sortK)?x.c[sortK]:['prev','fatt'].includes(sortK)?n(x.r[sortK]):(sortK==='cod'?n(x.r.cod):String(x.r[sortK]||'').toLowerCase());
+  let L=S.rows.map(r=>({r,c:calc(r)})).filter(({r,c})=>(!q||[r.cod,r.nome,r.cliente,r.note,r.prevCode,r.fattura,...(r.iv||[]).map(x=>(x.op||'')+' '+(x.note||''))].join(' ').toLowerCase().includes(q))&&(!fs||r.stato===fs)&&(!fd||r.dir===fd)&&(!fm||r.materia===fm)&&(!ff||({rim:()=>c.rim>0.5,ecc:()=>c.rim<-0.5,svc:()=>(r.sv||[]).some(x=>!x.ok),ws:()=>!!r.ws,wsd:()=>r.ws&&ivOpen(r)>0})[ff]()));
+  const val=x=>sortK==='ws'?(x.r.ws?1+ivOpen(x.r):0):['rim','tot'].includes(sortK)?x.c[sortK]:['prev','fatt'].includes(sortK)?n(x.r[sortK]):(sortK==='cod'?n(x.r.cod):String(x.r[sortK]||'').toLowerCase());
   L.sort((a,b)=>{const x=val(a),y=val(b);return (x>y?1:x<y?-1:0)*sortD});
   $('th').innerHTML='<tr>'+COLS.map(([k,l,c])=>`<th class="${c==='n'?'n':''}" data-k="${k}">${l}${sortK===k?(sortD>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
-  $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td></tr>`).join(''):'<tr><td colspan="12" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
+  $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="13" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
   $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
   const sg=S.rows.map(r=>r.loc||'').join('|');if(sg!==mapSig){mapSig=sg;mapDraw()}
   const A=S.rows,tp=A.reduce((s,r)=>s+n(r.prev),0),tf=A.reduce((s,r)=>s+n(r.fatt),0),tr=A.reduce((s,r)=>s+Math.max(0,n(r.prev)-n(r.fatt)),0);
-  $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0)]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
+  $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0)],['Interventi da contab.',A.reduce((q,r)=>q+(r.ws?ivOpen(r):0),0)]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
 }
 function openEdit(id){
   editing=id?S.rows.find(r=>r.id==id):{id:0};
@@ -167,7 +174,40 @@ function openEdit(id){
   if(id)$('del').onclick=async()=>{if(await ask('Eliminare definitivamente questo lavoro?')){S.rows=S.rows.filter(x=>x.id!=id);save();$('dlg').close();render()}};
   $('dlg').showModal();
 }
-$('tb').onclick=e=>{const t=e.target.closest('tr[data-id]');if(t)openEdit(t.dataset.id)};
+$('tb').onclick=e=>{const c=e.target.closest('[data-ws]');if(c){toggleWs(c.dataset.ws,c.checked);return}
+  const o=e.target.closest('[data-wo]');if(o){openWs(o.dataset.wo);return}if(e.target.closest('td.wsc'))return;
+  const t=e.target.closest('tr[data-id]');if(t)openEdit(t.dataset.id)};
+// Worksite: cantieri con interventi periodici (r.ws = spunta, r.iv = [{d,h,km,op,note,ok}]); campi facoltativi, i backup vecchi restano validi
+async function toggleWs(id,on){const r=S.rows.find(x=>x.id==id);if(!r)return;
+  if(on){r.ws=true;r.iv=r.iv||[];save();render();openWs(id);return}
+  if((r.iv||[]).length&&!await ask('Togliere la spunta Worksite? I '+r.iv.length+' interventi restano salvati e ricompaiono se la rimetti.')){render();return}
+  r.ws=false;save();render()}
+const fmt=v=>v.toLocaleString('it-IT',{maximumFractionDigits:2});
+const ivVal=L=>L.reduce((s,x)=>s+n(x.h)*n(rate({data:x.d}).h)+n(x.km)*n(S.km),0);
+function openWs(id){const r=S.rows.find(x=>x.id==id);if(!r)return;r.iv=r.iv||[];const d=$('wd'),K=x=>x.d||'9999';
+  const sortIv=()=>r.iv.sort((a,b)=>K(a)<K(b)?1:K(a)>K(b)?-1:0);
+  const ops=[...new Set(S.rows.flatMap(x=>(x.iv||[]).map(i=>i.op)).filter(Boolean))].sort();
+  const tot=()=>{const A=r.iv,T=A.filter(x=>!x.ok),C=A.filter(x=>x.ok),sum=(L,k)=>L.reduce((s,x)=>s+n(x[k]),0);
+    $('wtot').innerHTML=`<span>Interventi: <b>${A.length}</b></span><span>Ore: <b>${fmt(sum(A,'h'))}</b></span><span>Km: <b>${fmt(sum(A,'km'))}</b></span><span class="pos">Contabilizzati: <b>${C.length}</b></span><span class="${T.length?'neg':''}">Da contabilizzare: <b>${T.length}</b> · ${fmt(sum(T,'h'))} h · ${fmt(sum(T,'km'))} km · valore stimato <b>${eur(ivVal(T))}</b></span>`};
+  const draw=()=>{sortIv();
+    d.innerHTML=`<h2 style="margin:0 0 4px;font-size:17px">Interventi cantiere</h2><p class="rates" style="margin:0 0 10px">${esc(r.cod)} · ${esc(r.nome)}${r.cliente?' · '+esc(r.cliente):''}</p><datalist id="opl">${ops.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
+<div class="tw"><table class="wt"><thead><tr><th style="width:150px">Data intervento</th><th class="n" style="width:80px">Ore</th><th class="n" style="width:80px">Km</th><th style="width:150px">Operatore</th><th>Note</th><th style="width:60px;text-align:center">Contab.</th><th style="width:40px"></th></tr></thead><tbody>${r.iv.length?r.iv.map((x,i)=>`<tr data-i="${i}" class="${x.ok?'ivok':''} ${i&&K(x)!==K(r.iv[i-1])?'nd':''}"><td><input type="date" data-f="d" value="${esc(x.d)}"></td><td><input type="number" step="any" min="0" data-f="h" value="${esc(x.h)}"></td><td><input type="number" step="any" min="0" data-f="km" value="${esc(x.km)}"></td><td><input data-f="op" list="opl" value="${esc(x.op)}"></td><td><input data-f="note" value="${esc(x.note)}"></td><td style="text-align:center"><input type="checkbox" data-f="ok" ${x.ok?'checked':''} title="Contabilizzato (fatturato)"></td><td><button type="button" class="d" data-x="${i}" title="Elimina intervento">✕</button></td></tr>`).join(''):'<tr><td colspan="7" class="em">Nessun intervento: usa «+ Aggiungi intervento».</td></tr>'}</tbody></table></div>
+<div class="calc" id="wtot"></div><div class="ft"><span class="btns"><button type="button" class="p" id="wad">+ Aggiungi intervento</button><button type="button" id="wcsv">Esporta Excel</button></span><button type="button" id="wcl">Chiudi</button></div>`;tot()};
+  draw();
+  d.oninput=e=>{const t=e.target,tr=t.closest('tr[data-i]');if(!tr||!t.dataset.f)return;const x=r.iv[+tr.dataset.i],f=t.dataset.f;
+    if(f==='ok'){x.ok=t.checked;tr.classList.toggle('ivok',x.ok)}else if(f==='h'||f==='km')x[f]=t.value===''?'':parseFloat(t.value);else if(f!=='d')x[f]=t.value;
+    save();tot()};
+  d.onchange=e=>{const t=e.target,tr=t.closest('tr[data-i]');if(tr&&t.dataset.f==='d'){r.iv[+tr.dataset.i].d=t.value;save();draw()}};
+  d.onclick=async e=>{const t=e.target;
+    if(t.dataset.x!==undefined){const x=r.iv[+t.dataset.x];if((x.h||x.km||x.note||x.op)&&!await ask('Eliminare l\'intervento del '+(x.d?x.d.split('-').reverse().join('/'):'(senza data)')+'?'))return;r.iv.splice(+t.dataset.x,1);save();draw()}
+    else if(t.id==='wad'){r.iv.push({d:new Date().toISOString().slice(0,10),h:'',km:'',op:'',note:'',ok:false});save();draw();const i=r.iv.findIndex(x=>!x.h&&!x.km&&!x.note&&!x.op);d.querySelector(`tr[data-i="${i}"] input[data-f="h"]`)?.focus()}
+    else if(t.id==='wcsv')saveFile('interventi_'+String(r.cod||r.id).replace(/[^\w-]+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv',ivCsv([r]),'text/csv');
+    else if(t.id==='wcl')d.close()};
+  d.onclose=()=>{r.iv=r.iv.filter(x=>x.d||x.h||x.km||x.note||x.op);save();render()};
+  if(!d.open)d.showModal()}
+function ivCsv(R){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
+  const L=[];R.forEach(r=>[...(r.iv||[])].sort((a,b)=>(a.d||'')>(b.d||'')?1:-1).forEach(x=>L.push([r.cod,r.nome,r.cliente,x.d,num(x.h),num(x.km),x.op,x.note,x.ok?'sì':'no',num(ivVal([x]))].map(q).join(';'))));
+  return '\uFEFF'+[['Codice','Lavoro','Cliente','Data intervento','Ore','Km','Operatore','Note','Contabilizzato','Valore stimato €'].map(q).join(';'),...L].join('\r\n')}
 $('th').onclick=e=>{const k=e.target.closest('th')?.dataset.k;if(!k)return;sortD=sortK===k?-sortD:1;sortK=k;render()};
 const nm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\(.*?\)/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 const GZ={};G.split(';').forEach(l=>{const[a,p,la,lo]=l.split('|'),k=nm(a);(GZ[k]=GZ[k]||[]).push({a,p,la:+la,lo:+lo})});
@@ -275,8 +315,8 @@ $('exp').onclick=async()=>{if(await saveFile(backupName(),backupData())){M.bk=Da
 function csvData(){
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
   const NF=F.filter(f=>f[2]==='num').map(f=>f[0]);
-  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi'];
-  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | ')].map(q).join(';')});
+  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi','Worksite','Interventi','Interventi da contabilizzare','Ore da contabilizzare'];
+  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | '),r.ws?'sì':'',r.ws?(r.iv||[]).length:'',r.ws?ivOpen(r):'',r.ws?num((r.iv||[]).filter(x=>!x.ok).reduce((s,x)=>s+n(x.h),0)):''].map(q).join(';')});
   return '﻿'+[H.map(q).join(';'),...L].join('\r\n')}
 $('csv').onclick=()=>{if(!S.rows.length){toast('Nessun lavoro da esportare');return}saveFile('lavori_'+new Date().toISOString().slice(0,10)+'.csv',csvData(),'text/csv')};
 // Promemoria backup: se ci sono modifiche e l'ultimo backup ha più di 7 giorni (non serve col salvataggio automatico dell'app)
