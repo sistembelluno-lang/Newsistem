@@ -58,6 +58,9 @@ tbody tr:hover td{filter:brightness(.95)}
 .mh{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:600}
 .mh button{padding:2px 9px}
 #mi{font-size:12px;margin-top:6px;color:var(--mu);min-height:32px}#mi a{color:var(--ac)}
+.rem{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;border:1px solid var(--ac);border-radius:10px;background:color-mix(in srgb,var(--ac) 10%,transparent)}
+.ck{display:flex;align-items:center;gap:6px;cursor:pointer}.ck input{width:auto;padding:0;margin:0}
+#ds button{padding:2px 8px;font-size:12px}
 .pv{fill:var(--card);stroke:var(--bd);stroke-width:.7;vector-effect:non-scaling-stroke}
 </style>
 </head>
@@ -70,11 +73,14 @@ tbody tr:hover td{filter:brightness(.95)}
     <button class="p" id="new">+ Nuovo lavoro</button>
     <button id="imp">Importa dati</button>
     <button id="exp">Esporta backup</button>
+    <button id="csv">Esporta Excel</button>
     <input type="file" id="file" accept=".json,application/json" hidden>
   </div>
 </div>
+<div class="rem" id="rem" style="display:none"><span id="remt"></span><span class="btns"><button class="p" id="remb">Esporta backup ora</button><button id="rems">Più tardi</button></span></div>
 <div class="kpi" id="kpi"></div>
 <div class="rates"><button id="rb">Tariffe orarie per periodo</button> € / km <input id="rk" type="number" step="any"></div>
+<div class="rates" id="ds" hidden></div>
 </div>
 <div class="mp" id="mp"><div class="mh"><span>🚩 Dove abbiamo lavorato</span><span><button id="mz">＋</button> <button id="mo">－</button> <button id="mr">⌂</button> <button id="mx">⤢</button></span></div><svg id="ms" viewBox="0 0 3600 1420"><path class="pv" id="mworld"/><path class="pv" id="mpath"/><g id="mfl"></g></svg><div id="mi"></div></div>
 </div>
@@ -92,6 +98,7 @@ tbody tr:hover td{filter:brightness(.95)}
 <dialog id="dlg"><form method="dialog" id="frm" onsubmit="return false"></form></dialog>
 <dialog id="rd"></dialog>
 <dialog id="bk" style="width:min(640px,92vw)"></dialog>
+<dialog id="im" style="width:min(640px,92vw)"></dialog>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
 
@@ -103,7 +110,7 @@ const KEY='gestionale_lavori_v1';
 const $=id=>document.getElementById(id);
 let S={rows:[],rates:{h:36,t:5,k:0.5}};
 try{const j=localStorage.getItem(KEY);if(j)S=Object.assign(S,JSON.parse(j))}catch(e){}
-function mig(){if(!S.periods){const o=S.rates||{};S.periods=[{from:'2000-01-01',to:'',h:o.h??36,t:o.t??5}];S.km=o.k??0.5}S.rows.forEach(r=>{if(r.spEx===undefined){r.spTr=r.spTr??'';r.spPa=r.spPa??'';r.spEx=r.spese??''}delete r.spese;if(!r.sv)r.sv=[]})}
+function mig(){if(!Array.isArray(S.rows))S.rows=[];if(!S.periods){const o=S.rates||{};S.periods=[{from:'2000-01-01',to:'',h:o.h??36,t:o.t??5}];S.km=o.k??0.5}S.rows.forEach(r=>{if(r.spEx===undefined){r.spTr=r.spTr??'';r.spPa=r.spPa??'';r.spEx=r.spese??''}delete r.spese;if(!r.sv)r.sv=[]});S.rows=S.rows.filter(r=>r&&typeof r==='object');let mx=Math.max(0,...S.rows.map(r=>+r.id||0));const seen=new Set();S.rows.forEach(r=>{if(!(+r.id>0)||seen.has(+r.id))r.id=++mx;r.id=+r.id;seen.add(r.id)})}
 mig();
 const F=[['cod','Codice'],['nome','Nome lavoro','f'],['cliente','Cliente'],['materia','Materia'],['stato','Stato','sel'],['dir','Direzione'],['data','Data lavoro (per tariffa)','date'],['scad','Scadenza','date'],['hTot','Ore totali','num'],['hTr','Ore trasferta','num'],['km','Km','num'],['spTr','Spese trasferta €','num'],['spPa','Pasti €','num'],['spEx','Extra €','num'],['prevCode','Rif. preventivo'],['prev','Preventivo €','num'],['fatt','Fatturato €','num'],['fattura','Fattura n./anno'],['note','Note','area'],['loc','Località (città o comune)']];
 const STATI=['In corso','Finito','Sospeso','Da fare','Preventivo','Non fare'];
@@ -114,7 +121,11 @@ const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 function rate(r){const d=[r.data,r.scad].find(x=>/^\d{4}-\d\d-\d\d$/.test(x))||new Date().toISOString().slice(0,10);const P=[...S.periods].sort((a,b)=>a.from>b.from?1:-1);return P.find(p=>p.from<=d&&(!p.to||d<=p.to))||P.filter(p=>p.from<=d).pop()||P[0]||{h:0,t:0}}
 function calc(r){const p=rate(r),o=n(r.hTot)*n(p.h)+n(r.hTr)*n(p.t),k=n(r.km)*S.km,s=n(r.spTr)+n(r.spPa)+n(r.spEx);return{ore:o,km:k,sp:s,tot:o+k+s,rim:n(r.prev)-n(r.fatt)}}
 function svb(r){const v=r.sv||[];if(!v.length)return'';const d=v.filter(x=>x.ok).length;return`<span class="tag ${d===v.length?'sg':'sr'}">${d}/${v.length}</span>`}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Salvataggio nel browser non riuscito: esporta un backup')}}
+// Dati di servizio (date di backup/modifica) tenuti a parte: la forma di S e del backup .json non cambia.
+const MK=KEY+'_meta';let M={};try{M=JSON.parse(localStorage.getItem(MK))||{}}catch(e){}
+function saveMeta(){try{localStorage.setItem(MK,JSON.stringify(M))}catch(e){}}
+function store(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Salvataggio nel browser non riuscito: esporta un backup')}}
+function save(){store();M.ch=Date.now();saveMeta();deskSave();remind()}
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2600)}
 function ask(m){return new Promise(res=>{$('askm').textContent=m;const d=$('ask');d.showModal();$('asky').onclick=()=>{d.close();res(true)};$('askn').onclick=()=>{d.close();res(false)}})}
 function fillSel(id,vals){const s=$(id),c=s.value,f=s.options[0].outerHTML;s.innerHTML=f+[...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${esc(v)}</option>`).join('');s.value=c}
@@ -194,13 +205,28 @@ function openRates(){const P=S.periods,d=$('rd');
 $('new').onclick=()=>openEdit(0);
 ['q','fs','fd','fm','ff'].forEach(i=>$(i).oninput=render);
 $('rb').onclick=openRates;$('rk').onchange=()=>{S.km=n($('rk').value);save();render()};
-$('imp').onclick=()=>$('file').click();
+$('imp').onclick=openImport;
+// Accetta: array di lavori, oppure oggetto {rows, periods, km} (backup di questa app), oppure il vecchio formato {rows, rates}.
+function parseImport(txt){const d=JSON.parse(String(txt).replace(/^﻿/,'').trim());const rows=Array.isArray(d)?d:d&&d.rows;if(!Array.isArray(rows))throw 0;return{d,rows}}
+function applyData(p,mt){S.rows=p.rows;if(p.d.periods){S.periods=p.d.periods;S.km=p.d.km??S.km}else if(p.d.rates){delete S.periods;S.rates=p.d.rates}mig();store();M.ch=mt||Date.now();saveMeta();render()}
+async function doImport(txt,mode){
+  let p;try{p=parseImport(txt)}catch(e){toast('File non valido: serve un JSON esportato da questa app');return false}
+  if(mode==='add'){
+    const sig=r=>[r.cod,r.nome,r.cliente].map(x=>String(x??'').trim().toLowerCase()).join('|');
+    const have=new Set(S.rows.map(sig));let id=Math.max(0,...S.rows.map(r=>+r.id||0)),a=0,k=0;
+    p.rows.forEach(r=>{if(!r||typeof r!=='object')return;if(have.has(sig(r))){k++;return}have.add(sig(r));S.rows.push({...r,id:++id});a++});
+    mig();save();render();toast(a+' lavori aggiunti'+(k?', '+k+' già presenti saltati':''));return true}
+  if(S.rows.length&&!await ask('Importare sostituisce i '+S.rows.length+' lavori attuali con i '+p.rows.length+' del file. Continuare?'))return false;
+  applyData(p);M.bk=Date.now();saveMeta();deskSave();remind();toast(p.rows.length+' lavori importati');return true}
+function openImport(){const d=$('im');
+  d.innerHTML='<h2 style="margin:0 0 6px;font-size:17px">Importa dati</h2><p class="rates" style="margin:0 0 10px">Accetta il file .json di backup di questa app, anche quelli creati in passato.</p><div class="btns" style="gap:16px;margin-bottom:10px"><label class="ck"><input type="radio" name="imm" value="rep" checked> Sostituisci i lavori attuali</label><label class="ck"><input type="radio" name="imm" value="add"> Aggiungi ai lavori attuali (salta quelli già presenti)</label></div><button class="p" id="imf">Scegli file .json…</button><p class="rates" style="margin:12px 0 4px">…oppure incolla qui il testo del file:</p><textarea id="imt" spellcheck="false" style="width:100%;height:140px;font:11px monospace"></textarea><div class="ft"><button id="imx">Chiudi</button><button id="imo">Importa testo incollato</button></div>';
+  const mode=()=>d.querySelector('input[name=imm]:checked').value;
+  $('imf').onclick=()=>{$('file').dataset.m=mode();$('file').click()};
+  $('imo').onclick=async()=>{const t=$('imt').value;if(!t.trim()){toast('Incolla prima il testo del file');return}if(await doImport(t,mode()))d.close()};
+  $('imx').onclick=()=>d.close();d.showModal()}
 $('file').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{const d=JSON.parse(await f.text());const rows=Array.isArray(d)?d:d.rows;if(!Array.isArray(rows))throw 0;
-    if(S.rows.length&&!await ask('Importare sostituisce i '+S.rows.length+' lavori attuali con i '+rows.length+' del file. Continuare?'))return;
-    S.rows=rows;if(d.periods){S.periods=d.periods;S.km=d.km??S.km}mig();save();render();toast(rows.length+' lavori importati')}
-  catch(err){toast('File non valido: serve un JSON esportato da questa app')}
+  if(await doImport(await f.text(),$('file').dataset.m||'rep'))$('im').close();
 };
 function backupData(){return JSON.stringify(S,null,1)}
 function backupName(){return 'backup_lavori_'+new Date().toISOString().slice(0,10)+'.json'}
@@ -211,18 +237,18 @@ async function saveViaCapability(fn,data){
   try{await d.save({filename:fn,data});return 'ok'}
   catch(e){return e&&e.code==='declined'?'declined':'na'}
 }
-function saveViaBlob(fn,data){
+function saveViaBlob(fn,data,type){
   // Metodo 2: download classico del browser (file aperto in locale)
   try{
-    const u=URL.createObjectURL(new Blob([data],{type:'application/json'}));
+    const u=URL.createObjectURL(new Blob([data],{type:type||'application/json'}));
     const a=document.createElement('a');a.href=u;a.download=fn;document.body.appendChild(a);a.click();a.remove();
     setTimeout(()=>URL.revokeObjectURL(u),4000);return true;
   }catch(e){return false}
 }
-function openBackupBox(fn,data){
+function openBackupBox(fn,data,type){
   // Metodo 3: copia manuale del JSON
   const d=$('bk');
-  d.innerHTML='<h3 style="margin:0 0 6px">Backup dati</h3><p class="rates" style="margin:0 0 8px">Il download diretto non è disponibile in questa vista. Copia il testo qui sotto e incollalo in un file <b>'+fn+'</b> (oppure usa il pulsante per condividerlo).</p><textarea id="bkt" readonly style="width:100%;height:220px;font:11px monospace;box-sizing:border-box"></textarea><div class="ft" style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button id="bkc">Copia tutto</button><button id="bks">Condividi file</button><button class="p" id="bkx">Chiudi</button></div>';
+  d.innerHTML='<h3 style="margin:0 0 6px">'+(/\.csv$/.test(fn)?'Esporta Excel':'Backup dati')+'</h3><p class="rates" style="margin:0 0 8px">Il download diretto non è disponibile in questa vista. Copia il testo qui sotto e incollalo in un file <b>'+fn+'</b> (oppure usa il pulsante per condividerlo).</p><textarea id="bkt" readonly style="width:100%;height:220px;font:11px monospace;box-sizing:border-box"></textarea><div class="ft" style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button id="bkc">Copia tutto</button><button id="bks">Condividi file</button><button class="p" id="bkx">Chiudi</button></div>';
   const t=$('bkt');t.value=data;
   $('bkx').onclick=()=>d.close();
   $('bkc').onclick=async()=>{
@@ -230,23 +256,53 @@ function openBackupBox(fn,data){
     catch(e){t.focus();t.select();try{document.execCommand('copy');toast('Backup copiato')}catch(_){toast('Seleziona il testo e copialo a mano')}}
   };
   $('bks').onclick=async()=>{
-    try{const f=new File([data],fn,{type:'application/json'});
+    try{const f=new File([data],fn,{type:type||'application/json'});
       if(navigator.canShare&&navigator.canShare({files:[f]}))await navigator.share({files:[f],title:fn});
       else toast('Condivisione file non supportata: usa Copia')}
     catch(e){}
   };
   d.showModal();t.focus();t.select();
 }
-$('exp').onclick=async()=>{
-  const data=backupData(),fn=backupName();
+// Salva un file: capability claude.ai → download del browser/app → finestra con il testo da copiare
+async function saveFile(fn,data,type){
   const r=await saveViaCapability(fn,data);
-  if(r==='ok'){toast('Backup salvato');return}
-  if(r==='declined'){toast('Download annullato');return}
-  if(window.top===window&&location.protocol!=='about:'&&saveViaBlob(fn,data)){toast('Backup scaricato');return}
-  openBackupBox(fn,data);
-};
-// Importa anche incollando il testo JSON (utile dove il selettore file non funziona)
-render();
+  if(r==='ok'){toast('File salvato');return true}
+  if(r==='declined'){toast('Download annullato');return false}
+  if(window.top===window&&location.protocol!=='about:'&&saveViaBlob(fn,data,type)){toast('File scaricato');return true}
+  openBackupBox(fn,data,type);return true}
+$('exp').onclick=async()=>{if(await saveFile(backupName(),backupData())){M.bk=Date.now();saveMeta();remind()}};
+// Esportazione per Excel: CSV con ";" e virgola decimale, come lo legge Excel in italiano
+function csvData(){
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
+  const NF=F.filter(f=>f[2]==='num').map(f=>f[0]);
+  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi'];
+  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | ')].map(q).join(';')});
+  return '﻿'+[H.map(q).join(';'),...L].join('\r\n')}
+$('csv').onclick=()=>{if(!S.rows.length){toast('Nessun lavoro da esportare');return}saveFile('lavori_'+new Date().toISOString().slice(0,10)+'.csv',csvData(),'text/csv')};
+// Promemoria backup: se ci sono modifiche e l'ultimo backup ha più di 7 giorni (non serve col salvataggio automatico dell'app)
+function remind(){const el=$('rem');if(!el)return;const g=M.bk?Math.floor((Date.now()-M.bk)/864e5):0;
+  const need=S.rows.length&&!(DESK.on&&DESK.last&&DESK.last.ok)&&!(M.snz>Date.now())&&(!M.bk||((M.ch||0)>M.bk&&g>=7));
+  el.style.display=need?'flex':'none';if(need)$('remt').textContent=M.bk?'Ultimo backup '+g+' giorni fa: esporta una copia aggiornata dei dati.':'Non hai ancora esportato un backup dei dati.'}
+$('remb').onclick=()=>$('exp').click();
+$('rems').onclick=()=>{M.snz=Date.now()+3*864e5;saveMeta();remind()};
+// App desktop: salvataggio automatico in un file .json dentro una cartella scelta (window.desktop esiste solo nell'app)
+const DESK={on:false};let deskT;
+function deskSave(){if(!DESK.on)return;clearTimeout(deskT);deskT=setTimeout(async()=>{deskShow(await window.desktop.save(backupData()))},400)}
+function deskShow(r){DESK.last=r;const el=$('ds');el.hidden=false;
+  el.innerHTML=(r&&r.ok?'💾 Salvataggio automatico in ':'<span class="neg">⚠ Salvataggio automatico non riuscito'+(r&&r.error?' ('+esc(r.error)+')':'')+' in </span>')+'<b>'+esc((r&&r.file)||DESK.dir||'')+'</b>'+(r&&r.ok?' · ultimo alle '+new Date(r.at).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'')+' <button id="dsc">Cambia cartella</button> <button id="dso">Apri cartella</button>';
+  $('dsc').onclick=deskChoose;$('dso').onclick=()=>window.desktop.open();remind()}
+async function deskChoose(){const r=await window.desktop.choose();if(!r)return;DESK.dir=r.dir;let keep=false;
+  if(r.exists&&r.data!==backupData()){let p=null;try{p=parseImport(r.data)}catch(e){}
+    if(p&&await ask('Nella cartella scelta c\'è già un file dati con '+p.rows.length+' lavori. Caricare quei dati al posto dei '+S.rows.length+' lavori attuali? (Annulla = tieni i dati attuali; il file trovato viene conservato nella sottocartella "storico")')){applyData(p,r.mtime);deskShow(await window.desktop.save(backupData()));toast('Dati caricati dalla cartella');return}
+    keep=true}
+  deskShow(await window.desktop.save(backupData(),{keepOld:keep}))}
+async function deskInit(){if(!window.desktop)return;let r;try{r=await window.desktop.init()}catch(e){return}DESK.on=true;DESK.dir=r.dir;
+  if(r.exists&&r.data!==backupData()){let p=null;try{p=parseImport(r.data)}catch(e){}
+    // Il file nella cartella è più recente (es. salvato da un altro PC con OneDrive): si caricano quei dati
+    if(p&&(!S.rows.length||r.mtime>(M.ch||0))){applyData(p,r.mtime);toast(p.rows.length+' lavori caricati da '+r.file);deskShow({ok:true,file:r.file,at:r.mtime});return}
+    if(!p){deskShow(await window.desktop.save(backupData(),{keepOld:true}));return}}
+  deskShow(await window.desktop.save(backupData()))}
+render();remind();deskInit();
 </script>
 </body>
 </html>

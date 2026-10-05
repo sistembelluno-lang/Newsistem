@@ -13,7 +13,11 @@ Creando un tag `v1.0.0` (es. `git tag v1.0.0 && git push --tags`) i file vengono
 Gli eseguibili non sono firmati: al primo avvio Windows (SmartScreen) chiede "Ulteriori informazioni → Esegui comunque", macOS richiede clic destro → Apri.
 
 ## I dati
-L'app salva i dati nel proprio profilo (localStorage di Electron, in `%APPDATA%\Controllo Lavori` su Windows), separato da quello del browser o di claude.ai. Per portare i dati esistenti: **Esporta backup** dalla versione web, poi **Importa dati** nell'app.
+- L'app salva da sola ogni modifica nel file `Documenti\Controllo Lavori\dati_lavori.json` (cartella cambiabile con **Cambia cartella**, anche OneDrive/Google Drive), con una copia al giorno in `storico\` (ultimi 60 giorni). Il file ha lo stesso formato del backup e si può reimportare ovunque.
+- All'avvio, se il file nella cartella è più recente (es. salvato da un altro PC), l'app carica quello.
+- **Importa dati** accetta i backup `.json` creati da qualsiasi versione (anche il vecchio formato con `rates`), da file o incollando il testo, e può *sostituire* o *aggiungere* i lavori (quelli già presenti, stesso codice+nome+cliente, vengono saltati).
+- **Esporta Excel** crea un `.csv` (separatore `;`, virgola decimale) con tutti i campi e i costi calcolati.
+- Nella versione web compare un promemoria se l'ultimo backup ha più di 7 giorni e ci sono modifiche.
 
 ## Sviluppo
 ```

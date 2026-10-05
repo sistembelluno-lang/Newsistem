@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "Controllo Lavori",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Gestionale per il controllo dei lavori",
   "main": "main.js",
   "author": "sistembelluno",
@@ -17,7 +17,7 @@
   "build": {
     "appId": "it.sistembelluno.controllolavori",
     "productName": "Controllo Lavori",
-    "files": ["main.js", "Controllo_Lavori.html"],
+    "files": ["main.js", "preload.js", "Controllo_Lavori.html"],
     "directories": { "output": "dist" },
     "win": { "target": ["portable", "nsis"] },
     "portable": { "artifactName": "Controllo-Lavori-${version}-portable.exe" },
