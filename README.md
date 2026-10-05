@@ -1,10 +1,26 @@
 # Controllo Lavori
 
-Gestionale a pagina singola (`Controllo_Lavori.html`) impacchettato come applicazione desktop con Electron.
+Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
+- **Controllo Lavori** (`Controllo_Lavori.html`): il gestionale dell'amministratore;
+- **Ore Dipendenti** (`Ore_Dipendenti.html`): ogni dipendente, entrando con il proprio PIN, inserisce ore/km/spese/note sui lavori, ferie, permessi, malattia e note del giorno.
+
+## Ore dipendenti: come funziona
+I due programmi si scambiano i dati attraverso una **cartella condivisa sul server** (es. `\\SERVER\ControlloLavori`), scelta una volta su ogni PC:
+
+| File | Chi lo scrive | Contenuto |
+|---|---|---|
+| `dipendenti.json` | amministratore | dipendenti, permessi, impronta (SHA-256) dei PIN |
+| `codici.json` | amministratore (in automatico) | lavori attivi: codice, nome, cliente, cantiere sì/no (niente importi) |
+| `ore/<id>.json` | il dipendente | le sue registrazioni |
+| `esiti.json` | amministratore | approvazioni / rifiuti con motivo |
+
+Ogni file ha un solo scrittore, quindi non ci sono sovrascritture. Se il server non risponde, il programma dipendente conserva le registrazioni sul PC e le invia appena possibile.
+Nel pannello **👥 Ore dipendenti** di Controllo Lavori l'amministratore crea i dipendenti e i PIN, approva o rifiuta le registrazioni (le approvate entrano negli interventi Worksite o nel registro «Ore registrate dai dipendenti» del lavoro), vede ferie/permessi/note e stampa il **report mensile** per dipendente (per giorno e per lavoro, con firme) o lo esporta in Excel.
+Il codice comune ai due HTML sta in `src/` e si copia nei file con `npm run sync`.
 
 ## Scaricare l'eseguibile
 Ogni push su GitHub avvia il workflow **Build eseguibili** (scheda *Actions*). A fine build, nella pagina del run, sezione *Artifacts*:
-- `Controllo-Lavori-Windows`: `…-portable.exe` (si avvia senza installare) e `…-setup.exe` (installer);
+- `Controllo-Lavori-Windows`: `Controllo-Lavori-…` e `Ore-Dipendenti-…`, ciascuno in versione `-portable.exe` (si avvia senza installare) e `-setup.exe` (installer);
 - `Controllo-Lavori-macOS`: `.dmg`;
 - `Controllo-Lavori-Linux`: `.AppImage`.
 

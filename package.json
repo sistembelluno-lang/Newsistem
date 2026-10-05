@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "Controllo Lavori",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Gestionale per il controllo dei lavori",
   "main": "main.js",
   "author": "sistembelluno",
@@ -9,25 +9,50 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac",
-    "dist:linux": "electron-builder --linux"
+    "sync": "node scripts/sync-condiviso.js",
+    "dist": "electron-builder --publish never && electron-builder --publish never -c electron-builder-ore.json",
+    "dist:win": "electron-builder --win --publish never && electron-builder --win --publish never -c electron-builder-ore.json",
+    "dist:mac": "electron-builder --mac --publish never && electron-builder --mac --publish never -c electron-builder-ore.json",
+    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json"
   },
   "build": {
     "appId": "it.sistembelluno.controllolavori",
     "productName": "Controllo Lavori",
-    "files": ["main.js", "preload.js", "Controllo_Lavori.html"],
-    "directories": { "output": "dist" },
-    "win": { "target": ["portable", "nsis"] },
-    "portable": { "artifactName": "Controllo-Lavori-${version}-portable.exe" },
+    "files": [
+      "main.js",
+      "preload.js",
+      "Controllo_Lavori.html"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "Controllo-Lavori-${version}-portable.exe"
+    },
     "nsis": {
       "artifactName": "Controllo-Lavori-${version}-setup.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
-    "mac": { "target": ["dmg"], "category": "public.app-category.business" },
-    "linux": { "target": ["AppImage"] }
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business",
+      "artifactName": "Controllo-Lavori-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "Controllo-Lavori-${version}.${ext}"
+    }
   },
   "devDependencies": {
     "electron": "^44.5.1",

@@ -1,0 +1,12 @@
+{
+  "appId": "it.sistembelluno.oredipendenti",
+  "productName": "Ore Dipendenti",
+  "extraMetadata": { "name": "ore-dipendenti", "productName": "Ore Dipendenti" },
+  "files": ["main.js", "preload.js", "Ore_Dipendenti.html"],
+  "directories": { "output": "dist" },
+  "win": { "target": ["portable", "nsis"] },
+  "portable": { "artifactName": "Ore-Dipendenti-${version}-portable.exe" },
+  "nsis": { "artifactName": "Ore-Dipendenti-${version}-setup.exe", "oneClick": false, "allowToChangeInstallationDirectory": true },
+  "mac": { "target": ["dmg"], "artifactName": "Ore-Dipendenti-${version}.${ext}" },
+  "linux": { "target": ["AppImage"], "artifactName": "Ore-Dipendenti-${version}.${ext}" }
+}

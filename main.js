@@ -2,6 +2,11 @@ const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron')
 const path = require('path');
 const fs = require('fs');
 
+// Lo stesso main.js serve due programmi: «Controllo Lavori» (amministratore) e «Ore Dipendenti».
+// Ogni build include una sola delle due pagine.
+const PAGE = fs.existsSync(path.join(__dirname, 'Controllo_Lavori.html')) ? 'Controllo_Lavori.html' : 'Ore_Dipendenti.html';
+const TITLE = PAGE === 'Controllo_Lavori.html' ? 'Controllo Lavori' : 'Ore Dipendenti';
+
 // Una sola istanza: i dati stanno nel localStorage del profilo dell'app,
 // due finestre aperte insieme si sovrascriverebbero a vicenda.
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -14,7 +19,7 @@ function createWindow() {
     height: 860,
     minWidth: 360,
     minHeight: 500,
-    title: 'Controllo Lavori',
+    title: TITLE,
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') },
   });
@@ -28,7 +33,7 @@ function createWindow() {
     if (!url.startsWith('file:')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); }
   });
 
-  win.loadFile(path.join(__dirname, 'Controllo_Lavori.html'));
+  win.loadFile(path.join(__dirname, PAGE));
 }
 
 // Salvataggio automatico: i dati vanno anche in <cartella>/dati_lavori.json (stesso formato del backup),
@@ -87,6 +92,39 @@ ipcMain.handle('dati:choose', async () => {
   return info(s.dir);
 });
 ipcMain.handle('dati:open', () => { const d = dataDir(); fs.mkdirSync(d, { recursive: true }); return shell.openPath(d); });
+
+// Cartella condivisa sul server (scambio con il programma Ore Dipendenti): percorsi relativi, mai fuori dalla cartella.
+function sharedDir() { return readSettings().shared || ''; }
+function sharedPath(rel) {
+  const base = sharedDir();
+  if (!base) throw new Error('Cartella condivisa non impostata');
+  const root = path.resolve(base), p = path.resolve(root, String(rel || ''));
+  if (p !== root && !p.startsWith(root + path.sep)) throw new Error('Percorso non valido');
+  return p;
+}
+ipcMain.handle('sh:get', () => ({ dir: sharedDir() }));
+ipcMain.handle('sh:choose', async () => {
+  const r = await dialog.showOpenDialog(win, {
+    title: 'Scegli la cartella condivisa sul server',
+    defaultPath: sharedDir() || undefined,
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const s = readSettings(); s.shared = r.filePaths[0]; writeSettings(s);
+  return { dir: s.shared };
+});
+ipcMain.handle('sh:read', (e, rel) => {
+  try { return fs.readFileSync(sharedPath(rel), 'utf8'); }
+  catch (err) { if (err.code === 'ENOENT') return null; throw err; }
+});
+ipcMain.handle('sh:write', (e, rel, text) => {
+  const p = sharedPath(rel);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  const tmp = `${p}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, String(text));
+  try { fs.renameSync(tmp, p); } catch (err) { fs.writeFileSync(p, String(text)); fs.rmSync(tmp, { force: true }); }
+  return true;
+});
 
 app.on('second-instance', () => {
   if (win) { if (win.isMinimized()) win.restore(); win.focus(); }
