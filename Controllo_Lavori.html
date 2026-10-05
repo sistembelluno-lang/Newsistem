@@ -124,6 +124,7 @@ tr.ivok td{background:color-mix(in srgb,var(--ok) 22%,transparent)}tr.ivok input
 <dialog id="wd" style="width:min(900px,96vw)"></dialog>
 <dialog id="ls" style="width:min(1000px,96vw)"></dialog>
 <dialog id="od" style="width:min(1150px,97vw)"></dialog>
+<dialog id="ovp" style="width:97vw;max-width:1200px;height:92vh;padding:10px"></dialog>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
 <div id="print"></div>
@@ -326,9 +327,9 @@ async function openOD(tab){const d=$('od');if(tab)OD.tab=tab;d.innerHTML='<p cla
 $('odbtn').onclick=()=>openOD();
 function odDraw(){const d=$('od'),np=odVoci().filter(x=>x.s==='inv').length;
   const T=[['app','Da approvare'],['rep','Report mensile'],['ass','Ferie, permessi e note'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
-  d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><button type="button" id="odx">Chiudi</button></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np}</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
+  d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><span class="btns">${VFS.sim?'<button type="button" id="odpv">Prova come dipendente</button>':''}<button type="button" id="odx">Chiudi</button></span></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np}</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
   ({app:odApp,rep:odRep,ass:odAss,dip:odDip,imp:odImp})[OD.tab]();
-  $('odx').onclick=()=>d.close();
+  $('odx').onclick=()=>d.close();if($('odpv'))$('odpv').onclick=openOrePreview;
   d.querySelector('.tabs').onclick=e=>{const t=e.target.closest('[data-t]');if(t){OD.tab=t.dataset.t;odDraw()}}}
 const dipSel=(id,v,all)=>`<select id="${id}"><option value="">${all}</option>${OD.f.dip.map(d=>`<option value="${esc(d.id)}" ${v===d.id?'selected':''}>${esc(d.nome)}${d.attivo===false?' (non attivo)':''}</option>`).join('')}</select>`;
 function odApp(){const b=$('odb'),f=OD.fa=OD.fa||{dip:'',st:'inv',m:''};
@@ -389,10 +390,15 @@ function odDip(){const b=$('odb'),F=OD.dd=OD.dd||JSON.parse(JSON.stringify(OD.f)
       try{await VFS.write('dipendenti.json',JSON.stringify({v:1,admin:F.admin,dip:F.dip}))}catch(err){toast('Non salvato: cartella condivisa non raggiungibile');return}
       OD.f=JSON.parse(JSON.stringify(F));OD.dd=null;F.dip.forEach(d=>OD.ore[d.id]=OD.ore[d.id]||{voci:[],pers:[]});
       M.odOn=true;saveMeta();pubCodici();odDraw();toast('Dipendenti salvati')}}}
+// Solo nelle prove nel browser: il programma dei dipendenti si apre qui dentro e usa la stessa cartella simulata
+function openOrePreview(){const d=$('ovp');
+  d.innerHTML='<div class="odh" style="margin-bottom:8px"><b>Ore Dipendenti (prova) · come lo vede il dipendente</b><button type="button" class="p" id="ovx">Chiudi e torna al pannello</button></div><iframe id="ovf" title="Ore Dipendenti" style="width:100%;height:calc(100% - 46px);border:1px solid var(--bd);border-radius:8px;background:var(--bg)"></iframe>';
+  const f=$('ovf');if(window.__ORE_HTML)f.srcdoc=window.__ORE_HTML;else f.src='Ore_Dipendenti.html';
+  $('ovx').onclick=()=>d.close();d.onclose=async()=>{await odLoad();odBadge();if($('od').open)odDraw()};d.showModal()}
 function odImp(){const b=$('odb'),pub=M.odPub;
   b.innerHTML=`<h3 style="font-size:15px;margin:0 0 6px">Cartella condivisa sul server</h3>
 <p style="margin:0 0 8px">${OD.dir?'<b>'+esc(OD.dir)+'</b>':'<span class="neg">Non ancora scelta.</span>'} ${VFS.sim?'':'<button type="button" id="oic">Scegli cartella…</button>'}</p>
-${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del server è simulata qui. Per provare il programma dei dipendenti apri <a href="Ore_Dipendenti.html" target="_blank" rel="noopener">Ore Dipendenti (prova)</a> in un\'altra scheda.</p>':'<p class="rates">Crea sul server una cartella, ad esempio <b>\\\\SERVER\\ControlloLavori</b>, accessibile da tutti i PC, e sceglila qui e nel programma «Ore Dipendenti» di ogni dipendente (una sola volta per PC).</p>'}
+${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del server è simulata qui. Per provare il programma dei dipendenti: <button type="button" id="oio">Apri Ore Dipendenti (prova)</button></p>':'<p class="rates">Crea sul server una cartella, ad esempio <b>\\\\SERVER\\ControlloLavori</b>, accessibile da tutti i PC, e sceglila qui e nel programma «Ore Dipendenti» di ogni dipendente (una sola volta per PC).</p>'}
 <h3 style="font-size:15px;margin:14px 0 6px">Lavori visibili ai dipendenti</h3>
 <p style="margin:0 0 6px">${pub?`Elenco pubblicato: <b>${pub.n}</b> lavori, aggiornato il ${new Date(pub.t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.`:'Elenco non ancora pubblicato.'} <button type="button" id="oip">Pubblica ora</button></p>
 <label class="ck"><input type="checkbox" id="oif" ${M.odFin?'checked':''}> Mostra ai dipendenti anche i lavori in stato «Finito» (quelli «Non fare» non compaiono mai)</label>
@@ -400,7 +406,8 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
 <h3 style="font-size:15px;margin:14px 0 6px">Riservatezza</h3>
 <p class="rates" style="margin:0">I PIN sono salvati solo come impronta cifrata. I file nella cartella sono però leggibili da chi ha accesso alla cartella: per una riservatezza completa chiedi al tecnico di dare ai dipendenti solo lettura sulla cartella e scrittura sulla sottocartella «ore», e a te il controllo completo.</p>`;
   b.onclick=async e=>{const t=e.target;
-    if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
+    if(t.id==='oio')openOrePreview();
+    else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
   b.onchange=e=>{if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
 if(M.odOn){odLoad();pubCodici();setInterval(()=>{if(!$('od').open)odLoad()},120000)}
