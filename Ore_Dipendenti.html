@@ -8,7 +8,7 @@
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1c2330;--mu:#6b7585;--bd:#dde1e8;--ac:#1f5fbf;--ok:#1a7f4b;--ko:#c0392b;--wa:#a86b00;--hd:#eef1f5}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b212a;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--ac:#6ea3f5;--ok:#4cc38a;--ko:#ff7b6b;--wa:#e0a84a;--hd:#232a35}}
 :root[data-theme="dark"]{--bg:#12161c;--card:#1b212a;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--ac:#6ea3f5;--ok:#4cc38a;--ko:#ff7b6b;--wa:#e0a84a;--hd:#232a35}
-*{box-sizing:border-box}
+*{box-sizing:border-box}[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 main{max-width:1000px;margin:0 auto;padding:16px}
 h1{font-size:20px;margin:0}
@@ -21,6 +21,9 @@ button{cursor:pointer}button.p{background:var(--ac);border-color:var(--ac);color
 .g{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;align-items:end}
 .g label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px}.g .f2{grid-column:span 2}.g .f{grid-column:1/-1}
 .g input,.g select{width:100%}
+.trb{display:flex;align-items:center;gap:6px;height:36px;padding:0 10px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);cursor:pointer;white-space:nowrap}.trb input{width:18px!important;height:18px;margin:0}
+.trb:has(input:checked){border-color:var(--wa);background:color-mix(in srgb,var(--wa) 14%,var(--card))}
+.t-tr{background:color-mix(in srgb,var(--wa) 18%,transparent);color:var(--wa);font-weight:600}
 .who{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:10px 0}
 .who button{padding:14px 10px;font-weight:600;text-align:left}.who button.sel{border-color:var(--ac);background:color-mix(in srgb,var(--ac) 12%,var(--card))}
 .pin{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.pin input{width:140px;font-size:20px;letter-spacing:6px;text-align:center}
@@ -82,6 +85,7 @@ dialog{border:1px solid var(--bd);border-radius:12px;background:var(--card);colo
       <label>Tipo<select id="ft"></select></label>
       <label class="f2" data-x="lav">Lavoro (codice o nome)<input id="fl" list="cl" placeholder="Scrivi per cercare…" autocomplete="off"><datalist id="cl"></datalist></label>
       <label data-x="h">Ore<input type="number" id="fo" step="0.25" min="0" max="24"></label>
+      <label data-x="lav" class="trl" title="Spunta se quel giorno eri in trasferta"><span>&nbsp;</span><span class="trb"><input type="checkbox" id="ftr"> Ore in trasferta</span></label>
       <label data-x="lav">Km<input type="number" id="fk" step="any" min="0"></label>
       <label data-x="lav">Spese €<input type="number" id="fs" step="0.01" min="0"></label>
       <label class="f">Note<input id="fn" maxlength="300"></label>
@@ -123,29 +127,29 @@ function repMonth(o){
   const [Y,M]=o.mese.split('-').map(Number),nd=new Date(Y,M,0).getDate();
   const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok'));
   const P=(o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese));
-  const T={h:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='',star=false;
+  const T={h:0,tr:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='',star=false;
   for(let i=1;i<=nd;i++){const ds=o.mese+'-'+String(i).padStart(2,'0'),dw=new Date(Y,M-1,i).getDay();
     const vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds),pt=t=>S(pp.filter(p=>p.tipo===t),'h');
-    const h=S(vv,'h'),km=S(vv,'km'),sp=S(vv,'sp'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
-    if(h>0)T.gg++;T.h+=h;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
-    vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,km:0,sp:0};L.h+=N(v.h);L.km+=N(v.km);L.sp+=N(v.sp)});
-    const lav=vv.map(v=>{const s=stOf(o.E,v)!=='ok';if(s)star=true;return`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${s?' *':''}`}).join('<br>');
+    const h=S(vv,'h'),tr=S(vv.filter(v=>v.tr),'h'),km=S(vv,'km'),sp=S(vv,'sp'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
+    if(h>0)T.gg++;T.h+=h;T.tr+=tr;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
+    vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,tr:0,km:0,sp:0};L.h+=N(v.h);if(v.tr)L.tr+=N(v.h);L.km+=N(v.km);L.sp+=N(v.sp)});
+    const lav=vv.map(v=>{const s=stOf(o.E,v)!=='ok';if(s)star=true;return`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${v.tr?' (trasf.)':''}${s?' *':''}`}).join('<br>');
     const note=[...vv.filter(v=>v.note).map(v=>X(v.cod)+': '+X(v.note)),...pp.filter(p=>p.note||p.tipo==='nota').map(p=>(p.tipo==='nota'?'':TIPI[p.tipo]+': ')+X(p.note))].join('<br>');
-    rows+=`<tr class="${dw===0||dw===6?'we':''}"><td>${GGS[dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
+    rows+=`<tr class="${dw===0||dw===6?'we':''}"><td>${GGS[dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
   const LL=Object.values(byL).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true}));
   return`<section class="rep"><div class="rh"><h2>Report ore · ${X(o.nome)}</h2><b>${MESI[M-1]} ${Y}</b></div>
-<table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore lavoro</th><th class="n">Ferie h</th><th class="n">Permessi h</th><th class="n">Malattia h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
-<tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
-<h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="6">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
+<table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore lavoro</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Permessi h</th><th class="n">Malattia h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
+<tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
+<h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">di cui trasf.</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.tr)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="7">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
 <p class="rn">${star?'* registrazione non ancora approvata. ':''}Le registrazioni rifiutate non sono incluse. Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
 <div class="firme"><div>Firma dipendente</div><div>Firma responsabile</div></div></section>`}
 // Elenco piatto per Excel (una riga per registrazione), adatto a tabelle pivot
 function repCsv(list){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round((parseFloat(v)||0)*100)/100).replace('.',',');
   const R=[];list.forEach(o=>{
-    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok')).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),num(v.km),num(v.sp),v.note,stOf(o.E,v)==='ok'?'approvata':'da approvare']));
-    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','',p.note,'']))});
+    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)&&stOf(o.E,v)!=='no'&&(o.tutte||stOf(o.E,v)==='ok')).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),v.tr?'sì':'',num(v.km),num(v.sp),v.note,stOf(o.E,v)==='ok'?'approvata':'da approvare']));
+    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','',p.note,'']))});
   R.sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1]));
-  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Km','Spese €','Note','Stato'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
+  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Trasferta','Km','Spese €','Note','Stato'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
 /*CONDIVISO-FINE*/
 const $=id=>document.getElementById(id);
 const n=v=>parseFloat(v)||0;
@@ -219,7 +223,7 @@ function fillForm(){const p=perm(),T=[];if(p.lav!=='no')T.push('lavoro');if(p.as
   $('ft').innerHTML=T.map(t=>`<option value="${t}">${t==='lavoro'&&p.lav==='ws'?'Ore su cantiere (Worksite)':TIPI[t]}</option>`).join('');
   resetForm()}
 function resetForm(d){edit=null;$('fh').textContent='Nuova registrazione';$('fa').hidden=true;$('fd').value=d||$('fd').value||oggi();
-  ['fl','fo','fk','fs','fn'].forEach(i=>$(i).value='');tipo()}
+  ['fl','fo','fk','fs','fn'].forEach(i=>$(i).value='');$('ftr').checked=false;tipo()}
 function tipo(){const t=$('ft').value;document.querySelectorAll('#fg [data-x]').forEach(l=>l.hidden=l.dataset.x==='lav'?t!=='lavoro':t==='nota');
   if(!edit&&(t==='ferie'||t==='malattia')&&!$('fo').value)$('fo').value=8}
 $('ft').onchange=tipo;$('fa').onclick=()=>resetForm();
@@ -229,7 +233,7 @@ $('fv').onclick=async()=>{const t=$('ft').value,d=$('fd').value;if(!/^\d{4}-\d\d
   if(t==='lavoro'){const p=perm(),l=(COD.lav||[]).find(x=>lbl(x)===$('fl').value.trim()&&(p.lav!=='ws'||x.ws));
     if(!l){toast('Scegli il lavoro dall\'elenco');$('fl').focus();return}
     if(!(h>0)){toast('Inserisci le ore');$('fo').focus();return}
-    o={d,lav:l.id,cod:l.cod,nome:l.nome,cliente:l.cliente||'',h,km:$('fk').value===''?'':n($('fk').value),sp:$('fs').value===''?'':n($('fs').value),note}}
+    o={d,lav:l.id,cod:l.cod,nome:l.nome,cliente:l.cliente||'',h,tr:$('ftr').checked,km:$('fk').value===''?'':n($('fk').value),sp:$('fs').value===''?'':n($('fs').value),note}}
   else if(t==='nota'){if(!note){toast('Scrivi la nota');return}o={d,tipo:t,h:'',note}}
   else{if(!(h>0)){toast('Inserisci le ore');return}o={d,tipo:t,h,note}}
   if(h>24){toast('Massimo 24 ore');return}
@@ -243,10 +247,10 @@ function draw(){
   const V=D.voci.filter(v=>!v.del&&String(v.d).startsWith(mese)),P=D.pers.filter(p=>!p.del&&String(p.d).startsWith(mese));
   const S=(L,k)=>L.reduce((s,x)=>s+n(x[k]),0),pt=t=>S(P.filter(p=>p.tipo===t),'h');
   const ninv=V.filter(v=>stOf(E,v)==='inv').length,nno=V.filter(v=>stOf(E,v)==='no').length;
-  $('kpi').innerHTML=[['Ore lavoro',fmt(S(V.filter(v=>stOf(E,v)!=='no'),'h'))],['Ferie (h)',fmt(pt('ferie'))],['Permessi (h)',fmt(pt('permesso'))],['Malattia (h)',fmt(pt('malattia'))],['Km',fmt(S(V,'km'))],['Spese',eur(S(V,'sp'))],['Da approvare',ninv],['Rifiutate',`<span class="${nno?'neg':''}">${nno}</span>`]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
+  $('kpi').innerHTML=[['Ore lavoro',fmt(S(V.filter(v=>stOf(E,v)!=='no'),'h'))],['di cui trasferta',fmt(S(V.filter(v=>v.tr&&stOf(E,v)!=='no'),'h'))],['Ferie (h)',fmt(pt('ferie'))],['Permessi (h)',fmt(pt('permesso'))],['Malattia (h)',fmt(pt('malattia'))],['Km',fmt(S(V,'km'))],['Spese',eur(S(V,'sp'))],['Da approvare',ninv],['Rifiutate',`<span class="${nno?'neg':''}">${nno}</span>`]].map(([l,v])=>`<div><small>${l}</small><b>${v}</b></div>`).join('');
   const td=oggi();let h='';
   for(let i=1;i<=nd;i++){const ds=mese+'-'+String(i).padStart(2,'0'),dw=new Date(Y,M-1,i).getDay(),vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds);
-    const items=[...vv.map(v=>{const s=stOf(E,v),e=E[v.u];return`<div class="it"><span class="tag t-${s}">${s==='ok'?'Approvata':s==='no'?'Rifiutata':'Inviata'}</span><b>${esc(v.cod)}</b> ${esc(v.nome)} · <b>${fmt(v.h)} h</b>${n(v.km)?' · '+fmt(v.km)+' km':''}${n(v.sp)?' · '+eur(v.sp):''}${v.note?' · <span class="mu">'+esc(v.note)+'</span>':''}${s==='no'&&e&&e.m?' <span class="neg">Motivo: '+esc(e.m)+'</span>':''}<span class="ac">${s==='ok'?'':`<button data-e="voci|${v.u}">✎</button><button class="d" data-x="voci|${v.u}">✕</button>`}</span></div>`}),
+    const items=[...vv.map(v=>{const s=stOf(E,v),e=E[v.u];return`<div class="it"><span class="tag t-${s}">${s==='ok'?'Approvata':s==='no'?'Rifiutata':'Inviata'}</span><b>${esc(v.cod)}</b> ${esc(v.nome)} · <b>${fmt(v.h)} h</b>${v.tr?' <span class="tag t-tr">trasferta</span>':''}${n(v.km)?' · '+fmt(v.km)+' km':''}${n(v.sp)?' · '+eur(v.sp):''}${v.note?' · <span class="mu">'+esc(v.note)+'</span>':''}${s==='no'&&e&&e.m?' <span class="neg">Motivo: '+esc(e.m)+'</span>':''}<span class="ac">${s==='ok'?'':`<button data-e="voci|${v.u}">✎</button><button class="d" data-x="voci|${v.u}">✕</button>`}</span></div>`}),
       ...pp.map(p=>`<div class="it"><span class="tag t-pers">${TIPI[p.tipo]}</span>${p.h?'<b>'+fmt(p.h)+' h</b>':''}${p.note?' <span class="mu">'+esc(p.note)+'</span>':''}<span class="ac"><button data-e="pers|${p.u}">✎</button><button class="d" data-x="pers|${p.u}">✕</button></span></div>`)].join('');
     const tot=S(vv.filter(v=>stOf(E,v)!=='no'),'h')+S(pp.filter(p=>p.tipo!=='nota'),'h');
     h+=`<div class="day ${dw===0||dw===6?'we':''} ${ds===td?'today':''}"><div class="dl">${GGS[dw]} ${i}<small>${ds===td?'oggi':''}</small></div><div>${items||'<span class="mu">—</span>'}</div><div><div class="tot">${tot?fmt(tot)+' h':''}</div><button class="add" data-a="${ds}" title="Aggiungi in questo giorno">+</button></div></div>`}
@@ -258,7 +262,7 @@ $('days').onclick=async e=>{const t=e.target;
   if(t.dataset.x){if(!await ask('Eliminare questa registrazione del '+x.d.split('-').reverse().join('/')+'?'))return;Object.keys(x).forEach(q=>{if(q!=='u')delete x[q]});x.del=true;x.t=Date.now();await persist();draw();return}
   edit={k,u};$('fh').textContent='Modifica registrazione';$('fa').hidden=false;$('ft').value=k==='voci'?'lavoro':x.tipo;tipo();
   $('fd').value=x.d;$('fo').value=x.h??'';$('fn').value=x.note||'';
-  if(k==='voci'){const l=(COD.lav||[]).find(y=>y.id==x.lav)||{cod:x.cod,nome:x.nome,cliente:x.cliente};$('fl').value=lbl(l);$('fk').value=x.km??'';$('fs').value=x.sp??''}
+  if(k==='voci'){const l=(COD.lav||[]).find(y=>y.id==x.lav)||{cod:x.cod,nome:x.nome,cliente:x.cliente};$('fl').value=lbl(l);$('ftr').checked=!!x.tr;$('fk').value=x.km??'';$('fs').value=x.sp??''}
   window.scrollTo({top:0,behavior:'smooth'})};
 const mv=k=>{const [Y,M]=mese.split('-').map(Number),d=new Date(Y,M-1+k,1);mese=ymd(d).slice(0,7);draw()};
 $('mp').onclick=()=>mv(-1);$('mn').onclick=()=>mv(1);
