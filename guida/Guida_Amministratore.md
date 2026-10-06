@@ -1,6 +1,6 @@
 # Guida per l'amministrazione
 
-SISTEM SRL STP · CONTROLLO_SISTEM e INSERT_SISTEM · versione 1.9
+SISTEM SRL STP · CONTROLLO_SISTEM e INSERT_SISTEM · versione 1.10
 
 <div class="lead">
 
@@ -39,7 +39,10 @@ SERVER
 │   ├── dipendenti.json           nomi, permessi e PIN cifrati      (scrive CONTROLLO_SISTEM)
 │   ├── codici.json               elenco lavori: codice, nome, cliente  (scrive CONTROLLO_SISTEM)
 │   ├── ferie.json                esiti delle richieste, ferie assegnate (scrive CONTROLLO_SISTEM)
-│   └── ore\                      un file per dipendente              (scrive INSERT_SISTEM)
+│   ├── attivita.json             attività della settimana inserite dall'amministratore (scrive CONTROLLO_SISTEM)
+│   ├── messaggi.json             messaggi ai dipendenti               (scrive CONTROLLO_SISTEM)
+│   └── ore\                      un file per dipendente: ore, richieste, attività,
+│                                 letto/fatto dei messaggi            (scrive INSERT_SISTEM)
 │       ├── d…json
 │       └── …
 ├── Amministrazione\ControlloLavori\   privata: solo amministratore
@@ -60,8 +63,8 @@ Pagina di download: **https://github.com/sistembelluno-lang/Newsistem/releases/l
 
 | File | Per chi |
 | --- | --- |
-| `CONTROLLO_SISTEM-1.9.0-Windows7-32bit-setup.exe` | PC dell'amministratore |
-| `INSERT_SISTEM-1.9.0-Windows7-32bit-setup.exe` | PC dei dipendenti (va copiato in `Programmi` sul server) |
+| `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe` | PC dell'amministratore |
+| `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` | PC dei dipendenti (va copiato in `Programmi` sul server) |
 | `Guida_Amministratore.pdf` | questa guida |
 | `Guida_Dipendenti.pdf` | da stampare per i dipendenti |
 
@@ -80,7 +83,7 @@ Negli esempi il disco dei dati del server è `D:` e il server si chiama `SERVER`
 3. Entra in `ControlloLavori` e crea la sottocartella **`ore`**.
 4. Torna in `D:\` e crea la cartella **`Amministrazione`**; dentro crea **`ControlloLavori`**.
 5. In `D:\` crea la cartella **`Programmi`**.
-6. Copia in `D:\Programmi` il file `INSERT_SISTEM-1.9.0-Windows7-32bit-setup.exe` (e, se vuoi, `Guida_Dipendenti.pdf`).
+6. Copia in `D:\Programmi` il file `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` (e, se vuoi, `Guida_Dipendenti.pdf`).
 
 Alla fine devi avere:
 
@@ -166,7 +169,7 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 
 *Windows 7, 32 bit. Circa 5 minuti.*
 
-1. Scarica `CONTROLLO_SISTEM-1.9.0-Windows7-32bit-setup.exe` dalla pagina di download (capitolo 2).
+1. Scarica `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe` dalla pagina di download (capitolo 2).
 2. Fai doppio clic sul file. Se compare un avviso di sicurezza scegli **Esegui** (su Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*): il programma non ha una firma digitale a pagamento, è normale.
 3. Lascia la cartella proposta, premi **Installa**, poi **Fine**. Sul desktop e nel menu Start compare l'icona **CONTROLLO_SISTEM** (una "S" blu-viola).
 4. Se sul PC c'era la versione precedente (*Controllo Lavori*), dopo l'installazione disinstallala da **Pannello di controllo → Programmi e funzionalità**. I dati non si perdono.
@@ -211,7 +214,7 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 
 **8.2 Su ogni PC dei dipendenti** (5 minuti a PC, con il dipendente presente)
 
-1. **Windows + R** → `\\SERVER\Programmi` → doppio clic su `INSERT_SISTEM-1.9.0-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
+1. **Windows + R** → `\\SERVER\Programmi` → doppio clic su `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
 2. Al primo avvio INSERT_SISTEM chiede la cartella condivisa: **Scegli cartella…** → `\\SERVER\ControlloLavori` → **Seleziona cartella**. Una volta sola per PC.
 3. Il dipendente sceglie il suo nome e scrive il PIN.
 4. **Prova**: inserisce un'ora su un lavoro e salva. Su CONTROLLO_SISTEM, entro un minuto, le ore compaiono nella scheda del lavoro in *Ore totali*. Poi la cancella con ✕.
@@ -236,6 +239,7 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 | Registrazioni | tutto ciò che i dipendenti hanno inserito: dove, km e auto, spese per tipologia |
 | Report mensile | per dipendente o per tutti: **Stampa**, **Esporta PDF**, **Esporta Excel** per le buste paga |
 | Ferie e permessi | richieste da approvare (✓ / ✕ con motivo), calendario del mese, **+ Assegna ferie o permesso** |
+| Messaggi | messaggi personali ai dipendenti, legati a una commessa, e il loro stato (non letto, letto, fatto, risposta) |
 | Dipendenti e PIN | nuovi dipendenti, PIN, permessi, *Attivo* |
 | Impostazioni | cartella condivisa, lavori visibili ai dipendenti, PIN di apertura |
 
@@ -244,6 +248,35 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 **Colori dei giorni**: <span class="sw g-fest"></span> rosso festivi · <span class="sw g-fp"></span> viola ferie programmate · <span class="sw g-att"></span> viola a righe richiesta in attesa · <span class="sw g-fe"></span> blu ferie fatte · <span class="sw g-ma"></span> giallo malattia.
 
 <figure class="sm"><img src="img/report_stampa.png"><figcaption>Il report mensile stampato o in PDF, con km per auto e spese per tipologia.</figcaption></figure>
+
+<div class="pb"></div>
+
+**📅 Attività della settimana** (nella schermata principale, sotto i riquadri)
+
+Una tabella **aperta a tutti**: la vedono e la compilano l'amministratore e tutti i dipendenti, ognuno dal proprio programma. Serve per avere sempre il quadro delle attività programmate, settimana per settimana.
+
+1. Compila **Data**, **Codice lavoro** (scrivi il codice, es. `000`, e sceglilo dall'elenco), **Chi** (la sigla, es. `DV`; più persone separate da virgola: `DV, MR`), **Strumentazione** (es. *stazione totale*), **Auto** (*aziendale* o *propria*) ed eventuali **Note**.
+2. Premi **Aggiungi** (oppure Invio). La riga compare nel giorno giusto e, entro un minuto, anche nei programmi dei dipendenti.
+3. **‹ ›** per cambiare settimana, **Questa settimana** per tornare a oggi, **+** accanto a un giorno per inserire in quella data.
+4. **✎** corregge e **✕** elimina una riga, anche se l'ha inserita un altro: la colonna *Inserita da* dice chi l'ha scritta e chi l'ha modificata per ultimo.
+5. **Stampa** ed **Esporta PDF** per appendere o mandare il programma della settimana.
+
+La sigla si forma con le iniziali di nome e cognome (Davide Verdi → **DV**); passando il mouse sulla sigla compare il nome.
+
+<figure><img src="img/att_admin.png"><figcaption>Attività della settimana in CONTROLLO_SISTEM.</figcaption></figure>
+
+**✉ Messaggi ai dipendenti** (👥 Ore dipendenti → scheda **Messaggi**)
+
+1. **A chi**: il dipendente (oppure *Tutti i dipendenti*).
+2. **Commessa / lavoro** (facoltativo): es. `000`, scelto dall'elenco.
+3. **Entro il** (facoltativo): la scadenza.
+4. **Messaggio**: es. *Eseguire sopralluogo in cantiere entro domani* → **Invia messaggio**.
+
+Il dipendente lo trova in INSERT_SISTEM con un avviso in alto. Nell'elenco sotto vedi lo **stato**: *Non letto*, *Letto*, *Fatto* (con data e ora) e la sua eventuale **risposta**. **✕** elimina il messaggio anche dal programma del dipendente.
+
+<figure><img src="img/msg_admin.png"><figcaption>Messaggi: nuovo messaggio e stato di quelli inviati.</figcaption></figure>
+
+*Riservatezza*: nel programma ogni dipendente vede solo i propri messaggi. Il file `messaggi.json` sta però nella cartella condivisa, che i dipendenti possono leggere: non scrivere nei messaggi dati riservati (stipendi, dati sanitari…).
 
 ## 10. Aggiornamenti, backup e recupero
 

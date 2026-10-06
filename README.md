@@ -4,6 +4,8 @@ Due programmi a pagina singola, impacchettati come applicazioni desktop con Elec
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
 
+Novità 1.10: messaggi personali dall'amministratore ai dipendenti (legati a una commessa, con scadenza, stato letto/fatto e risposta) e tabella aperta delle attività della settimana (data, codice lavoro, chi, strumentazione, auto), compilabile da amministratore e dipendenti.
+
 Novità 1.8: esito dell'offerta con scheda contratto (rif. offerta approvata, contratto n. e data, ente, tempistiche, note); «Esporta PDF» su tutti i report; colori dei giorni (rosso festivi e festività nazionali, viola ferie programmate, blu ferie fatte, giallo malattia); file `ferie.json` nella cartella condivisa con esiti e ferie assegnate dall'amministratore. I dati restano nelle cartelle di prima (`%APPDATA%\Controllo Lavori`, `%APPDATA%\Ore Dipendenti`).
 
 ## Ore dipendenti: come funziona

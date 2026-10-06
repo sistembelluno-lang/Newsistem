@@ -1,6 +1,6 @@
 # CONTROLLO_SISTEM e INSERT_SISTEM
 
-Manuale di installazione e d'uso · versione 1.9
+Manuale di installazione e d'uso · versione 1.10
 
 <div class="lead">
 
@@ -18,8 +18,9 @@ Manuale di installazione e d'uso · versione 1.9
 6. Uso di CONTROLLO_SISTEM (amministratore)
 7. Dipendenti, ferie e report: cosa vede l'amministratore
 8. Uso di INSERT_SISTEM (dipendenti)
-9. Colori dei giorni
-10. Situazioni frequenti e problemi
+9. Attività della settimana e messaggi
+10. Colori dei giorni
+11. Situazioni frequenti e problemi
 
 <div class="pb"></div>
 
@@ -37,13 +38,15 @@ I due programmi si scambiano i dati attraverso una cartella sul server:
    dipendenti.json   nomi e PIN cifrati                 ← scritto da CONTROLLO_SISTEM
    codici.json       elenco lavori (solo codice, nome, cliente)  ← scritto da CONTROLLO_SISTEM
    ferie.json        esito delle richieste di ferie, ferie assegnate  ← scritto da CONTROLLO_SISTEM
-   ore\              un file per dipendente (ore, spese, richieste)  ← scritto da INSERT_SISTEM
+   attivita.json     attività della settimana inserite dall'amministratore  ← scritto da CONTROLLO_SISTEM
+   messaggi.json     messaggi personali ai dipendenti  ← scritto da CONTROLLO_SISTEM
+   ore\              un file per dipendente (ore, spese, richieste, attività, letto/fatto dei messaggi)  ← scritto da INSERT_SISTEM
 
 \\SERVER\Amministrazione\ControlloLavori   (privata, solo amministratore)
    dati_lavori.json  tutti i dati dei lavori, con copia giornaliera in "storico"
 ```
 
-**Cosa può fare un dipendente**, e nient'altro: inserire le ore su un lavoro scelto dall'elenco indicando se in ufficio, in cantiere (solo lavori Worksite) o in trasferta; inserire i km indicando l'auto usata; inserire le spese per tipologia; segnare ferie, permessi, malattia e una nota del giorno; chiedere giorni di ferie e permessi; vedere e correggere solo le proprie registrazioni.
+**Cosa può fare un dipendente**, e nient'altro: inserire le ore su un lavoro scelto dall'elenco indicando se in ufficio, in cantiere (solo lavori Worksite) o in trasferta; inserire i km indicando l'auto usata; inserire le spese per tipologia; segnare ferie, permessi, malattia e una nota del giorno; chiedere giorni di ferie e permessi; vedere e correggere solo le proprie registrazioni; leggere i propri messaggi e rispondere; vedere e compilare la tabella aperta delle attività della settimana.
 
 **Cosa non può fare:** aprire CONTROLLO_SISTEM (non è sul suo PC e sul PC dell'amministratore chiede un PIN), vedere importi, offerte, contratti o note dei lavori, vedere le ore dei colleghi, approvare ferie, cambiare dipendenti, PIN o elenco dei lavori.
 
@@ -55,8 +58,8 @@ Si scaricano dalla pagina **https://github.com/sistembelluno-lang/Newsistem/rele
 
 | PC | File |
 | --- | --- |
-| Amministratore (Windows 7, 32 bit) | `CONTROLLO_SISTEM-1.9.0-Windows7-32bit-setup.exe` |
-| Dipendenti (Windows 7, 8, 10 o 11) | `INSERT_SISTEM-1.9.0-Windows7-32bit-setup.exe` |
+| Amministratore (Windows 7, 32 bit) | `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe` |
+| Dipendenti (Windows 7, 8, 10 o 11) | `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` |
 
 - I file *Windows7-32bit* funzionano su tutti i Windows dal 7 in poi: usali su tutti i PC.
 - I file *-setup.exe* installano il programma con l'icona nel menu Start (consigliati); i *-portable.exe* partono senza installazione.
@@ -88,7 +91,7 @@ Se i PC dei dipendenti usano un utente Windows comune, i permessi "dipendenti" v
 
 Una volta sola, circa 15 minuti. Tieni pronto il tuo backup `.json`.
 
-1. Fai doppio clic su `CONTROLLO_SISTEM-1.9.0-Windows7-32bit-setup.exe`. Se compare un avviso di sicurezza scegli **Esegui** (Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*). Premi **Installa** e **Fine**.
+1. Fai doppio clic su `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe`. Se compare un avviso di sicurezza scegli **Esegui** (Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*). Premi **Installa** e **Fine**.
 2. **Importa dati** → **Scegli file .json…** → il tuo backup. Solo la prima volta: poi ogni modifica si salva da sola.
 3. Nella riga *Salvataggio automatico in …* premi **Cambia cartella** e scegli `\\SERVER\Amministrazione\ControlloLavori`. Mai la cartella condivisa dei dipendenti.
 4. **👥 Ore dipendenti** → **Impostazioni** → **Imposta PIN di apertura**: un PIN di 4-8 cifre, diverso da quelli dei dipendenti.
@@ -106,7 +109,7 @@ Una volta sola, circa 15 minuti. Tieni pronto il tuo backup `.json`.
 
 Circa 5 minuti a PC, con il dipendente presente.
 
-1. Dal PC del dipendente apri `\\SERVER\Programmi` e fai doppio clic su `INSERT_SISTEM-1.9.0-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
+1. Dal PC del dipendente apri `\\SERVER\Programmi` e fai doppio clic su `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
 2. Al primo avvio: **Scegli cartella…** → `\\SERVER\ControlloLavori` → **Seleziona cartella**. Una volta sola per PC.
 3. Il dipendente sceglie il suo nome e scrive il PIN.
 4. **Prova:** inserisce un'ora su un lavoro e salva. Sul PC dell'amministratore, entro un minuto, le ore compaiono nel lavoro in *Ore totali*. Poi cancella la prova con ✕.
@@ -177,7 +180,7 @@ Non serve fare nulla perché le ore arrivino: il programma rilegge il server all
 **Ferie e permessi**
 
 - **Richieste da approvare**: ✓ *Approva* o ✕ *Rifiuta* (con il motivo, che il dipendente vede), oppure *Approva tutte*.
-- **Calendario del mese**: una riga per dipendente, una colonna per giorno, con i colori del capitolo 9 (F ferie fatte, P permesso, M malattia, ? richiesta in attesa). Clic su una casella per assegnare o togliere un giorno di ferie.
+- **Calendario del mese**: una riga per dipendente, una colonna per giorno, con i colori del capitolo 10 (F ferie fatte, P permesso, M malattia, ? richiesta in attesa). Clic su una casella per assegnare o togliere un giorno di ferie.
 - **+ Assegna ferie o permesso**: dipendente, dal-al (sabati, domeniche e festivi vengono saltati) o ore di permesso.
 - **Ferie e permessi programmati**: *Togli* quelli assegnati da te, *Revoca* quelli approvati.
 
@@ -214,7 +217,7 @@ Non serve fare nulla perché le ore arrivino: il programma rilegge il server all
 
 **Ferie fatte, permessi, malattia**: in *Tipo* scegli **Ferie**, **Permesso** o **Malattia**, metti la data e le ore (giornata intera: 8) e salva. **Nota del giorno**: per segnalare qualcosa all'ufficio.
 
-**Il tuo mese**: giorno per giorno, con i colori del capitolo 9 e i totali in alto (ore in cantiere e in trasferta, km per auto, spese); **‹ ›** per cambiare mese. **✎** per correggere, **✕** per cancellare: la correzione arriva in ufficio da sola. **+** accanto a un giorno per aggiungere in quella data. **Stampa report del mese** ed **Esporta PDF** per il tuo riepilogo. Alla fine **Esci**.
+**Il tuo mese**: giorno per giorno, con i colori del capitolo 10 e i totali in alto (ore in cantiere e in trasferta, km per auto, spese); **‹ ›** per cambiare mese. **✎** per correggere, **✕** per cancellare: la correzione arriva in ufficio da sola. **+** accanto a un giorno per aggiungere in quella data. **Stampa report del mese** ed **Esporta PDF** per il tuo riepilogo. Alla fine **Esci**.
 
 <figure><img src="img/dip_mese.png"><figcaption>Il mese del dipendente: ore, cantiere, trasferta, ferie, permessi, malattia.</figcaption></figure>
 
@@ -234,7 +237,19 @@ Se compare *Server non raggiungibile*, continua pure: ore e richieste restano su
 
 <div class="pb"></div>
 
-## 9. Colori dei giorni
+## 9. Attività della settimana e messaggi
+
+**📅 Attività della settimana**: tabella aperta a tutti, nella schermata principale di CONTROLLO_SISTEM e nella scheda *Attività settimana* di INSERT_SISTEM. Ogni riga: **Data**, **Codice lavoro** (es. `000`), **Chi** (sigla, es. `DV`), **Strumentazione**, **Auto** (aziendale o propria), **Note**. Tutti possono aggiungere, correggere (✎) ed eliminare (✕); la colonna *Inserita da* dice chi l'ha scritta e chi l'ha modificata. **‹ ›** cambia settimana; **Stampa** ed **Esporta PDF**. Si aggiorna da sola ogni minuto.
+
+<figure><img src="img/att_admin.png"><figcaption>Attività della settimana.</figcaption></figure>
+
+**✉ Messaggi**: in CONTROLLO_SISTEM, 👥 → **Messaggi** → *A chi*, *Commessa* (facoltativa), *Entro il* (facoltativo), testo → **Invia messaggio**. Il dipendente vede l'avviso in INSERT_SISTEM, preme **Letto**, **Fatto** ed eventualmente **Rispondi**; l'amministratore vede lo stato nell'elenco. Nel programma ognuno vede solo i propri messaggi, ma il file è nella cartella condivisa: niente dati riservati.
+
+<figure><img src="img/msg_admin.png"><figcaption>Messaggi ai dipendenti.</figcaption></figure>
+
+<div class="pb"></div>
+
+## 10. Colori dei giorni
 
 Gli stessi colori valgono nel programma dei dipendenti, nel calendario delle ferie dell'amministratore e nei report.
 
@@ -248,7 +263,7 @@ Gli stessi colori valgono nel programma dei dipendenti, nel calendario delle fer
 
 Le festività patronali locali non sono comprese: se servono, si possono aggiungere.
 
-## 10. Situazioni frequenti e problemi
+## 11. Situazioni frequenti e problemi
 
 | Situazione | Cosa fare |
 | --- | --- |

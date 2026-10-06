@@ -1,10 +1,10 @@
 # Guida per i dipendenti
 
-SISTEM SRL STP · INSERT_SISTEM · versione 1.9
+SISTEM SRL STP · INSERT_SISTEM · versione 1.10
 
 <div class="lead">
 
-Con **INSERT_SISTEM** registri le tue ore sui lavori (in ufficio, in cantiere o in trasferta), i km, le spese, le ferie e i permessi. Tutto arriva in ufficio da solo: non serve mandare fogli o email.
+Con **INSERT_SISTEM** registri le tue ore sui lavori (in ufficio, in cantiere o in trasferta), i km, le spese, le ferie e i permessi, consulti e compili la tabella delle **attività della settimana** e ricevi i **messaggi** dall'ufficio. Tutto arriva in ufficio da solo: non serve mandare fogli o email.
 
 </div>
 
@@ -17,9 +17,11 @@ Con **INSERT_SISTEM** registri le tue ore sui lavori (in ufficio, in cantiere o 
 5. Ferie fatte, permessi, malattia e note
 6. Il tuo mese: controllare, correggere, stampare
 7. Chiedere ferie e permessi
-8. Colori dei giorni
-9. Cartelle e file: cosa non toccare
-10. Problemi frequenti
+8. Attività della settimana
+9. Messaggi dall'ufficio
+10. Colori dei giorni
+11. Cartelle e file: cosa non toccare
+12. Problemi frequenti
 
 <div class="pb"></div>
 
@@ -29,7 +31,7 @@ Con **INSERT_SISTEM** registri le tue ore sui lavori (in ufficio, in cantiere o 
 
 1. Premi insieme i tasti **Windows + R**: si apre la finestra *Esegui*.
 2. Scrivi `\\SERVER\Programmi` e premi **Invio**: si apre la cartella dei programmi sul server.
-3. Fai doppio clic su **`INSERT_SISTEM-1.9.0-Windows7-32bit-setup.exe`**.
+3. Fai doppio clic su **`INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe`**.
 4. Se compare un avviso di sicurezza scegli **Esegui** (su Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*). È normale.
 5. Premi **Installa**, poi **Fine**. Sul desktop e nel menu Start compare l'icona **INSERT_SISTEM**.
 
@@ -62,7 +64,7 @@ Il PIN è personale: non dirlo ai colleghi. Quando hai finito premi **Esci**, so
 
 <figure class="sm"><img src="img/dip_pin.png"><figcaption>Nome e PIN.</figcaption></figure>
 
-In alto ci sono due schede: **Ore e spese** e **Ferie e permessi**.
+In alto ci sono quattro schede: **Ore e spese**, **Ferie e permessi**, **Attività settimana** e **Messaggi**.
 
 ## 4. Inserire le ore di un lavoro
 
@@ -119,7 +121,42 @@ Sotto il modulo c'è il tuo mese, giorno per giorno, con i totali in alto (ore i
 
 <div class="pb"></div>
 
-## 8. Colori dei giorni
+## 8. Attività della settimana
+
+Scheda **Attività settimana**: una tabella **aperta a tutti**, uguale per l'amministratore e per tutti i colleghi. Mostra le attività programmate giorno per giorno; le righe che ti riguardano (con la tua sigla in *Chi*) sono evidenziate in azzurro.
+
+**Aggiungere un'attività**
+
+1. **Data**: il giorno dell'attività.
+2. **Codice lavoro**: scrivi il codice (es. `000`) o il nome e sceglilo dall'elenco.
+3. **Chi**: la sigla di chi la fa (es. `DV`; più persone separate da virgola: `DV, MR`). È già compilato con la tua sigla.
+4. **Strumentazione**: lo strumento da usare (es. *stazione totale*, *GPS*).
+5. **Auto**: *Auto aziendale* o *Auto propria*.
+6. **Note** facoltative, poi **Aggiungi**.
+
+**‹ ›** cambia settimana; **+** accanto a un giorno inserisce in quella data; **✎** corregge e **✕** elimina una riga (anche inserita da altri: la colonna *Inserita da* registra chi l'ha scritta e chi l'ha modificata). **Stampa** ed **Esporta PDF** per avere il programma su carta. La tabella si aggiorna da sola ogni minuto.
+
+<figure><img src="img/att_dip.png"><figcaption>Le attività della settimana: evidenziate quelle che ti riguardano.</figcaption></figure>
+
+<div class="pb"></div>
+
+## 9. Messaggi dall'ufficio
+
+Quando l'amministratore ti scrive, in alto compare l'avviso **📩 Hai un nuovo messaggio dall'ufficio** e la scheda **Messaggi** mostra un numero rosso.
+
+<figure><img src="img/msg_avviso.png"><figcaption>L'avviso di un nuovo messaggio.</figcaption></figure>
+
+1. Premi **Leggi** (o apri la scheda **Messaggi**).
+2. Leggi il messaggio: in alto ci sono la data, la commessa e, se c'è, la scadenza (*entro il…*, in rosso se è passata).
+3. Premi **✓ Letto**: l'ufficio vede che l'hai letto.
+4. Se vuoi rispondere: **Rispondi**, scrivi e **Invia risposta**.
+5. Quando hai finito: **✔ Fatto**. Se l'hai premuto per sbaglio: **Non ancora fatto**.
+
+I messaggi sono personali: nel programma ognuno vede solo i propri.
+
+<figure><img src="img/msg_dip.png"><figcaption>Un messaggio fatto, con la risposta.</figcaption></figure>
+
+## 10. Colori dei giorni
 
 | Colore | Significato |
 | --- | --- |
@@ -129,19 +166,19 @@ Sotto il modulo c'è il tuo mese, giorno per giorno, con i totali in alto (ore i
 | <span class="sw g-fe"></span> **Blu** | Ferie fatte |
 | <span class="sw g-ma"></span> **Giallo** | Malattia |
 
-## 9. Cartelle e file: cosa non toccare
+## 11. Cartelle e file: cosa non toccare
 
 Il programma gestisce da solo i suoi file. **Non aprire, spostare o cancellare** niente in queste cartelle:
 
 | Dove | Cosa contiene |
 | --- | --- |
-| `\\SERVER\ControlloLavori` | elenco dei dipendenti e dei lavori, ferie approvate (puoi solo leggerli) |
-| `\\SERVER\ControlloLavori\ore` | le ore di ogni dipendente, un file a testa |
+| `\\SERVER\ControlloLavori` | elenco dei dipendenti e dei lavori, ferie approvate, attività e messaggi dell'ufficio (puoi solo leggerli) |
+| `\\SERVER\ControlloLavori\ore` | ore, richieste e attività di ogni dipendente, un file a testa |
 | `C:\Users\<tuo utente>\AppData\Roaming\Ore Dipendenti` | impostazioni del programma e copia delle tue ore sul PC |
 
 Le tue ore restano anche sul PC: se il server è spento non perdi nulla.
 
-## 10. Problemi frequenti
+## 12. Problemi frequenti
 
 | Problema | Cosa fare |
 | --- | --- |
@@ -149,6 +186,7 @@ Le tue ore restano anche sul PC: se il server è spento non perdi nulla.
 | PIN dimenticato o "PIN errato" | Chiedi all'amministratore un nuovo PIN |
 | Non trovo un lavoro nell'elenco | Il lavoro è chiuso o non ancora creato: chiedi all'amministratore |
 | Non c'è la voce *Cantiere* | Il lavoro scelto non è un cantiere: usa *Ufficio* o *Trasferta* |
+| Non vedo un'attività appena inserita da un collega | Premi **⟳ Aggiorna** nella scheda Attività settimana (si aggiorna comunque da sola ogni minuto) |
 | Ho sbagliato un'ora | Nel mese premi **✎** sulla riga e correggi, oppure **✕** e reinserisci |
 | Il programma chiede di nuovo la cartella | Ripeti il capitolo 2; se non funziona chiama l'amministratore |
 | Avviso di Windows all'avvio | Normale: *Esegui* (Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*) |

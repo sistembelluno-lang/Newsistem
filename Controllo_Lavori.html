@@ -170,6 +170,25 @@ tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
 #lock .lb .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--mu);margin-bottom:2px}
 #toast{border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 @media (max-width:640px){.appbar{padding:8px 12px}.brand h1{font-size:16px}.appbar .meta{display:none}}
+/* Attività della settimana (uguale nei due programmi) e messaggi */
+.att-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh);padding:14px 16px;margin-bottom:10px}
+.att-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:10px}.att-h h2{margin:0;font-size:17px}
+.att-mu{color:var(--mu);font-size:12px}
+.att-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}.att-f .w2{grid-column:span 2}
+.att-f label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}.att-f input,.att-f select{width:100%}
+.att-b{display:flex;gap:6px;justify-content:flex-end}
+.att-nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.att-nav b{font-size:15px;min-width:230px;text-align:center}
+.att-tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh)}
+.att-t{width:100%;border-collapse:collapse;font-size:13px}.att-t th,.att-t td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.att-t th{background:var(--hd);position:static}.att-t td{white-space:normal}
+.att-t td.att-g{white-space:nowrap;min-width:92px;border-right:1px solid var(--bd)}.att-g small{display:block;color:var(--mu);font-size:11px}.g-fest .att-g b{color:#c0392b}
+.att-t tr.att-oggi td.att-g{box-shadow:inset 3px 0 0 var(--ac)}.att-t tr.att-mia td:not(.att-g){background:rgba(36,87,214,.09)}
+.att-add{padding:0 8px;margin-top:3px;font-size:12px}.att-ac{white-space:nowrap;text-align:right}.att-ac button{padding:1px 8px;font-size:12px}
+.msg{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card);box-shadow:var(--sh)}
+.msg.nuovo{border-color:var(--ac);box-shadow:0 0 0 2px rgba(36,87,214,.18)}.msg.fatto{opacity:.75}
+.msg .mt{white-space:pre-wrap;margin:6px 0;font-size:14px}.msg .mh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mu)}
+.msg .mb{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.msg .rsp{margin-top:4px;padding:6px 10px;border-left:3px solid var(--ok);background:var(--hd);border-radius:0 8px 8px 0;font-size:13px}
+.nb{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:99px;background:#c2372b;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
 /*TEMA-FINE*/
 </style>
 <script>/* Windows 7 (motore Chromium 108): color-mix non esiste; si tolgono quelle dichiarazioni e restano i colori rgba scritti subito prima */
@@ -198,6 +217,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 </div>
 <div class="mp" id="mp"><div class="mh"><span>🚩 Dove abbiamo lavorato</span><span><button id="mz">＋</button> <button id="mo">－</button> <button id="mr">⌂</button> <button id="mx">⤢</button></span></div><svg id="ms" viewBox="0 0 3600 1420"><path class="pv" id="mworld"/><path class="pv" id="mpath"/><g id="mfl"></g></svg><div id="mi"></div></div>
 </div>
+<section id="attw"></section>
 <div class="flt">
   <input id="q" placeholder="Cerca per codice, nome, cliente, note…">
   <select id="fs"><option value="">Tutti gli stati</option></select>
@@ -320,6 +340,72 @@ async function outReport(html,modo,nomeFile,avviso){const pr=document.getElement
   if(modo==='pdf'&&window.desktop&&window.desktop.savePdf){const r=await window.desktop.savePdf(nomeFile);if(avviso)avviso(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return r}
   if(modo==='pdf'&&avviso)avviso('Nella finestra di stampa scegli «Salva come PDF»');
   window.print()}
+// ===== Attività settimanali: tabella aperta, la vedono e la compilano amministratore e dipendenti =====
+// Attività {u,t,d,lav,cod,nome,chi,strum,auto,note,by,mod}. L'amministratore scrive in attivita.json, ogni dipendente nel suo
+// ore/<id>.json (campo att): ogni file ha sempre un solo scrittore. Chiunque può correggere o cancellare una riga: la nuova
+// versione (stesso u, t più recente; cancellata = del) va nel file di chi modifica e nell'elenco vince la più recente.
+const sigla=nome=>String(nome||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0].toUpperCase()).join('');
+function attUnisci(...liste){const m=new Map();liste.forEach(L=>(L||[]).forEach(x=>{if(!x||!x.u)return;const y=m.get(x.u);if(!y||(+x.t||0)>(+y.t||0))m.set(x.u,x)}));return[...m.values()].filter(x=>!x.del)}
+const dsOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function lunediDi(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return dsOf(d)}
+function giorniSett(lun){return[...Array(7)].map((_,i)=>{const d=new Date(lun+'T12:00');d.setDate(d.getDate()+i);return dsOf(d)})}
+function nSett(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4,12);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)}
+function settLabel(lun){const G=giorniSett(lun),a=G[0].split('-').map(Number),b=G[6].split('-').map(Number);
+  return'Settimana '+nSett(lun)+' · '+a[2]+(a[1]!==b[1]?' '+MESI[a[1]-1].toLowerCase():'')+(a[0]!==b[0]?' '+a[0]:'')+' – '+b[2]+' '+MESI[b[1]-1].toLowerCase()+' '+b[0]}
+const lavLbl=l=>(l.cod?l.cod+' · ':'')+(l.nome||'')+(l.cliente?' ('+l.cliente+')':'');
+// Componente della tabella settimanale, uguale nei due programmi.
+// cfg: {el, tutte()→attività, salva(x)→Promise<bool>, ricarica()→Promise, lavori()→[{id,cod,nome,cliente}], persone()→[{nome}], io:{nome}, toast, ask}
+function attUI(cfg){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const st=cfg.st=cfg.st||{lun:lunediDi(dsOf(new Date())),edit:null};const el=cfg.el,q=s=>el.querySelector(s);
+  el.innerHTML=`<div class="att-card"><div class="att-h"><h2>📅 Attività della settimana</h2><span class="att-mu">Tabella aperta: la vedono e la compilano amministratore e dipendenti.</span></div>
+<div class="att-f"><label>Data<input type="date" data-a="d"></label><label class="w2">Codice lavoro<input data-a="lav" list="att-lav" placeholder="Scrivi codice o nome…" autocomplete="off"></label>
+<label>Chi<input data-a="chi" list="att-chi" placeholder="es. DV" autocomplete="off"></label><label class="w2">Strumentazione<input data-a="strum" list="att-str" placeholder="es. stazione totale" autocomplete="off"></label>
+<label>Auto<select data-a="auto"><option value="">—</option><option value="az">Auto aziendale</option><option value="pr">Auto propria</option></select></label>
+<label class="w2">Note<input data-a="note" maxlength="200"></label><div class="att-b"><button type="button" data-k="annulla" hidden>Annulla</button><button type="button" class="p" data-k="salva">Aggiungi</button></div></div>
+<datalist id="att-lav"></datalist><datalist id="att-chi"></datalist><datalist id="att-str"></datalist></div>
+<div class="att-nav"><button type="button" data-k="prev" title="Settimana precedente">‹</button><b data-k="lbl"></b><button type="button" data-k="next" title="Settimana successiva">›</button><button type="button" data-k="oggi">Questa settimana</button><span style="flex:1"></span><button type="button" data-k="agg">⟳ Aggiorna</button><button type="button" data-k="prt">Stampa</button><button type="button" data-k="pdf">Esporta PDF</button></div>
+<div class="att-l"></div>`;
+  const F=k=>q(`[data-a="${k}"]`),lavOf=v=>(cfg.lavori()||[]).find(l=>lavLbl(l)===v.trim()||String(l.cod??'')===v.trim());
+  const reset=d=>{st.edit=null;F('d').value=d||F('d').value||dsOf(new Date());['lav','strum','note'].forEach(k=>F(k).value='');F('chi').value=cfg.io&&cfg.io.nome?sigla(cfg.io.nome):'';F('auto').value='';q('[data-k=salva]').textContent='Aggiungi';q('[data-k=annulla]').hidden=true};
+  const liste=()=>{q('#att-lav').innerHTML=(cfg.lavori()||[]).map(l=>`<option value="${E(lavLbl(l))}">`).join('');
+    q('#att-chi').innerHTML=(cfg.persone()||[]).map(p=>`<option value="${E(sigla(p.nome))}">${E(p.nome)}</option>`).join('');
+    q('#att-str').innerHTML=[...new Set(cfg.tutte().map(x=>x.strum).filter(Boolean))].sort().map(s=>`<option value="${E(s)}">`).join('')};
+  const chiTit=c=>String(c||'').split(/[,;/+]/).map(s=>s.trim()).filter(Boolean).map(s=>{const p=(cfg.persone()||[]).find(p=>sigla(p.nome)===s.toUpperCase()||p.nome.toLowerCase()===s.toLowerCase());return p?p.nome:s}).join(', ');
+  const mia=x=>cfg.io&&cfg.io.nome&&String(x.chi||'').toUpperCase().split(/[^A-ZÀ-Ü]+/).includes(sigla(cfg.io.nome));
+  const righe=()=>{const G=giorniSett(st.lun),A=cfg.tutte();return G.map(ds=>({ds,L:A.filter(x=>x.d===ds).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true})||(+a.t-+b.t))}))};
+  function lista(){q('[data-k=lbl]').textContent=settLabel(st.lun);const oggi=dsOf(new Date());let h='',tot=0;
+    righe().forEach(({ds,L})=>{const g=giorno(ds),[,m,d]=ds.split('-').map(Number),dl=`<b>${GGS[g.dw]} ${d}/${m}</b>${g.nome?`<small>${E(g.nome)}</small>`:''}${ds===oggi?'<small>oggi</small>':''}<button type="button" class="att-add" data-add="${ds}" title="Aggiungi un'attività in questo giorno">+</button>`;
+      const cls=(g.fest?'g-fest ':'')+(ds===oggi?'att-oggi':'');tot+=L.length;
+      if(!L.length){h+=`<tr class="${cls}"><td class="att-g">${dl}</td><td colspan="8" class="att-mu">—</td></tr>`;return}
+      L.forEach((x,i)=>{h+=`<tr class="${cls} ${mia(x)?'att-mia':''}">${i?'':`<td class="att-g" rowspan="${L.length}">${dl}</td>`}<td><b>${E(x.cod)}</b></td><td>${E(x.nome)}</td><td title="${E(chiTit(x.chi))}"><b>${E(x.chi)}</b></td><td>${E(x.strum)}</td><td>${x.auto?AUTO[x.auto]:''}</td><td>${E(x.note)}</td><td class="att-mu">${E(x.by)}${x.mod&&x.mod!==x.by?'<br>mod. '+E(x.mod):''}</td><td class="att-ac"><button type="button" data-e="${E(x.u)}" title="Modifica">✎</button><button type="button" class="d" data-x="${E(x.u)}" title="Elimina">✕</button></td></tr>`})});
+    q('.att-l').innerHTML=`<div class="att-tw"><table class="att-t"><thead><tr><th>Giorno</th><th>Codice</th><th>Lavoro</th><th>Chi</th><th>Strumentazione</th><th>Auto</th><th>Note</th><th>Inserita da</th><th></th></tr></thead><tbody>${h}</tbody></table></div><p class="att-mu">${tot?tot+(tot===1?' attività':' attività')+' in settimana.':'Nessuna attività programmata in questa settimana.'}${cfg.io&&cfg.io.nome?' Le righe evidenziate riguardano te.':''}</p>`;
+    liste()}
+  async function salva(){const d=F('d').value,l=lavOf(F('lav').value),chi=F('chi').value.trim().replace(/\s*,\s*/g,', ');
+    if(!/^\d{4}-\d\d-\d\d$/.test(d)){cfg.toast('Inserisci la data');F('d').focus();return}
+    if(!l){cfg.toast('Scegli il lavoro dall\'elenco');F('lav').focus();return}
+    if(!chi){cfg.toast('Indica chi (es. DV)');F('chi').focus();return}
+    const me=cfg.io&&cfg.io.nome||'Amministratore',old=st.edit&&cfg.tutte().find(x=>x.u===st.edit);
+    const x={u:old?old.u:newId(),t:Date.now(),d,lav:l.id,cod:String(l.cod??''),nome:l.nome||'',chi,strum:F('strum').value.trim(),auto:F('auto').value,note:F('note').value.trim(),by:old?old.by:me};
+    if(old)x.mod=me;const b=q('[data-k=salva]');b.disabled=true;const ok=await cfg.salva(x);b.disabled=false;
+    if(ok===false)return;st.lun=lunediDi(d);reset(d);lista();cfg.toast(old?'Attività modificata':'Attività aggiunta')}
+  el.onclick=async e=>{const t=e.target.closest('button');if(!t||!el.contains(t))return;const k=t.dataset.k;
+    if(k==='prev'||k==='next'){const d=new Date(st.lun+'T12:00');d.setDate(d.getDate()+(k==='prev'?-7:7));st.lun=dsOf(d);lista()}
+    else if(k==='oggi'){st.lun=lunediDi(dsOf(new Date()));lista()}
+    else if(k==='agg'){await cfg.ricarica();lista();cfg.toast('Aggiornato')}
+    else if(k==='salva')salva();
+    else if(k==='annulla')reset();
+    else if(k==='prt'||k==='pdf'){const R=[];righe().forEach(({ds,L})=>{const g=giorno(ds),gl=GGS[g.dw]+' '+ds.split('-').reverse().join('/')+(g.nome?' · '+E(g.nome):'');
+        if(!L.length)R.push([gl,'','','','','','']);else L.forEach((x,i)=>R.push([i?'':gl,'<b>'+E(x.cod)+'</b>',E(x.nome),'<b>'+E(x.chi)+'</b>',E(x.strum),x.auto?AUTO[x.auto]:'',E(x.note)]))});
+      outReport(repTable('Attività della settimana',settLabel(st.lun),['Giorno','Codice','Lavoro','Chi','Strumentazione','Auto','Note'],R),k,'Attivita_settimana_'+nSett(st.lun)+'_'+st.lun.slice(0,4)+'.pdf',cfg.toast)}
+    else if(t.dataset.add){reset(t.dataset.add);F('lav').focus();q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'})}
+    else if(t.dataset.e){const x=cfg.tutte().find(y=>y.u===t.dataset.e);if(!x)return;st.edit=x.u;F('d').value=x.d;const l=(cfg.lavori()||[]).find(y=>y.id==x.lav&&String(y.cod??'')===x.cod);
+      F('lav').value=l?lavLbl(l):x.cod;F('chi').value=x.chi||'';F('strum').value=x.strum||'';F('auto').value=x.auto||'';F('note').value=x.note||'';
+      q('[data-k=salva]').textContent='Salva modifica';q('[data-k=annulla]').hidden=false;q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'});F('lav').focus()}
+    else if(t.dataset.x){const x=cfg.tutte().find(y=>y.u===t.dataset.x);if(!x||!await cfg.ask('Eliminare l\'attività '+x.cod+' del '+x.d.split('-').reverse().join('/')+' ('+x.chi+')? Sparisce per tutti.'))return;
+      if(await cfg.salva({u:x.u,t:Date.now(),del:true,mod:cfg.io&&cfg.io.nome||'Amministratore'})!==false){if(st.edit===x.u)reset();lista();cfg.toast('Attività eliminata')}}};
+  el.onkeydown=e=>{if(e.key==='Enter'&&e.target.closest('.att-f')&&e.target.tagName==='INPUT'){e.preventDefault();salva()}};
+  reset();lista();
+  return{lista,aggiorna:()=>{if(!el.isConnected)return;lista()}}}
 /*CONDIVISO-FINE*/
 </script>
 <script>
@@ -470,15 +556,17 @@ ${sv||!L.length?'':`<div class="calc"><span>Ore: <b>${fmt(L.reduce((s,o)=>s+n(o.
 // ===== Ore dipendenti =====
 // Il programma «INSERT_SISTEM» scrive nella cartella condivisa (ore/<id>.json); qui l'amministratore gestisce dipendenti e PIN,
 // riceve in automatico le registrazioni (sommate nei campi del lavoro) e stampa i report mensili.
-const OD={f:{v:1,admin:{},dip:[]},ore:{},fer:{e:{},prog:[]},miss:[],tab:'app',err:'',dir:''};
+const OD={f:{v:1,admin:{},dip:[]},ore:{},fer:{e:{},prog:[]},att:[],msg:[],miss:[],tab:'app',err:'',dir:''};
 let pcT;
 function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=>{
   const L=S.rows.filter(r=>r.stato!=='Non fare'&&(M.odFin||!/^finit/i.test(r.stato||''))).map(r=>({id:r.id,cod:String(r.cod??''),nome:r.nome||'',cliente:r.cliente||'',ws:!!r.ws}));
   try{await VFS.write('codici.json',JSON.stringify({agg:Date.now(),lav:L}));M.odPub={t:Date.now(),n:L.length};saveMeta()}catch(e){}},800)}
-async function odLoad(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
+async function odLoad(){const r=await odLoad0();attDraw();return r}
+async function odLoad0(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
   OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};
   if(OD.f.dip.length&&!M.odOn){M.odOn=true;saveMeta();pubCodici()}
-  const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',null);OD.ore=O;OD.fer=await rj('ferie.json',{e:{},prog:[]})}
+  const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',null);OD.ore=O;OD.fer=await rj('ferie.json',{e:{},prog:[]});
+   OD.att=(await rj('attivita.json',{att:[]})).att||[];OD.msg=(await rj('messaggi.json',{msg:[]})).msg||[]}
   catch(e){OD.err=String(e&&e.message||e);return false}
   odSync();return true}
 const odVoci=()=>OD.f.dip.flatMap(d=>((OD.ore[d.id]||{}).voci||[]).filter(v=>!v.del).map(v=>({v,d})));
@@ -515,9 +603,9 @@ async function openOD(tab){const d=$('od');if(tab)OD.tab=tab;d.innerHTML='<p cla
 $('odbtn').onclick=()=>openOD();
 function odDraw(){const d=$('od'),np=(OD.miss||[]).length;
   const na=odRich().filter(x=>x.p.stato==='att').length;
-  const T=[['app','Registrazioni'],['rep','Report mensile'],['ass','Ferie e permessi'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
+  const T=[['app','Registrazioni'],['rep','Report mensile'],['ass','Ferie e permessi'],['msg','Messaggi'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
   d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><span class="btns">${VFS.sim?'<button type="button" id="odpv">Prova come dipendente</button>':''}<button type="button" id="odx">Chiudi</button></span></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np} ⚠</span>`:''}${k==='ass'&&na?` <span class="tag" style="background:rgba(138,92,209,.25)">${na}</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
-  ({app:odApp,rep:odRep,ass:odAss,dip:odDip,imp:odImp})[OD.tab]();
+  ({app:odApp,rep:odRep,ass:odAss,msg:odMsg,dip:odDip,imp:odImp})[OD.tab]();
   $('odx').onclick=()=>d.close();if($('odpv'))$('odpv').onclick=openOrePreview;
   d.querySelector('.tabs').onclick=e=>{const t=e.target.closest('[data-t]');if(t){OD.tab=t.dataset.t;odDraw()}}}
 const dipSel=(id,v,all)=>`<select id="${id}"><option value="">${all}</option>${OD.f.dip.map(d=>`<option value="${esc(d.id)}" ${v===d.id?'selected':''}>${esc(d.nome)}${d.attivo===false?' (non attivo)':''}</option>`).join('')}</select>`;
@@ -607,6 +695,45 @@ function odDip(){const b=$('odb'),F=OD.dd=OD.dd||JSON.parse(JSON.stringify(OD.f)
       try{await VFS.write('dipendenti.json',JSON.stringify({v:1,admin:F.admin,dip:F.dip}))}catch(err){toast('Non salvato: cartella condivisa non raggiungibile');return}
       OD.f=JSON.parse(JSON.stringify(F));OD.dd=null;
       M.odOn=true;saveMeta();pubCodici();odDraw();toast('Dipendenti salvati')}}}
+// ===== Messaggi personali ai dipendenti: messaggi.json (scritto solo da qui) {msg:[{u,t,di,lav,cod,nome,testo,entro}]}.
+// Il dipendente li vede in INSERT_SISTEM; letto / fatto / risposta arrivano dal suo file (ore/<id>.json, campo ms).
+async function msgWrite(mut){let F;try{F=await rj('messaggi.json',{msg:[]})}catch(e){toast('Cartella condivisa non raggiungibile: niente è stato modificato');return false}
+  F.msg=F.msg||[];mut(F);F.agg=Date.now();try{await VFS.write('messaggi.json',JSON.stringify(F))}catch(e){toast('Non salvato sul server: riprova');return false}OD.msg=F.msg;return true}
+const msgStato=m=>((OD.ore[m.di]||{}).ms||[]).find(x=>x.u===m.u)||{};
+const dOra=t=>t?new Date(+t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'';
+function odMsg(){const b=$('odb'),f=OD.fm=OD.fm||{dip:''},att=OD.f.dip.filter(d=>d.attivo!==false),nm=id=>(OD.f.dip.find(d=>d.id===id)||{}).nome||'?';
+  const L=(OD.msg||[]).filter(m=>!m.del&&(!f.dip||m.di===f.dip)).sort((a,b)=>(+b.t||0)-(+a.t||0)),td=oggiL();
+  b.innerHTML=`<div class="rbox"><h3>Nuovo messaggio</h3><div class="g" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+<label>A chi<select id="om1"><option value="">— scegli —</option>${att.map(d=>`<option value="${esc(d.id)}">${esc(d.nome)} (${esc(sigla(d.nome))})</option>`).join('')}<option value="*">Tutti i dipendenti</option></select></label>
+<label style="grid-column:span 2">Commessa / lavoro (facoltativo)<input id="om2" list="omlav" placeholder="Scrivi codice o nome…" autocomplete="off"><datalist id="omlav">${S.rows.filter(r=>r.stato!=='Non fare').map(r=>`<option value="${esc(lavLbl(r))}">`).join('')}</datalist></label>
+<label>Entro il (facoltativo)<input type="date" id="om3"></label>
+<label style="grid-column:1/-1">Messaggio<textarea id="om4" rows="3" maxlength="1000" placeholder="es. eseguire sopralluogo in cantiere entro domani"></textarea></label></div>
+<div class="ft"><button type="button" class="p" id="oms">Invia messaggio</button></div></div>
+<div class="flt">${dipSel('om5',f.dip,'Tutti i dipendenti')}<span style="flex:1"></span><button type="button" id="omr">⟳ Aggiorna</button></div>
+<div class="tw ls"><table class="wt"><thead><tr><th>Inviato</th><th>A</th><th>Commessa</th><th>Messaggio</th><th>Entro</th><th>Stato</th><th>Risposta</th><th></th></tr></thead><tbody>${L.length?L.map(m=>{const s=msgStato(m);
+  return`<tr><td style="white-space:nowrap">${dOra(m.t)}</td><td>${esc(nm(m.di))}</td><td>${m.cod||m.nome?'<b>'+esc(m.cod)+'</b> '+esc(m.nome):''}</td><td style="white-space:pre-wrap;min-width:220px">${esc(m.testo)}</td><td class="${m.entro&&!s.f&&m.entro<td?'neg':''}" style="white-space:nowrap">${dIt(m.entro)}</td>
+<td style="white-space:nowrap">${s.f?'<span class="tag" style="background:rgba(19,128,79,.18);color:var(--ok)">Fatto</span> '+dOra(s.f):s.l?'<span class="tag">Letto</span> '+dOra(s.l):'<span class="tag sr">Non letto</span>'}</td><td>${esc(s.r)}</td><td><button type="button" class="d" data-mx="${esc(m.u)}" title="Elimina il messaggio">✕</button></td></tr>`}).join(''):'<tr><td colspan="8" class="em">Nessun messaggio.</td></tr>'}</tbody></table></div>
+<p class="rates">Ogni messaggio lo vede solo il dipendente a cui è indirizzato, nel suo INSERT_SISTEM. Lo stato (letto, fatto, risposta) si aggiorna da solo ogni minuto.</p>`;
+  b.onchange=e=>{if(e.target.id==='om5'){f.dip=e.target.value;odMsg()}};
+  b.onclick=async e=>{const t=e.target;
+    if(t.id==='omr'){await odLoad();odDraw();toast('Aggiornato')}
+    else if(t.id==='oms'){const di=$('om1').value,lv=$('om2').value.trim(),testo=$('om4').value.trim(),entro=$('om3').value;
+      if(!di){toast('Scegli a chi mandare il messaggio');return}if(!testo){toast('Scrivi il messaggio');$('om4').focus();return}
+      const r=lv?S.rows.find(r=>lavLbl(r)===lv||String(r.cod??'')===lv):null;if(lv&&!r){toast('Scegli la commessa dall\'elenco (o lascia vuoto)');$('om2').focus();return}
+      const to=di==='*'?att.map(d=>d.id):[di];
+      if(await msgWrite(F=>to.forEach(id=>F.msg.push({u:newId(),t:Date.now(),di:id,lav:r?r.id:'',cod:r?String(r.cod??''):'',nome:r?r.nome||'':'',testo,entro})))){toast(to.length>1?'Messaggio inviato a '+to.length+' dipendenti':'Messaggio inviato');odMsg()}}
+    else if(t.dataset.mx){const m=OD.msg.find(x=>x.u===t.dataset.mx);if(m&&await ask('Eliminare il messaggio a '+nm(m.di)+'? Sparisce anche dal suo programma.')&&await msgWrite(F=>{const x=F.msg.find(y=>y.u===m.u);if(x){Object.keys(x).forEach(k=>{if(!['u','di'].includes(k))delete x[k]});x.del=true;x.t=Date.now()}}))odMsg()}}}
+// ===== Attività della settimana nella schermata principale: tabella aperta a tutti (vedi attUI in condiviso) =====
+// Le attività dell'amministratore vanno in attivita.json (scritto solo da qui); quelle dei dipendenti arrivano dai loro file.
+let attC=null;
+const attTutte=()=>attUnisci(OD.att,...OD.f.dip.map(d=>(OD.ore[d.id]||{}).att));
+async function attSalva(x){let F;try{F=await rj('attivita.json',{att:[]})}catch(e){toast('Cartella condivisa non raggiungibile: attività non salvata');return false}
+  F.att=F.att||[];const i=F.att.findIndex(y=>y.u===x.u);if(i>=0)F.att[i]=x;else F.att.push(x);F.agg=Date.now();
+  try{await VFS.write('attivita.json',JSON.stringify(F))}catch(e){toast('Non salvato sul server: riprova');return false}OD.att=F.att;return true}
+function attDraw(){const el=$('attw');
+  if(!OD.dir){attC=null;el.innerHTML=VFS.sim?'':'<p class="rates">📅 La tabella delle attività settimanali compare qui quando è scelta la cartella condivisa sul server (👥 Ore dipendenti → Impostazioni).</p>';return}
+  if(attC&&el.firstElementChild){attC.aggiorna();return}
+  attC=attUI({el,tutte:attTutte,salva:attSalva,ricarica:()=>odLoad(),lavori:()=>S.rows.filter(r=>r.stato!=='Non fare'),persone:()=>OD.f.dip.filter(d=>d.attivo!==false),io:null,toast,ask})}
 // Solo nelle prove nel browser: il programma dei dipendenti si apre qui dentro e usa la stessa cartella simulata
 function openOrePreview(){const d=$('ovp');
   d.innerHTML='<div class="odh" style="margin-bottom:8px"><b>INSERT_SISTEM (prova) · come lo vede il dipendente</b><button type="button" class="p" id="ovx">Chiudi e torna al pannello</button></div><iframe id="ovf" title="INSERT_SISTEM" style="width:100%;height:calc(100% - 46px);border:1px solid var(--bd);border-radius:8px;background:var(--bg)"></iframe>';
@@ -634,9 +761,9 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
     else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
   b.onchange=async e=>{if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
-if(M.odOn){odLoad();pubCodici()}else if(!VFS.sim)VFS.get().then(g=>{if(g&&g.dir)odLoad()}).catch(()=>{})
+if(M.odOn){odLoad();pubCodici()}else VFS.get().then(g=>{if(g&&g.dir)odLoad()}).catch(()=>{})
 // Aggiornamento continuo: ogni minuto e quando si torna sul programma
-setInterval(()=>{if(M.odOn&&!$('od').open)odLoad()},60000);addEventListener('focus',()=>{if(M.odOn&&!$('od').open)odLoad()});
+setInterval(()=>{if((M.odOn||OD.dir)&&!$('od').open)odLoad()},60000);addEventListener('focus',()=>{if((M.odOn||OD.dir)&&!$('od').open)odLoad()});
 function ivCsv(R){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
   const L=[];R.forEach(r=>[...(r.iv||[])].sort((a,b)=>(a.d||'')>(b.d||'')?1:-1).forEach(x=>L.push([r.cod,r.nome,r.cliente,x.d,num(x.h),x.tr?'sì':'',num(x.km),num(x.sp),x.op,x.note,x.ok?'sì':'no',num(ivVal([x]))].map(q).join(';'))));
   return '\uFEFF'+[['Codice','Lavoro','Cliente','Data intervento','Ore','Trasferta','Km','Spese €','Operatore','Note','Contabilizzato','Valore stimato €'].map(q).join(';'),...L].join('\r\n')}

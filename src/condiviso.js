@@ -94,3 +94,69 @@ async function outReport(html,modo,nomeFile,avviso){const pr=document.getElement
   if(modo==='pdf'&&window.desktop&&window.desktop.savePdf){const r=await window.desktop.savePdf(nomeFile);if(avviso)avviso(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return r}
   if(modo==='pdf'&&avviso)avviso('Nella finestra di stampa scegli «Salva come PDF»');
   window.print()}
+// ===== Attività settimanali: tabella aperta, la vedono e la compilano amministratore e dipendenti =====
+// Attività {u,t,d,lav,cod,nome,chi,strum,auto,note,by,mod}. L'amministratore scrive in attivita.json, ogni dipendente nel suo
+// ore/<id>.json (campo att): ogni file ha sempre un solo scrittore. Chiunque può correggere o cancellare una riga: la nuova
+// versione (stesso u, t più recente; cancellata = del) va nel file di chi modifica e nell'elenco vince la più recente.
+const sigla=nome=>String(nome||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0].toUpperCase()).join('');
+function attUnisci(...liste){const m=new Map();liste.forEach(L=>(L||[]).forEach(x=>{if(!x||!x.u)return;const y=m.get(x.u);if(!y||(+x.t||0)>(+y.t||0))m.set(x.u,x)}));return[...m.values()].filter(x=>!x.del)}
+const dsOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function lunediDi(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return dsOf(d)}
+function giorniSett(lun){return[...Array(7)].map((_,i)=>{const d=new Date(lun+'T12:00');d.setDate(d.getDate()+i);return dsOf(d)})}
+function nSett(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4,12);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)}
+function settLabel(lun){const G=giorniSett(lun),a=G[0].split('-').map(Number),b=G[6].split('-').map(Number);
+  return'Settimana '+nSett(lun)+' · '+a[2]+(a[1]!==b[1]?' '+MESI[a[1]-1].toLowerCase():'')+(a[0]!==b[0]?' '+a[0]:'')+' – '+b[2]+' '+MESI[b[1]-1].toLowerCase()+' '+b[0]}
+const lavLbl=l=>(l.cod?l.cod+' · ':'')+(l.nome||'')+(l.cliente?' ('+l.cliente+')':'');
+// Componente della tabella settimanale, uguale nei due programmi.
+// cfg: {el, tutte()→attività, salva(x)→Promise<bool>, ricarica()→Promise, lavori()→[{id,cod,nome,cliente}], persone()→[{nome}], io:{nome}, toast, ask}
+function attUI(cfg){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const st=cfg.st=cfg.st||{lun:lunediDi(dsOf(new Date())),edit:null};const el=cfg.el,q=s=>el.querySelector(s);
+  el.innerHTML=`<div class="att-card"><div class="att-h"><h2>📅 Attività della settimana</h2><span class="att-mu">Tabella aperta: la vedono e la compilano amministratore e dipendenti.</span></div>
+<div class="att-f"><label>Data<input type="date" data-a="d"></label><label class="w2">Codice lavoro<input data-a="lav" list="att-lav" placeholder="Scrivi codice o nome…" autocomplete="off"></label>
+<label>Chi<input data-a="chi" list="att-chi" placeholder="es. DV" autocomplete="off"></label><label class="w2">Strumentazione<input data-a="strum" list="att-str" placeholder="es. stazione totale" autocomplete="off"></label>
+<label>Auto<select data-a="auto"><option value="">—</option><option value="az">Auto aziendale</option><option value="pr">Auto propria</option></select></label>
+<label class="w2">Note<input data-a="note" maxlength="200"></label><div class="att-b"><button type="button" data-k="annulla" hidden>Annulla</button><button type="button" class="p" data-k="salva">Aggiungi</button></div></div>
+<datalist id="att-lav"></datalist><datalist id="att-chi"></datalist><datalist id="att-str"></datalist></div>
+<div class="att-nav"><button type="button" data-k="prev" title="Settimana precedente">‹</button><b data-k="lbl"></b><button type="button" data-k="next" title="Settimana successiva">›</button><button type="button" data-k="oggi">Questa settimana</button><span style="flex:1"></span><button type="button" data-k="agg">⟳ Aggiorna</button><button type="button" data-k="prt">Stampa</button><button type="button" data-k="pdf">Esporta PDF</button></div>
+<div class="att-l"></div>`;
+  const F=k=>q(`[data-a="${k}"]`),lavOf=v=>(cfg.lavori()||[]).find(l=>lavLbl(l)===v.trim()||String(l.cod??'')===v.trim());
+  const reset=d=>{st.edit=null;F('d').value=d||F('d').value||dsOf(new Date());['lav','strum','note'].forEach(k=>F(k).value='');F('chi').value=cfg.io&&cfg.io.nome?sigla(cfg.io.nome):'';F('auto').value='';q('[data-k=salva]').textContent='Aggiungi';q('[data-k=annulla]').hidden=true};
+  const liste=()=>{q('#att-lav').innerHTML=(cfg.lavori()||[]).map(l=>`<option value="${E(lavLbl(l))}">`).join('');
+    q('#att-chi').innerHTML=(cfg.persone()||[]).map(p=>`<option value="${E(sigla(p.nome))}">${E(p.nome)}</option>`).join('');
+    q('#att-str').innerHTML=[...new Set(cfg.tutte().map(x=>x.strum).filter(Boolean))].sort().map(s=>`<option value="${E(s)}">`).join('')};
+  const chiTit=c=>String(c||'').split(/[,;/+]/).map(s=>s.trim()).filter(Boolean).map(s=>{const p=(cfg.persone()||[]).find(p=>sigla(p.nome)===s.toUpperCase()||p.nome.toLowerCase()===s.toLowerCase());return p?p.nome:s}).join(', ');
+  const mia=x=>cfg.io&&cfg.io.nome&&String(x.chi||'').toUpperCase().split(/[^A-ZÀ-Ü]+/).includes(sigla(cfg.io.nome));
+  const righe=()=>{const G=giorniSett(st.lun),A=cfg.tutte();return G.map(ds=>({ds,L:A.filter(x=>x.d===ds).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true})||(+a.t-+b.t))}))};
+  function lista(){q('[data-k=lbl]').textContent=settLabel(st.lun);const oggi=dsOf(new Date());let h='',tot=0;
+    righe().forEach(({ds,L})=>{const g=giorno(ds),[,m,d]=ds.split('-').map(Number),dl=`<b>${GGS[g.dw]} ${d}/${m}</b>${g.nome?`<small>${E(g.nome)}</small>`:''}${ds===oggi?'<small>oggi</small>':''}<button type="button" class="att-add" data-add="${ds}" title="Aggiungi un'attività in questo giorno">+</button>`;
+      const cls=(g.fest?'g-fest ':'')+(ds===oggi?'att-oggi':'');tot+=L.length;
+      if(!L.length){h+=`<tr class="${cls}"><td class="att-g">${dl}</td><td colspan="8" class="att-mu">—</td></tr>`;return}
+      L.forEach((x,i)=>{h+=`<tr class="${cls} ${mia(x)?'att-mia':''}">${i?'':`<td class="att-g" rowspan="${L.length}">${dl}</td>`}<td><b>${E(x.cod)}</b></td><td>${E(x.nome)}</td><td title="${E(chiTit(x.chi))}"><b>${E(x.chi)}</b></td><td>${E(x.strum)}</td><td>${x.auto?AUTO[x.auto]:''}</td><td>${E(x.note)}</td><td class="att-mu">${E(x.by)}${x.mod&&x.mod!==x.by?'<br>mod. '+E(x.mod):''}</td><td class="att-ac"><button type="button" data-e="${E(x.u)}" title="Modifica">✎</button><button type="button" class="d" data-x="${E(x.u)}" title="Elimina">✕</button></td></tr>`})});
+    q('.att-l').innerHTML=`<div class="att-tw"><table class="att-t"><thead><tr><th>Giorno</th><th>Codice</th><th>Lavoro</th><th>Chi</th><th>Strumentazione</th><th>Auto</th><th>Note</th><th>Inserita da</th><th></th></tr></thead><tbody>${h}</tbody></table></div><p class="att-mu">${tot?tot+(tot===1?' attività':' attività')+' in settimana.':'Nessuna attività programmata in questa settimana.'}${cfg.io&&cfg.io.nome?' Le righe evidenziate riguardano te.':''}</p>`;
+    liste()}
+  async function salva(){const d=F('d').value,l=lavOf(F('lav').value),chi=F('chi').value.trim().replace(/\s*,\s*/g,', ');
+    if(!/^\d{4}-\d\d-\d\d$/.test(d)){cfg.toast('Inserisci la data');F('d').focus();return}
+    if(!l){cfg.toast('Scegli il lavoro dall\'elenco');F('lav').focus();return}
+    if(!chi){cfg.toast('Indica chi (es. DV)');F('chi').focus();return}
+    const me=cfg.io&&cfg.io.nome||'Amministratore',old=st.edit&&cfg.tutte().find(x=>x.u===st.edit);
+    const x={u:old?old.u:newId(),t:Date.now(),d,lav:l.id,cod:String(l.cod??''),nome:l.nome||'',chi,strum:F('strum').value.trim(),auto:F('auto').value,note:F('note').value.trim(),by:old?old.by:me};
+    if(old)x.mod=me;const b=q('[data-k=salva]');b.disabled=true;const ok=await cfg.salva(x);b.disabled=false;
+    if(ok===false)return;st.lun=lunediDi(d);reset(d);lista();cfg.toast(old?'Attività modificata':'Attività aggiunta')}
+  el.onclick=async e=>{const t=e.target.closest('button');if(!t||!el.contains(t))return;const k=t.dataset.k;
+    if(k==='prev'||k==='next'){const d=new Date(st.lun+'T12:00');d.setDate(d.getDate()+(k==='prev'?-7:7));st.lun=dsOf(d);lista()}
+    else if(k==='oggi'){st.lun=lunediDi(dsOf(new Date()));lista()}
+    else if(k==='agg'){await cfg.ricarica();lista();cfg.toast('Aggiornato')}
+    else if(k==='salva')salva();
+    else if(k==='annulla')reset();
+    else if(k==='prt'||k==='pdf'){const R=[];righe().forEach(({ds,L})=>{const g=giorno(ds),gl=GGS[g.dw]+' '+ds.split('-').reverse().join('/')+(g.nome?' · '+E(g.nome):'');
+        if(!L.length)R.push([gl,'','','','','','']);else L.forEach((x,i)=>R.push([i?'':gl,'<b>'+E(x.cod)+'</b>',E(x.nome),'<b>'+E(x.chi)+'</b>',E(x.strum),x.auto?AUTO[x.auto]:'',E(x.note)]))});
+      outReport(repTable('Attività della settimana',settLabel(st.lun),['Giorno','Codice','Lavoro','Chi','Strumentazione','Auto','Note'],R),k,'Attivita_settimana_'+nSett(st.lun)+'_'+st.lun.slice(0,4)+'.pdf',cfg.toast)}
+    else if(t.dataset.add){reset(t.dataset.add);F('lav').focus();q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'})}
+    else if(t.dataset.e){const x=cfg.tutte().find(y=>y.u===t.dataset.e);if(!x)return;st.edit=x.u;F('d').value=x.d;const l=(cfg.lavori()||[]).find(y=>y.id==x.lav&&String(y.cod??'')===x.cod);
+      F('lav').value=l?lavLbl(l):x.cod;F('chi').value=x.chi||'';F('strum').value=x.strum||'';F('auto').value=x.auto||'';F('note').value=x.note||'';
+      q('[data-k=salva]').textContent='Salva modifica';q('[data-k=annulla]').hidden=false;q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'});F('lav').focus()}
+    else if(t.dataset.x){const x=cfg.tutte().find(y=>y.u===t.dataset.x);if(!x||!await cfg.ask('Eliminare l\'attività '+x.cod+' del '+x.d.split('-').reverse().join('/')+' ('+x.chi+')? Sparisce per tutti.'))return;
+      if(await cfg.salva({u:x.u,t:Date.now(),del:true,mod:cfg.io&&cfg.io.nome||'Amministratore'})!==false){if(st.edit===x.u)reset();lista();cfg.toast('Attività eliminata')}}};
+  el.onkeydown=e=>{if(e.key==='Enter'&&e.target.closest('.att-f')&&e.target.tagName==='INPUT'){e.preventDefault();salva()}};
+  reset();lista();
+  return{lista,aggiorna:()=>{if(!el.isConnected)return;lista()}}}

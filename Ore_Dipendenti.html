@@ -149,7 +149,27 @@ tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
 #lock .lb .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--mu);margin-bottom:2px}
 #toast{border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 @media (max-width:640px){.appbar{padding:8px 12px}.brand h1{font-size:16px}.appbar .meta{display:none}}
+/* Attività della settimana (uguale nei due programmi) e messaggi */
+.att-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh);padding:14px 16px;margin-bottom:10px}
+.att-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:10px}.att-h h2{margin:0;font-size:17px}
+.att-mu{color:var(--mu);font-size:12px}
+.att-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}.att-f .w2{grid-column:span 2}
+.att-f label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}.att-f input,.att-f select{width:100%}
+.att-b{display:flex;gap:6px;justify-content:flex-end}
+.att-nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.att-nav b{font-size:15px;min-width:230px;text-align:center}
+.att-tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh)}
+.att-t{width:100%;border-collapse:collapse;font-size:13px}.att-t th,.att-t td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.att-t th{background:var(--hd);position:static}.att-t td{white-space:normal}
+.att-t td.att-g{white-space:nowrap;min-width:92px;border-right:1px solid var(--bd)}.att-g small{display:block;color:var(--mu);font-size:11px}.g-fest .att-g b{color:#c0392b}
+.att-t tr.att-oggi td.att-g{box-shadow:inset 3px 0 0 var(--ac)}.att-t tr.att-mia td:not(.att-g){background:rgba(36,87,214,.09)}
+.att-add{padding:0 8px;margin-top:3px;font-size:12px}.att-ac{white-space:nowrap;text-align:right}.att-ac button{padding:1px 8px;font-size:12px}
+.msg{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card);box-shadow:var(--sh)}
+.msg.nuovo{border-color:var(--ac);box-shadow:0 0 0 2px rgba(36,87,214,.18)}.msg.fatto{opacity:.75}
+.msg .mt{white-space:pre-wrap;margin:6px 0;font-size:14px}.msg .mh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mu)}
+.msg .mb{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.msg .rsp{margin-top:4px;padding:6px 10px;border-left:3px solid var(--ok);background:var(--hd);border-radius:0 8px 8px 0;font-size:13px}
+.nb{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:99px;background:#c2372b;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
 /*TEMA-FINE*/
+.mban{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;margin-bottom:10px;border-radius:12px;border:1px solid var(--ac);background:rgba(36,87,214,.10);font-weight:600}
 .brand .logo.ins{background:linear-gradient(140deg,#2dd4bf 0%,#0ea5e9 50%,#6366f1 100%)}
 </style>
 <script>/* Windows 7 (motore Chromium 108): color-mix non esiste; si tolgono quelle dichiarazioni e restano i colori rgba scritti subito prima */
@@ -174,7 +194,8 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 </section>
 
 <section id="vapp" hidden>
-  <div class="vtabs" id="vt"><button data-v="ore" class="on">Ore e spese</button><button data-v="fer" id="vtf">Ferie e permessi</button></div>
+  <div id="mban" class="mban" hidden></div>
+  <div class="vtabs" id="vt"><button data-v="ore" class="on">Ore e spese</button><button data-v="fer" id="vtf">Ferie e permessi</button><button data-v="att">Attività settimana</button><button data-v="msg" id="vtm">Messaggi</button></div>
   <div id="pore">
   <div class="card">
     <h2 style="margin:0 0 8px;font-size:16px" id="fh">Nuova registrazione</h2>
@@ -204,6 +225,8 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
     <div class="cal" id="cal"></div>
     <div id="rlist" style="margin-top:12px"></div>
   </div>
+  <div id="patt" hidden></div>
+  <div id="pmsg" hidden></div>
 </section>
 </main>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
@@ -309,6 +332,72 @@ async function outReport(html,modo,nomeFile,avviso){const pr=document.getElement
   if(modo==='pdf'&&window.desktop&&window.desktop.savePdf){const r=await window.desktop.savePdf(nomeFile);if(avviso)avviso(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return r}
   if(modo==='pdf'&&avviso)avviso('Nella finestra di stampa scegli «Salva come PDF»');
   window.print()}
+// ===== Attività settimanali: tabella aperta, la vedono e la compilano amministratore e dipendenti =====
+// Attività {u,t,d,lav,cod,nome,chi,strum,auto,note,by,mod}. L'amministratore scrive in attivita.json, ogni dipendente nel suo
+// ore/<id>.json (campo att): ogni file ha sempre un solo scrittore. Chiunque può correggere o cancellare una riga: la nuova
+// versione (stesso u, t più recente; cancellata = del) va nel file di chi modifica e nell'elenco vince la più recente.
+const sigla=nome=>String(nome||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0].toUpperCase()).join('');
+function attUnisci(...liste){const m=new Map();liste.forEach(L=>(L||[]).forEach(x=>{if(!x||!x.u)return;const y=m.get(x.u);if(!y||(+x.t||0)>(+y.t||0))m.set(x.u,x)}));return[...m.values()].filter(x=>!x.del)}
+const dsOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function lunediDi(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return dsOf(d)}
+function giorniSett(lun){return[...Array(7)].map((_,i)=>{const d=new Date(lun+'T12:00');d.setDate(d.getDate()+i);return dsOf(d)})}
+function nSett(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4,12);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)}
+function settLabel(lun){const G=giorniSett(lun),a=G[0].split('-').map(Number),b=G[6].split('-').map(Number);
+  return'Settimana '+nSett(lun)+' · '+a[2]+(a[1]!==b[1]?' '+MESI[a[1]-1].toLowerCase():'')+(a[0]!==b[0]?' '+a[0]:'')+' – '+b[2]+' '+MESI[b[1]-1].toLowerCase()+' '+b[0]}
+const lavLbl=l=>(l.cod?l.cod+' · ':'')+(l.nome||'')+(l.cliente?' ('+l.cliente+')':'');
+// Componente della tabella settimanale, uguale nei due programmi.
+// cfg: {el, tutte()→attività, salva(x)→Promise<bool>, ricarica()→Promise, lavori()→[{id,cod,nome,cliente}], persone()→[{nome}], io:{nome}, toast, ask}
+function attUI(cfg){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const st=cfg.st=cfg.st||{lun:lunediDi(dsOf(new Date())),edit:null};const el=cfg.el,q=s=>el.querySelector(s);
+  el.innerHTML=`<div class="att-card"><div class="att-h"><h2>📅 Attività della settimana</h2><span class="att-mu">Tabella aperta: la vedono e la compilano amministratore e dipendenti.</span></div>
+<div class="att-f"><label>Data<input type="date" data-a="d"></label><label class="w2">Codice lavoro<input data-a="lav" list="att-lav" placeholder="Scrivi codice o nome…" autocomplete="off"></label>
+<label>Chi<input data-a="chi" list="att-chi" placeholder="es. DV" autocomplete="off"></label><label class="w2">Strumentazione<input data-a="strum" list="att-str" placeholder="es. stazione totale" autocomplete="off"></label>
+<label>Auto<select data-a="auto"><option value="">—</option><option value="az">Auto aziendale</option><option value="pr">Auto propria</option></select></label>
+<label class="w2">Note<input data-a="note" maxlength="200"></label><div class="att-b"><button type="button" data-k="annulla" hidden>Annulla</button><button type="button" class="p" data-k="salva">Aggiungi</button></div></div>
+<datalist id="att-lav"></datalist><datalist id="att-chi"></datalist><datalist id="att-str"></datalist></div>
+<div class="att-nav"><button type="button" data-k="prev" title="Settimana precedente">‹</button><b data-k="lbl"></b><button type="button" data-k="next" title="Settimana successiva">›</button><button type="button" data-k="oggi">Questa settimana</button><span style="flex:1"></span><button type="button" data-k="agg">⟳ Aggiorna</button><button type="button" data-k="prt">Stampa</button><button type="button" data-k="pdf">Esporta PDF</button></div>
+<div class="att-l"></div>`;
+  const F=k=>q(`[data-a="${k}"]`),lavOf=v=>(cfg.lavori()||[]).find(l=>lavLbl(l)===v.trim()||String(l.cod??'')===v.trim());
+  const reset=d=>{st.edit=null;F('d').value=d||F('d').value||dsOf(new Date());['lav','strum','note'].forEach(k=>F(k).value='');F('chi').value=cfg.io&&cfg.io.nome?sigla(cfg.io.nome):'';F('auto').value='';q('[data-k=salva]').textContent='Aggiungi';q('[data-k=annulla]').hidden=true};
+  const liste=()=>{q('#att-lav').innerHTML=(cfg.lavori()||[]).map(l=>`<option value="${E(lavLbl(l))}">`).join('');
+    q('#att-chi').innerHTML=(cfg.persone()||[]).map(p=>`<option value="${E(sigla(p.nome))}">${E(p.nome)}</option>`).join('');
+    q('#att-str').innerHTML=[...new Set(cfg.tutte().map(x=>x.strum).filter(Boolean))].sort().map(s=>`<option value="${E(s)}">`).join('')};
+  const chiTit=c=>String(c||'').split(/[,;/+]/).map(s=>s.trim()).filter(Boolean).map(s=>{const p=(cfg.persone()||[]).find(p=>sigla(p.nome)===s.toUpperCase()||p.nome.toLowerCase()===s.toLowerCase());return p?p.nome:s}).join(', ');
+  const mia=x=>cfg.io&&cfg.io.nome&&String(x.chi||'').toUpperCase().split(/[^A-ZÀ-Ü]+/).includes(sigla(cfg.io.nome));
+  const righe=()=>{const G=giorniSett(st.lun),A=cfg.tutte();return G.map(ds=>({ds,L:A.filter(x=>x.d===ds).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true})||(+a.t-+b.t))}))};
+  function lista(){q('[data-k=lbl]').textContent=settLabel(st.lun);const oggi=dsOf(new Date());let h='',tot=0;
+    righe().forEach(({ds,L})=>{const g=giorno(ds),[,m,d]=ds.split('-').map(Number),dl=`<b>${GGS[g.dw]} ${d}/${m}</b>${g.nome?`<small>${E(g.nome)}</small>`:''}${ds===oggi?'<small>oggi</small>':''}<button type="button" class="att-add" data-add="${ds}" title="Aggiungi un'attività in questo giorno">+</button>`;
+      const cls=(g.fest?'g-fest ':'')+(ds===oggi?'att-oggi':'');tot+=L.length;
+      if(!L.length){h+=`<tr class="${cls}"><td class="att-g">${dl}</td><td colspan="8" class="att-mu">—</td></tr>`;return}
+      L.forEach((x,i)=>{h+=`<tr class="${cls} ${mia(x)?'att-mia':''}">${i?'':`<td class="att-g" rowspan="${L.length}">${dl}</td>`}<td><b>${E(x.cod)}</b></td><td>${E(x.nome)}</td><td title="${E(chiTit(x.chi))}"><b>${E(x.chi)}</b></td><td>${E(x.strum)}</td><td>${x.auto?AUTO[x.auto]:''}</td><td>${E(x.note)}</td><td class="att-mu">${E(x.by)}${x.mod&&x.mod!==x.by?'<br>mod. '+E(x.mod):''}</td><td class="att-ac"><button type="button" data-e="${E(x.u)}" title="Modifica">✎</button><button type="button" class="d" data-x="${E(x.u)}" title="Elimina">✕</button></td></tr>`})});
+    q('.att-l').innerHTML=`<div class="att-tw"><table class="att-t"><thead><tr><th>Giorno</th><th>Codice</th><th>Lavoro</th><th>Chi</th><th>Strumentazione</th><th>Auto</th><th>Note</th><th>Inserita da</th><th></th></tr></thead><tbody>${h}</tbody></table></div><p class="att-mu">${tot?tot+(tot===1?' attività':' attività')+' in settimana.':'Nessuna attività programmata in questa settimana.'}${cfg.io&&cfg.io.nome?' Le righe evidenziate riguardano te.':''}</p>`;
+    liste()}
+  async function salva(){const d=F('d').value,l=lavOf(F('lav').value),chi=F('chi').value.trim().replace(/\s*,\s*/g,', ');
+    if(!/^\d{4}-\d\d-\d\d$/.test(d)){cfg.toast('Inserisci la data');F('d').focus();return}
+    if(!l){cfg.toast('Scegli il lavoro dall\'elenco');F('lav').focus();return}
+    if(!chi){cfg.toast('Indica chi (es. DV)');F('chi').focus();return}
+    const me=cfg.io&&cfg.io.nome||'Amministratore',old=st.edit&&cfg.tutte().find(x=>x.u===st.edit);
+    const x={u:old?old.u:newId(),t:Date.now(),d,lav:l.id,cod:String(l.cod??''),nome:l.nome||'',chi,strum:F('strum').value.trim(),auto:F('auto').value,note:F('note').value.trim(),by:old?old.by:me};
+    if(old)x.mod=me;const b=q('[data-k=salva]');b.disabled=true;const ok=await cfg.salva(x);b.disabled=false;
+    if(ok===false)return;st.lun=lunediDi(d);reset(d);lista();cfg.toast(old?'Attività modificata':'Attività aggiunta')}
+  el.onclick=async e=>{const t=e.target.closest('button');if(!t||!el.contains(t))return;const k=t.dataset.k;
+    if(k==='prev'||k==='next'){const d=new Date(st.lun+'T12:00');d.setDate(d.getDate()+(k==='prev'?-7:7));st.lun=dsOf(d);lista()}
+    else if(k==='oggi'){st.lun=lunediDi(dsOf(new Date()));lista()}
+    else if(k==='agg'){await cfg.ricarica();lista();cfg.toast('Aggiornato')}
+    else if(k==='salva')salva();
+    else if(k==='annulla')reset();
+    else if(k==='prt'||k==='pdf'){const R=[];righe().forEach(({ds,L})=>{const g=giorno(ds),gl=GGS[g.dw]+' '+ds.split('-').reverse().join('/')+(g.nome?' · '+E(g.nome):'');
+        if(!L.length)R.push([gl,'','','','','','']);else L.forEach((x,i)=>R.push([i?'':gl,'<b>'+E(x.cod)+'</b>',E(x.nome),'<b>'+E(x.chi)+'</b>',E(x.strum),x.auto?AUTO[x.auto]:'',E(x.note)]))});
+      outReport(repTable('Attività della settimana',settLabel(st.lun),['Giorno','Codice','Lavoro','Chi','Strumentazione','Auto','Note'],R),k,'Attivita_settimana_'+nSett(st.lun)+'_'+st.lun.slice(0,4)+'.pdf',cfg.toast)}
+    else if(t.dataset.add){reset(t.dataset.add);F('lav').focus();q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'})}
+    else if(t.dataset.e){const x=cfg.tutte().find(y=>y.u===t.dataset.e);if(!x)return;st.edit=x.u;F('d').value=x.d;const l=(cfg.lavori()||[]).find(y=>y.id==x.lav&&String(y.cod??'')===x.cod);
+      F('lav').value=l?lavLbl(l):x.cod;F('chi').value=x.chi||'';F('strum').value=x.strum||'';F('auto').value=x.auto||'';F('note').value=x.note||'';
+      q('[data-k=salva]').textContent='Salva modifica';q('[data-k=annulla]').hidden=false;q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'});F('lav').focus()}
+    else if(t.dataset.x){const x=cfg.tutte().find(y=>y.u===t.dataset.x);if(!x||!await cfg.ask('Eliminare l\'attività '+x.cod+' del '+x.d.split('-').reverse().join('/')+' ('+x.chi+')? Sparisce per tutti.'))return;
+      if(await cfg.salva({u:x.u,t:Date.now(),del:true,mod:cfg.io&&cfg.io.nome||'Amministratore'})!==false){if(st.edit===x.u)reset();lista();cfg.toast('Attività eliminata')}}};
+  el.onkeydown=e=>{if(e.key==='Enter'&&e.target.closest('.att-f')&&e.target.tagName==='INPUT'){e.preventDefault();salva()}};
+  reset();lista();
+  return{lista,aggiorna:()=>{if(!el.isConnected)return;lista()}}}
 /*CONDIVISO-FINE*/
 const $=id=>document.getElementById(id);
 const n=v=>parseFloat(v)||0;
@@ -323,7 +412,7 @@ function ask(m){return new Promise(res=>{$('askm').textContent=m;const d=$('ask'
 function banner(m){$('ban').hidden=!m;$('ban').innerHTML=m||''}
 function show(v){['vcfg','vlog','vapp'].forEach(x=>$(x).hidden=x!==v)}
 
-let DIPF=null,COD={lav:[]},FER={e:{},prog:[]},cur=null,adm=false,D=null,mese=oggi().slice(0,7),edit=null,sel=null,tries=0,SPL=[],vista='ore';
+let DIPF=null,COD={lav:[]},FER={e:{},prog:[]},ATTA=[],OTH={},MSG={msg:[]},attC=null,cur=null,adm=false,D=null,mese=oggi().slice(0,7),edit=null,sel=null,tries=0,SPL=[],vista='ore';
 const perm=()=>Object.assign({lav:'tutti',ass:true},cur&&cur.perm);
 const CK=id=>'ore_cache:'+id;
 const prog=()=>progOf(cur.id,D.rich,FER);
@@ -357,15 +446,19 @@ function hdr(){const h=$('hdr');if(!cur){h.innerHTML='';return}
   $('lo').onclick=loadLogin;if(adm)$('as').onchange=async e=>{cur=DIPF.dip.find(d=>d.id===e.target.value);await openDip()}}
 
 // Unisce due copie dello stesso file (es. due PC aperti insieme): per ogni registrazione vince la modifica più recente
-function merge(a,b){if(!b)return;['voci','pers','rich'].forEach(k=>{const m=new Map((a[k]||[]).map(x=>[x.u,x]));(b[k]||[]).forEach(x=>{const y=m.get(x.u);if(!y||(+x.t||0)>(+y.t||0))m.set(x.u,x)});a[k]=[...m.values()]})}
-async function openDip(){hdr();show('vapp');edit=null;D={dip:cur.id,voci:[],pers:[],rich:[]};
+function merge(a,b){if(!b)return;['voci','pers','rich','att','ms'].forEach(k=>{const m=new Map((a[k]||[]).map(x=>[x.u,x]));(b[k]||[]).forEach(x=>{const y=m.get(x.u);if(!y||(+x.t||0)>(+y.t||0))m.set(x.u,x)});a[k]=[...m.values()]})}
+async function openDip(){hdr();show('vapp');edit=null;D={dip:cur.id,voci:[],pers:[],rich:[],att:[],ms:[]};attC=null;
   let cache=null;try{cache=JSON.parse(localStorage.getItem(CK(cur.id)))}catch(e){}
   await refresh(true);
   if(cache){merge(D,cache.d);if(cache.dirty)await persist()}
   $('vtf').hidden=!perm().ass;if(!perm().ass)vista='ore';
-  fillForm();vis(vista)}
+  fillForm();vis(vista);msgBadge()}
 async function refresh(first){
-  try{COD=await rj('codici.json',{lav:[]});FER=await rj('ferie.json',{e:{},prog:[]});const r=await rj('ore/'+cur.id+'.json',null);merge(D,r);if(!first)banner('')}
+  try{COD=await rj('codici.json',{lav:[]});FER=await rj('ferie.json',{e:{},prog:[]});const r=await rj('ore/'+cur.id+'.json',null);merge(D,r);
+    const A=await rj('attivita.json',{att:[]});ATTA=A.att||[];MSG=await rj('messaggi.json',{msg:[]});MSG.msg=MSG.msg||[];
+    // attività inserite dai colleghi (ognuno nel proprio file)
+    const O={};for(const d of (DIPF&&DIPF.dip||[]))if(d.id!==cur.id){try{const f=await rj('ore/'+d.id+'.json',null);if(f&&f.att)O[d.id]=f.att}catch(e){}}OTH=O;
+    if(!first)banner('')}
   catch(e){banner('⚠ Server non raggiungibile: l\'elenco dei lavori potrebbe non essere aggiornato. Quello che inserisci resta su questo PC e viene inviato appena il server torna disponibile.')}
   fillCod()}
 $('rf').onclick=async()=>{await refresh();draw();toast('Aggiornato')};
@@ -379,7 +472,8 @@ async function persist(){const rel='ore/'+cur.id+'.json',me=cur.id;
 setInterval(()=>{if(!cur)return;try{const c=JSON.parse(localStorage.getItem(CK(cur.id)));if(c&&c.dirty)persist()}catch(e){}},30000);
 
 // Schede: «Ore e spese» e «Ferie e permessi»
-function vis(v){vista=v;[...$('vt').children].forEach(b=>b.classList.toggle('on',b.dataset.v===v));$('pore').hidden=v!=='ore';$('pfer').hidden=v!=='fer';v==='ore'?draw():drawFer()}
+function vis(v){vista=v;[...$('vt').children].forEach(b=>b.classList.toggle('on',b.dataset.v===v));$('pore').hidden=v!=='ore';$('pfer').hidden=v!=='fer';$('patt').hidden=v!=='att';$('pmsg').hidden=v!=='msg';
+  v==='ore'?draw():v==='fer'?drawFer():v==='att'?drawAtt():drawMsg();msgBadge()}
 $('vt').onclick=e=>{const b=e.target.closest('[data-v]');if(b)vis(b.dataset.v)};
 
 function fillCod(){const p=perm(),L=(COD.lav||[]).filter(l=>p.lav!=='ws'||l.ws);
@@ -492,6 +586,40 @@ ${PG.length?`<div style="margin:8px 0">${PG.map(p=>`<div class="it">${p.tipo==='
       if(!k){toast('Richiesta già presente per questi giorni');return}
       const ok=await persist();d.close();drawFer();toast((k===1?'Richiesta inviata':k+' giorni richiesti')+(ok?'':' (resta su questo PC finché il server non risponde)'))}};
   d.showModal()}
+// ===== Attività della settimana: tabella aperta a tutti (vedi attUI in condiviso) =====
+const attTutte=()=>attUnisci(ATTA,...Object.values(OTH),D.att);
+function drawAtt(){if(attC){attC.aggiorna();return}
+  attC=attUI({el:$('patt'),tutte:attTutte,lavori:()=>COD.lav||[],persone:()=>(DIPF&&DIPF.dip||[]).filter(d=>d.attivo!==false),io:adm?null:{nome:cur.nome},toast,ask,
+    ricarica:()=>refresh(),
+    salva:async x=>{const i=D.att.findIndex(y=>y.u===x.u);if(i>=0)D.att[i]=x;else D.att.push(x);const ok=await persist();if(!ok)toast('Salvato su questo PC: verrà inviato appena il server risponde');return true}})}
+
+// ===== Messaggi dall'amministratore (messaggi.json, scritto solo da CONTROLLO_SISTEM). Letto / fatto / risposta vanno nel file del dipendente (ms) =====
+const msgMiei=()=>(MSG.msg||[]).filter(m=>m&&!m.del&&m.di===cur.id).sort((a,b)=>(+b.t||0)-(+a.t||0));
+const msgSt=u=>(D.ms||[]).find(x=>x.u===u)||{};
+const dOra=t=>new Date(+t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'});
+function msgBadge(){if(!cur)return;const k=msgMiei().filter(m=>!msgSt(m.u).l).length;
+  $('vtm').innerHTML='Messaggi'+(k?`<span class="nb">${k}</span>`:'');
+  $('mban').hidden=!k||vista==='msg';$('mban').innerHTML=k?`📩 ${k===1?'Hai un nuovo messaggio':'Hai '+k+' nuovi messaggi'} dall'ufficio <button type="button" class="p" id="mbo">Leggi</button>`:'';
+  if(k&&$('mbo'))$('mbo').onclick=()=>vis('msg')}
+function drawMsg(){const L=msgMiei(),td=oggi();msgBadge();
+  $('pmsg').innerHTML=`<div class="card" style="padding:12px 14px"><h2 style="margin:0 0 2px;font-size:16px">Messaggi dall'ufficio</h2><p class="mu" style="margin:0">Messaggi personali che l'amministratore ti manda da CONTROLLO_SISTEM. Premi «Letto» quando li hai visti e «Fatto» quando hai finito: l'ufficio lo vede subito.</p></div>
+  <div class="mnav"><span style="flex:1"></span><button id="mrf">⟳ Aggiorna</button></div>`+
+  (L.length?L.map(m=>{const s=msgSt(m.u),scad=m.entro&&!s.f&&m.entro<td;
+    return`<div class="msg ${!s.l?'nuovo':''} ${s.f?'fatto':''}"><div class="mh"><b>📩 ${dOra(m.t)}</b>${m.cod||m.nome?`<span class="tag">${esc(m.cod)} ${esc(m.nome)}</span>`:''}${m.entro?`<span class="tag ${scad?'t-no':'t-inv'}">entro il ${dIt(m.entro)}</span>`:''}<span class="tag ${s.f?'t-ok':s.l?'':'t-no'}">${s.f?'Fatto il '+dOra(s.f):s.l?'Letto':'Nuovo'}</span></div>
+<div class="mt">${esc(m.testo)}</div>${s.r?`<div class="rsp"><b>La tua risposta:</b> ${esc(s.r)}</div>`:''}
+<div class="mb" data-m="${esc(m.u)}">${!s.l?'<button data-k="l">✓ Letto</button>':''}<button data-k="r">${s.r?'Cambia risposta':'Rispondi'}</button>${s.f?'<button data-k="nf">Non ancora fatto</button>':'<button class="p" data-k="f">✔ Fatto</button>'}</div></div>`}).join(''):'<p class="mu">Nessun messaggio.</p>')}
+async function setMs(u,patch){const L=D.ms=D.ms||[];let x=L.find(y=>y.u===u);if(!x){x={u};L.push(x)}Object.assign(x,patch,{t:Date.now()});
+  const ok=await persist();drawMsg();toast(ok?'Inviato all\'ufficio':'Salvato su questo PC: verrà inviato appena il server risponde')}
+$('pmsg').onclick=async e=>{const t=e.target;if(t.id==='mrf'){await refresh();drawMsg();toast('Aggiornato');return}
+  const b=t.closest('[data-m]');if(!b||!t.dataset.k)return;const u=b.dataset.m,s=msgSt(u),k=t.dataset.k;
+  if(k==='l')setMs(u,{l:Date.now()});
+  else if(k==='f')setMs(u,{l:s.l||Date.now(),f:Date.now()});
+  else if(k==='nf')setMs(u,{f:0});
+  else if(k==='r'){b.innerHTML=`<input id="mri" maxlength="300" style="flex:1;min-width:200px" placeholder="Scrivi la risposta per l'ufficio" value="${esc(s.r||'')}"><button data-k="ra">Annulla</button><button class="p" data-k="rs">Invia risposta</button>`;$('mri').focus()}
+  else if(k==='ra')drawMsg();
+  else if(k==='rs')setMs(u,{l:s.l||Date.now(),r:$('mri').value.trim()})};
+// Controllo periodico: nuove attività e nuovi messaggi arrivano senza dover premere «Aggiorna»
+setInterval(async()=>{if(!cur||$('rq').open||$('ask').open)return;await refresh();msgBadge();if(vista==='att'&&attC)attC.aggiorna();else if(vista==='msg'&&!document.getElementById('mri'))drawMsg()},60000);
 init();
 </script>
 </body>
