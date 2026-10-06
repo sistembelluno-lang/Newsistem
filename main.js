@@ -139,7 +139,12 @@ const SH_ERR = { EPERM: 'accesso negato: manca il permesso di scrittura', EACCES
 const shMsg = err => (SH_ERR[err.code] || err.message) + (err.code ? ` [${err.code}]` : '');
 ipcMain.handle('sh:read', (e, rel) => {
   try { return fs.readFileSync(sharedPath(rel), 'utf8'); }
-  catch (err) { if (err.code === 'ENOENT' && fs.existsSync(sharedDir())) return null; throw new Error(`Lettura di ${rel}: ${shMsg(err)}`); }
+  catch (err) {
+    if (err.code === 'ENOENT' && fs.existsSync(sharedDir())) return null;
+    // La cartella stessa non esiste da questo PC: lettera di unità non collegata, nome scritto diverso o server spento
+    if (err.code === 'ENOENT') throw new Error(`da questo PC la cartella «${sharedDir()}» non esiste. Controlla che l'unità ${/^[a-z]:/i.test(sharedDir()) ? sharedDir().slice(0, 2).toUpperCase() + ' ' : ''}sia collegata (Esplora file → Questo PC) oppure scegli di nuovo la cartella con «Cambia cartella»`);
+    throw new Error(`Lettura di ${rel}: ${shMsg(err)}`);
+  }
 });
 // Scrittura sicura: file temporaneo e poi sostituzione; se il server non permette la sostituzione si scrive direttamente.
 // Un errore nel togliere il temporaneo non fa fallire il salvataggio.

@@ -452,7 +452,7 @@ $('cfgb').onclick=async()=>{const r=await VFS.choose();if(r&&r.dir)loadLogin()};
 
 async function loadLogin(){cur=null;adm=false;D=null;hdr();
   try{DIPF=await rj('dipendenti.json',null);banner('')}
-  catch(e){banner('⚠ Cartella condivisa non raggiungibile ('+esc(e.message||e)+'). Controlla la connessione al server. <button id="rt">Riprova</button>'+(VFS.sim?'':' <button id="cd">Cambia cartella</button>'));$('rt').onclick=loadLogin;if($('cd'))$('cd').onclick=async()=>{const r=await VFS.choose();if(r)loadLogin()};show('vlog');$('wl').innerHTML='';return}
+  catch(e){banner('⚠ Cartella condivisa non raggiungibile: '+esc(String(e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))+'. Controlla la connessione al server. <button id="rt">Riprova</button>'+(VFS.sim?'':' <button id="cd">Cambia cartella</button>'));$('rt').onclick=loadLogin;if($('cd'))$('cd').onclick=async()=>{const r=await VFS.choose();if(r)loadLogin()};show('vlog');$('wl').innerHTML='';return}
   show('vlog');$('pf').hidden=true;sel=null;
   const L=(DIPF&&DIPF.dip||[]).filter(d=>d.attivo!==false);
   if(!L.length){$('wl').innerHTML='<p>Nessun dipendente configurato. L\'amministratore deve crearli dal programma <b>CONTROLLO_SISTEM</b> (pulsante «Ore dipendenti» → Dipendenti).</p>';return}
