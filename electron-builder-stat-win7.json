@@ -1,0 +1,43 @@
+{
+  "appId": "it.sistembelluno.statistiche",
+  "productName": "STATISTICHE_SISTEM",
+  "electronVersion": "22.3.27",
+  "extraMetadata": {
+    "name": "statistiche-sistem",
+    "productName": "STATISTICHE_SISTEM",
+    "main": "statistiche/main.js"
+  },
+  "files": [
+    "statistiche/main.js",
+    "statistiche/preload.js",
+    "statistiche/Statistiche.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-stat"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "ia32"
+        ]
+      }
+    ]
+  },
+  "portable": {
+    "artifactName": "STATISTICHE_SISTEM-${version}-Windows7-32bit-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "STATISTICHE_SISTEM-${version}-Windows7-32bit-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}

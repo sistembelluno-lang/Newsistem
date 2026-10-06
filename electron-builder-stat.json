@@ -1,0 +1,44 @@
+{
+  "appId": "it.sistembelluno.statistiche",
+  "productName": "STATISTICHE_SISTEM",
+  "extraMetadata": {
+    "name": "statistiche-sistem",
+    "productName": "STATISTICHE_SISTEM",
+    "main": "statistiche/main.js"
+  },
+  "files": [
+    "statistiche/main.js",
+    "statistiche/preload.js",
+    "statistiche/Statistiche.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-stat"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "nsis"
+    ]
+  },
+  "portable": {
+    "artifactName": "STATISTICHE_SISTEM-${version}-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "STATISTICHE_SISTEM-${version}-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "STATISTICHE_SISTEM-${version}.${ext}"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "STATISTICHE_SISTEM-${version}.${ext}"
+  }
+}

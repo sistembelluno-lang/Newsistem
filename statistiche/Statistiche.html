@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>STATISTICHE_SISTEM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1c2330;--mu:#6b7585;--bd:#dde1e8;--ac:#1f5fbf;--ok:#1a7f4b;--ko:#c0392b;--hd:#eef1f5;
+  --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s0:#a3a29c;--grid:#e6e8ed}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b212a;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--ac:#6ea3f5;--ok:#4cc38a;--ko:#ff7b6b;--hd:#232a35;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s0:#6f6e68;--grid:#2a3240}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b212a;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--ac:#6ea3f5;--ok:#4cc38a;--ko:#ff7b6b;--hd:#232a35;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s0:#6f6e68;--grid:#2a3240}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1280px;margin:0 auto;padding:16px}
+button,select,input{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 10px}
+button{cursor:pointer}button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+.mu{color:var(--mu)}.neg{color:var(--ko)}.pos{color:var(--ok)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.src{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.src .st{flex:1 1 320px;font-size:12px;color:var(--mu);min-width:0}
+.src .st b{color:var(--tx)}.src .st div{overflow-wrap:anywhere}
+.flt{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin:4px 0 12px}
+.flt label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}
+.flt select{min-width:150px}
+.tabs{display:flex;flex-wrap:wrap;gap:2px;border-bottom:2px solid var(--bd);margin-bottom:12px}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:9px 14px;margin-bottom:-2px;font-weight:600;color:var(--mu)}
+.tabs button.on{color:var(--ac);border-bottom-color:var(--ac)}
+.tabs .sp{flex:1}.tabs .ex{border:1px solid var(--bd);border-radius:8px;margin:0 0 4px 6px;padding:5px 10px;font-weight:500;color:var(--tx)}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.kpi div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px}
+.kpi small{color:var(--mu);display:block}.kpi b{font-size:20px;font-variant-numeric:tabular-nums}.kpi i{display:block;font-style:normal;font-size:12px;color:var(--mu)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px}
+.ch h3,.card h3{margin:0 0 2px;font-size:15px}.ch .sub{font-size:12px;color:var(--mu);margin-bottom:6px}
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:var(--mu);margin:2px 0 6px}
+.leg span{display:inline-flex;align-items:center;gap:5px}.leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+svg.cv{display:block;width:100%;height:auto;overflow:visible}
+svg.cv text{fill:var(--mu);font-size:11px;font-variant-numeric:tabular-nums}
+svg.cv .gl{stroke:var(--grid);stroke-width:1}svg.cv .bl{stroke:var(--mu);stroke-width:1}
+svg.cv .hit{fill:transparent}svg.cv .hit:hover{fill:var(--tx);fill-opacity:.05}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:10px;margin-bottom:12px}
+table{border-collapse:collapse;width:100%}
+th,td{padding:6px 9px;text-align:left;border-bottom:1px solid var(--bd);white-space:nowrap}
+th{background:var(--hd);font-size:12px}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+tfoot td{font-weight:700;background:var(--hd)}
+tr.cl{cursor:pointer}tr.cl:hover td{background:rgba(36,87,214,.06)}tr.sel td{background:rgba(36,87,214,.12)}
+.tt{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px;margin:14px 0 6px}.tt h3{margin:0;font-size:15px}
+.note{font-size:12px;color:var(--mu);margin:4px 0 10px}
+.empty{text-align:center;padding:40px 16px}.empty h2{margin:0 0 8px}
+#tip{position:fixed;z-index:60;pointer-events:none;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:7px 10px;font-size:12px;box-shadow:0 6px 18px rgba(0,0,0,.18);max-width:280px}
+#tip b{display:block;margin-bottom:3px}#tip i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px}
+#tip table{width:auto}#tip td{border:0;padding:1px 6px 1px 0}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:70}
+#drop{position:fixed;inset:0;z-index:80;background:rgba(31,95,191,.18);border:4px dashed var(--ac);display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--ac)}
+.ph{display:none}
+@media (max-width:640px){main{padding:10px 16px}.grid2{grid-template-columns:1fr}.flt select{min-width:0;width:100%}.flt label{flex:1 1 140px}}
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body{background:#fff;color:#000;background-image:none}
+  .appbar,.src,.flt,.tabs,#tip,#toast,.noprint{display:none!important}
+  .ph{display:block;margin-bottom:8px}.ph h2{margin:0;font-size:18px}
+  main{max-width:none;padding:0}.card,.tw,.kpi div{box-shadow:none!important;break-inside:avoid}
+  .grid2{grid-template-columns:1fr 1fr}
+  th,td{padding:3px 6px;font-size:10.5px}
+}
+/*TEMA-INIZIO (da src/tema.css)*/
+/* Tema grafico SISTEM SRL STP: barra in alto con il marchio, schede con ombre morbide, pulsanti in gradiente.
+   Va in fondo agli stili e li sovrascrive; niente color-mix (Windows 7). */
+:root{--bg:#eef2f8;--card:#fff;--tx:#0f1b2d;--mu:#5d6b82;--bd:#dfe5ef;--ac:#2457d6;--ok:#13804f;--ko:#c2372b;--hd:#f3f6fb;
+  --g1:#2563eb;--g2:#5b3fd9;--bar1:#0b1f4b;--bar2:#1d3f9e;--bar3:#4a3ad1;--sh:0 1px 2px rgba(15,27,45,.06),0 8px 22px rgba(15,27,45,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b111d;--card:#141c2c;--tx:#e8edf6;--mu:#93a1b8;--bd:#25314a;--ac:#7aa2ff;--ok:#46c98d;--ko:#ff7d6e;--hd:#1a2438;
+  --bar1:#060c1a;--bar2:#13265e;--bar3:#33289a;--sh:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35)}}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",sans-serif;background:var(--bg);
+  background-image:radial-gradient(900px 340px at 8% -120px,rgba(37,99,235,.13),transparent 70%),radial-gradient(700px 300px at 100% -80px,rgba(91,63,217,.10),transparent 70%);background-repeat:no-repeat}
+/* Barra del marchio */
+.appbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 22px;color:#fff;
+  background:linear-gradient(110deg,var(--bar1) 0%,var(--bar2) 58%,var(--bar3) 100%);box-shadow:0 6px 20px rgba(8,22,60,.28)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .logo{flex:none;width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(140deg,#38bdf8 0%,#3b82f6 45%,#7c3aed 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 14px rgba(0,0,0,.28)}
+.brand .logo svg{width:26px;height:26px}
+.brand .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;opacity:.82;white-space:nowrap}
+.brand h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.03em;color:#fff;line-height:1.15;white-space:nowrap}
+.appbar .meta{font-size:12px;opacity:.85;text-align:right;white-space:nowrap}
+.appbar button,.appbar select{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff}
+.appbar button:hover:not(:disabled){background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.5)}
+.appbar select option{color:#0f1b2d}.appbar b,.appbar .mu{color:#fff}.appbar .mu{opacity:.8}
+/* Controlli */
+button,select,input,textarea{border-radius:10px;border-color:var(--bd)}
+button{font-weight:500;transition:background-color .15s,border-color .15s,box-shadow .15s}
+button:hover:not(:disabled){border-color:var(--ac);box-shadow:0 2px 8px rgba(36,87,214,.14)}
+button:active:not(:disabled){transform:translateY(1px)}
+button.p{background:linear-gradient(135deg,var(--g1),var(--g2));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 4px 12px rgba(79,70,229,.30)}
+button.p:hover:not(:disabled){box-shadow:0 6px 16px rgba(79,70,229,.40);border-color:transparent}
+button.d{color:var(--ko)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(36,87,214,.18)}
+input[type=checkbox],input[type=radio]{accent-color:var(--ac)}
+/* Schede, riquadri, finestre */
+.card,.tw,.mp,.rbox,.kpi div,.calc{border-radius:14px}
+.card,.tw,.mp,.rbox,.kpi div{box-shadow:var(--sh);border-color:var(--bd)}
+.kpi div{position:relative;overflow:hidden;padding:12px 14px 12px 18px;background:var(--card)}
+.kpi div::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--g1),var(--g2))}
+.kpi small{text-transform:uppercase;font-size:10.5px;letter-spacing:.06em;font-weight:600;color:var(--mu)}
+.kpi b{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.kpi .kc:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(36,87,214,.18)}
+dialog{border:0;border-radius:18px;box-shadow:0 30px 70px rgba(8,20,48,.38)}
+dialog::backdrop{background:rgba(8,16,36,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.tag{border-radius:999px;font-weight:600}
+/* Tabelle */
+th{text-transform:uppercase;font-size:11.5px;letter-spacing:.04em;color:var(--mu);font-weight:700}
+.tw table th{background:var(--hd)}
+tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
+.rep th{text-transform:none;letter-spacing:0;font-size:inherit;color:inherit}
+/* Schede a linguette */
+.tabs button.on,.vtabs button.on{color:var(--ac);border-bottom-color:var(--ac)}
+.vtabs,.tabs{border-bottom-color:var(--bd)}
+/* Controllo: barra degli strumenti e mappa */
+.top{margin-top:4px}.top .btns{gap:8px}
+.mp .mh{font-weight:700}
+/* Insert: accesso, giorni, calendario */
+#vlog{max-width:720px;margin:28px auto;padding:22px 24px}
+#vlog h2{font-size:20px!important}
+.who button{border-radius:14px;padding:16px 14px;box-shadow:var(--sh);border-color:var(--bd);font-size:15px}
+.who button.sel{border-color:var(--ac);background:rgba(36,87,214,.10);box-shadow:0 0 0 3px rgba(36,87,214,.18)}
+.day{border-radius:12px;box-shadow:0 1px 2px rgba(15,27,45,.05)}
+.cal .c{border-radius:12px;box-shadow:0 1px 2px rgba(15,27,45,.05)}
+.seg{border-radius:10px}
+/* Blocco con PIN */
+#lock{background:linear-gradient(140deg,var(--bar1),var(--bar2) 60%,var(--bar3))}
+#lock .lb{border:0;border-radius:20px;box-shadow:0 30px 70px rgba(0,0,0,.35);padding:28px 26px}
+#lock .lb .logo{margin:0 auto 10px;width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#38bdf8,#3b82f6 45%,#7c3aed)}
+#lock .lb .logo svg{width:32px;height:32px}
+#lock .lb .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--mu);margin-bottom:2px}
+#toast{border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+@media (max-width:640px){.appbar{padding:8px 12px}.brand h1{font-size:16px}.appbar .meta{display:none}}
+/* Attività della settimana (uguale nei due programmi) e messaggi */
+.att-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh);padding:14px 16px;margin-bottom:10px}
+.att-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:10px}.att-h h2{margin:0;font-size:17px}
+.att-mu{color:var(--mu);font-size:12px}
+.att-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}.att-f .w2{grid-column:span 2}
+.att-f label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}.att-f input,.att-f select{width:100%}
+.att-b{display:flex;gap:6px;justify-content:flex-end}
+.att-nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.att-nav b{font-size:15px;min-width:230px;text-align:center}
+.att-tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh)}
+.att-t{width:100%;border-collapse:collapse;font-size:13px}.att-t th,.att-t td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.att-t th{background:var(--hd);position:static}.att-t td{white-space:normal}
+.att-t td.att-g{white-space:nowrap;min-width:92px;border-right:1px solid var(--bd)}.att-g small{display:block;color:var(--mu);font-size:11px}.g-fest .att-g b{color:#c0392b}
+.att-t tr.att-oggi td.att-g{box-shadow:inset 3px 0 0 var(--ac)}.att-t tr.att-mia td:not(.att-g){background:rgba(36,87,214,.09)}
+.att-add{padding:0 8px;margin-top:3px;font-size:12px}.att-ac{white-space:nowrap;text-align:right}.att-ac button{padding:1px 8px;font-size:12px}
+.msg{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card);box-shadow:var(--sh)}
+.msg.nuovo{border-color:var(--ac);box-shadow:0 0 0 2px rgba(36,87,214,.18)}.msg.fatto{opacity:.75}
+.msg .mt{white-space:pre-wrap;margin:6px 0;font-size:14px}.msg .mh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mu)}
+.msg .mb{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.msg .rsp{margin-top:4px;padding:6px 10px;border-left:3px solid var(--ok);background:var(--hd);border-radius:0 8px 8px 0;font-size:13px}
+.nb{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:99px;background:#c2372b;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+/* Verifica collegamento */
+.vc{width:100%;border-collapse:collapse;font-size:13px}.vc td{padding:5px 6px;border-bottom:1px solid var(--bd);vertical-align:top}
+.vcko{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--ko);background:rgba(194,55,43,.08)}.vcko ul{margin:6px 0 0;padding-left:20px}
+/*TEMA-FINE*/
+.kpi b{font-size:20px}
+</style>
+</head>
+<body>
+<header class="appbar"><div class="brand"><span class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><h1>STATISTICHE_SISTEM</h1></div></div><div class="meta">Fatturato, ore, trasferte e spese<br>mese per mese e anno per anno</div></header>
+<main>
+<div class="card src">
+  <button type="button" class="p" id="bagg" title="Rilegge i file dal server">⟳ Aggiorna dal server</button>
+  <button type="button" id="bdati" title="Cartella con dati_lavori.json (CONTROLLO_SISTEM → Cambia cartella)">📂 Cartella dati</button>
+  <button type="button" id="bcond" title="Cartella CONDIVISA (con dipendenti.json e la cartella ore)">📂 Cartella condivisa</button>
+  <button type="button" id="bfile" title="Backup o file .json presi da un altro PC">📄 Carica file .json…</button>
+  <input type="file" id="ffile" accept=".json,application/json" multiple hidden>
+  <div class="st" id="stato"></div>
+</div>
+<div class="ph" id="ph"></div>
+<div class="flt" id="flt">
+  <label>Anno<select id="fy"></select></label>
+  <label>Dipendente<select id="fd"></select></label>
+  <label>Cliente<select id="fc"></select></label>
+</div>
+<nav class="tabs" id="tabs">
+  <button type="button" data-t="pan" class="on">📊 Mese per mese</button>
+  <button type="button" data-t="anni">📅 Anno per anno</button>
+  <button type="button" data-t="dip">👥 Dipendenti</button>
+  <button type="button" data-t="lav">🏗️ Lavori e clienti</button>
+  <span class="sp"></span>
+  <button type="button" class="ex" id="bcsv" title="Le tabelle di questa scheda in un file per Excel">Esporta Excel</button>
+  <button type="button" class="ex" id="bpdf">Esporta PDF</button>
+  <button type="button" class="ex" id="bprt">Stampa</button>
+</nav>
+<div id="out"></div>
+</main>
+<div id="tip" hidden></div><div id="toast"></div><div id="drop">Rilascia qui i file .json</div>
+<script>
+'use strict';
+/* ===== Utilità ===== */
+const $=id=>document.getElementById(id);
+const N=v=>{const x=parseFloat(v);return isFinite(x)?x:0};
+const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const MES3=['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+const eur=v=>(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0});
+const eur2=v=>(v||0).toLocaleString('it-IT',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2});
+const num=(v,d=1)=>(v||0).toLocaleString('it-IT',{maximumFractionDigits:d});
+const ore=v=>num(v)+' h';
+const sigla=nome=>String(nome||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0].toUpperCase()).join('');
+const isD=s=>/^\d{4}-\d\d-\d\d/.test(String(s||''));
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3000)}
+const LUOGHI=[['uff','Ufficio','--s1'],['cant','Cantiere','--s2'],['tr','Trasferta','--s3'],['alt','Altre ore (CONTROLLO_SISTEM)','--s0']];
+
+/* ===== File caricati =====
+   lavori: contenuto di dati_lavori.json (o di un backup), dip: dipendenti.json, ore: {id dipendente → ore/<id>.json} */
+const FILES={lavori:null,dip:null,ore:{},nomi:{lavori:'',dip:'',ore:[]},t:0,errori:[],cartelle:null};
+function riconosci(nome,testo){let j;try{j=JSON.parse(String(testo).replace(/^﻿/,''))}catch(e){return'non è un file .json valido'}
+  if(j&&Array.isArray(j.rows)){FILES.lavori=j;FILES.nomi.lavori=nome;return''}
+  if(j&&Array.isArray(j.dip)){FILES.dip=j;FILES.nomi.dip=nome;return''}
+  if(j&&(Array.isArray(j.voci)||Array.isArray(j.pers))){const id=j.dip||nome.replace(/^.*[\\/]/,'').replace(/\.json$/i,'');FILES.ore[id]=j;if(!FILES.nomi.ore.includes(nome))FILES.nomi.ore.push(nome);return''}
+  return'non contiene dati di CONTROLLO_SISTEM o INSERT_SISTEM'}
+function svuota(){FILES.lavori=null;FILES.dip=null;FILES.ore={};FILES.nomi={lavori:'',dip:'',ore:[]};FILES.errori=[]}
+
+/* ===== Modello: registrazioni di ore, assenze e lavori, tutte con la loro data =====
+   Le ore dei dipendenti già entrate in CONTROLLO_SISTEM stanno nei lavori (campi ore e iv, con il codice u della registrazione);
+   quelle non ancora entrate si prendono dai file ore/<id>.json. Le ore inserite a mano in CONTROLLO_SISTEM (Ore totali meno
+   quelle dei dipendenti) diventano «Altre ore», con la data del lavoro. Così i totali tornano con quelli di CONTROLLO_SISTEM. */
+let M=null;
+function costruisci(){
+  const S=FILES.lavori||{rows:[]},rows=(S.rows||[]).filter(r=>r&&typeof r==='object');
+  const nomeDip={};((FILES.dip&&FILES.dip.dip)||[]).forEach(d=>{if(d&&d.id)nomeDip[d.id]=d.nome||d.id});
+  const chiave=(id,op)=>id?'i:'+id:'n:'+String(op||'?').trim().toLowerCase();
+  const nomi={};const nome=(k,n)=>{if(!nomi[k]||nomi[k]==='?')nomi[k]=n};
+  const REC=[],ASS=[],LAV=[],visti=new Set();
+  const spDi=x=>Array.isArray(x.spl)&&x.spl.length?x.spl.reduce((s,y)=>s+N(y.i),0):N(x.sp);
+  const dataLav=r=>isD(r.data)?r.data.slice(0,10):isD(r.scad)?r.scad.slice(0,10):'';
+  rows.forEach(r=>{
+    const L={id:r.id,cod:String(r.cod??''),nome:r.nome||'',cli:String(r.cliente||'').trim(),stato:r.stato||'',d:dataLav(r),fattura:r.fattura||'',
+      prev:N(r.prev),fatt:N(r.fatt),h:N(r.hTot),tr:N(r.hTr),km:N(r.km),sp:N(r.spTr)+N(r.spPa)+N(r.spEx),hReg:0};LAV.push(L);
+    let ih=0,itr=0,ikm=0,isp=0;
+    [...(r.ore||[]),...(r.iv||[])].forEach(x=>{if(!x||!x.u||!x.t||visti.has(x.u))return;visti.add(x.u);
+      const k=chiave(x.di,x.op);nome(k,nomeDip[x.di]||x.op||'?');
+      const lu=x.luogo||(x.cant?'cant':x.tr?'tr':'uff'),h=N(x.h),sp=spDi(x);
+      REC.push({d:isD(x.d)?x.d.slice(0,10):L.d,dk:k,L,h,lu:lu==='cant'||lu==='tr'?lu:'uff',km:N(x.km),sp});
+      ih+=h;if(x.tr)itr+=h;ikm+=N(x.km);isp+=sp});
+    // ore, km e spese inserite direttamente in CONTROLLO_SISTEM
+    const rh=Math.max(0,L.h-ih),rtr=Math.min(rh,Math.max(0,L.tr-itr)),rkm=Math.max(0,L.km-ikm),rsp=Math.max(0,L.sp-isp);
+    if(rh>0.001||rkm>0.001||rsp>0.001){nome('_adm','Altre (inserite in CONTROLLO_SISTEM)');
+      if(rtr>0.001)REC.push({d:L.d,dk:'_adm',L,h:rtr,lu:'tr',km:0,sp:0,altre:true});
+      REC.push({d:L.d,dk:'_adm',L,h:rh-rtr,lu:'alt',km:rkm,sp:rsp,altre:true})}});
+  const lavDi=v=>{const c=String(v.cod??'');return LAV.find(l=>l.id==v.lav&&l.cod===c)||(c?LAV.find(l=>l.cod===c):null)||null};
+  Object.keys(FILES.ore).forEach(id=>{const f=FILES.ore[id]||{},k=chiave(id);nome(k,nomeDip[id]||id);
+    (f.voci||[]).forEach(v=>{if(!v||v.del||visti.has(v.u)||!isD(v.d))return;visti.add(v.u);
+      const L=lavDi(v)||{id:null,cod:String(v.cod??''),nome:v.nome||'',cli:String(v.cliente||'').trim(),fatt:0,h:0,hReg:0},lu=v.cant?'cant':v.tr?'tr':'uff';
+      REC.push({d:v.d.slice(0,10),dk:k,L,h:N(v.h),lu,km:N(v.km),sp:spDi(v),nonImp:true})});
+    (f.pers||[]).forEach(p=>{if(!p||p.del||!isD(p.d)||!['ferie','permesso','malattia'].includes(p.tipo))return;ASS.push({d:p.d.slice(0,10),dk:k,tipo:p.tipo,h:N(p.h)})})});
+  // Fatturato attribuito: il fatturato di un lavoro diviso tra chi ci ha lavorato, in proporzione alle ore
+  REC.forEach(x=>x.L.hReg=(x.L.hReg||0)+x.h);
+  REC.forEach(x=>{const T=Math.max(x.L.h||0,x.L.hReg||0);x.q=T>0&&x.L.fatt?x.L.fatt*x.h/T:0});
+  const anni=new Set();[...REC,...ASS,...LAV].forEach(x=>{if(x.d)anni.add(x.d.slice(0,4))});
+  M={REC,ASS,LAV,nomi,anni:[...anni].sort(),cli:[...new Set(LAV.map(l=>l.cli).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it'))}}
+
+/* ===== Filtri ===== */
+const F={y:'',dk:'',cli:'',tab:'pan',selDip:''};
+function riempiFiltri(){
+  const fy=$('fy'),fd=$('fd'),fc=$('fc'),oggi=String(new Date().getFullYear());
+  if(F.y&&!M.anni.includes(F.y))F.y='';
+  if(!F.y&&!riempiFiltri.fatto)F.y=M.anni.includes(oggi)?oggi:(M.anni[M.anni.length-1]||'');riempiFiltri.fatto=M.anni.length>0;
+  fy.innerHTML='<option value="">Tutti gli anni</option>'+[...M.anni].reverse().map(y=>`<option ${y===F.y?'selected':''}>${y}</option>`).join('');
+  const dk=Object.keys(M.nomi).sort((a,b)=>(a==='_adm')-(b==='_adm')||M.nomi[a].localeCompare(M.nomi[b],'it'));if(F.dk&&!M.nomi[F.dk])F.dk='';
+  fd.innerHTML='<option value="">Tutti</option>'+dk.map(k=>`<option value="${E(k)}" ${k===F.dk?'selected':''}>${E(M.nomi[k])}${k!=='_adm'&&sigla(M.nomi[k])?' ('+E(sigla(M.nomi[k]))+')':''}</option>`).join('');
+  if(F.cli&&!M.cli.includes(F.cli))F.cli='';
+  fc.innerHTML='<option value="">Tutti</option>'+M.cli.map(c=>`<option ${c===F.cli?'selected':''}>${E(c)}</option>`).join('')}
+const inY=(d,y)=>!y||(d&&d.startsWith(y));
+const recF=(o={})=>M.REC.filter(x=>inY(x.d,o.y??F.y)&&(!(o.dk??F.dk)||x.dk===(o.dk??F.dk))&&(!F.cli||x.L.cli===F.cli));
+const assF=(o={})=>M.ASS.filter(x=>inY(x.d,o.y??F.y)&&(!(o.dk??F.dk)||x.dk===(o.dk??F.dk))&&!F.cli);
+const lavF=(o={})=>M.LAV.filter(l=>inY(l.d,o.y??F.y)&&(!F.cli||l.cli===F.cli));
+
+/* ===== Somme per periodo =====
+   per(x) restituisce la chiave del periodo (mese 1..12 o anno); con un dipendente scelto il fatturato è quello attribuito a lui */
+function vuoto(){return{fatt:0,prev:0,nl:0,h:0,uff:0,cant:0,tr:0,alt:0,km:0,sp:0,ferie:0,permesso:0,malattia:0,gg:new Set()}}
+function somme(per,o={}){const T={},g=k=>T[k]=T[k]||vuoto(),dk=o.dk??F.dk;
+  recF(o).forEach(x=>{const k=per(x.d);if(k==null)return;const t=g(k);t.h+=x.h;t[x.lu]+=x.h;t.km+=x.km;t.sp+=x.sp;if(dk)t.fatt+=x.q;if(x.h>0&&!x.altre)t.gg.add(x.dk+x.d)});
+  assF(o).forEach(x=>{const k=per(x.d);if(k==null)return;g(k)[x.tipo]+=x.h});
+  if(!dk)lavF(o).forEach(l=>{const k=per(l.d);if(k==null)return;const t=g(k);t.fatt+=l.fatt;t.prev+=l.prev;if(l.fatt||l.prev)t.nl++});
+  return T}
+const perMese=d=>d?+d.slice(5,7):null,perAnno=d=>d?d.slice(0,4):null;
+function totale(T){const t=vuoto();Object.values(T).forEach(x=>Object.keys(t).forEach(k=>{if(k==='gg')x.gg.forEach(v=>t.gg.add(v));else t[k]+=x[k]}));return t}
+
+/* ===== Grafici (SVG, senza librerie: funzionano anche su Windows 7 senza internet) ===== */
+function scala(max){if(!(max>0))return{top:1,step:.25};const p=Math.pow(10,Math.floor(Math.log10(max))),m=max/p,s=m<=1.5?.25:m<=3?.5:m<=6?1:2;const step=s*p;return{top:Math.ceil(max/step)*step,step}}
+const corto=(v,f)=>f==='eur'?(v>=1e6?num(v/1e6,1)+' M€':v>=1e3?num(v/1e3,v>=1e4?0:1)+' k€':num(v,0)+' €'):(v>=1e4?num(v/1e3,0)+'k':num(v,0));
+const valF=(v,f)=>f==='eur'?eur(v):f==='km'?num(v,0)+' km':ore(v);
+// Barra con gli angoli arrotondati solo in cima (il lato sulla linea di base resta dritto)
+function barra(x,y,w,h,r){if(h<=0||w<=0)return'';r=Math.min(r,w/2,h);return`M${x},${y+h}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h}Z`}
+function barraDx(x,y,w,h,r){if(h<=0||w<=0)return'';r=Math.min(r,h/2,w);return`M${x},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h-r}Q${x+w},${y+h} ${x+w-r},${y+h}H${x}Z`}
+function legenda(S){return S.length<2?'':`<div class="leg">${S.map(s=>`<span><i style="background:var(${s.col})"></i>${E(s.nome)}</span>`).join('')}</div>`}
+function tipHTML(tit,S,i,f){const tot=S.reduce((a,s)=>a+(s.v[i]||0),0);
+  return E(JSON.stringify({t:tit,r:S.filter(s=>s.v[i]).map(s=>[s.col,s.nome,valF(s.v[i],f)]),tot:S.length>1?valF(tot,f):''}))}
+// Colonne verticali (una serie o più serie sovrapposte); cats: etichette; S: [{nome,col,v:[...]}]
+function colonne(cats,S,f,o={}){const W=620,H=o.h||250,ml=48,mr=8,mt=12,mb=26,pw=W-ml-mr,phh=H-mt-mb,n=cats.length;
+  const tot=cats.map((_,i)=>S.reduce((a,s)=>a+Math.max(0,s.v[i]||0),0)),sc=scala(Math.max(...tot,0)),y=v=>mt+phh-v/sc.top*phh;
+  const bw=Math.min(46,pw/n*.62),gap=2;let g='';
+  for(let v=0;v<=sc.top+1e-9;v+=sc.step)g+=`<line class="gl" x1="${ml}" x2="${W-mr}" y1="${y(v)}" y2="${y(v)}"/><text x="${ml-6}" y="${y(v)+4}" text-anchor="end">${corto(v,f)}</text>`;
+  cats.forEach((c,i)=>{const cx=ml+pw/n*(i+.5),x=cx-bw/2;let base=mt+phh;const vis=S.filter(s=>(s.v[i]||0)>0);
+    vis.forEach((s,j)=>{const h=(s.v[i]/sc.top)*phh,top=j===vis.length-1,hh=Math.max(0,h-(j?gap:0));
+      g+=top?`<path d="${barra(x,base-h,bw,hh,4)}" fill="var(${s.col})"/>`:`<rect x="${x}" y="${base-hh}" width="${bw}" height="${hh}" fill="var(${s.col})"/>`;base-=h});
+    g+=`<text x="${cx}" y="${H-8}" text-anchor="middle">${E(c)}</text>`;
+    g+=`<rect class="hit" x="${ml+pw/n*i}" y="${mt}" width="${pw/n}" height="${phh}" data-tip="${tipHTML(o.tit?o.tit[i]:c,S,i,f)}"/>`});
+  g+=`<line class="bl" x1="${ml}" x2="${W-mr}" y1="${mt+phh}" y2="${mt+phh}"/>`;
+  return legenda(S)+`<svg class="cv" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`}
+// Barre orizzontali (per dipendenti e clienti: i nomi si leggono meglio)
+function barre(cats,S,f){const W=620,rh=24,ml=170,mr=70,mt=4,n=cats.length,H=mt+n*rh+22,pw=W-ml-mr;
+  const tot=cats.map((_,i)=>S.reduce((a,s)=>a+Math.max(0,s.v[i]||0),0)),sc=scala(Math.max(...tot,0)),x=v=>ml+v/sc.top*pw;let g='';
+  for(let v=0;v<=sc.top+1e-9;v+=sc.step)g+=`<line class="gl" x1="${x(v)}" x2="${x(v)}" y1="${mt}" y2="${mt+n*rh}"/><text x="${x(v)}" y="${H-6}" text-anchor="middle">${corto(v,f)}</text>`;
+  cats.forEach((c,i)=>{const y0=mt+i*rh+4,bh=rh-8;let base=ml;const vis=S.filter(s=>(s.v[i]||0)>0);
+    vis.forEach((s,j)=>{const w=(s.v[i]/sc.top)*pw,ww=Math.max(0,w-(j?2:0)),xx=base+(j?2:0);
+      g+=j===vis.length-1?`<path d="${barraDx(xx,y0,ww,bh,4)}" fill="var(${s.col})"/>`:`<rect x="${xx}" y="${y0}" width="${ww}" height="${bh}" fill="var(${s.col})"/>`;base+=w});
+    const lab=String(c).length>26?String(c).slice(0,25)+'…':c;
+    g+=`<text x="${ml-8}" y="${y0+bh/2+4}" text-anchor="end" style="fill:var(--tx)">${E(lab)}</text><text x="${base+6}" y="${y0+bh/2+4}">${corto(tot[i],f)}</text>`;
+    g+=`<rect class="hit" x="0" y="${mt+i*rh}" width="${W}" height="${rh}" data-tip="${tipHTML(c,S,i,f)}"/>`});
+  g+=`<line class="bl" x1="${ml}" x2="${ml}" y1="${mt}" y2="${mt+n*rh}"/>`;
+  return legenda(S)+`<svg class="cv" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`}
+function grafico(tit,sub,svg){return`<div class="card ch"><h3>${tit}</h3>${sub?`<div class="sub">${sub}</div>`:''}${svg}</div>`}
+const serieOre=(cols,T)=>LUOGHI.map(([k,nome,col])=>({nome,col,v:cols.map(c=>(T[c]||{})[k]||0)})).filter(s=>s.v.some(v=>v>0));
+
+/* ===== Tabelle: ogni cella numerica porta il valore grezzo (data-v) per l'esportazione in Excel ===== */
+const cN=(v,f)=>`<td class="n" data-v="${Math.round((v||0)*100)/100}">${v?(f==='eur'?eur(v):f==='km'?num(v,0):num(v)):''}</td>`;
+function tabella(tit,H,R,foot,o={}){return`<div class="tt"><h3>${tit}</h3>${o.dx||''}</div><div class="tw"><table data-t="${E(tit)}"><thead><tr>${H.map(h=>`<th class="${h[1]?'n':''}">${h[0]}</th>`).join('')}</tr></thead><tbody>${R.length?R.join(''):`<tr><td colspan="${H.length}" class="mu">Nessun dato.</td></tr>`}</tbody>${foot?`<tfoot>${foot}</tfoot>`:''}</table></div>`}
+const HP=()=>[['Fatturato'+(F.dk?' attribuito':''),1],['Preventivi',1],['Ore lavorate',1],['Ufficio',1],['Cantiere',1],['Trasferta',1],['Altre ore',1],['Km',1],['Spese €',1],['Ferie h',1],['Permessi h',1],['Malattia h',1]];
+const cellP=t=>cN(t.fatt,'eur')+cN(F.dk?0:t.prev,'eur')+cN(t.h)+cN(t.uff)+cN(t.cant)+cN(t.tr)+cN(t.alt)+cN(t.km,'km')+cN(t.sp,'eur')+cN(t.ferie)+cN(t.permesso)+cN(t.malattia);
+function kpi(t,lab,attr){attr=attr||!!F.dk;const eh=t.h>0&&t.fatt?t.fatt/t.h:0;
+  return`<div class="kpi"><div><small>${attr?'Fatturato attribuito':'Fatturato'} ${lab}</small><b>${eur(t.fatt)}</b>${!attr&&t.prev?`<i>preventivi ${eur(t.prev)}</i>`:''}</div>
+<div><small>Ore lavorate</small><b>${ore(t.h)}</b>${t.gg.size?`<i>${t.gg.size} giorn${t.gg.size===1?'o':'i'}-persona</i>`:''}</div>
+<div><small>Ore in trasferta</small><b>${ore(t.tr)}</b><i>in cantiere ${ore(t.cant)}</i></div>
+<div><small>Km</small><b>${num(t.km,0)}</b></div><div><small>Spese</small><b>${eur(t.sp)}</b></div>
+<div><small>Fatturato per ora</small><b>${eh?eur2(eh):'—'}</b></div>
+<div><small>Ferie · permessi · malattia</small><b>${num(t.ferie)} · ${num(t.permesso)} · ${num(t.malattia)}</b><i>ore</i></div></div>`}
+const chi=()=>F.dk?' · '+E(M.nomi[F.dk]):'';
+const filtriTxt=()=>[F.y||'Tutti gli anni',F.dk?M.nomi[F.dk]:'',F.cli?'cliente '+F.cli:''].filter(Boolean).join(' · ');
+
+/* ===== Schede ===== */
+function vPan(){
+  if(F.y){const T=somme(perMese),t=totale(T),C=[...Array(12)].map((_,i)=>i+1),cats=MES3,tit=MESI.map(m=>m+' '+F.y);
+    let h=kpi(t,F.y)+'<div class="grid2">'+grafico((F.dk?'Fatturato attribuito':'Fatturato')+' per mese · '+F.y+chi(),F.dk?'Quota del fatturato dei lavori in proporzione alle ore lavorate':'In base alla data del lavoro (o alla scadenza)',colonne(cats,[{nome:'Fatturato',col:'--s1',v:C.map(c=>(T[c]||{}).fatt||0)}],'eur',{tit}))
+      +grafico('Ore lavorate per mese · '+F.y+chi(),'Dove sono state lavorate',colonne(cats,serieOre(C,T),'h',{tit}))+'</div>';
+    h+=tabella('Mese per mese · '+F.y+chi(),[['Mese'],...HP()],C.map(c=>`<tr><td>${MESI[c-1]}</td>${cellP(T[c]||vuoto())}</tr>`),`<tr><td>Totale ${F.y}</td>${cellP(t)}</tr>`);
+    return h+nota()}
+  const T=somme(perAnno),t=totale(T),C=M.anni;
+  return kpi(t,'(tutti gli anni)')+'<div class="grid2">'+grafico((F.dk?'Fatturato attribuito':'Fatturato')+' per anno'+chi(),'',colonne(C,[{nome:'Fatturato',col:'--s1',v:C.map(c=>(T[c]||{}).fatt||0)}],'eur'))
+    +grafico('Ore lavorate per anno'+chi(),'',colonne(C,serieOre(C,T),'h'))+'</div>'
+    +tabella('Anno per anno'+chi(),[['Anno'],...HP()],C.map(c=>`<tr><td>${c}</td>${cellP(T[c]||vuoto())}</tr>`),`<tr><td>Totale</td>${cellP(t)}</tr>`)+nota()}
+function vAnni(){const C=M.anni,T=somme(perAnno,{y:''}),t=totale(T);if(!C.length)return'<p class="mu">Nessun dato con una data.</p>';
+  // confronto dello stesso mese tra anni diversi
+  const Y=C.slice(-4),PM={};Y.forEach(y=>PM[y]=somme(perMese,{y}));
+  const conf=(k,f,tit)=>tabella(tit,[['Mese'],...Y.map(y=>[y,1])],MESI.map((m,i)=>`<tr><td>${m}</td>${Y.map(y=>cN(((PM[y][i+1]||{})[k])||0,f)).join('')}</tr>`),`<tr><td>Totale</td>${Y.map(y=>cN(totale(PM[y])[k],f)).join('')}</tr>`);
+  const col=['--s1','--s2','--s3','--s0'];
+  return'<div class="grid2">'+grafico((F.dk?'Fatturato attribuito':'Fatturato')+' anno per anno'+chi(),'',colonne(C,[{nome:'Fatturato',col:'--s1',v:C.map(c=>(T[c]||{}).fatt||0)}],'eur'))
+    +grafico('Ore lavorate anno per anno'+chi(),'',colonne(C,serieOre(C,T),'h'))+'</div>'
+    +tabella('Totali per anno'+chi(),[['Anno'],...HP()],C.map(c=>`<tr><td>${c}</td>${cellP(T[c]||vuoto())}</tr>`),`<tr><td>Totale</td>${cellP(t)}</tr>`)
+    +'<div class="grid2">'+grafico((F.dk?'Fatturato attribuito':'Fatturato')+': stesso mese, anni a confronto'+chi(),'Ultimi '+Y.length+' anni',confronto(Y,PM,col,'fatt','eur'))
+    +grafico('Ore lavorate: stesso mese, anni a confronto'+chi(),'Ultimi '+Y.length+' anni',confronto(Y,PM,col,'h','h'))+'</div>'
+    +conf('fatt','eur',(F.dk?'Fatturato attribuito':'Fatturato')+': mese per mese tra gli anni'+chi())+conf('h','h','Ore lavorate: mese per mese tra gli anni'+chi())+conf('tr','h','Ore in trasferta: mese per mese tra gli anni'+chi())+conf('sp','eur','Spese: mese per mese tra gli anni'+chi())+nota()}
+// Un valore per mese (fatturato o ore): un gruppo di colonne per mese e un colore per anno (al massimo quattro anni)
+function confronto(Y,PM,col,k,f){const W=620,H=250,ml=48,mr=8,mt=12,mb=26,pw=W-ml-mr,phh=H-mt-mb,S=Y.map((y,i)=>({nome:y,col:col[i],v:MES3.map((_,m)=>((PM[y][m+1]||{})[k])||0)}));
+  const sc=scala(Math.max(0,...S.flatMap(s=>s.v))),yy=v=>mt+phh-v/sc.top*phh,gw=pw/12,bw=Math.min(14,(gw*.8)/S.length-2);let g='';
+  for(let v=0;v<=sc.top+1e-9;v+=sc.step)g+=`<line class="gl" x1="${ml}" x2="${W-mr}" y1="${yy(v)}" y2="${yy(v)}"/><text x="${ml-6}" y="${yy(v)+4}" text-anchor="end">${corto(v,f)}</text>`;
+  MES3.forEach((m,i)=>{const x0=ml+gw*i+(gw-(bw+2)*S.length+2)/2;S.forEach((s,j)=>{const h=s.v[i]/sc.top*phh;g+=`<path d="${barra(x0+j*(bw+2),mt+phh-h,bw,h,3)}" fill="var(${s.col})"/>`});
+    g+=`<text x="${ml+gw*(i+.5)}" y="${H-8}" text-anchor="middle">${m}</text><rect class="hit" x="${ml+gw*i}" y="${mt}" width="${gw}" height="${phh}" data-tip="${tipHTML(MESI[i],S,i,f)}"/>`});
+  g+=`<line class="bl" x1="${ml}" x2="${W-mr}" y1="${mt+phh}" y2="${mt+phh}"/>`;
+  return legenda(S)+`<svg class="cv" viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`}
+function vDip(){const R=recF({dk:''}),A=assF({dk:''}),D={};const g=k=>D[k]=D[k]||Object.assign(vuoto(),{k});
+  R.forEach(x=>{const t=g(x.dk);t.h+=x.h;t[x.lu]+=x.h;t.km+=x.km;t.sp+=x.sp;t.fatt+=x.q;if(x.h>0&&!x.altre)t.gg.add(x.dk+x.d)});A.forEach(x=>{g(x.dk)[x.tipo]+=x.h});
+  const L=Object.values(D).sort((a,b)=>(a.k==='_adm')-(b.k==='_adm')||b.h-a.h),per=F.y||'tutti gli anni';
+  if(!F.selDip||!D[F.selDip])F.selDip=F.dk&&D[F.dk]?F.dk:'';
+  const nm=k=>M.nomi[k]||k,cats=L.map(t=>nm(t.k)),lab=F.y?F.y:'(tutti gli anni)';
+  let h='<div class="grid2">'+grafico('Ore lavorate per dipendente · '+per,'Ufficio, cantiere e trasferta',barre(cats,LUOGHI.map(([k,nome,col])=>({nome,col,v:L.map(t=>t[k])})).filter(s=>s.v.some(v=>v>0)),'h'))
+    +grafico('Fatturato attribuito per dipendente · '+per,'Il fatturato di ogni lavoro diviso tra chi ci ha lavorato, in proporzione alle ore',barre(cats,[{nome:'Fatturato attribuito',col:'--s1',v:L.map(t=>t.fatt)}],'eur'))+'</div>';
+  h+=tabella('Dipendenti · '+per+(F.cli?' · cliente '+E(F.cli):''),[['Dipendente'],['Sigla'],['Giorni lavorati',1],['Ore lavorate',1],['Ufficio',1],['Cantiere',1],['Trasferta',1],['Km',1],['Spese €',1],['Ferie h',1],['Permessi h',1],['Malattia h',1],['Fatturato attribuito',1],['€ per ora',1]],
+    L.map(t=>`<tr class="cl${t.k===F.selDip?' sel':''}" data-dk="${E(t.k)}" title="Clicca per il dettaglio mese per mese"><td><b>${E(nm(t.k))}</b></td><td>${t.k==='_adm'?'':E(sigla(nm(t.k)))}</td>${cN(t.gg.size,'km')}${cN(t.h)}${cN(t.uff+t.alt)}${cN(t.cant)}${cN(t.tr)}${cN(t.km,'km')}${cN(t.sp,'eur')}${cN(t.ferie)}${cN(t.permesso)}${cN(t.malattia)}${cN(t.fatt,'eur')}${cN(t.h?t.fatt/t.h:0,'eur')}</tr>`),
+    (()=>{const t=totale(D);return`<tr><td>Totale</td><td></td>${cN(t.gg.size,'km')}${cN(t.h)}${cN(t.uff+t.alt)}${cN(t.cant)}${cN(t.tr)}${cN(t.km,'km')}${cN(t.sp,'eur')}${cN(t.ferie)}${cN(t.permesso)}${cN(t.malattia)}${cN(t.fatt,'eur')}${cN(t.h?t.fatt/t.h:0,'eur')}</tr>`})());
+  h+='<p class="note">Clicca su un dipendente per vedere i suoi mesi e i lavori su cui ha lavorato. «Giorni lavorati»: giorni con almeno un\'ora registrata. Il fatturato attribuito segue la data delle ore lavorate, quindi il suo totale per anno può differire un po\' dal fatturato dell\'anno (che segue la data del lavoro).</p>';
+  if(F.selDip){const k=F.selDip,n=nm(k),Rk=R.filter(x=>x.dk===k);
+    const per2=F.y?perMese:perAnno,C=F.y?[...Array(12)].map((_,i)=>i+1):M.anni,T=somme(per2,{dk:k}),cats2=F.y?MES3:C;
+    h+=`<div class="tt"><h3>Dettaglio: ${E(n)} · ${E(String(lab))}</h3><button type="button" class="noprint" data-solo="${E(k)}">Mostra solo ${E(n)} in tutte le schede</button></div>`;
+    h+=kpi(totale(T),lab,true)
+      +'<div class="grid2">'+grafico('Ore di '+E(n)+(F.y?' per mese':' per anno'),'',colonne(cats2,serieOre(C,T),'h',{tit:F.y?MESI.map(m=>m+' '+F.y):C}))
+      +grafico('Fatturato attribuito a '+E(n)+(F.y?' per mese':' per anno'),'',colonne(cats2,[{nome:'Fatturato attribuito',col:'--s1',v:C.map(c=>(T[c]||{}).fatt||0)}],'eur',{tit:F.y?MESI.map(m=>m+' '+F.y):C}))+'</div>';
+    h+=tabella((F.y?'Mese per mese':'Anno per anno')+' · '+E(n),[[F.y?'Mese':'Anno'],['Fatturato attribuito',1],['Ore lavorate',1],['Ufficio',1],['Cantiere',1],['Trasferta',1],['Km',1],['Spese €',1],['Ferie h',1],['Permessi h',1],['Malattia h',1]],
+      C.map(c=>{const t=T[c]||vuoto();return`<tr><td>${F.y?MESI[c-1]:c}</td>${cN(t.fatt,'eur')}${cN(t.h)}${cN(t.uff+t.alt)}${cN(t.cant)}${cN(t.tr)}${cN(t.km,'km')}${cN(t.sp,'eur')}${cN(t.ferie)}${cN(t.permesso)}${cN(t.malattia)}</tr>`}));
+    const PL={};Rk.forEach(x=>{const key=x.L.cod+'|'+x.L.nome,p=PL[key]=PL[key]||{L:x.L,h:0,tr:0,cant:0,km:0,sp:0,q:0};p.h+=x.h;if(x.lu==='tr')p.tr+=x.h;if(x.lu==='cant')p.cant+=x.h;p.km+=x.km;p.sp+=x.sp;p.q+=x.q});
+    h+=tabella('Lavori di '+E(n)+' · '+E(String(lab)),[['Codice'],['Lavoro'],['Cliente'],['Ore',1],['Cantiere',1],['Trasferta',1],['Km',1],['Spese €',1],['Fatturato del lavoro',1],['Quota attribuita',1]],
+      Object.values(PL).sort((a,b)=>b.h-a.h).map(p=>`<tr><td>${E(p.L.cod)}</td><td>${E(p.L.nome)}</td><td>${E(p.L.cli)}</td>${cN(p.h)}${cN(p.cant)}${cN(p.tr)}${cN(p.km,'km')}${cN(p.sp,'eur')}${cN(p.L.fatt,'eur')}${cN(p.q,'eur')}</tr>`))}
+  return h+nota()}
+function vLav(){const per=F.y||'tutti gli anni',Ls=lavF(),C={};
+  const Rr=recF();const oreDi=new Map();Rr.forEach(x=>{if(x.L.id==null)return;const o=oreDi.get(x.L)||{h:0,q:0};o.h+=x.h;o.q+=x.q;oreDi.set(x.L,o)});
+  const Lv=F.dk?[...oreDi.keys()].filter(l=>!F.cli||l.cli===F.cli):Ls;
+  Lv.forEach(l=>{const c=C[l.cli||'(senza cliente)']=C[l.cli||'(senza cliente)']||{n:0,prev:0,fatt:0,h:0,tr:0,sp:0};c.n++;c.prev+=l.prev;c.fatt+=F.dk?(oreDi.get(l)||{}).q||0:l.fatt;c.h+=F.dk?(oreDi.get(l)||{}).h||0:l.h;c.tr+=l.tr;c.sp+=l.sp});
+  const CL=Object.entries(C).sort((a,b)=>b[1].fatt-a[1].fatt||b[1].h-a[1].h),top=CL.slice(0,12);
+  let h='<div class="grid2">'+grafico((F.dk?'Fatturato attribuito':'Fatturato')+' per cliente · '+per+chi(),CL.length>12?'I primi 12 clienti':'',barre(top.map(c=>c[0]),[{nome:'Fatturato',col:'--s1',v:top.map(c=>c[1].fatt)}],'eur'))
+    +grafico('Ore per cliente · '+per+chi(),CL.length>12?'I primi 12 clienti per fatturato':'',barre(top.map(c=>c[0]),[{nome:'Ore',col:'--s2',v:top.map(c=>c[1].h)}],'h'))+'</div>';
+  h+=tabella('Clienti · '+per+chi(),[['Cliente'],['Lavori',1],['Preventivi',1],[F.dk?'Fatturato attribuito':'Fatturato',1],['Ore'+(F.dk?' di '+E(M.nomi[F.dk]):''),1],['€ per ora',1]],
+    CL.map(([c,v])=>`<tr><td>${E(c)}</td>${cN(v.n,'km')}${cN(v.prev,'eur')}${cN(v.fatt,'eur')}${cN(v.h)}${cN(v.h?v.fatt/v.h:0,'eur')}</tr>`));
+  const ord=[...Lv].sort((a,b)=>(b.d||'').localeCompare(a.d||'')||String(b.cod).localeCompare(String(a.cod),'it',{numeric:true}));
+  h+=tabella('Lavori · '+per+chi(),[['Data'],['Codice'],['Lavoro'],['Cliente'],['Stato'],['Preventivo',1],['Fatturato',1],['Rimanente',1],['Fattura n.'],['Ore totali',1],['Ore trasferta',1],['Km',1],['Spese €',1],...(F.dk?[['Ore di '+E(M.nomi[F.dk]),1],['Quota attribuita',1]]:[])],
+    ord.map(l=>`<tr><td>${l.d?l.d.split('-').reverse().join('/'):''}</td><td>${E(l.cod)}</td><td>${E(l.nome)}</td><td>${E(l.cli)}</td><td>${E(l.stato)}</td>${cN(l.prev,'eur')}${cN(l.fatt,'eur')}${cN(l.prev-l.fatt,'eur')}<td>${E(l.fattura)}</td>${cN(l.h)}${cN(l.tr)}${cN(l.km,'km')}${cN(l.sp,'eur')}${F.dk?cN((oreDi.get(l)||{}).h)+cN((oreDi.get(l)||{}).q,'eur'):''}</tr>`),
+    (()=>{const s=k=>ord.reduce((a,l)=>a+l[k],0);return`<tr><td colspan="5">Totale · ${ord.length} lavori</td>${cN(s('prev'),'eur')}${cN(s('fatt'),'eur')}${cN(s('prev')-s('fatt'),'eur')}<td></td>${cN(s('h'))}${cN(s('tr'))}${cN(s('km'),'km')}${cN(s('sp'),'eur')}${F.dk?cN(ord.reduce((a,l)=>a+((oreDi.get(l)||{}).h||0),0))+cN(ord.reduce((a,l)=>a+((oreDi.get(l)||{}).q||0),0),'eur'):''}</tr>`})());
+  return h+'<p class="note">Il periodo di un lavoro è la sua «Data lavoro» (o la scadenza, se manca). Ore, km e spese sono i totali del lavoro come in CONTROLLO_SISTEM.</p>'+nota()}
+function nota(){const sd=M.LAV.filter(l=>!l.d&&(l.fatt||l.h)),nonImp=M.REC.filter(x=>x.nonImp).length;
+  return`<p class="note">${sd.length?`⚠ ${sd.length} lavor${sd.length===1?'o':'i'} senza «Data lavoro» né scadenza (${eur(sd.reduce((a,l)=>a+l.fatt,0))} di fatturato, ${ore(sd.reduce((a,l)=>a+l.h,0))}): contano solo in «Tutti gli anni». `:''}${nonImp?`${nonImp} registrazion${nonImp===1?'e':'i'} dei dipendenti non ancora entrat${nonImp===1?'a':'e'} in CONTROLLO_SISTEM sono comprese nelle ore. `:''}«Altre ore»: ore inserite direttamente nei lavori in CONTROLLO_SISTEM, con la data del lavoro.</p>`}
+
+/* ===== Disegno ===== */
+function disegna(){const out=$('out');
+  if(!M||(!M.LAV.length&&!M.REC.length&&!M.ASS.length)){out.innerHTML=`<div class="card empty"><h2>Nessun dato caricato</h2><p class="mu">${window.stat?'Scegli la <b>cartella dati</b> (quella con <code>dati_lavori.json</code>) e la <b>cartella condivisa</b> (<code>CONDIVISA</code>), oppure':'Usa'} <b>📄 Carica file .json</b> per aprire <code>dati_lavori.json</code>, <code>dipendenti.json</code> e i file della cartella <code>ore</code>. Puoi anche trascinarli qui.</p></div>`;$('flt').hidden=$('tabs').hidden=true;return}
+  $('flt').hidden=$('tabs').hidden=false;riempiFiltri();
+  [...$('tabs').querySelectorAll('[data-t]')].forEach(b=>b.classList.toggle('on',b.dataset.t===F.tab));
+  out.innerHTML=({pan:vPan,anni:vAnni,dip:vDip,lav:vLav}[F.tab]||vPan)();
+  $('ph').innerHTML=`<span class="mu">SISTEM SRL STP · STATISTICHE_SISTEM</span><h2>${E($('tabs').querySelector('.on').textContent.replace(/^\S+\s/,''))} · ${E(filtriTxt())}</h2>`}
+function statoFonti(){const f=FILES,c=f.cartelle,dip=f.dip&&f.dip.dip?f.dip.dip.length:0,no=Object.keys(f.ore).length;
+  const q=t=>t?new Date(t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'';
+  $('stato').innerHTML=(c?`<div>Cartella dati: <b>${E(c.dati||'—')}</b>${c.daAdmin&&c.daAdmin.dati?' <span class="mu">(da CONTROLLO_SISTEM)</span>':''}</div><div>Cartella condivisa: <b>${E(c.condivisa||'non scelta')}</b>${c.daAdmin&&c.daAdmin.condivisa?' <span class="mu">(da CONTROLLO_SISTEM)</span>':''}</div>`:'')
+    +`<div>${f.lavori?`✅ ${(f.lavori.rows||[]).length} lavori (${E(f.nomi.lavori)})`:'❌ lavori non caricati'} · ${dip?`✅ ${dip} dipendenti`:'— elenco dipendenti non caricato'} · ${no?`✅ ore di ${no} dipendent${no===1?'e':'i'}`:'— nessun file ore'}${f.t?' · letti alle '+q(f.t):''}</div>`
+    +(f.errori.length?`<div class="neg">${f.errori.map(E).join('<br>')}</div>`:'')}
+async function caricaServer(silenzioso){if(!window.stat)return;
+  try{const r=await window.stat.load();svuota();FILES.cartelle=r;FILES.errori=r.errori||[];(r.file||[]).forEach(x=>{const e=riconosci(x.nome,x.testo);if(e)FILES.errori.push(x.nome+': '+e)});FILES.t=Date.now()}
+  catch(e){FILES.errori=[String(e&&e.message||e)]}
+  costruisci();statoFonti();disegna();if(!silenzioso)toast('Dati aggiornati')}
+async function caricaFile(lista){let ok=0;const err=[];
+  for(const x of lista){if(x.errore){err.push(x.nome+': '+x.errore);continue}const e=riconosci(x.nome,x.testo);if(e)err.push(x.nome+': '+e);else ok++}
+  FILES.errori=err;FILES.t=Date.now();costruisci();statoFonti();disegna();toast(ok?`Caricat${ok===1?'o':'i'} ${ok} file`:'Nessun file riconosciuto')}
+const leggiFile=fl=>Promise.all([...fl].map(f=>f.text().then(testo=>({nome:f.name,testo}),e=>({nome:f.name,errore:String(e)}))));
+
+/* ===== Eventi ===== */
+$('bagg').onclick=()=>window.stat?caricaServer():toast('Nella versione nel browser usa «Carica file .json»');
+$('bdati').onclick=async()=>{if(!window.stat)return toast('Disponibile nel programma installato');if(await window.stat.choose('dati'))caricaServer()};
+$('bcond').onclick=async()=>{if(!window.stat)return toast('Disponibile nel programma installato');if(await window.stat.choose('condivisa'))caricaServer()};
+$('bfile').onclick=async()=>{if(window.stat){const l=await window.stat.files();if(l.length)caricaFile(l)}else $('ffile').click()};
+$('ffile').onchange=async e=>{const l=await leggiFile(e.target.files);e.target.value='';caricaFile(l)};
+$('fy').onchange=e=>{F.y=e.target.value;disegna()};
+$('fd').onchange=e=>{F.dk=e.target.value;F.selDip=F.dk;disegna()};
+$('fc').onchange=e=>{F.cli=e.target.value;disegna()};
+$('tabs').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;F.tab=b.dataset.t;disegna()};
+$('out').onclick=e=>{const s=e.target.closest('[data-solo]');if(s){F.dk=s.dataset.solo;F.tab='pan';disegna();window.scrollTo(0,0);return}
+  const tr=e.target.closest('tr[data-dk]');if(tr){F.selDip=F.selDip===tr.dataset.dk?'':tr.dataset.dk;disegna();if(F.selDip){const d=[...$('out').querySelectorAll('.tt h3')].find(h=>h.textContent.startsWith('Dettaglio'));if(d)d.scrollIntoView({behavior:'smooth',block:'start'})}}};
+// Suggerimento al passaggio del mouse
+$('out').addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]'),tip=$('tip');if(!t){tip.hidden=true;return}
+  if(tip.dataset.k!==t.dataset.tip){tip.dataset.k=t.dataset.tip;const j=JSON.parse(t.dataset.tip);
+    tip.innerHTML=`<b>${E(j.t)}</b>${j.r.length?`<table>${j.r.map(r=>`<tr><td><i style="background:var(${r[0]})"></i>${E(r[1])}</td><td class="n">${E(r[2])}</td></tr>`).join('')}${j.tot&&j.r.length>1?`<tr><td><b>Totale</b></td><td class="n"><b>${E(j.tot)}</b></td></tr>`:''}</table>`:'<span class="mu">Nessun dato</span>'}`}
+  tip.hidden=false;const w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=Math.min(innerWidth-w-8,e.clientX+14)+'px';tip.style.top=Math.max(8,e.clientY-h-12)+'px'});
+$('out').addEventListener('mouseleave',()=>$('tip').hidden=true);
+// Esportazioni
+function csv(){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',R=[['STATISTICHE_SISTEM',filtriTxt()],[]];
+  $('out').querySelectorAll('table[data-t]').forEach(t=>{R.push([t.dataset.t]);t.querySelectorAll('tr').forEach(tr=>R.push([...tr.children].map(c=>c.dataset.v!=null?String(c.dataset.v).replace('.',','):c.textContent.trim())));R.push([])});
+  return'﻿'+R.map(r=>r.map(q).join(';')).join('\r\n')}
+const nomeFile=ext=>'Statistiche_'+($('tabs').querySelector('.on').dataset.t)+'_'+(F.y||'tutti')+(F.dk?'_'+sigla(M.nomi[F.dk]):'')+'.'+ext;
+$('bcsv').onclick=async()=>{const t=csv();if(window.stat){const r=await window.stat.saveText(nomeFile('csv'),t);if(r&&r.ok)toast('Salvato: '+r.file);else if(r&&r.error)toast('Non salvato: '+r.error);return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download=nomeFile('csv');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+$('bpdf').onclick=async()=>{if(window.stat){const r=await window.stat.savePdf(nomeFile('pdf'));toast(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return}toast('Nella finestra di stampa scegli «Salva come PDF»');window.print()};
+$('bprt').onclick=()=>window.print();
+// Trascinare file .json nella finestra
+let dc=0;addEventListener('dragenter',e=>{if([...e.dataTransfer.types].includes('Files')){dc++;$('drop').style.display='flex'}});
+addEventListener('dragleave',()=>{if(--dc<=0){dc=0;$('drop').style.display='none'}});
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',async e=>{e.preventDefault();dc=0;$('drop').style.display='none';if(e.dataTransfer.files.length)caricaFile(await leggiFile(e.dataTransfer.files))});
+// Avvio: nel programma installato i dati si leggono subito dal server, e di nuovo quando si torna sulla finestra dopo almeno 5 minuti
+costruisci();statoFonti();disegna();
+if(window.stat){caricaServer(true);addEventListener('focus',()=>{if(Date.now()-FILES.t>300000)caricaServer(true)})}
+</script>
+</body>
+</html>

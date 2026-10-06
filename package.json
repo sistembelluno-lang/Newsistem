@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "CONTROLLO_SISTEM",
-  "version": "1.10.3",
+  "version": "1.11.0",
   "description": "CONTROLLO_SISTEM: gestionale lavori",
   "main": "main.js",
   "author": "sistembelluno",
@@ -10,11 +10,12 @@
   "scripts": {
     "start": "electron .",
     "sync": "node scripts/sync-condiviso.js",
-    "dist": "electron-builder --publish never && electron-builder --publish never -c electron-builder-ore.json",
-    "dist:win": "electron-builder --win --publish never && electron-builder --win --publish never -c electron-builder-ore.json",
-    "dist:mac": "electron-builder --mac --publish never && electron-builder --mac --publish never -c electron-builder-ore.json",
-    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json",
-    "dist:win7": "electron-builder --win --publish never -c electron-builder-win7.json && electron-builder --win --publish never -c electron-builder-ore-win7.json"
+    "dist": "electron-builder --publish never && electron-builder --publish never -c electron-builder-ore.json && electron-builder --publish never -c electron-builder-stat.json",
+    "dist:win": "electron-builder --win --publish never && electron-builder --win --publish never -c electron-builder-ore.json && electron-builder --win --publish never -c electron-builder-stat.json",
+    "dist:mac": "electron-builder --mac --publish never && electron-builder --mac --publish never -c electron-builder-ore.json && electron-builder --mac --publish never -c electron-builder-stat.json",
+    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json && electron-builder --linux --publish never -c electron-builder-stat.json",
+    "dist:win7": "electron-builder --win --publish never -c electron-builder-win7.json && electron-builder --win --publish never -c electron-builder-ore-win7.json && electron-builder --win --publish never -c electron-builder-stat-win7.json",
+    "start:stat": "electron statistiche/main.js"
   },
   "build": {
     "appId": "it.sistembelluno.controllolavori",

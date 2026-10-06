@@ -1,8 +1,10 @@
-# CONTROLLO_SISTEM e INSERT_SISTEM
+# CONTROLLO_SISTEM, INSERT_SISTEM e STATISTICHE_SISTEM
 
-Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
+Programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
+
+Novità 1.11: nuovo programma a parte **STATISTICHE_SISTEM** (`statistiche/`), in sola lettura: legge `dati_lavori.json` (cartella dati di CONTROLLO_SISTEM), `dipendenti.json` e `ore/*.json` (cartella condivisa), oppure file `.json` caricati a mano o trascinati nella finestra, e mostra tabelle e grafici mese per mese e anno per anno (fatturato, preventivi, ore in ufficio, in cantiere e in trasferta, km, spese, ferie, permessi, malattia), per dipendente (con il fatturato attribuito in proporzione alle ore) e per cliente e lavoro, con esportazione in Excel e PDF. Sul PC dell'amministratore prende da solo le cartelle impostate in CONTROLLO_SISTEM. CONTROLLO_SISTEM e INSERT_SISTEM non cambiano. Prova senza installare: `npm run start:stat`.
 
 Novità 1.10.3: se la cartella condivisa scelta non esiste da quel PC (es. unità L: non collegata) INSERT_SISTEM lo dice chiaramente, con il percorso.
 
