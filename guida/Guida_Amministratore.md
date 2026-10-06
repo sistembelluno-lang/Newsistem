@@ -1,6 +1,6 @@
 # Guida per l'amministrazione
 
-SISTEM SRL STP · CONTROLLO_SISTEM e INSERT_SISTEM · versione 1.10
+SISTEM SRL STP · CONTROLLO_SISTEM e INSERT_SISTEM · versione 1.10.1
 
 <div class="lead">
 
@@ -63,8 +63,8 @@ Pagina di download: **https://github.com/sistembelluno-lang/Newsistem/releases/l
 
 | File | Per chi |
 | --- | --- |
-| `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe` | PC dell'amministratore |
-| `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` | PC dei dipendenti (va copiato in `Programmi` sul server) |
+| `CONTROLLO_SISTEM-1.10.1-Windows7-32bit-setup.exe` | PC dell'amministratore |
+| `INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe` | PC dei dipendenti (va copiato in `Programmi` sul server) |
 | `Guida_Amministratore.pdf` | questa guida |
 | `Guida_Dipendenti.pdf` | da stampare per i dipendenti |
 
@@ -83,7 +83,7 @@ Negli esempi il disco dei dati del server è `D:` e il server si chiama `SERVER`
 3. Entra in `ControlloLavori` e crea la sottocartella **`ore`**.
 4. Torna in `D:\` e crea la cartella **`Amministrazione`**; dentro crea **`ControlloLavori`**.
 5. In `D:\` crea la cartella **`Programmi`**.
-6. Copia in `D:\Programmi` il file `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` (e, se vuoi, `Guida_Dipendenti.pdf`).
+6. Copia in `D:\Programmi` il file `INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe` (e, se vuoi, `Guida_Dipendenti.pdf`).
 
 Alla fine devi avere:
 
@@ -109,7 +109,8 @@ Windows ha due livelli di permessi: la **condivisione** (chi può raggiungere la
 1. Tasto destro su `D:\ControlloLavori` → **Proprietà** → scheda **Condivisione** → **Condivisione avanzata…**
 2. Spunta **Condividi la cartella**. Nome condivisione: **`ControlloLavori`**.
 3. **Autorizzazioni** → seleziona *Everyone* (o *Utenti autenticati*) → spunta **Controllo completo** → **OK** → **OK**.
-4. Il percorso di rete diventa **`\\SERVER\ControlloLavori`**.
+4. Sempre in **Condivisione avanzata** → **Memorizzazione nella cache…** → scegli **Nessun file o programma della cartella condivisa è disponibile offline** → **OK**. Altrimenti Windows può tenere copie "offline" dei file su ogni PC e i programmi non si vedono a vicenda.
+5. Il percorso di rete diventa **`\\SERVER\ControlloLavori`**.
 
 **4.2 Permessi su `ControlloLavori` (scheda Sicurezza)**
 
@@ -161,6 +162,13 @@ Come `ControlloLavori`, ma con **sola lettura** per `Dipendenti` (Lettura ed ese
 
 Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\192.168.1.10\ControlloLavori`. Non serve collegare una lettera di unità (Z:, Y:…): i programmi usano direttamente il percorso `\\SERVER\…`, che non cambia da un PC all'altro.
 
+**Verifica dai programmi (consigliata)**: in CONTROLLO_SISTEM **👥 Ore dipendenti → Impostazioni → 🔌 Verifica collegamento**; in INSERT_SISTEM il pulsante **🔌** in alto (o *Verifica collegamento al server* nella schermata del PIN). Il programma prova a leggere e scrivere sul server e mostra:
+
+- la **cartella condivisa** scelta su quel PC: deve essere **la stessa** su tutti i PC (es. `\\SERVER\ControlloLavori`);
+- ✅ / ❌ per ogni prova (cartella raggiungibile, elenco dipendenti, cartella `ore`, scrittura, permesso *Modifica*), con il motivo dell'errore e **cosa fare**;
+- la data dell'ultimo salvataggio di ogni dipendente sul server;
+- sui PC dei dipendenti, se ci sono ore salvate solo sul PC e non ancora inviate.
+
 **Backup**: includi nei backup del server `D:\ControlloLavori` e `D:\Amministrazione` (almeno una volta al giorno). In più CONTROLLO_SISTEM tiene da solo una copia al giorno in `Amministrazione\ControlloLavori\storico` (ultimi 60 giorni).
 
 <div class="pb"></div>
@@ -169,7 +177,7 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 
 *Windows 7, 32 bit. Circa 5 minuti.*
 
-1. Scarica `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe` dalla pagina di download (capitolo 2).
+1. Scarica `CONTROLLO_SISTEM-1.10.1-Windows7-32bit-setup.exe` dalla pagina di download (capitolo 2).
 2. Fai doppio clic sul file. Se compare un avviso di sicurezza scegli **Esegui** (su Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*): il programma non ha una firma digitale a pagamento, è normale.
 3. Lascia la cartella proposta, premi **Installa**, poi **Fine**. Sul desktop e nel menu Start compare l'icona **CONTROLLO_SISTEM** (una "S" blu-viola).
 4. Se sul PC c'era la versione precedente (*Controllo Lavori*), dopo l'installazione disinstallala da **Pannello di controllo → Programmi e funzionalità**. I dati non si perdono.
@@ -214,7 +222,7 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 
 **8.2 Su ogni PC dei dipendenti** (5 minuti a PC, con il dipendente presente)
 
-1. **Windows + R** → `\\SERVER\Programmi` → doppio clic su `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
+1. **Windows + R** → `\\SERVER\Programmi` → doppio clic su `INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
 2. Al primo avvio INSERT_SISTEM chiede la cartella condivisa: **Scegli cartella…** → `\\SERVER\ControlloLavori` → **Seleziona cartella**. Una volta sola per PC.
 3. Il dipendente sceglie il suo nome e scrive il PIN.
 4. **Prova**: inserisce un'ora su un lavoro e salva. Su CONTROLLO_SISTEM, entro un minuto, le ore compaiono nella scheda del lavoro in *Ore totali*. Poi la cancella con ✕.
@@ -290,7 +298,8 @@ Il dipendente lo trova in INSERT_SISTEM con un avviso in alto. Nell'elenco sotto
 | Problema | Soluzione |
 | --- | --- |
 | "Cartella condivisa non raggiungibile" | Il server è spento o il PC non è in rete. Prova `\\SERVER\ControlloLavori` da Windows + R; se non si apre, chiama il tecnico |
-| Un dipendente non riesce a salvare | Controlla i permessi di **modifica** sulla cartella `ore` (capitolo 4.3) |
+| Il PIN funziona ma ore e messaggi non arrivano | Sul PC del dipendente premi **🔌** (Verifica collegamento). Le cause tipiche: manca il permesso **Modifica** sulla cartella `ore` (capitolo 4.3); i PC hanno scelto cartelle diverse (deve essere la stessa ovunque); i "file offline" di Windows sono attivi (capitolo 4.1, punto 4); sul PC del dipendente c'è ancora una versione vecchia di INSERT_SISTEM |
+| Un dipendente non riesce a salvare | In alto compare "Il server non permette a questo PC di salvare": dai il permesso **Modifica** sulla cartella `ore` (capitolo 4.3). Le ore restano sul suo PC e partono da sole appena il permesso c'è |
 | Un dipendente vede "PIN errato" | 👥 → Dipendenti e PIN → **Cambia** accanto al nome → Salva dipendenti |
 | ⚠ sul pulsante 👥 | Ore su un lavoro cancellato o con codice cambiato: ripristina il codice o fai correggere la riga |
 | Un lavoro non compare ai dipendenti | È *Finito* o *Non fare*: si può mostrare anche i Finiti da 👥 → Impostazioni |

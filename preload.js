@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('desktop', {
   shChoose: () => ipcRenderer.invoke('sh:choose'),
   shRead: (rel) => ipcRenderer.invoke('sh:read', rel),
   shWrite: (rel, text) => ipcRenderer.invoke('sh:write', rel, text),
+  shTest: () => ipcRenderer.invoke('sh:test'),
   savePdf: (name) => ipcRenderer.invoke('pdf:save', name),
 });

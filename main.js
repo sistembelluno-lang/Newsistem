@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 // Lo stesso main.js serve due programmi: «Controllo Lavori» (amministratore) e «Ore Dipendenti».
 // Ogni build include una sola delle due pagine.
@@ -132,17 +133,43 @@ ipcMain.handle('sh:choose', async () => {
   const s = readSettings(); s.shared = r.filePaths[0]; writeSettings(s);
   return { dir: s.shared };
 });
+// Errori della cartella condivisa spiegati in italiano (il codice tecnico resta tra parentesi quadre)
+const SH_ERR = { EPERM: 'accesso negato: manca il permesso di scrittura', EACCES: 'accesso negato: manca il permesso', ENOENT: 'percorso non trovato', EBUSY: 'file in uso da un altro programma',
+  ETIMEDOUT: 'il server non risponde', EHOSTUNREACH: 'server non raggiungibile', ENETUNREACH: 'rete non raggiungibile', EIO: 'errore di rete', UNKNOWN: 'errore di rete o percorso non valido', ENOTDIR: 'il percorso non è una cartella', EROFS: 'cartella in sola lettura' };
+const shMsg = err => (SH_ERR[err.code] || err.message) + (err.code ? ` [${err.code}]` : '');
 ipcMain.handle('sh:read', (e, rel) => {
   try { return fs.readFileSync(sharedPath(rel), 'utf8'); }
-  catch (err) { if (err.code === 'ENOENT') return null; throw err; }
+  catch (err) { if (err.code === 'ENOENT' && fs.existsSync(sharedDir())) return null; throw new Error(`Lettura di ${rel}: ${shMsg(err)}`); }
 });
+// Scrittura sicura: file temporaneo e poi sostituzione; se il server non permette la sostituzione si scrive direttamente.
+// Un errore nel togliere il temporaneo non fa fallire il salvataggio.
 ipcMain.handle('sh:write', (e, rel, text) => {
-  const p = sharedPath(rel);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  const tmp = `${p}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, String(text));
-  try { fs.renameSync(tmp, p); } catch (err) { fs.writeFileSync(p, String(text)); fs.rmSync(tmp, { force: true }); }
-  return true;
+  const p = sharedPath(rel), t = String(text), dir = path.dirname(p);
+  if (!fs.existsSync(dir)) { try { fs.mkdirSync(dir, { recursive: true }); } catch (err) { throw new Error(`Impossibile creare la cartella ${path.relative(sharedDir(), dir) || dir}: ${shMsg(err)}`); } }
+  const tmp = `${p}.${os.hostname().replace(/[^\w-]/g, '')}.tmp`;
+  try { fs.writeFileSync(tmp, t); fs.renameSync(tmp, p); return true; }
+  catch (err) { try { fs.rmSync(tmp, { force: true }); } catch (_) { } }
+  try { fs.writeFileSync(p, t); return true; }
+  catch (err) { throw new Error(`Scrittura di ${rel}: ${shMsg(err)}`); }
+});
+// «Verifica collegamento»: prove di lettura e scrittura sulla cartella condivisa, con l'elenco dei file e la loro data
+ipcMain.handle('sh:test', () => {
+  const r = { dir: sharedDir(), ver: app.getVersion(), admin: ADMIN, pc: os.hostname(), utente: (() => { try { return os.userInfo().username } catch (_) { return '' } })(), prove: [], file: [], ore: [] };
+  if (!r.dir) return r;
+  const prova = (nome, fn, avviso) => { try { const x = fn(); r.prove.push({ nome, ok: true, info: x || '' }); return true }
+    catch (err) { r.prove.push({ nome, ok: false, avviso: !!avviso, info: shMsg(err) }); return false } };
+  if (!prova('Cartella condivisa raggiungibile', () => { if (!fs.statSync(r.dir).isDirectory()) throw Object.assign(new Error(''), { code: 'ENOTDIR' }) })) return r;
+  const stat = n => { try { const s = fs.statSync(sharedPath(n)); return { n, t: s.mtimeMs, b: s.size } } catch (err) { return { n, err: err.code === 'ENOENT' ? 'manca' : shMsg(err) } } };
+  r.file = ['dipendenti.json', 'codici.json', 'ferie.json', 'attivita.json', 'messaggi.json'].map(stat);
+  prova('Lettura dell\'elenco dipendenti', () => { JSON.parse(fs.readFileSync(sharedPath('dipendenti.json'), 'utf8').replace(/^﻿/, '')); });
+  if (prova('Cartella «ore» presente', () => { if (!fs.statSync(sharedPath('ore')).isDirectory()) throw Object.assign(new Error(''), { code: 'ENOTDIR' }) })) {
+    try { r.ore = fs.readdirSync(sharedPath('ore')).filter(n => /\.json$/i.test(n)).map(n => stat('ore/' + n)); } catch (err) { r.prove.push({ nome: 'Elenco dei file nella cartella «ore»', ok: false, info: shMsg(err) }); }
+    const f = sharedPath(`ore/_prova_${r.pc.replace(/[^\w-]/g, '')}.tmp`), g = f + '2';
+    prova('Scrittura nella cartella «ore»', () => { fs.writeFileSync(f, 'prova'); });
+    prova('Sostituzione e cancellazione di file nella cartella «ore» (permesso «Modifica»)', () => { fs.writeFileSync(g, 'prova'); fs.renameSync(g, f); fs.rmSync(f); });
+  }
+  if (ADMIN) prova('Scrittura nella cartella principale', () => { const h = sharedPath(`_prova_${r.pc.replace(/[^\w-]/g, '')}.tmp`); fs.writeFileSync(h, 'prova'); fs.rmSync(h); });
+  return r;
 });
 
 app.on('second-instance', () => {

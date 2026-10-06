@@ -86,3 +86,6 @@ tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
 .msg .mt{white-space:pre-wrap;margin:6px 0;font-size:14px}.msg .mh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mu)}
 .msg .mb{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.msg .rsp{margin-top:4px;padding:6px 10px;border-left:3px solid var(--ok);background:var(--hd);border-radius:0 8px 8px 0;font-size:13px}
 .nb{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:99px;background:#c2372b;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+/* Verifica collegamento */
+.vc{width:100%;border-collapse:collapse;font-size:13px}.vc td{padding:5px 6px;border-bottom:1px solid var(--bd);vertical-align:top}
+.vcko{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--ko);background:rgba(194,55,43,.08)}.vcko ul{margin:6px 0 0;padding-left:20px}

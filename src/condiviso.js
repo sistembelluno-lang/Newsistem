@@ -160,3 +160,26 @@ function attUI(cfg){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;',
   el.onkeydown=e=>{if(e.key==='Enter'&&e.target.closest('.att-f')&&e.target.tagName==='INPUT'){e.preventDefault();salva()}};
   reset();lista();
   return{lista,aggiorna:()=>{if(!el.isConnected)return;lista()}}}
+// ===== «Verifica collegamento»: risultato delle prove sulla cartella condivisa, spiegato passo passo =====
+// r: risultato di window.desktop.shTest(); nomi: {id→nome} dei dipendenti; extra: righe aggiuntive [[ok,testo]]
+async function verificaCollegamento(nomi,extra){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const quando=t=>t?new Date(t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'';
+  if(!window.desktop||!window.desktop.shTest)return'<p>Versione di prova nel browser: la cartella del server è simulata, non c\'è niente da verificare.</p>';
+  let r;try{r=await window.desktop.shTest()}catch(e){return'<p class="neg">Verifica non riuscita: '+E(e.message||e)+'</p>'}
+  const riga=(ok,t,info,avv)=>`<tr><td style="width:28px;text-align:center;font-size:16px">${ok?'✅':avv?'⚠️':'❌'}</td><td><b>${E(t)}</b>${info?`<br><span style="color:var(--mu);font-size:12px">${E(info)}</span>`:''}</td></tr>`;
+  let h=`<p style="margin:0 0 8px">Programma <b>${r.admin?'CONTROLLO_SISTEM':'INSERT_SISTEM'} ${E(r.ver)}</b> · PC <b>${E(r.pc)}</b>${r.utente?' · utente Windows <b>'+E(r.utente)+'</b>':''}</p>`;
+  if(!r.dir)return h+'<p class="neg">❌ Nessuna cartella condivisa scelta su questo PC.</p>';
+  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p><table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
+  if(r.file.length)h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dell'amministrazione nella cartella</h3><table class="vc">${r.file.map(f=>riga(!f.err,f.n,f.err?f.err:'aggiornato il '+quando(f.t),f.err==='manca'&&/attivita|messaggi|ferie/.test(f.n))).join('')}</table>`;
+  if(r.prove.some(p=>p.nome.includes('ore')&&p.ok)||r.ore.length){const ids=new Set(Object.keys(nomi||{}));
+    h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dei dipendenti (cartella «ore»)</h3><table class="vc">${r.ore.length?r.ore.map(f=>{const id=f.n.replace(/^ore\//,'').replace(/\.json$/i,''),nm=nomi&&nomi[id];
+      return riga(!f.err&&!!nm,(nm?nm+' — ':'')+f.n,f.err?f.err:(nm?'':'nessun dipendente con questo codice (dipendente cancellato o ricreato?) · ')+'aggiornato il '+quando(f.t),!nm&&!f.err)}).join(''):riga(false,'Nessun file: nessun dipendente ha ancora salvato ore su questo server','',true)}
+${[...ids].filter(id=>!r.ore.some(f=>f.n==='ore/'+id+'.json')).map(id=>riga(false,nomi[id]+' — ore/'+id+'.json','non ancora presente: questo dipendente non ha mai salvato sul server',true)).join('')}</table>`}
+  const ko=r.prove.filter(p=>!p.ok&&!p.avviso);
+  h+=ko.length?`<div class="vcko"><b>Cosa fare</b><ul>${ko.map(p=>/«ore»/.test(p.nome)&&/accesso negato|EPERM|EACCES/.test(p.info)?'<li>Sul server dai al gruppo dei dipendenti il permesso <b>Modifica</b> sulla cartella <b>ore</b> (Proprietà → Sicurezza → Modifica… → spunta «Modifica»). Vedi la guida per l\'amministrazione, capitolo 4.3.</li>'
+      :/Cartella «ore» presente/.test(p.nome)?'<li>Crea la sottocartella <b>ore</b> dentro la cartella condivisa (capitolo 3 della guida).</li>'
+      :/raggiungibile/.test(p.nome)?'<li>Il PC non raggiunge il server: prova Windows + R → <b>'+E(r.dir)+'</b>. Se non si apre, controlla la rete o il nome del server.</li>'
+      :/principale/.test(p.nome)?'<li>L\'amministratore deve avere <b>Controllo completo</b> sulla cartella condivisa.</li>'
+      :/dipendenti/.test(p.nome)?'<li>Manca l\'elenco dei dipendenti: in CONTROLLO_SISTEM premi «Salva dipendenti» con la stessa cartella condivisa scelta qui.</li>':'<li>'+E(p.nome)+': '+E(p.info)+'</li>').join('')}</ul></div>`
+    :'<p class="pos" style="margin:10px 0 0"><b>Il collegamento al server funziona.</b> Controlla che su tutti i PC sia scelta la stessa cartella: <b>'+E(r.dir)+'</b>.</p>';
+  return h}

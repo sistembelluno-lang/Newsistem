@@ -168,6 +168,9 @@ tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
 .msg .mt{white-space:pre-wrap;margin:6px 0;font-size:14px}.msg .mh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mu)}
 .msg .mb{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.msg .rsp{margin-top:4px;padding:6px 10px;border-left:3px solid var(--ok);background:var(--hd);border-radius:0 8px 8px 0;font-size:13px}
 .nb{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:99px;background:#c2372b;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+/* Verifica collegamento */
+.vc{width:100%;border-collapse:collapse;font-size:13px}.vc td{padding:5px 6px;border-bottom:1px solid var(--bd);vertical-align:top}
+.vcko{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--ko);background:rgba(194,55,43,.08)}.vcko ul{margin:6px 0 0;padding-left:20px}
 /*TEMA-FINE*/
 .mban{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 14px;margin-bottom:10px;border-radius:12px;border:1px solid var(--ac);background:rgba(36,87,214,.10);font-weight:600}
 .brand .logo.ins{background:linear-gradient(140deg,#2dd4bf 0%,#0ea5e9 50%,#6366f1 100%)}
@@ -191,6 +194,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
   <p class="mu" style="margin:0">Scegli il tuo nome e inserisci il tuo PIN personale.</p>
   <div class="who" id="wl"></div>
   <form class="pin" id="pf" hidden onsubmit="return false"><span id="pn"></span><input id="pi" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN"><button class="p" id="pb">Entra</button><span id="pe" class="neg"></span></form>
+  <p style="margin:14px 0 0;text-align:right"><button type="button" class="vcb">🔌 Verifica collegamento al server</button></p>
 </section>
 
 <section id="vapp" hidden>
@@ -231,6 +235,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 </main>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <dialog id="rq"></dialog>
+<dialog id="vcd" style="width:min(760px,96vw)"></dialog>
 <div id="toast"></div>
 <div id="print"></div>
 
@@ -398,6 +403,29 @@ function attUI(cfg){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;',
   el.onkeydown=e=>{if(e.key==='Enter'&&e.target.closest('.att-f')&&e.target.tagName==='INPUT'){e.preventDefault();salva()}};
   reset();lista();
   return{lista,aggiorna:()=>{if(!el.isConnected)return;lista()}}}
+// ===== «Verifica collegamento»: risultato delle prove sulla cartella condivisa, spiegato passo passo =====
+// r: risultato di window.desktop.shTest(); nomi: {id→nome} dei dipendenti; extra: righe aggiuntive [[ok,testo]]
+async function verificaCollegamento(nomi,extra){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const quando=t=>t?new Date(t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'';
+  if(!window.desktop||!window.desktop.shTest)return'<p>Versione di prova nel browser: la cartella del server è simulata, non c\'è niente da verificare.</p>';
+  let r;try{r=await window.desktop.shTest()}catch(e){return'<p class="neg">Verifica non riuscita: '+E(e.message||e)+'</p>'}
+  const riga=(ok,t,info,avv)=>`<tr><td style="width:28px;text-align:center;font-size:16px">${ok?'✅':avv?'⚠️':'❌'}</td><td><b>${E(t)}</b>${info?`<br><span style="color:var(--mu);font-size:12px">${E(info)}</span>`:''}</td></tr>`;
+  let h=`<p style="margin:0 0 8px">Programma <b>${r.admin?'CONTROLLO_SISTEM':'INSERT_SISTEM'} ${E(r.ver)}</b> · PC <b>${E(r.pc)}</b>${r.utente?' · utente Windows <b>'+E(r.utente)+'</b>':''}</p>`;
+  if(!r.dir)return h+'<p class="neg">❌ Nessuna cartella condivisa scelta su questo PC.</p>';
+  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p><table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
+  if(r.file.length)h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dell'amministrazione nella cartella</h3><table class="vc">${r.file.map(f=>riga(!f.err,f.n,f.err?f.err:'aggiornato il '+quando(f.t),f.err==='manca'&&/attivita|messaggi|ferie/.test(f.n))).join('')}</table>`;
+  if(r.prove.some(p=>p.nome.includes('ore')&&p.ok)||r.ore.length){const ids=new Set(Object.keys(nomi||{}));
+    h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dei dipendenti (cartella «ore»)</h3><table class="vc">${r.ore.length?r.ore.map(f=>{const id=f.n.replace(/^ore\//,'').replace(/\.json$/i,''),nm=nomi&&nomi[id];
+      return riga(!f.err&&!!nm,(nm?nm+' — ':'')+f.n,f.err?f.err:(nm?'':'nessun dipendente con questo codice (dipendente cancellato o ricreato?) · ')+'aggiornato il '+quando(f.t),!nm&&!f.err)}).join(''):riga(false,'Nessun file: nessun dipendente ha ancora salvato ore su questo server','',true)}
+${[...ids].filter(id=>!r.ore.some(f=>f.n==='ore/'+id+'.json')).map(id=>riga(false,nomi[id]+' — ore/'+id+'.json','non ancora presente: questo dipendente non ha mai salvato sul server',true)).join('')}</table>`}
+  const ko=r.prove.filter(p=>!p.ok&&!p.avviso);
+  h+=ko.length?`<div class="vcko"><b>Cosa fare</b><ul>${ko.map(p=>/«ore»/.test(p.nome)&&/accesso negato|EPERM|EACCES/.test(p.info)?'<li>Sul server dai al gruppo dei dipendenti il permesso <b>Modifica</b> sulla cartella <b>ore</b> (Proprietà → Sicurezza → Modifica… → spunta «Modifica»). Vedi la guida per l\'amministrazione, capitolo 4.3.</li>'
+      :/Cartella «ore» presente/.test(p.nome)?'<li>Crea la sottocartella <b>ore</b> dentro la cartella condivisa (capitolo 3 della guida).</li>'
+      :/raggiungibile/.test(p.nome)?'<li>Il PC non raggiunge il server: prova Windows + R → <b>'+E(r.dir)+'</b>. Se non si apre, controlla la rete o il nome del server.</li>'
+      :/principale/.test(p.nome)?'<li>L\'amministratore deve avere <b>Controllo completo</b> sulla cartella condivisa.</li>'
+      :/dipendenti/.test(p.nome)?'<li>Manca l\'elenco dei dipendenti: in CONTROLLO_SISTEM premi «Salva dipendenti» con la stessa cartella condivisa scelta qui.</li>':'<li>'+E(p.nome)+': '+E(p.info)+'</li>').join('')}</ul></div>`
+    :'<p class="pos" style="margin:10px 0 0"><b>Il collegamento al server funziona.</b> Controlla che su tutti i PC sia scelta la stessa cartella: <b>'+E(r.dir)+'</b>.</p>';
+  return h}
 /*CONDIVISO-FINE*/
 const $=id=>document.getElementById(id);
 const n=v=>parseFloat(v)||0;
@@ -442,7 +470,7 @@ $('pb').onclick=async()=>{const pin=$('pi').value.trim();if(!pin)return;
   tries=0;adm=sel==='@admin';cur=adm?DIPF.dip.find(d=>d.attivo!==false):who;await openDip()};
 
 function hdr(){const h=$('hdr');if(!cur){h.innerHTML='';return}
-  h.innerHTML=(adm?`<span class="mu">Amministratore · stai vedendo</span><select id="as">${DIPF.dip.filter(d=>d.attivo!==false).map(d=>`<option value="${esc(d.id)}" ${d.id===cur.id?'selected':''}>${esc(d.nome)}</option>`).join('')}</select>`:`<b>${esc(cur.nome)}</b>`)+' <button id="lo">Esci</button>';
+  h.innerHTML=(adm?`<span class="mu">Amministratore · stai vedendo</span><select id="as">${DIPF.dip.filter(d=>d.attivo!==false).map(d=>`<option value="${esc(d.id)}" ${d.id===cur.id?'selected':''}>${esc(d.nome)}</option>`).join('')}</select>`:`<b>${esc(cur.nome)}</b>`)+' <button type="button" class="vcb" title="Verifica il collegamento al server">🔌</button> <button id="lo">Esci</button>';
   $('lo').onclick=loadLogin;if(adm)$('as').onchange=async e=>{cur=DIPF.dip.find(d=>d.id===e.target.value);await openDip()}}
 
 // Unisce due copie dello stesso file (es. due PC aperti insieme): per ogni registrazione vince la modifica più recente
@@ -459,7 +487,7 @@ async function refresh(first){
     // attività inserite dai colleghi (ognuno nel proprio file)
     const O={};for(const d of (DIPF&&DIPF.dip||[]))if(d.id!==cur.id){try{const f=await rj('ore/'+d.id+'.json',null);if(f&&f.att)O[d.id]=f.att}catch(e){}}OTH=O;
     if(!first)banner('')}
-  catch(e){banner('⚠ Server non raggiungibile: l\'elenco dei lavori potrebbe non essere aggiornato. Quello che inserisci resta su questo PC e viene inviato appena il server torna disponibile.')}
+  catch(e){banner('⚠ Server non raggiungibile: l\'elenco dei lavori potrebbe non essere aggiornato. Quello che inserisci resta su questo PC e viene inviato appena il server torna disponibile. <span class="mu">('+esc(String(e&&e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))+')</span> <button type="button" class="vcb">🔌 Verifica collegamento</button>')}
   fillCod()}
 $('rf').onclick=async()=>{await refresh();draw();toast('Aggiornato')};
 $('frf').onclick=async()=>{await refresh();drawFer();toast('Aggiornato')};
@@ -468,7 +496,8 @@ async function persist(){const rel='ore/'+cur.id+'.json',me=cur.id;
   try{localStorage.setItem(CK(me),JSON.stringify({dirty:true,d:D}))}catch(e){}
   try{const r=await rj(rel,null);merge(D,r);await VFS.write(rel,JSON.stringify(D));
     try{localStorage.setItem(CK(me),JSON.stringify({dirty:false,d:D}))}catch(e){}banner('');return true}
-  catch(e){banner('⚠ Server non raggiungibile: la registrazione è salvata su questo PC e verrà inviata appena possibile. <button id="rt2">Riprova ora</button>');$('rt2').onclick=()=>persist().then(()=>vis(vista));return false}}
+  catch(e){const m=String(e&&e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'');
+    banner((/accesso negato|EPERM|EACCES/.test(m)?'⚠ Il server <b>non permette a questo PC di salvare</b> (accesso negato). Quello che inserisci resta su questo PC: avvisa l\'amministratore di dare il permesso «Modifica» sulla cartella <b>ore</b>.':'⚠ Server non raggiungibile: la registrazione è salvata su questo PC e verrà inviata appena possibile.')+' <span class="mu">('+esc(m)+')</span> <button id="rt2">Riprova ora</button> <button type="button" class="vcb">🔌 Verifica collegamento</button>');$('rt2').onclick=()=>persist().then(()=>vis(vista));return false}}
 setInterval(()=>{if(!cur)return;try{const c=JSON.parse(localStorage.getItem(CK(cur.id)));if(c&&c.dirty)persist()}catch(e){}},30000);
 
 // Schede: «Ore e spese» e «Ferie e permessi»
@@ -618,6 +647,15 @@ $('pmsg').onclick=async e=>{const t=e.target;if(t.id==='mrf'){await refresh();dr
   else if(k==='r'){b.innerHTML=`<input id="mri" maxlength="300" style="flex:1;min-width:200px" placeholder="Scrivi la risposta per l'ufficio" value="${esc(s.r||'')}"><button data-k="ra">Annulla</button><button class="p" data-k="rs">Invia risposta</button>`;$('mri').focus()}
   else if(k==='ra')drawMsg();
   else if(k==='rs')setMs(u,{l:s.l||Date.now(),r:$('mri').value.trim()})};
+// Verifica collegamento: prove di lettura e scrittura sul server, dati del dipendente e dati non ancora inviati
+document.addEventListener('click',async e=>{if(!e.target.closest('.vcb'))return;const d=$('vcd');d.innerHTML='<p>Verifica in corso…</p>';d.showModal();
+  const nomi={};(DIPF&&DIPF.dip||[]).forEach(x=>nomi[x.id]=x.nome);let ex=[];
+  if(cur){let dirty=false;try{const c=JSON.parse(localStorage.getItem(CK(cur.id)));dirty=!!(c&&c.dirty)}catch(_){}
+    ex=[[!dirty,dirty?'Ci sono registrazioni salvate solo su questo PC, non ancora inviate al server':'Tutto quello che hai inserito è già sul server',dirty?'Verranno inviate da sole appena il server accetta la scrittura (vedi sotto).':'',false],
+      [!!(COD.lav||[]).length,'Elenco lavori ricevuto: '+(COD.lav||[]).length+' lavori',(COD.lav||[]).length?'':'L\'amministratore deve aprire CONTROLLO_SISTEM con la stessa cartella condivisa',true]]}
+  const h=await verificaCollegamento(nomi,ex);
+  d.innerHTML=`<h2 style="margin:0 0 8px;font-size:18px">🔌 Verifica collegamento al server</h2>${h}<div class="ft"><button type="button" id="vcr">Ripeti</button><button type="button" class="p" id="vcx">Chiudi</button></div>`;
+  $('vcx').onclick=()=>d.close();$('vcr').onclick=()=>{d.close();document.querySelector('.vcb').click()}});
 // Controllo periodico: nuove attività e nuovi messaggi arrivano senza dover premere «Aggiorna»
 setInterval(async()=>{if(!cur||$('rq').open||$('ask').open)return;await refresh();msgBadge();if(vista==='att'&&attC)attC.aggiorna();else if(vista==='msg'&&!document.getElementById('mri'))drawMsg()},60000);
 init();

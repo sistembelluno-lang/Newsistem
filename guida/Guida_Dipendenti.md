@@ -1,6 +1,6 @@
 # Guida per i dipendenti
 
-SISTEM SRL STP · INSERT_SISTEM · versione 1.10
+SISTEM SRL STP · INSERT_SISTEM · versione 1.10.1
 
 <div class="lead">
 
@@ -31,7 +31,7 @@ Con **INSERT_SISTEM** registri le tue ore sui lavori (in ufficio, in cantiere o 
 
 1. Premi insieme i tasti **Windows + R**: si apre la finestra *Esegui*.
 2. Scrivi `\\SERVER\Programmi` e premi **Invio**: si apre la cartella dei programmi sul server.
-3. Fai doppio clic su **`INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe`**.
+3. Fai doppio clic su **`INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe`**.
 4. Se compare un avviso di sicurezza scegli **Esegui** (su Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*). È normale.
 5. Premi **Installa**, poi **Fine**. Sul desktop e nel menu Start compare l'icona **INSERT_SISTEM**.
 
@@ -183,6 +183,8 @@ Le tue ore restano anche sul PC: se il server è spento non perdi nulla.
 | Problema | Cosa fare |
 | --- | --- |
 | *Server non raggiungibile* | Continua pure: ore e richieste restano sul PC e partono da sole quando il server torna |
+| *Il server non permette a questo PC di salvare* | Avvisa l'amministratore: manca un permesso sul server. Le tue ore restano sul PC e partono da sole appena è sistemato |
+| Le ore o i messaggi non arrivano | Premi **🔌** in alto (Verifica collegamento) e mostra il risultato all'amministratore |
 | PIN dimenticato o "PIN errato" | Chiedi all'amministratore un nuovo PIN |
 | Non trovo un lavoro nell'elenco | Il lavoro è chiuso o non ancora creato: chiedi all'amministratore |
 | Non c'è la voce *Cantiere* | Il lavoro scelto non è un cantiere: usa *Ufficio* o *Trasferta* |

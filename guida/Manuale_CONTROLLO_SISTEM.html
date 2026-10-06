@@ -13,7 +13,7 @@ figcaption{font-size:13px;color:var(--mu);margin-top:6px}
 .sw{display:inline-block;width:16px;height:13px;border:1px solid #bbb;border-radius:3px;vertical-align:-2px;margin-right:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.sw.g-fest{background:rgba(214,48,49,.13)}.sw.g-fp{background:rgba(138,92,209,.25)}.sw.g-fe{background:rgba(31,111,209,.22)}.sw.g-ma{background:rgba(232,180,0,.32)}.sw.g-att{background:repeating-linear-gradient(45deg,rgba(138,92,209,.3) 0 4px,transparent 4px 8px)}
 @media print{body{font-size:10.5pt}main{max-width:none;padding:0}.pb{break-after:page}h2{break-after:avoid}figure,tr,li{break-inside:avoid}h1{margin-top:120px}@page{size:A4;margin:13mm}}
 </style></head><body><main><h1>CONTROLLO_SISTEM e INSERT_SISTEM</h1>
-<p>Manuale di installazione e d&#39;uso · versione 1.10</p>
+<p>Manuale di installazione e d&#39;uso · versione 1.10.1</p>
 <div class="lead">
 
 <p><strong>Due programmi, un server.</strong> I dipendenti inseriscono ore, km, spese, ferie e permessi con <strong>INSERT_SISTEM</strong>; l&#39;amministratore gestisce lavori, offerte, contratti, ferie e buste paga con <strong>CONTROLLO_SISTEM</strong>, installato solo sul suo PC. Le ore dei dipendenti arrivano da sole nei lavori.</p>
@@ -84,11 +84,11 @@ figcaption{font-size:13px;color:var(--mu);margin-top:6px}
 </thead>
 <tbody><tr>
 <td>Amministratore (Windows 7, 32 bit)</td>
-<td><code>CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe</code></td>
+<td><code>CONTROLLO_SISTEM-1.10.1-Windows7-32bit-setup.exe</code></td>
 </tr>
 <tr>
 <td>Dipendenti (Windows 7, 8, 10 o 11)</td>
-<td><code>INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe</code></td>
+<td><code>INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe</code></td>
 </tr>
 </tbody></table></div>
 <ul>
@@ -141,7 +141,7 @@ figcaption{font-size:13px;color:var(--mu);margin-top:6px}
 <h2>4. Installazione: PC dell&#39;amministratore</h2>
 <p>Una volta sola, circa 15 minuti. Tieni pronto il tuo backup <code>.json</code>.</p>
 <ol>
-<li>Fai doppio clic su <code>CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe</code>. Se compare un avviso di sicurezza scegli <strong>Esegui</strong> (Windows 10/11: <em>Ulteriori informazioni</em> → <em>Esegui comunque</em>). Premi <strong>Installa</strong> e <strong>Fine</strong>.</li>
+<li>Fai doppio clic su <code>CONTROLLO_SISTEM-1.10.1-Windows7-32bit-setup.exe</code>. Se compare un avviso di sicurezza scegli <strong>Esegui</strong> (Windows 10/11: <em>Ulteriori informazioni</em> → <em>Esegui comunque</em>). Premi <strong>Installa</strong> e <strong>Fine</strong>.</li>
 <li><strong>Importa dati</strong> → <strong>Scegli file .json…</strong> → il tuo backup. Solo la prima volta: poi ogni modifica si salva da sola.</li>
 <li>Nella riga <em>Salvataggio automatico in …</em> premi <strong>Cambia cartella</strong> e scegli <code>\\SERVER\Amministrazione\ControlloLavori</code>. Mai la cartella condivisa dei dipendenti.</li>
 <li><strong>👥 Ore dipendenti</strong> → <strong>Impostazioni</strong> → <strong>Imposta PIN di apertura</strong>: un PIN di 4-8 cifre, diverso da quelli dei dipendenti.</li>
@@ -158,7 +158,7 @@ figcaption{font-size:13px;color:var(--mu);margin-top:6px}
 <h2>5. Installazione: PC dei dipendenti</h2>
 <p>Circa 5 minuti a PC, con il dipendente presente.</p>
 <ol>
-<li>Dal PC del dipendente apri <code>\\SERVER\Programmi</code> e fai doppio clic su <code>INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe</code> → <strong>Esegui</strong> → <strong>Installa</strong> → <strong>Fine</strong>.</li>
+<li>Dal PC del dipendente apri <code>\\SERVER\Programmi</code> e fai doppio clic su <code>INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe</code> → <strong>Esegui</strong> → <strong>Installa</strong> → <strong>Fine</strong>.</li>
 <li>Al primo avvio: <strong>Scegli cartella…</strong> → <code>\\SERVER\ControlloLavori</code> → <strong>Seleziona cartella</strong>. Una volta sola per PC.</li>
 <li>Il dipendente sceglie il suo nome e scrive il PIN.</li>
 <li><strong>Prova:</strong> inserisce un&#39;ora su un lavoro e salva. Sul PC dell&#39;amministratore, entro un minuto, le ore compaiono nel lavoro in <em>Ore totali</em>. Poi cancella la prova con ✕.</li>

@@ -1,6 +1,6 @@
 # CONTROLLO_SISTEM e INSERT_SISTEM
 
-Manuale di installazione e d'uso · versione 1.10
+Manuale di installazione e d'uso · versione 1.10.1
 
 <div class="lead">
 
@@ -58,8 +58,8 @@ Si scaricano dalla pagina **https://github.com/sistembelluno-lang/Newsistem/rele
 
 | PC | File |
 | --- | --- |
-| Amministratore (Windows 7, 32 bit) | `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe` |
-| Dipendenti (Windows 7, 8, 10 o 11) | `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` |
+| Amministratore (Windows 7, 32 bit) | `CONTROLLO_SISTEM-1.10.1-Windows7-32bit-setup.exe` |
+| Dipendenti (Windows 7, 8, 10 o 11) | `INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe` |
 
 - I file *Windows7-32bit* funzionano su tutti i Windows dal 7 in poi: usali su tutti i PC.
 - I file *-setup.exe* installano il programma con l'icona nel menu Start (consigliati); i *-portable.exe* partono senza installazione.
@@ -91,7 +91,7 @@ Se i PC dei dipendenti usano un utente Windows comune, i permessi "dipendenti" v
 
 Una volta sola, circa 15 minuti. Tieni pronto il tuo backup `.json`.
 
-1. Fai doppio clic su `CONTROLLO_SISTEM-1.10.0-Windows7-32bit-setup.exe`. Se compare un avviso di sicurezza scegli **Esegui** (Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*). Premi **Installa** e **Fine**.
+1. Fai doppio clic su `CONTROLLO_SISTEM-1.10.1-Windows7-32bit-setup.exe`. Se compare un avviso di sicurezza scegli **Esegui** (Windows 10/11: *Ulteriori informazioni* → *Esegui comunque*). Premi **Installa** e **Fine**.
 2. **Importa dati** → **Scegli file .json…** → il tuo backup. Solo la prima volta: poi ogni modifica si salva da sola.
 3. Nella riga *Salvataggio automatico in …* premi **Cambia cartella** e scegli `\\SERVER\Amministrazione\ControlloLavori`. Mai la cartella condivisa dei dipendenti.
 4. **👥 Ore dipendenti** → **Impostazioni** → **Imposta PIN di apertura**: un PIN di 4-8 cifre, diverso da quelli dei dipendenti.
@@ -109,7 +109,7 @@ Una volta sola, circa 15 minuti. Tieni pronto il tuo backup `.json`.
 
 Circa 5 minuti a PC, con il dipendente presente.
 
-1. Dal PC del dipendente apri `\\SERVER\Programmi` e fai doppio clic su `INSERT_SISTEM-1.10.0-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
+1. Dal PC del dipendente apri `\\SERVER\Programmi` e fai doppio clic su `INSERT_SISTEM-1.10.1-Windows7-32bit-setup.exe` → **Esegui** → **Installa** → **Fine**.
 2. Al primo avvio: **Scegli cartella…** → `\\SERVER\ControlloLavori` → **Seleziona cartella**. Una volta sola per PC.
 3. Il dipendente sceglie il suo nome e scrive il PIN.
 4. **Prova:** inserisce un'ora su un lavoro e salva. Sul PC dell'amministratore, entro un minuto, le ore compaiono nel lavoro in *Ore totali*. Poi cancella la prova con ✕.
