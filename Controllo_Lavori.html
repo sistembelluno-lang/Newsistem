@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<title>Controllo Lavori</title>
+<title>CONTROLLO_SISTEM</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1c2330;--mu:#6b7585;--bd:#dde1e8;--ac:#1f5fbf;--ok:#1a7f4b;--ko:#c0392b;--hd:#eef1f5;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -74,14 +74,28 @@ tr.ivok td{background:rgba(26,127,75,0.22);background:color-mix(in srgb,var(--ok
 .rep .n{text-align:right;font-variant-numeric:tabular-nums}.rep tbody tr{cursor:default}.rep tbody tr:hover td{filter:none}
 .rep tr.we td{background:var(--hd)}.rep tbody td:first-child{white-space:nowrap}.rep tfoot td{font-weight:700;background:var(--hd)}.rep .rn{font-size:11px;color:var(--mu)}
 .firme{display:flex;gap:40px;margin-top:36px}.firme div{flex:1;border-top:1px solid var(--tx);padding-top:4px;font-size:12px}
+/* Colori dei giorni: rosso festivi, viola ferie programmate, blu ferie fatte, giallo malattia, viola a righe richiesta in attesa */
+.g-fest td,td.g-fest,div.g-fest,i.g-fest{background:rgba(214,48,49,.13)}.g-fest td:first-child,.g-fest .dl{color:#c0392b}
+.g-fp td,td.g-fp,div.g-fp,i.g-fp{background:rgba(138,92,209,.25)}
+.g-fe td,td.g-fe,div.g-fe,i.g-fe{background:rgba(31,111,209,.22)}
+.g-ma td,td.g-ma,div.g-ma,i.g-ma{background:rgba(232,180,0,.32)}
+.g-att td,td.g-att,div.g-att,i.g-att{background:repeating-linear-gradient(45deg,rgba(138,92,209,.22) 0 5px,transparent 5px 10px)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--mu);margin:6px 0}.leg span{display:inline-flex;align-items:center;gap:5px}.leg i{display:inline-block;width:14px;height:12px;border:1px solid var(--bd);border-radius:3px}
+.rep .rs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.rep .rs td.n{white-space:nowrap}.rep .rs table th{text-align:left}
 #print{display:none}
 @media print{body>*:not(#print){display:none!important}#print{display:block!important}body{background:#fff!important;color:#000!important}
 #print .rep{border:0;padding:0;margin:0;break-after:page;background:#fff;color:#000}#print .rep:last-child{break-after:auto}
-#print .rep th,#print .rep td{border-color:#888;padding:1px 4px;font-size:9.5pt;line-height:1.25}#print .rep h2{font-size:13pt}#print .rep h3{margin:8px 0 4px}#print .firme{margin-top:22px}#print .rep tr.we td,#print .rep tfoot td{background:#eee}#print .rep .rn{color:#444}.firme div{border-color:#000}@page{size:A4;margin:12mm}}
+#print .rep th,#print .rep td{border-color:#888;padding:0 3px;font-size:8.5pt;line-height:1.2}#print .rep .leg{margin:3px 0;font-size:8pt}#print .rep .rs{gap:6px}#print .rep h2{font-size:13pt}#print .rep h3{margin:8px 0 4px}#print .firme{margin-top:16px}#print .rep h3{margin:6px 0 3px;font-size:10pt}#print .rep .rn{margin:4px 0}#print .rep tfoot td{background:#eee}#print .g-fest td,#print .g-fp td,#print .g-fe td,#print .g-ma td,#print .g-att td,#print .leg i{-webkit-print-color-adjust:exact;print-color-adjust:exact}#print .rep .rn{color:#444}.firme div{border-color:#000}@page{size:A4;margin:12mm}}
 /*REPORT-CSS-FINE*/
 #lock{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center}
 #lock .lb{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:24px;width:min(360px,92vw);text-align:center}
 #lock input{font-size:22px;letter-spacing:6px;text-align:center;width:160px;margin:12px 0}
+fieldset.ctr{border:2px solid var(--ok);border-radius:10px;margin:10px 0 0;padding:8px 12px 12px;background:rgba(26,127,75,0.06)}fieldset.ctr legend{font-weight:600;color:var(--ok);padding:0 6px}
+.off{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:12px 0 0;padding:8px 10px;border:1px solid var(--bd);border-radius:8px}.off b{font-size:13px}
+.tag.oy{background:rgba(26,127,75,0.18);color:var(--ok);font-weight:600}.tag.on{background:rgba(192,57,43,0.16);color:var(--ko);font-weight:600}
+.fcal{border-collapse:collapse;min-width:0;width:100%;font-size:11px}.fcal th,.fcal td{border:1px solid var(--bd);padding:2px 1px;text-align:center;white-space:nowrap;position:static}.fcal th{background:var(--hd);cursor:default;font-weight:600}
+.fcal td.nm,.fcal th.nm{text-align:left;padding:2px 6px;min-width:120px}.fcal td.c{cursor:pointer;width:22px;height:24px}.fcal td.c:hover{outline:2px solid var(--ac)}.fcal th.g-fest{color:#c0392b}
+.rbox{border:1px solid var(--bd);border-radius:10px;padding:8px 10px;margin:0 0 12px}.rbox h3{font-size:14px;margin:0 0 6px}
 .rem{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:10px;border:1px solid var(--ac);border-radius:10px;background:rgba(31,95,191,0.1);background:color-mix(in srgb,var(--ac) 10%,transparent)}
 .ck{display:flex;align-items:center;gap:6px;cursor:pointer}.ck input{width:auto;padding:0;margin:0}
 #ds button{padding:2px 8px;font-size:12px}
@@ -94,12 +108,13 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 <main>
 <div class="hd"><div>
 <div class="top">
-  <h1>Controllo Lavori</h1>
+  <h1>CONTROLLO_SISTEM</h1>
   <div class="btns">
     <button class="p" id="new">+ Nuovo lavoro</button>
     <button id="imp">Importa dati</button>
     <button id="exp">Esporta backup</button>
     <button id="csv">Esporta Excel</button>
+    <button id="pdfl">Esporta PDF</button>
     <button id="odbtn">👥 Ore dipendenti</button>
     <button id="lkbtn" hidden title="Blocca il programma: per riaprirlo serve il PIN">🔒 Blocca</button>
     <input type="file" id="file" accept=".json,application/json" hidden>
@@ -117,7 +132,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
   <select id="fs"><option value="">Tutti gli stati</option></select>
   <select id="fd"><option value="">Tutte le direzioni</option></select>
   <select id="fm"><option value="">Tutte le materie</option></select>
-  <select id="ff"><option value="">Altri filtri: nessuno</option><option value="rim">Con rimanente da fatturare</option><option value="ecc">Fatturato oltre preventivo</option><option value="svc">Con servizi non eseguiti</option><option value="ws">Solo cantieri (Worksite)</option><option value="wsd">Cantieri con interventi da contabilizzare</option></select>
+  <select id="ff"><option value="">Altri filtri: nessuno</option><option value="rim">Con rimanente da fatturare</option><option value="ecc">Fatturato oltre preventivo</option><option value="svc">Con servizi non eseguiti</option><option value="ws">Solo cantieri (Worksite)</option><option value="wsd">Cantieri con interventi da contabilizzare</option><option value="offok">Offerte approvate</option><option value="offno">Offerte non approvate</option><option value="offatt">Offerte senza esito</option></select>
 </div>
 <div class="tw"><table><thead id="th"></thead><tbody id="tb"></tbody></table></div>
 <p class="rates" id="cnt"></p>
@@ -134,7 +149,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
 <div id="print"></div>
-<div id="lock" hidden><form class="lb" onsubmit="return false"><h2 style="margin:0 0 4px;font-size:18px">Controllo Lavori</h2><p class="rates" style="margin:0">Programma riservato all'amministratore.<br>Inserisci il PIN di apertura.</p><input id="lki" type="password" inputmode="numeric" autocomplete="off" maxlength="8"><br><button class="p" id="lkb">Apri</button><p id="lke" class="neg" style="min-height:18px;margin:8px 0 0"></p></form></div>
+<div id="lock" hidden><form class="lb" onsubmit="return false"><h2 style="margin:0 0 4px;font-size:18px">CONTROLLO_SISTEM</h2><p class="rates" style="margin:0">Programma riservato all'amministratore.<br>Inserisci il PIN di apertura.</p><input id="lki" type="password" inputmode="numeric" autocomplete="off" maxlength="8"><br><button class="p" id="lkb">Apri</button><p id="lke" class="neg" style="min-height:18px;margin:8px 0 0"></p></form></div>
 
 <script>
 /*CONDIVISO-INIZIO (da src/condiviso.js: non modificare qui)*/
@@ -152,7 +167,37 @@ const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const TIPI={lavoro:'Ore su lavoro',ferie:'Ferie',permesso:'Permesso',malattia:'Malattia',nota:'Nota del giorno'};
 const MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
 const GGS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
-// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers}
+// Dove sono state lavorate le ore, auto usata per i km, tipologie di spesa
+const LUOGHI={uff:'Ufficio',cant:'Cantiere',tr:'Trasferta'};
+const AUTO={az:'Auto aziendale',pr:'Auto propria'};
+const SPT={gen:'Spese generiche',pasti:'Pasti',hotel:'Hotel',min:'Minuteria'};
+const luogoOf=v=>v.cant?'cant':v.tr?'tr':'uff';
+// Spese di una registrazione: elenco per tipologia; le registrazioni vecchie (solo «sp») contano come spese generiche
+const splOf=v=>Array.isArray(v.spl)&&v.spl.length?v.spl:((parseFloat(v.sp)||0)?[{t:'gen',i:parseFloat(v.sp)}]:[]);
+// Festività nazionali italiane (sabati e domeniche a parte). Dal 2026 anche il 4 ottobre, San Francesco d'Assisi.
+const FEST_CACHE={};
+function festivi(Y){if(FEST_CACHE[Y])return FEST_CACHE[Y];const m=new Map(),a=(mm,dd,nm)=>m.set(Y+'-'+String(mm).padStart(2,'0')+'-'+String(dd).padStart(2,'0'),nm);
+  a(1,1,'Capodanno');a(1,6,'Epifania');a(4,25,'Festa della Liberazione');a(5,1,'Festa dei Lavoratori');a(6,2,'Festa della Repubblica');a(8,15,'Ferragosto');
+  a(11,1,'Ognissanti');a(12,8,'Immacolata Concezione');a(12,25,'Natale');a(12,26,'Santo Stefano');if(Y>=2026)a(10,4,"San Francesco d'Assisi");
+  // Pasqua (algoritmo di Meeus/Jones/Butcher) e Lunedì dell'Angelo
+  const A=Y%19,B=Math.floor(Y/100),C=Y%100,D=Math.floor(B/4),E=B%4,F=Math.floor((B+8)/25),G=Math.floor((B-F+1)/3),H=(19*A+B-D-G+15)%30,I=Math.floor(C/4),K=C%4,L=(32+2*E+2*I-H-K)%7,Q=Math.floor((A+11*H+22*L)/451),mo=Math.floor((H+L-7*Q+114)/31),dy=((H+L-7*Q+114)%31)+1;
+  a(mo,dy,'Pasqua');const lu=new Date(Y,mo-1,dy+1);a(lu.getMonth()+1,lu.getDate(),"Lunedì dell'Angelo");
+  return FEST_CACHE[Y]=m}
+// Un giorno 'AAAA-MM-GG': giorno della settimana, se è festivo (rosso) e il nome della festività
+function giorno(ds){const [y,m,d]=ds.split('-').map(Number),dw=new Date(y,m-1,d).getDay(),nome=festivi(y).get(ds)||'';return{dw,nome,fest:dw===0||dw===6||!!nome}}
+// Ferie e permessi programmati di un dipendente: richieste fatte dal dipendente (con l'esito dato dall'amministratore)
+// e giorni aggiunti direttamente dall'amministratore. stato: 'ok' approvata, 'att' in attesa, 'no' rifiutata.
+function progOf(dipId,rich,fer){fer=fer||{};const E=fer.e||{};
+  const R=(rich||[]).filter(r=>r&&!r.del&&r.d).map(r=>{const e=E[r.u];return{u:r.u,d:r.d,tipo:r.tipo,h:r.h,note:r.note,da:'dip',stato:e&&(+e.t||0)>=(+r.t||0)?e.s:'att',motivo:e&&e.m||''}});
+  const P=(fer.prog||[]).filter(p=>p&&!p.del&&p.di===dipId).map(p=>({u:p.u,d:p.d,tipo:p.tipo,h:p.h,note:p.note,da:'adm',stato:'ok'}));
+  return[...R,...P]}
+// Colore del giorno: giallo malattia, blu ferie fatte, viola ferie programmate approvate, rosso festivi
+function coloreGiorno(ds,pers,prog){const p=(pers||[]).filter(x=>!x.del&&x.d===ds),g=(prog||[]).filter(x=>x.d===ds);
+  if(p.some(x=>x.tipo==='malattia'))return'g-ma';if(p.some(x=>x.tipo==='ferie'))return'g-fe';
+  if(g.some(x=>x.tipo==='ferie'&&x.stato==='ok'))return'g-fp';if(giorno(ds).fest)return'g-fest';
+  if(g.some(x=>x.tipo==='ferie'&&x.stato==='att'))return'g-att';return''}
+const legendaHTML=()=>'<div class="leg"><span><i class="g-fest"></i>Festivi</span><span><i class="g-fp"></i>Ferie programmate</span><span><i class="g-fe"></i>Ferie fatte</span><span><i class="g-ma"></i>Malattia</span><span><i class="g-att"></i>Richiesta in attesa</span></div>';
+// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers, prog}
 function repMonth(o){
   const N=v=>parseFloat(v)||0,X=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const F=v=>v?v.toLocaleString('it-IT',{maximumFractionDigits:2}):'',FE=v=>v?v.toLocaleString('it-IT',{style:'currency',currency:'EUR'}):'';
@@ -160,29 +205,50 @@ function repMonth(o){
   const [Y,M]=o.mese.split('-').map(Number),nd=new Date(Y,M,0).getDate();
   const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese));
   const P=(o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese));
-  const T={h:0,tr:0,fe:0,pe:0,ma:0,km:0,sp:0,gg:0},byL={};let rows='';
-  for(let i=1;i<=nd;i++){const ds=o.mese+'-'+String(i).padStart(2,'0'),dw=new Date(Y,M-1,i).getDay();
-    const vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds),pt=t=>S(pp.filter(p=>p.tipo===t),'h');
-    const h=S(vv,'h'),tr=S(vv.filter(v=>v.tr),'h'),km=S(vv,'km'),sp=S(vv,'sp'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
-    if(h>0)T.gg++;T.h+=h;T.tr+=tr;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
-    vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,tr:0,km:0,sp:0};L.h+=N(v.h);if(v.tr)L.tr+=N(v.h);L.km+=N(v.km);L.sp+=N(v.sp)});
-    const lav=vv.map(v=>`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${v.tr?' (trasf.)':''}`).join('<br>');
-    const note=[...vv.filter(v=>v.note).map(v=>X(v.cod)+': '+X(v.note)),...pp.filter(p=>p.note||p.tipo==='nota').map(p=>(p.tipo==='nota'?'':TIPI[p.tipo]+': ')+X(p.note))].join('<br>');
-    rows+=`<tr class="${dw===0||dw===6?'we':''}"><td>${GGS[dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
+  const PG=(o.prog||[]).filter(p=>p.stato!=='no'&&String(p.d||'').startsWith(o.mese));
+  const T={h:0,cant:0,tr:0,fe:0,pe:0,ma:0,km:0,kaz:0,kpr:0,kno:0,sp:0,gg:0,spt:{gen:0,pasti:0,hotel:0,min:0}},byL={};let rows='';
+  for(let i=1;i<=nd;i++){const ds=o.mese+'-'+String(i).padStart(2,'0'),gi=giorno(ds);
+    const vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds),pg=PG.filter(p=>p.d===ds),pt=t=>S(pp.filter(p=>p.tipo===t),'h');
+    const h=S(vv,'h'),ca=S(vv.filter(v=>luogoOf(v)==='cant'),'h'),tr=S(vv.filter(v=>luogoOf(v)==='tr'),'h'),km=S(vv,'km'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
+    let sp=0;vv.forEach(v=>splOf(v).forEach(s=>{sp+=N(s.i);T.spt[s.t in T.spt?s.t:'gen']+=N(s.i)}));
+    vv.forEach(v=>{const k=N(v.km);if(!k)return;if(v.auto==='az')T.kaz+=k;else if(v.auto==='pr')T.kpr+=k;else T.kno+=k});
+    if(h>0)T.gg++;T.h+=h;T.cant+=ca;T.tr+=tr;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
+    vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,cant:0,tr:0,km:0,sp:0};const lu=luogoOf(v);L.h+=N(v.h);if(lu==='cant')L.cant+=N(v.h);if(lu==='tr')L.tr+=N(v.h);L.km+=N(v.km);L.sp+=splOf(v).reduce((s,x)=>s+N(x.i),0)});
+    const lav=vv.map(v=>{const lu=luogoOf(v);return`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${lu!=='uff'?' ('+LUOGHI[lu].toLowerCase()+')':''}${N(v.km)?' · '+F(N(v.km))+' km'+(v.auto?' '+(v.auto==='az'?'az.':'propria'):''):''}`}).join('<br>');
+    const note=[...pg.map(p=>(p.tipo==='ferie'?'Ferie programmate':'Permesso programmato'+(p.h?' '+F(N(p.h))+' h':''))+(p.stato==='att'?' (in attesa)':p.stato==='no'?' (rifiutata)':'')),
+      ...(gi.nome?[gi.nome]:[]),...vv.flatMap(v=>splOf(v).map(s=>SPT[s.t]+' '+FE(N(s.i)))),
+      ...vv.filter(v=>v.note).map(v=>X(v.cod)+': '+X(v.note)),...pp.filter(p=>p.note||p.tipo==='nota').map(p=>(p.tipo==='nota'?'':TIPI[p.tipo]+': ')+X(p.note))].join('<br>');
+    rows+=`<tr class="${coloreGiorno(ds,pp,pg)}"><td>${GGS[gi.dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(ca)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
   const LL=Object.values(byL).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true}));
+  const fpg=PG.filter(p=>p.tipo==='ferie'&&p.stato==='ok').length;
   return`<section class="rep"><div class="rh"><h2>Report ore · ${X(o.nome)}</h2><b>${MESI[M-1]} ${Y}</b></div>
-<table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore lavoro</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Permessi h</th><th class="n">Malattia h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
-<tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
-<h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">di cui trasf.</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.tr)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="7">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
+<table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore</th><th class="n">di cui cantiere</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Perm. h</th><th class="n">Mal. h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
+<tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.cant)}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
+${legendaHTML()}
+<h3>Riepilogo del mese</h3><div class="rs">
+<table><tbody><tr><th colspan="2">Ore</th></tr><tr><td>In ufficio</td><td class="n">${F(T.h-T.cant-T.tr)||0} h</td></tr><tr><td>In cantiere</td><td class="n">${F(T.cant)||0} h</td></tr><tr><td>In trasferta</td><td class="n">${F(T.tr)||0} h</td></tr><tr><td><b>Totale ore lavorate</b></td><td class="n"><b>${F(T.h)||0} h</b></td></tr></tbody></table>
+<table><tbody><tr><th colspan="2">Km</th></tr><tr><td>Auto propria</td><td class="n">${F(T.kpr)||0} km</td></tr><tr><td>Auto aziendale</td><td class="n">${F(T.kaz)||0} km</td></tr>${T.kno?`<tr><td>Auto non indicata</td><td class="n">${F(T.kno)} km</td></tr>`:''}<tr><td><b>Totale km</b></td><td class="n"><b>${F(T.km)||0} km</b></td></tr></tbody></table>
+<table><tbody><tr><th colspan="2">Spese</th></tr>${Object.keys(SPT).map(k=>`<tr><td>${SPT[k]}</td><td class="n">${FE(T.spt[k])||'0,00 €'}</td></tr>`).join('')}<tr><td><b>Totale spese</b></td><td class="n"><b>${FE(T.sp)||'0,00 €'}</b></td></tr></tbody></table>
+<table><tbody><tr><th colspan="2">Assenze</th></tr><tr><td>Ferie fatte</td><td class="n">${F(T.fe)||0} h</td></tr><tr><td>Permessi</td><td class="n">${F(T.pe)||0} h</td></tr><tr><td>Malattia</td><td class="n">${F(T.ma)||0} h</td></tr><tr><td>Ferie programmate</td><td class="n">${fpg} gg</td></tr></tbody></table></div>
+<h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">di cui cantiere</th><th class="n">di cui trasf.</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.cant)}</td><td class="n">${F(l.tr)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="8">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
 <p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
 <div class="firme"><div>Firma dipendente</div><div>Firma responsabile</div></div></section>`}
 // Elenco piatto per Excel (una riga per registrazione), adatto a tabelle pivot
 function repCsv(list){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round((parseFloat(v)||0)*100)/100).replace('.',',');
   const R=[];list.forEach(o=>{
-    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)).forEach(v=>R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),v.tr?'sì':'',num(v.km),num(v.sp),v.note]));
-    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','',p.note]))});
+    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)).forEach(v=>{const s={gen:0,pasti:0,hotel:0,min:0};splOf(v).forEach(x=>s[x.t in s?x.t:'gen']+=parseFloat(x.i)||0);const tot=s.gen+s.pasti+s.hotel+s.min;
+      R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),LUOGHI[luogoOf(v)],num(v.km),v.km?AUTO[v.auto]||'':'',num(s.gen||''),num(s.pasti||''),num(s.hotel||''),num(s.min||''),num(tot||''),v.note])});
+    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','','','','','','',p.note]));
+    (o.prog||[]).filter(p=>p.stato!=='no'&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,(p.tipo==='ferie'?'Ferie programmate':'Permesso programmato')+(p.stato==='att'?' (in attesa)':p.stato==='no'?' (rifiutata)':''),'','',num(p.h),'','','','','','','','',p.note]))});
   R.sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1]));
-  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Trasferta','Km','Spese €','Note'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
+  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Dove','Km','Auto','Spese generiche €','Pasti €','Hotel €','Minuteria €','Spese totali €','Note'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
+// Tabella stampabile generica (elenchi): titolo, sottotitolo, intestazioni e righe già in HTML sicuro
+function repTable(titolo,sub,H,R,dopo){return`<section class="rep"><div class="rh"><h2>${titolo}</h2><b>${sub||''}</b></div><table><thead><tr>${H.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${R.length?R.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${H.length}">Nessun dato.</td></tr>`}</tbody></table>${dopo||''}<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p></section>`}
+// Stampa o PDF di un report: nell'app desktop il PDF si salva con «Salva con nome», nel browser si usa la stampa (Salva come PDF)
+async function outReport(html,modo,nomeFile,avviso){const pr=document.getElementById('print');pr.innerHTML=html;
+  if(modo==='pdf'&&window.desktop&&window.desktop.savePdf){const r=await window.desktop.savePdf(nomeFile);if(avviso)avviso(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return r}
+  if(modo==='pdf'&&avviso)avviso('Nella finestra di stampa scegli «Salva come PDF»');
+  window.print()}
 /*CONDIVISO-FINE*/
 </script>
 <script>
@@ -195,7 +261,7 @@ let S={rows:[],rates:{h:36,t:5,k:0.5}};
 try{const j=localStorage.getItem(KEY);if(j)S=Object.assign(S,JSON.parse(j))}catch(e){}
 function mig(){if(!Array.isArray(S.rows))S.rows=[];if(!S.periods){const o=S.rates||{};S.periods=[{from:'2000-01-01',to:'',h:o.h??36,t:o.t??5}];S.km=o.k??0.5}S.rows.forEach(r=>{if(r.spEx===undefined){r.spTr=r.spTr??'';r.spPa=r.spPa??'';r.spEx=r.spese??''}delete r.spese;if(!r.sv)r.sv=[]});S.rows=S.rows.filter(r=>r&&typeof r==='object');let mx=Math.max(0,...S.rows.map(r=>+r.id||0));const seen=new Set();S.rows.forEach(r=>{if(!(+r.id>0)||seen.has(+r.id))r.id=++mx;r.id=+r.id;seen.add(r.id)})}
 mig();
-const F=[['cod','Codice'],['nome','Nome lavoro','f'],['cliente','Cliente'],['materia','Materia'],['stato','Stato','sel'],['dir','Direzione'],['data','Data lavoro (per tariffa)','date'],['scad','Scadenza','date'],['hTot','Ore totali','num'],['hTr','Ore trasferta','num'],['km','Km','num'],['spTr','Spese trasferta €','num'],['spPa','Pasti €','num'],['spEx','Extra €','num'],['prevCode','Rif. preventivo'],['prev','Preventivo €','num'],['fatt','Fatturato €','num'],['fattura','Fattura n./anno'],['note','Note','area'],['loc','Località (città o comune)']];
+const F=[['cod','Codice'],['nome','Nome lavoro','f'],['cliente','Cliente'],['materia','Materia'],['stato','Stato','sel'],['dir','Direzione'],['data','Data lavoro (per tariffa)','date'],['scad','Scadenza','date'],['hTot','Ore totali','num'],['hTr','Ore trasferta','num'],['km','Km','num'],['spTr','Spese trasferta €','num'],['spPa','Pasti €','num'],['spEx','Extra €','num'],['prevCode','Rif. offerta'],['prev','Preventivo €','num'],['fatt','Fatturato €','num'],['fattura','Fattura n./anno'],['note','Note','area'],['loc','Località (città o comune)']];
 const STATI=['In corso','Finito','Sospeso','Da fare','Preventivo','Non fare'];
 let sortK='cod',sortD=-1,editing=null;
 const n=v=>parseFloat(v)||0;
@@ -217,32 +283,43 @@ function save(){store();M.ch=Date.now();saveMeta();deskSave();remind();pubCodici
 function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',2600)}
 function ask(m){return new Promise(res=>{$('askm').textContent=m;const d=$('ask');d.showModal();$('asky').onclick=()=>{d.close();res(true)};$('askn').onclick=()=>{d.close();res(false)}})}
 function fillSel(id,vals){const s=$(id),c=s.value,f=s.options[0].outerHTML;s.innerHTML=f+[...new Set(vals.filter(Boolean))].sort().map(v=>`<option>${esc(v)}</option>`).join('');s.value=c}
-const COLS=[['cod','Cod'],['nome','Nome lavoro','w'],['cliente','Cliente'],['materia','Mat.'],['stato','Stato'],['dir','Dir.'],['prev','Preventivo','n'],['fatt','Fatturato','n'],['rim','Rimanente','n'],['tot','Costo €','n'],['loc','Località'],['sv','Servizi'],['ws','Worksite']];
+const COLS=[['cod','Cod'],['nome','Nome lavoro','w'],['cliente','Cliente'],['materia','Mat.'],['stato','Stato'],['off','Offerta'],['dir','Dir.'],['prev','Preventivo','n'],['fatt','Fatturato','n'],['rim','Rimanente','n'],['tot','Costo €','n'],['loc','Località'],['sv','Servizi'],['ws','Worksite']];
+let LAST=[];
+const offTag=r=>r.offEs==='ok'?`<span class="tag oy" title="${esc(r.ctr&&r.ctr.num?'Contratto n. '+r.ctr.num:'Offerta approvata')}">✓ Approvata</span>`:r.offEs==='no'?'<span class="tag on">✗ Non approvata</span>':'';
 function render(){
   $('rk').value=S.km;
   fillSel('fs',S.rows.map(r=>r.stato));fillSel('fd',S.rows.map(r=>r.dir));fillSel('fm',S.rows.map(r=>r.materia));
   const q=$('q').value.toLowerCase(),fs=$('fs').value,fd=$('fd').value,fm=$('fm').value,ff=$('ff').value;
-  let L=S.rows.map(r=>({r,c:calc(r)})).filter(({r,c})=>(!q||[r.cod,r.nome,r.cliente,r.note,r.prevCode,r.fattura,...(r.iv||[]).map(x=>(x.op||'')+' '+(x.note||''))].join(' ').toLowerCase().includes(q))&&(!fs||r.stato===fs)&&(!fd||r.dir===fd)&&(!fm||r.materia===fm)&&(!ff||({rim:()=>c.rim>0.5,ecc:()=>c.rim<-0.5,svc:()=>(r.sv||[]).some(x=>!x.ok),ws:()=>!!r.ws,wsd:()=>r.ws&&ivOpen(r)>0})[ff]()));
-  const val=x=>sortK==='ws'?(x.r.ws?1+ivOpen(x.r):0):['rim','tot'].includes(sortK)?x.c[sortK]:['prev','fatt'].includes(sortK)?n(x.r[sortK]):(sortK==='cod'?n(x.r.cod):String(x.r[sortK]||'').toLowerCase());
+  let L=S.rows.map(r=>({r,c:calc(r)})).filter(({r,c})=>(!q||[r.cod,r.nome,r.cliente,r.note,r.prevCode,r.fattura,...Object.values(r.ctr||{}),...(r.iv||[]).map(x=>(x.op||'')+' '+(x.note||''))].join(' ').toLowerCase().includes(q))&&(!fs||r.stato===fs)&&(!fd||r.dir===fd)&&(!fm||r.materia===fm)&&(!ff||({rim:()=>c.rim>0.5,ecc:()=>c.rim<-0.5,svc:()=>(r.sv||[]).some(x=>!x.ok),ws:()=>!!r.ws,wsd:()=>r.ws&&ivOpen(r)>0,offok:()=>r.offEs==='ok',offno:()=>r.offEs==='no',offatt:()=>!r.offEs})[ff]()));LAST=L;
+  const val=x=>sortK==='off'?({ok:2,no:1}[x.r.offEs]||0):sortK==='ws'?(x.r.ws?1+ivOpen(x.r):0):['rim','tot'].includes(sortK)?x.c[sortK]:['prev','fatt'].includes(sortK)?n(x.r[sortK]):(sortK==='cod'?n(x.r.cod):String(x.r[sortK]||'').toLowerCase());
   L.sort((a,b)=>{const x=val(a),y=val(b);return (x>y?1:x<y?-1:0)*sortD});
   $('th').innerHTML='<tr>'+COLS.map(([k,l,c])=>`<th class="${c==='n'?'n':''}" data-k="${k}">${l}${sortK===k?(sortD>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
-  $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="13" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
+  $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${offTag(r)}</td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="14" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
   $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:rgba(59,155,230,0.25);background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
   const sg=S.rows.map(r=>r.loc||'').join('|');if(sg!==mapSig){mapSig=sg;mapDraw()}
   const A=S.rows,tp=A.reduce((s,r)=>s+n(r.prev),0),tf=A.reduce((s,r)=>s+n(r.fatt),0),tr=A.reduce((s,r)=>s+Math.max(0,n(r.prev)-n(r.fatt)),0);
   $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0),'sv'],['Interventi da contab.',A.reduce((q,r)=>q+(r.ws?ivOpen(r):0),0),'iv']].map(([l,v,k])=>`<div${k?` class="kc" data-k="${k}" title="Clicca per vedere l'elenco"`:''}><small>${l}</small><b>${v}</b></div>`).join('');
 }
+// Offerta: esito (approvata / non approvata / in attesa); se approvata si apre la scheda del contratto
+function offHTML(r){const c=r.ctr||{},e=r.offEs||'',v=k=>esc(c[k]??'');
+  return`<div class="off"><b>Esito offerta</b><label class="ck"><input type="radio" name="offEs" value="ok" ${e==='ok'?'checked':''}> Approvata</label><label class="ck"><input type="radio" name="offEs" value="no" ${e==='no'?'checked':''}> Non approvata</label><label class="ck"><input type="radio" name="offEs" value="" ${e?'':'checked'}> In attesa</label></div>
+<fieldset class="ctr" id="ctrb" ${e==='ok'?'':'hidden'}><legend>Offerta approvata · contratto</legend><div class="g">
+<label>Rif. offerta approvata<input name="c_rif" value="${v('rif')||esc(r.prevCode??'')}"></label><label>Contratto n.<input name="c_num" value="${v('num')}"></label><label>Data contratto<input type="date" name="c_data" value="${v('data')}"></label>
+<label class="f">Ente che rilascia il contratto<input name="c_ente" value="${v('ente')}"></label>
+<label class="f">Tempistiche di contratto<input name="c_tempi" value="${v('tempi')}" placeholder="es. inizio lavori entro 30 giorni, consegna entro il 30/06/2027"></label>
+<label class="f">Note<textarea name="c_note" rows="2">${v('note')}</textarea></label></div></fieldset>`}
 function openEdit(id){
   editing=id?S.rows.find(r=>r.id==id):{id:0};
   const r=editing;
   $('frm').innerHTML='<h2 style="margin:0 0 10px;font-size:17px">'+(id?'Modifica lavoro':'Nuovo lavoro')+'</h2><div class="g">'+F.map(([k,l,t])=>{
     const v=esc(r[k]??'');
     const inp=t==='sel'?`<select name="${k}">${[...new Set([...STATI,r[k]].filter(Boolean))].map(s=>`<option ${s===r[k]?'selected':''}>${esc(s)}</option>`).join('')}</select>`:t==='area'?`<textarea name="${k}" rows="2">${v}</textarea>`:`<input name="${k}" value="${v}" ${t==='num'?'type="number" step="any"':t==='date'?'type="date"':''}>`;
-    return `<label class="${t==='f'||t==='area'?'f':''}">${l}${inp}</label>`}).join('')+'</div><h3 style="font-size:14px;margin:12px 0 6px">Servizi da svolgere</h3><div id="svb"></div><button type="button" id="sva">+ Aggiungi servizio</button>'+((r.ore||[]).length?'<h3 style="font-size:14px;margin:12px 0 6px">Ore registrate dai dipendenti</h3><div id="oreb"></div>':'')+'<div class="calc" id="cl"></div><div class="ft"><span>'+(id?'<button type="button" class="d" id="del">Elimina</button>':'')+'</span><span class="btns"><button type="button" id="can">Annulla</button><button type="button" class="p" id="sv">Salva</button></span></div>';
+    return `<label class="${t==='f'||t==='area'?'f':''}">${l}${inp}</label>`}).join('')+'</div>'+offHTML(r)+'<h3 style="font-size:14px;margin:12px 0 6px">Servizi da svolgere</h3><div id="svb"></div><button type="button" id="sva">+ Aggiungi servizio</button>'+((r.ore||[]).length?'<h3 style="font-size:14px;margin:12px 0 6px">Ore registrate dai dipendenti</h3><div id="oreb"></div>':'')+'<div class="calc" id="cl"></div><div class="ft"><span>'+(id?'<button type="button" class="d" id="del">Elimina</button>':'')+'</span><span class="btns"><button type="button" id="can">Annulla</button><button type="button" class="p" id="sv">Salva</button></span></div>';
   const upd=()=>{const t={};F.forEach(([k])=>t[k]=$('frm').elements[k].value);t.ore=r.ore;t.iv=r.iv;const c=calc(t);$('cl').innerHTML=`${t.loc?(geo(t.loc)?`<span>📍 ${esc(geo(t.loc).a)} (${geo(t.loc).p})</span>`:'<span class="neg">📍 località non trovata sulla mappa</span>'):''}<span>Tariffa: <b>${rate(t).h} €/h</b></span>${c.D.h?`<span>👥 Dalle ore dei dipendenti: <b>${fmt(c.D.h)} h</b> già comprese in Ore totali${c.D.tr?`, di cui <b>${fmt(c.D.tr)} h</b> in Ore trasferta`:''}</span>`:''}<span>€ ore: <b>${eur(c.ore)}</b></span><span>€ km: <b>${eur(c.km)}</b></span><span>€ spese: <b>${eur(c.sp)}</b></span><span>Costo totale: <b>${eur(c.tot)}</b></span><span>Rimanente: <b>${eur(c.rim)}</b></span>`};
   $('frm').oninput=upd;upd();
+  $('frm').addEventListener('change',e=>{if(e.target.name==='offEs'){$('ctrb').hidden=e.target.value!=='ok';if(e.target.value==='ok'){const f=$('frm').elements;if(!f.c_rif.value)f.c_rif.value=f.prevCode.value;f.c_num.focus()}}});
   const oreL=(r.ore||[]).map(x=>({...x}));
-  const ro=()=>{if(!$('oreb'))return;const L=[...oreL].sort((a,b)=>(a.d||'')<(b.d||'')?1:-1);$('oreb').innerHTML=`<div class="tw"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${L.map(x=>`<tr><td>${dIt(x.d)}</td><td>${esc(x.op)}</td><td class="n">${fmt(n(x.h))}${x.tr?' <span class="tag">trasferta</span>':''}</td><td class="n">${x.km===''?'':fmt(n(x.km))}</td><td class="n">${n(x.sp)?eur2(x.sp):''}</td><td class="w">${esc(x.note)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2"><b>Totale</b></td><td class="n"><b>${fmt(oreL.reduce((s,x)=>s+n(x.h),0))}</b></td><td class="n">${fmt(oreL.reduce((s,x)=>s+n(x.km),0))}</td><td class="n">${eur2(oreL.reduce((s,x)=>s+n(x.sp),0))}</td><td class="rates" style="white-space:normal">di cui trasferta ${fmt(oreL.filter(x=>x.tr).reduce((s,x)=>s+n(x.h),0))} h · già sommate nei campi del lavoro; si modificano dal programma Ore Dipendenti</td></tr></tfoot></table></div>`};
+  const ro=()=>{if(!$('oreb'))return;const L=[...oreL].sort((a,b)=>(a.d||'')<(b.d||'')?1:-1);$('oreb').innerHTML=`<div class="tw"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${L.map(x=>`<tr><td>${dIt(x.d)}</td><td>${esc(x.op)}</td><td class="n">${fmt(n(x.h))}${x.tr?' <span class="tag">trasferta</span>':''}</td><td class="n">${x.km===''?'':fmt(n(x.km))}</td><td class="n">${n(x.sp)?eur2(x.sp):''}</td><td class="w">${esc(x.note)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2"><b>Totale</b></td><td class="n"><b>${fmt(oreL.reduce((s,x)=>s+n(x.h),0))}</b></td><td class="n">${fmt(oreL.reduce((s,x)=>s+n(x.km),0))}</td><td class="n">${eur2(oreL.reduce((s,x)=>s+n(x.sp),0))}</td><td class="rates" style="white-space:normal">di cui trasferta ${fmt(oreL.filter(x=>x.tr).reduce((s,x)=>s+n(x.h),0))} h · già sommate nei campi del lavoro; si modificano dal programma INSERT_SISTEM</td></tr></tfoot></table></div>`};
   ro();
   const sv=(r.sv||[]).map(x=>({...x}));
   const rs=()=>{$('svb').innerHTML=sv.map((x,i)=>`<div class="sv ${x.ok?'sg':'sr'}"><input type="checkbox" data-i="${i}" data-f="ok" ${x.ok?'checked':''} title="Eseguito nei tempi"><input data-i="${i}" data-f="t" value="${esc(x.t)}" placeholder="Servizio da svolgere"><input type="date" data-i="${i}" data-f="d" value="${esc(x.d)}" title="Scadenza servizio"><button type="button" data-x="${i}">✕</button></div>`).join('')};
@@ -252,7 +329,8 @@ function openEdit(id){
   $('sva').onclick=()=>{sv.push({t:'',d:'',ok:false});rs()};
   $('can').onclick=()=>$('dlg').close();
   $('sv').onclick=()=>{const o=editing;F.forEach(([k,,t])=>{const v=$('frm').elements[k].value;o[k]=t==='num'&&v!==''?parseFloat(v):v});
-    if(!o.cod&&!o.nome){toast('Inserisci almeno codice o nome');return}o.sv=sv.filter(x=>x.t||x.d);if(o.ore||oreL.length)o.ore=oreL;
+    if(!o.cod&&!o.nome){toast('Inserisci almeno codice o nome');return}o.sv=sv.filter(x=>x.t||x.d);
+    {const f=$('frm').elements,c={rif:f.c_rif.value.trim(),num:f.c_num.value.trim(),data:f.c_data.value,ente:f.c_ente.value.trim(),tempi:f.c_tempi.value.trim(),note:f.c_note.value.trim()};o.offEs=f.offEs.value;if(Object.values(c).some(Boolean))o.ctr=c;else delete o.ctr}if(o.ore||oreL.length)o.ore=oreL;
     if(!o.id){o.id=Math.max(0,...S.rows.map(r=>r.id))+1;S.rows.push(o)}
     save();$('dlg').close();render();toast('Salvato')};
   if(id)$('del').onclick=async()=>{if(await ask('Eliminare definitivamente questo lavoro?')){S.rows=S.rows.filter(x=>x.id!=id);save();$('dlg').close();render()}};
@@ -276,8 +354,8 @@ function openWs(id){const r=S.rows.find(x=>x.id==id);if(!r)return;r.iv=r.iv||[];
     $('wtot').innerHTML=`<span>Interventi: <b>${A.length}</b></span><span>Ore: <b>${fmt(sum(A,'h'))}</b></span><span>Km: <b>${fmt(sum(A,'km'))}</b></span><span class="pos">Contabilizzati: <b>${C.length}</b></span><span class="${T.length?'neg':''}">Da contabilizzare: <b>${T.length}</b> · ${fmt(sum(T,'h'))} h · ${fmt(sum(T,'km'))} km${sum(T,'sp')?' · '+eur2(sum(T,'sp'))+' spese':''} · valore stimato <b>${eur(ivVal(T))}</b></span>`};
   const draw=()=>{sortIv();
     d.innerHTML=`<h2 style="margin:0 0 4px;font-size:17px">Interventi cantiere</h2><p class="rates" style="margin:0 0 10px">${esc(r.cod)} · ${esc(r.nome)}${r.cliente?' · '+esc(r.cliente):''}</p><datalist id="opl">${ops.map(o=>`<option value="${esc(o)}">`).join('')}</datalist>
-<div class="tw"><table class="wt"><thead><tr><th style="width:150px">Data intervento</th><th class="n" style="width:80px">Ore</th><th style="width:50px;text-align:center" title="Ore in trasferta">Trasf.</th><th class="n" style="width:80px">Km</th><th class="n" style="width:90px">Spese €</th><th style="width:150px">Operatore</th><th>Note</th><th style="width:60px;text-align:center">Contab.</th><th style="width:40px"></th></tr></thead><tbody>${r.iv.length?r.iv.map((x,i)=>`<tr data-i="${i}" class="${x.ok?'ivok':''} ${i&&K(x)!==K(r.iv[i-1])?'nd':''}"><td><input type="date" data-f="d" ${x.u?'disabled':''} value="${esc(x.d)}"></td><td><input type="number" step="any" min="0" data-f="h" ${x.u?'disabled':''} value="${esc(x.h)}"></td><td style="text-align:center"><input type="checkbox" data-f="tr" ${x.u?'disabled':''} ${x.tr?'checked':''} title="Ore in trasferta"></td><td><input type="number" step="any" min="0" data-f="km" ${x.u?'disabled':''} value="${esc(x.km)}"></td><td><input type="number" step="any" min="0" data-f="sp" ${x.u?'disabled':''} value="${esc(x.sp)}"></td><td><input data-f="op" ${x.u?'disabled':''} list="opl" value="${esc(x.op)}"></td><td><input data-f="note" ${x.u?'disabled':''} value="${esc(x.note)}"></td><td style="text-align:center"><input type="checkbox" data-f="ok" ${x.ok?'checked':''} title="Contabilizzato (fatturato)"></td><td>${x.u?'<span title="Inserito dal dipendente: si modifica dal programma Ore Dipendenti">👤</span>':`<button type="button" class="d" data-x="${i}" title="Elimina intervento">✕</button>`}</td></tr>`).join(''):'<tr><td colspan="9" class="em">Nessun intervento: usa «+ Aggiungi intervento».</td></tr>'}</tbody></table></div>
-<div class="calc" id="wtot"></div><div class="ft"><span class="btns"><button type="button" class="p" id="wad">+ Aggiungi intervento</button><button type="button" id="wcsv">Esporta Excel</button></span><button type="button" id="wcl">Chiudi</button></div>`;tot()};
+<div class="tw"><table class="wt"><thead><tr><th style="width:150px">Data intervento</th><th class="n" style="width:80px">Ore</th><th style="width:50px;text-align:center" title="Ore in trasferta">Trasf.</th><th class="n" style="width:80px">Km</th><th class="n" style="width:90px">Spese €</th><th style="width:150px">Operatore</th><th>Note</th><th style="width:60px;text-align:center">Contab.</th><th style="width:40px"></th></tr></thead><tbody>${r.iv.length?r.iv.map((x,i)=>`<tr data-i="${i}" class="${x.ok?'ivok':''} ${i&&K(x)!==K(r.iv[i-1])?'nd':''}"><td><input type="date" data-f="d" ${x.u?'disabled':''} value="${esc(x.d)}"></td><td><input type="number" step="any" min="0" data-f="h" ${x.u?'disabled':''} value="${esc(x.h)}"></td><td style="text-align:center"><input type="checkbox" data-f="tr" ${x.u?'disabled':''} ${x.tr?'checked':''} title="Ore in trasferta"></td><td><input type="number" step="any" min="0" data-f="km" ${x.u?'disabled':''} value="${esc(x.km)}"></td><td><input type="number" step="any" min="0" data-f="sp" ${x.u?'disabled':''} value="${esc(x.sp)}"></td><td><input data-f="op" ${x.u?'disabled':''} list="opl" value="${esc(x.op)}"></td><td><input data-f="note" ${x.u?'disabled':''} value="${esc(x.note)}"></td><td style="text-align:center"><input type="checkbox" data-f="ok" ${x.ok?'checked':''} title="Contabilizzato (fatturato)"></td><td>${x.u?'<span title="Inserito dal dipendente: si modifica dal programma INSERT_SISTEM">👤</span>':`<button type="button" class="d" data-x="${i}" title="Elimina intervento">✕</button>`}</td></tr>`).join(''):'<tr><td colspan="9" class="em">Nessun intervento: usa «+ Aggiungi intervento».</td></tr>'}</tbody></table></div>
+<div class="calc" id="wtot"></div><div class="ft"><span class="btns"><button type="button" class="p" id="wad">+ Aggiungi intervento</button><button type="button" id="wcsv">Esporta Excel</button><button type="button" id="wprt">Stampa</button><button type="button" id="wpdf">Esporta PDF</button></span><button type="button" id="wcl">Chiudi</button></div>`;tot()};
   draw();
   d.oninput=e=>{const t=e.target,tr=t.closest('tr[data-i]');if(!tr||!t.dataset.f)return;const x=r.iv[+tr.dataset.i],f=t.dataset.f;
     if(f==='ok'){x.ok=t.checked;tr.classList.toggle('ivok',x.ok)}else if(f==='tr')x.tr=t.checked;else if(f==='h'||f==='km'||f==='sp')x[f]=t.value===''?'':parseFloat(t.value);else if(f!=='d')x[f]=t.value;
@@ -286,6 +364,9 @@ function openWs(id){const r=S.rows.find(x=>x.id==id);if(!r)return;r.iv=r.iv||[];
   d.onclick=async e=>{const t=e.target;
     if(t.dataset.x!==undefined){const x=r.iv[+t.dataset.x];if((x.h||x.km||x.note||x.op)&&!await ask('Eliminare l\'intervento del '+(x.d?x.d.split('-').reverse().join('/'):'(senza data)')+'?'))return;r.iv.splice(+t.dataset.x,1);save();draw()}
     else if(t.id==='wad'){r.iv.push({d:new Date().toISOString().slice(0,10),h:'',km:'',op:'',note:'',ok:false});save();draw();const i=r.iv.findIndex(x=>!x.h&&!x.km&&!x.note&&!x.op);d.querySelector(`tr[data-i="${i}"] input[data-f="h"]`)?.focus()}
+    else if(t.id==='wprt'||t.id==='wpdf'){const L=[...r.iv].sort((a,b)=>(a.d||'')>(b.d||'')?1:-1),T=L.filter(x=>!x.ok);
+      const html=repTable('Interventi cantiere · '+esc(r.cod)+' '+esc(r.nome),esc(r.cliente||''),['Data','Ore','Trasf.','Km','Spese','Operatore','Note','Contab.','Valore stimato'],L.map(x=>[dIt(x.d),fmt(n(x.h)),x.tr?'sì':'',x.km===''?'':fmt(n(x.km)),n(x.sp)?eur2(x.sp):'',esc(x.op),esc(x.note),x.ok?'✓':'',eur(ivVal([x]))]),`<p><b>Da contabilizzare:</b> ${T.length} interventi · ${fmt(T.reduce((s,x)=>s+n(x.h),0))} h · valore stimato ${eur(ivVal(T))}</p>`);
+      outReport(html,t.id==='wpdf'?'pdf':'print','Interventi_'+String(r.cod||r.id).replace(/[^\w-]+/g,'_')+'.pdf',toast)}
     else if(t.id==='wcsv')saveFile('interventi_'+String(r.cod||r.id).replace(/[^\w-]+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.csv',ivCsv([r]),'text/csv');
     else if(t.id==='wcl')d.close()};
   d.onclose=()=>{r.iv=r.iv.filter(x=>x.d||x.h||x.km||x.sp||x.note||x.op);save();render()};
@@ -303,20 +384,22 @@ function openList(k){const d=$('ls'),oggi=new Date().toISOString().slice(0,10),L
   d.innerHTML=`<h2 style="margin:0 0 4px;font-size:17px">${sv?'Servizi aperti':'Interventi da contabilizzare'}</h2><p class="rates" style="margin:0 0 10px">${L.length} ${sv?'servizi da svolgere':'interventi'} in ${lav} lavori, ordinati per ${sv?'scadenza':'data'}. ${sv?'Spunta «Fatto» quando il servizio è eseguito':'Spunta «Contab.» quando l\'intervento è fatturato'}; clicca il nome del lavoro per aprirlo.</p>
 <div class="tw ls"><table class="wt"><thead><tr>${H.map((h,i)=>`<th${i===H.length-1?' style="text-align:center"':''}>${h}</th>`).join('')}</tr></thead><tbody>${L.length?L.map((o,j)=>`<tr data-j="${j}">${row(o,j)}<td style="text-align:center"><input type="checkbox" data-j="${j}"></td></tr>`).join(''):`<tr><td colspan="${H.length}" class="em">${sv?'Nessun servizio aperto.':'Nessun intervento da contabilizzare.'}</td></tr>`}</tbody></table></div>
 ${sv||!L.length?'':`<div class="calc"><span>Ore: <b>${fmt(L.reduce((s,o)=>s+n(o.x.h),0))}</b></span><span>Km: <b>${fmt(L.reduce((s,o)=>s+n(o.x.km),0))}</b></span><span>Valore stimato: <b>${eur(ivVal(L.map(o=>o.x)))}</b></span></div>`}
-<div class="ft"><button type="button" id="lscsv" ${L.length?'':'disabled'}>Esporta Excel</button><button type="button" class="p" id="lscl">Chiudi</button></div>`;
+<div class="ft"><span class="btns"><button type="button" id="lscsv" ${L.length?'':'disabled'}>Esporta Excel</button><button type="button" id="lsprt">Stampa</button><button type="button" id="lspdf">Esporta PDF</button></span><button type="button" class="p" id="lscl">Chiudi</button></div>`;
   d.oninput=e=>{const t=e.target;if(t.dataset.j===undefined||t.type!=='checkbox')return;L[+t.dataset.j].x.ok=t.checked;t.closest('tr').classList.toggle('ivok',t.checked);save()};
   d.onclick=e=>{const t=e.target;
     if(t.dataset.o){e.preventDefault();d.close();sv?openEdit(t.dataset.o):openWs(t.dataset.o)}
     else if(t.id==='lscl')d.close();
+    else if(t.id==='lsprt'||t.id==='lspdf'){const R=sv?L.map(o=>[dIt(o.x.d)||'—',esc(o.x.t),esc(o.r.cod),esc(o.r.nome),esc(o.r.cliente),esc(o.r.stato),o.x.ok?'✓':'']):L.map(o=>[dIt(o.x.d),esc(o.r.cod),esc(o.r.nome),fmt(n(o.x.h)),o.x.km===''?'':fmt(n(o.x.km)),n(o.x.sp)?eur2(o.x.sp):'',esc(o.x.op),esc(o.x.note),o.x.ok?'✓':'']);
+      outReport(repTable(sv?'Servizi aperti':'Interventi da contabilizzare',new Date().toLocaleDateString('it-IT'),H,R),t.id==='lspdf'?'pdf':'print',(sv?'Servizi_aperti_':'Interventi_da_contabilizzare_')+oggi+'.pdf',toast)}
     else if(t.id==='lscsv'){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
       const R=sv?L.map(o=>[o.x.d,o.x.t,o.r.cod,o.r.nome,o.r.cliente,o.r.stato,o.x.ok?'sì':'no']):L.map(o=>[o.x.d,o.r.cod,o.r.nome,num(o.x.h),num(o.x.km),num(o.x.sp),o.x.op,o.x.note,o.x.ok?'sì':'no']);
       saveFile((sv?'servizi_aperti_':'interventi_da_contabilizzare_')+oggi+'.csv','﻿'+[H,...R].map(a=>a.map(q).join(';')).join('\r\n'),'text/csv')}};
   d.onclose=()=>render();
   if(!d.open)d.showModal()}
 // ===== Ore dipendenti =====
-// Il programma «Ore Dipendenti» scrive nella cartella condivisa (ore/<id>.json); qui l'amministratore gestisce dipendenti e PIN,
+// Il programma «INSERT_SISTEM» scrive nella cartella condivisa (ore/<id>.json); qui l'amministratore gestisce dipendenti e PIN,
 // riceve in automatico le registrazioni (sommate nei campi del lavoro) e stampa i report mensili.
-const OD={f:{v:1,admin:{},dip:[]},ore:{},miss:[],tab:'app',err:'',dir:''};
+const OD={f:{v:1,admin:{},dip:[]},ore:{},fer:{e:{},prog:[]},miss:[],tab:'app',err:'',dir:''};
 let pcT;
 function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=>{
   const L=S.rows.filter(r=>r.stato!=='Non fare'&&(M.odFin||!/^finit/i.test(r.stato||''))).map(r=>({id:r.id,cod:String(r.cod??''),nome:r.nome||'',cliente:r.cliente||'',ws:!!r.ws}));
@@ -324,7 +407,7 @@ function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=
 async function odLoad(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
   OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};
   if(OD.f.dip.length&&!M.odOn){M.odOn=true;saveMeta();pubCodici()}
-  const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',null);OD.ore=O}
+  const O={};for(const d of OD.f.dip)O[d.id]=await rj('ore/'+d.id+'.json',null);OD.ore=O;OD.fer=await rj('ferie.json',{e:{},prog:[]})}
   catch(e){OD.err=String(e&&e.message||e);return false}
   odSync();return true}
 const odVoci=()=>OD.f.dip.flatMap(d=>((OD.ore[d.id]||{}).voci||[]).filter(v=>!v.del).map(v=>({v,d})));
@@ -334,7 +417,10 @@ const odVoci=()=>OD.f.dip.flatMap(d=>((OD.ore[d.id]||{}).voci||[]).filter(v=>!v.
 // o la cancella, qui si toglie la vecchia e si aggiunge la nuova. Mai durante la modifica di una scheda aperta.
 const odBusy=()=>['dlg','wd'].some(i=>$(i).open);
 const R2=v=>Math.max(0,Math.round(v*100)/100);
-function odApply(r,x,sg){r.hTot=R2(n(r.hTot)+sg*n(x.h));if(x.tr)r.hTr=R2(n(r.hTr)+sg*n(x.h));if(n(x.km))r.km=R2(n(r.km)+sg*n(x.km));if(n(x.sp))r.spEx=R2(n(r.spEx)+sg*n(x.sp))}
+// Spese per tipologia nei campi del lavoro: pasti → «Pasti €», hotel → «Spese trasferta €», generiche e minuteria → «Extra €»
+const SPCAMPO={pasti:'spPa',hotel:'spTr',gen:'spEx',min:'spEx'};
+function odApply(r,x,sg){r.hTot=R2(n(r.hTot)+sg*n(x.h));if(x.tr)r.hTr=R2(n(r.hTr)+sg*n(x.h));if(n(x.km))r.km=R2(n(r.km)+sg*n(x.km));
+  (Array.isArray(x.spl)?x.spl:(n(x.sp)?[{t:'gen',i:x.sp}]:[])).forEach(s=>{const k=SPCAMPO[s.t]||'spEx';r[k]=R2(n(r[k])+sg*n(s.i))})}
 function odImported(){const m=new Map();S.rows.forEach(r=>[...(r.ore||[]),...(r.iv||[])].forEach(x=>{if(x.u)m.set(x.u,{x,r})}));return m}
 function odUnimport(u){S.rows.forEach(r=>['ore','iv'].forEach(k=>{if(!r[k])return;const i=r[k].findIndex(x=>x.u===u);if(i<0)return;if(r[k][i].t)odApply(r,r[k][i],-1);r[k].splice(i,1)}))}
 function odSync(){OD.miss=[];if(odBusy())return 0;let ch=0;const okm=new Map(),want=new Map();
@@ -344,10 +430,12 @@ function odSync(){OD.miss=[];if(odBusy())return 0;let ch=0;const okm=new Map(),w
     if(w.v.del||!x.t||+w.v.t!==+x.t||odRow(w.v)!==r||x.op!==w.d.nome){okm.set(u,x.ok);odUnimport(u);ch++}});
   const have=odImported();
   want.forEach(({v,d},u)=>{if(v.del||have.has(u))return;const r=odRow(v);if(!r){OD.miss.push({v,d});return}
-    const it={u,t:v.t,di:d.id,d:v.d,h:v.h,tr:!!v.tr,km:v.km??'',sp:v.sp??'',op:d.nome,note:v.note||''};
-    if(r.ws)(r.iv=r.iv||[]).push({...it,ok:!!okm.get(u)});else(r.ore=r.ore||[]).push(it);odApply(r,it,1);ch++});
+    const spl=splOf(v).map(x=>({t:x.t,i:n(x.i)})),it={u,t:v.t,di:d.id,d:v.d,h:v.h,tr:!!v.tr,cant:!!v.cant,luogo:luogoOf(v),km:v.km??'',auto:v.auto||'',spl,sp:spl.reduce((a,x)=>a+x.i,0)||'',op:d.nome,note:v.note||''};
+    // nei cantieri diventa un intervento solo se il dipendente ha scelto «Cantiere» (le registrazioni vecchie, senza scelta, restano interventi)
+    if(r.ws&&(v.cant||(v.cant===undefined&&v.luogo===undefined)))(r.iv=r.iv||[]).push({...it,ok:!!okm.get(u)});else(r.ore=r.ore||[]).push(it);odApply(r,it,1);ch++});
   if(ch){save();render()}odBadge();return ch}
-function odBadge(){const k=(OD.miss||[]).length;$('odbtn').innerHTML='👥 Ore dipendenti'+(k?` <span class="tag sr" title="Registrazioni con lavoro non trovato">${k} ⚠</span>`:'')}
+const odRich=()=>OD.f.dip.flatMap(d=>progOf(d.id,(OD.ore[d.id]||{}).rich,OD.fer).map(p=>({p,d})));
+function odBadge(){const k=(OD.miss||[]).length,a=odRich().filter(x=>x.p.stato==='att').length;$('odbtn').innerHTML='👥 Ore dipendenti'+(k?` <span class="tag sr" title="Registrazioni con lavoro non trovato">${k} ⚠</span>`:'')+(a?` <span class="tag" style="background:rgba(138,92,209,.25)" title="Richieste di ferie e permessi da approvare">${a} ferie</span>`:'')}
 function odRow(v){const c=String(v.cod??'');return S.rows.find(r=>r.id==v.lav&&String(r.cod??'')===c)||(c?S.rows.find(r=>String(r.cod??'')===c):null)||S.rows.find(r=>r.id==v.lav&&r.nome===v.nome)}
 function askText(m,ph){return new Promise(res=>{$('askm').innerHTML=esc(m)+'<input id="askt" style="width:100%;margin-top:8px" placeholder="'+esc(ph||'')+'">';const d=$('ask');d.showModal();$('askt').focus();
   $('asky').onclick=()=>{const v=$('askt').value;d.close();res(v)};$('askn').onclick=()=>{d.close();res(null)}})}
@@ -355,8 +443,9 @@ async function openOD(tab){const d=$('od');if(tab)OD.tab=tab;d.innerHTML='<p cla
   if(!await odLoad()&&OD.err==='cartella condivisa non impostata')OD.tab='imp';odDraw()}
 $('odbtn').onclick=()=>openOD();
 function odDraw(){const d=$('od'),np=(OD.miss||[]).length;
-  const T=[['app','Registrazioni'],['rep','Report mensile'],['ass','Ferie, permessi e note'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
-  d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><span class="btns">${VFS.sim?'<button type="button" id="odpv">Prova come dipendente</button>':''}<button type="button" id="odx">Chiudi</button></span></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np} ⚠</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
+  const na=odRich().filter(x=>x.p.stato==='att').length;
+  const T=[['app','Registrazioni'],['rep','Report mensile'],['ass','Ferie e permessi'],['dip','Dipendenti e PIN'],['imp','Impostazioni']];
+  d.innerHTML=`<div class="odh"><h2>Ore dipendenti</h2><span class="btns">${VFS.sim?'<button type="button" id="odpv">Prova come dipendente</button>':''}<button type="button" id="odx">Chiudi</button></span></div><div class="tabs">${T.map(([k,l])=>`<button type="button" data-t="${k}" class="${OD.tab===k?'on':''}">${l}${k==='app'&&np?` <span class="tag sr">${np} ⚠</span>`:''}${k==='ass'&&na?` <span class="tag" style="background:rgba(138,92,209,.25)">${na}</span>`:''}</button>`).join('')}</div>${OD.err&&OD.tab!=='imp'?`<p class="neg">⚠ ${OD.err==='cartella condivisa non impostata'?'Prima scegli la cartella condivisa in «Impostazioni».':'Cartella condivisa non raggiungibile: '+esc(OD.err)}</p>`:''}<div id="odb"></div>`;
   ({app:odApp,rep:odRep,ass:odAss,dip:odDip,imp:odImp})[OD.tab]();
   $('odx').onclick=()=>d.close();if($('odpv'))$('odpv').onclick=openOrePreview;
   d.querySelector('.tabs').onclick=e=>{const t=e.target.closest('[data-t]');if(t){OD.tab=t.dataset.t;odDraw()}}}
@@ -367,27 +456,68 @@ function odApp(){const b=$('odb'),f=OD.fa=OD.fa||{dip:'',m:oggiL().slice(0,7)},i
   b.innerHTML=`<div class="flt">${dipSel('oa1',f.dip,'Tutti i dipendenti')}<input type="month" id="oa3" value="${f.m}" title="Mese (vuoto = tutti)"><button type="button" id="oa4">⟳ Aggiorna</button></div>
 <p class="rates" style="margin:0 0 8px">Quello che i dipendenti inseriscono entra subito nel lavoro, senza approvazione: le ore si sommano a «Ore totali» (e anche a «Ore trasferta» se in trasferta), i km a «Km», le spese a «Extra €». Se il dipendente modifica o cancella una registrazione, il lavoro si aggiorna da solo.</p>
 ${(OD.miss||[]).length?`<p class="neg" style="margin:0 0 8px">⚠ ${OD.miss.length} registrazioni non sono entrate perché il lavoro non esiste più nel programma (codice cambiato o lavoro eliminato).</p>`:''}
-<div class="tw ls"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th>Cod</th><th>Lavoro</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th><th>Nel lavoro</th></tr></thead><tbody>${L.length?L.map(x=>{const v=x.v,m=imp.get(v.u);return`<tr><td>${dIt(v.d)}</td><td>${esc(x.d.nome)}</td><td>${esc(v.cod)}</td><td class="w">${esc(v.nome)}</td><td class="n">${fmt(n(v.h))}${v.tr?'<br><span class="tag">trasferta</span>':''}</td><td class="n">${v.km===''||v.km==null?'':fmt(n(v.km))}</td><td class="n">${n(v.sp)?eur2(v.sp):''}</td><td class="w">${esc(v.note)}</td><td>${m?`<span class="tag sg">✓ ${m.r.ws?'cantiere':'sommata'}</span>`:'<span class="tag sr">⚠ lavoro non trovato</span>'}</td></tr>`}).join(''):'<tr><td colspan="9" class="em">Nessuna registrazione.</td></tr>'}</tbody></table></div>
-<div class="ft"><span class="rates">${L.length} registrazioni · ${fmt(L.reduce((s,x)=>s+n(x.v.h),0))} ore, di cui ${fmt(L.filter(x=>x.v.tr).reduce((s,x)=>s+n(x.v.h),0))} in trasferta</span></div>`;
+<div class="tw ls"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th>Cod</th><th>Lavoro</th><th class="n">Ore</th><th>Dove</th><th class="n">Km</th><th>Spese</th><th>Note</th><th>Nel lavoro</th></tr></thead><tbody>${L.length?L.map(x=>{const v=x.v,m=imp.get(v.u);return`<tr><td>${dIt(v.d)}</td><td>${esc(x.d.nome)}</td><td>${esc(v.cod)}</td><td class="w">${esc(v.nome)}</td><td class="n">${fmt(n(v.h))}</td><td>${LUOGHI[luogoOf(v)]}</td><td class="n">${v.km===''||v.km==null?'':fmt(n(v.km))+(v.auto?'<br><small>'+AUTO[v.auto]+'</small>':'')}</td><td>${splOf(v).map(s=>SPT[s.t]+' '+eur2(s.i)).join('<br>')}</td><td class="w">${esc(v.note)}</td><td>${m?`<span class="tag sg">✓ ${m.r.ws?'cantiere':'sommata'}</span>`:'<span class="tag sr">⚠ lavoro non trovato</span>'}</td></tr>`}).join(''):'<tr><td colspan="10" class="em">Nessuna registrazione.</td></tr>'}</tbody></table></div>
+<div class="ft"><span class="rates">${L.length} registrazioni · ${fmt(L.reduce((s,x)=>s+n(x.v.h),0))} ore, di cui ${fmt(L.filter(x=>luogoOf(x.v)==='cant').reduce((s,x)=>s+n(x.v.h),0))} in cantiere e ${fmt(L.filter(x=>luogoOf(x.v)==='tr').reduce((s,x)=>s+n(x.v.h),0))} in trasferta</span><span class="btns"><button type="button" id="oacsv">Esporta Excel</button><button type="button" id="oaprt">Stampa</button><button type="button" id="oapdf">Esporta PDF</button></span></div>`;
   b.onchange=e=>{const t=e.target;if(t.id==='oa1')f.dip=t.value;else if(t.id==='oa3')f.m=t.value;else return;odApp()};
-  b.onclick=async e=>{if(e.target.id==='oa4'){await odLoad();odDraw();toast('Aggiornato')}}}
+  b.onclick=async e=>{const id=e.target.id;if(id==='oa4'){await odLoad();odDraw();toast('Aggiornato')}
+    else if(id==='oacsv')saveFile('registrazioni_'+(f.m||'tutte')+'.csv',repCsv(OD.f.dip.filter(d=>!f.dip||d.id===f.dip).map(d=>({nome:d.nome,mese:f.m||'',voci:(OD.ore[d.id]||{}).voci,pers:[]}))),'text/csv');
+    else if(id==='oaprt'||id==='oapdf'){const R=L.map(x=>{const v=x.v;return[dIt(v.d),esc(x.d.nome),esc(v.cod),esc(v.nome),fmt(n(v.h)),LUOGHI[luogoOf(v)],v.km?fmt(n(v.km))+(v.auto?' ('+AUTO[v.auto]+')':''):'',splOf(v).map(s=>SPT[s.t]+' '+eur2(s.i)).join('<br>'),esc(v.note)]});
+      outReport(repTable('Registrazioni dei dipendenti',(f.m?MESI[+f.m.slice(5)-1]+' '+f.m.slice(0,4):'Tutti i mesi')+(f.dip?' · '+esc(OD.f.dip.find(d=>d.id===f.dip).nome):''),['Data','Dipendente','Cod','Lavoro','Ore','Dove','Km','Spese','Note'],R),id==='oapdf'?'pdf':'print','Registrazioni_'+(f.m||'tutte')+'.pdf',toast)}}}
 function odRepList(f){return OD.f.dip.filter(d=>f.dip?d.id===f.dip:d.attivo!==false||((OD.ore[d.id]||{}).voci||[]).some(v=>!v.del&&String(v.d).startsWith(f.m)))
-  .map(d=>({nome:d.nome,mese:f.m,voci:(OD.ore[d.id]||{}).voci,pers:(OD.ore[d.id]||{}).pers}))}
+  .map(d=>({nome:d.nome,mese:f.m,voci:(OD.ore[d.id]||{}).voci,pers:(OD.ore[d.id]||{}).pers,prog:progOf(d.id,(OD.ore[d.id]||{}).rich,OD.fer)}))}
 function odRep(){const b=$('odb'),f=OD.fr=OD.fr||{m:oggiL().slice(0,7),dip:''};
-  b.innerHTML=`<div class="flt"><input type="month" id="or1" value="${f.m}">${dipSel('or2',f.dip,'Tutti i dipendenti')}<span style="flex:1"></span><button type="button" id="or4">Esporta Excel</button><button type="button" class="p" id="or5">Stampa</button></div><div id="orv"></div>`;
+  b.innerHTML=`<div class="flt"><input type="month" id="or1" value="${f.m}">${dipSel('or2',f.dip,'Tutti i dipendenti')}<span style="flex:1"></span><button type="button" id="or4">Esporta Excel</button><button type="button" id="or5">Stampa</button><button type="button" class="p" id="or6">Esporta PDF</button></div><div id="orv"></div>`;
   const L=odRepList(f);$('orv').innerHTML=L.map(repMonth).join('')||'<p class="em">Nessun dipendente.</p>';
   b.onchange=e=>{const t=e.target;if(t.id==='or1')f.m=t.value||f.m;else if(t.id==='or2')f.dip=t.value;else return;odRep()};
-  b.onclick=e=>{if(e.target.id==='or4')saveFile('report_ore_'+f.m+'.csv',repCsv(L),'text/csv');else if(e.target.id==='or5'){$('print').innerHTML=L.map(repMonth).join('');window.print()}}}
+  b.onclick=e=>{if(e.target.id==='or4')saveFile('report_ore_'+f.m+'.csv',repCsv(L),'text/csv');else if(e.target.id==='or5')outReport(L.map(repMonth).join(''),'print');else if(e.target.id==='or6')outReport(L.map(repMonth).join(''),'pdf','Report_ore_'+(f.dip?OD.f.dip.find(d=>d.id===f.dip).nome.replace(/[^\w-]+/g,'_')+'_':'')+f.m+'.pdf',toast)}}
 const oggiL=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
-function odAss(){const b=$('odb'),f=OD.fs=OD.fs||{m:oggiL().slice(0,7),dip:''};
+// ===== Ferie e permessi: richieste dei dipendenti da approvare, calendario del mese, ferie assegnate dall'amministratore =====
+// ferie.json (scritto solo da qui): e = esiti delle richieste {u:{s:'ok'|'no',m,t}}, prog = ferie/permessi assegnati {u,di,d,tipo,h,note}
+async function ferWrite(mut){let F;try{F=await rj('ferie.json',{e:{},prog:[]})}catch(e){toast('Cartella condivisa non raggiungibile: niente è stato modificato');return false}
+  F.e=F.e||{};F.prog=F.prog||[];mut(F);F.agg=Date.now();try{await VFS.write('ferie.json',JSON.stringify(F))}catch(e){toast('Non salvato sul server: riprova');return false}OD.fer=F;odBadge();return true}
+function ferCalHTML(m,dips){const [Y,M]=m.split('-').map(Number),nd=new Date(Y,M,0).getDate(),days=[...Array(nd)].map((_,i)=>m+'-'+String(i+1).padStart(2,'0'));
+  return`<table class="fcal"><thead><tr><th class="nm">Dipendente</th>${days.map(ds=>{const g=giorno(ds);return`<th class="${g.fest?'g-fest':''}" title="${esc(g.nome)}">${GGS[g.dw].slice(0,1)}<br>${+ds.slice(8)}</th>`}).join('')}<th>Ferie</th><th>Perm.</th></tr></thead><tbody>${dips.map(d=>{const o=OD.ore[d.id]||{},pers=(o.pers||[]).filter(p=>!p.del),pg=progOf(d.id,o.rich,OD.fer);
+    const fp=pg.filter(p=>p.tipo==='ferie'&&p.stato==='ok'&&p.d.startsWith(m)).length,pe=pg.filter(p=>p.tipo==='permesso'&&p.stato==='ok'&&p.d.startsWith(m)).reduce((s,p)=>s+n(p.h),0);
+    return`<tr><td class="nm">${esc(d.nome)}</td>${days.map(ds=>{const pp=pers.filter(p=>p.d===ds),gg=pg.filter(p=>p.d===ds&&p.stato!=='no'),t=pp.some(p=>p.tipo==='malattia')?'M':pp.some(p=>p.tipo==='ferie')?'F':pp.some(p=>p.tipo==='permesso')||gg.some(p=>p.tipo==='permesso')?'P':gg.some(p=>p.stato==='att')?'?':'';
+      return`<td class="c ${coloreGiorno(ds,pp,gg)}" data-di="${esc(d.id)}" data-d="${ds}" title="${esc(d.nome)} · ${dIt(ds)}">${t}</td>`}).join('')}<td>${fp?fp+' gg':''}</td><td>${pe?fmt(pe)+' h':''}</td></tr>`}).join('')}</tbody></table>`}
+function odAss(){const b=$('odb'),f=OD.fs=OD.fs||{m:oggiL().slice(0,7),dip:''},dips=OD.f.dip.filter(d=>d.attivo!==false&&(!f.dip||d.id===f.dip));
+  const RA=odRich().filter(x=>x.p.stato==='att'&&x.p.da==='dip').sort((a,b)=>a.p.d<b.p.d?-1:1);
   const L=OD.f.dip.filter(d=>!f.dip||d.id===f.dip).flatMap(d=>((OD.ore[d.id]||{}).pers||[]).filter(p=>!p.del&&String(p.d).startsWith(f.m)).map(p=>({p,d}))).sort((a,b)=>a.p.d<b.p.d?-1:a.p.d>b.p.d?1:a.d.nome.localeCompare(b.d.nome));
+  const PM=odRich().filter(x=>(!f.dip||x.d.id===f.dip)&&String(x.p.d).startsWith(f.m)&&x.p.stato!=='att').sort((a,b)=>a.p.d<b.p.d?-1:1);
   const tot=t=>fmt(L.filter(x=>x.p.tipo===t).reduce((s,x)=>s+n(x.p.h),0));
-  b.innerHTML=`<div class="flt"><input type="month" id="os1" value="${f.m}">${dipSel('os2',f.dip,'Tutti i dipendenti')}</div>
-<div class="tw ls"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th>Tipo</th><th class="n">Ore</th><th>Note</th></tr></thead><tbody>${L.length?L.map(({p,d})=>`<tr><td>${dIt(p.d)}</td><td>${esc(d.nome)}</td><td><span class="tag">${TIPI[p.tipo]||esc(p.tipo)}</span></td><td class="n">${p.h?fmt(n(p.h)):''}</td><td class="w">${esc(p.note)}</td></tr>`).join(''):'<tr><td colspan="5" class="em">Niente nel mese.</td></tr>'}</tbody></table></div>
-<div class="calc"><span>Ferie: <b>${tot('ferie')} h</b></span><span>Permessi: <b>${tot('permesso')} h</b></span><span>Malattia: <b>${tot('malattia')} h</b></span><span>Note: <b>${L.filter(x=>x.p.tipo==='nota').length}</b></span></div>`;
-  b.onchange=e=>{const t=e.target;if(t.id==='os1')f.m=t.value||f.m;else if(t.id==='os2')f.dip=t.value;else return;odAss()}}
+  b.innerHTML=`<div class="rbox"><h3>Richieste da approvare ${RA.length?`<span class="tag" style="background:rgba(138,92,209,.25)">${RA.length}</span>`:''}</h3>${RA.length?`<div class="tw"><table class="wt"><thead><tr><th>Giorno</th><th>Dipendente</th><th>Richiesta</th><th>Note</th><th></th></tr></thead><tbody>${RA.map((x,i)=>{const g=giorno(x.p.d);return`<tr><td>${GGS[g.dw]} ${dIt(x.p.d)}${g.fest?' <span class="neg">festivo</span>':''}</td><td>${esc(x.d.nome)}</td><td>${x.p.tipo==='ferie'?'Giorno di ferie':'Permesso '+fmt(n(x.p.h))+' h'}</td><td class="w">${esc(x.p.note)}</td><td style="white-space:nowrap"><button type="button" class="p" data-ok="${i}">✓ Approva</button> <button type="button" class="d" data-no="${i}">✕ Rifiuta</button></td></tr>`}).join('')}</tbody></table></div><div class="ft" style="margin-top:6px"><button type="button" id="faall">Approva tutte</button></div>`:'<p class="rates" style="margin:0">Nessuna richiesta in attesa.</p>'}</div>
+<div class="flt"><input type="month" id="os1" value="${f.m}">${dipSel('os2',f.dip,'Tutti i dipendenti')}<span style="flex:1"></span><button type="button" id="faadd">+ Assegna ferie o permesso</button><button type="button" id="fcsv">Esporta Excel</button><button type="button" id="fprt">Stampa</button><button type="button" class="p" id="fpdf">Esporta PDF</button></div>
+<div id="fadd"></div>
+<div class="rbox"><h3>Calendario ${MESI[+f.m.slice(5)-1]} ${f.m.slice(0,4)}</h3>${legendaHTML()}<p class="rates" style="margin:0 0 6px">F = ferie fatte · P = permesso · M = malattia · ? = richiesta in attesa. Clic su una casella per assegnare o togliere un giorno di ferie.</p><div class="tw">${ferCalHTML(f.m,dips)}</div></div>
+${PM.length?`<div class="rbox"><h3>Ferie e permessi programmati nel mese</h3><div class="tw"><table class="wt"><thead><tr><th>Giorno</th><th>Dipendente</th><th>Tipo</th><th>Stato</th><th>Note</th><th></th></tr></thead><tbody>${PM.map((x,i)=>`<tr><td>${dIt(x.p.d)}</td><td>${esc(x.d.nome)}</td><td>${x.p.tipo==='ferie'?'Ferie':'Permesso '+fmt(n(x.p.h))+' h'}</td><td>${x.p.stato==='ok'?(x.p.da==='adm'?'<span class="tag oy">Assegnate</span>':'<span class="tag oy">Approvata</span>'):'<span class="tag on">Rifiutata</span>'+(x.p.motivo?' '+esc(x.p.motivo):'')}</td><td class="w">${esc(x.p.note)}</td><td>${x.p.da==='adm'?`<button type="button" class="d" data-rm="${i}">Togli</button>`:x.p.stato==='ok'?`<button type="button" class="d" data-rv="${i}">Revoca</button>`:''}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+<div class="rbox"><h3>Segnati dai dipendenti (ferie fatte, permessi, malattia, note)</h3><div class="tw ls"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th>Tipo</th><th class="n">Ore</th><th>Note</th></tr></thead><tbody>${L.length?L.map(({p,d})=>`<tr><td>${dIt(p.d)}</td><td>${esc(d.nome)}</td><td><span class="tag">${TIPI[p.tipo]||esc(p.tipo)}</span></td><td class="n">${p.h?fmt(n(p.h)):''}</td><td class="w">${esc(p.note)}</td></tr>`).join(''):'<tr><td colspan="5" class="em">Niente nel mese.</td></tr>'}</tbody></table></div>
+<div class="calc"><span>Ferie fatte: <b>${tot('ferie')} h</b></span><span>Permessi: <b>${tot('permesso')} h</b></span><span>Malattia: <b>${tot('malattia')} h</b></span><span>Note: <b>${L.filter(x=>x.p.tipo==='nota').length}</b></span></div></div>`;
+  const decide=async(X,s,m)=>{if(await ferWrite(F=>X.forEach(x=>{F.e[x.p.u]=m?{s,m,t:Date.now()}:{s,t:Date.now()}})))odDraw(),toast(s==='ok'?'Approvata':'Rifiutata')};
+  b.onchange=e=>{const t=e.target;if(t.id==='os1')f.m=t.value||f.m;else if(t.id==='os2')f.dip=t.value;else return;odAss()};
+  b.onclick=async e=>{const t=e.target,ds=t.dataset;
+    if(ds.ok!==undefined)decide([RA[+ds.ok]],'ok');
+    else if(ds.no!==undefined){const m=await askText('Motivo del rifiuto (lo vedrà il dipendente):','es. periodo di consegna');if(m!==null)decide([RA[+ds.no]],'no',m.trim())}
+    else if(t.id==='faall'){if(await ask('Approvare tutte le '+RA.length+' richieste in attesa?'))decide(RA,'ok')}
+    else if(ds.rm!==undefined){const x=PM[+ds.rm];if(await ask('Togliere '+(x.p.tipo==='ferie'?'le ferie':'il permesso')+' di '+x.d.nome+' del '+dIt(x.p.d)+'?')&&await ferWrite(F=>{F.prog=F.prog.filter(p=>p.u!==x.p.u)}))odDraw()}
+    else if(ds.rv!==undefined){const x=PM[+ds.rv],m=await askText('Revocare le ferie approvate di '+x.d.nome+' del '+dIt(x.p.d)+'? Motivo:','');if(m!==null&&await ferWrite(F=>{F.e[x.p.u]={s:'no',m:m.trim()||'revocata',t:Date.now()}}))odDraw()}
+    else if(t.classList.contains('c')&&ds.di){const d=OD.f.dip.find(x=>x.id===ds.di),o=OD.ore[ds.di]||{},pg=progOf(ds.di,o.rich,OD.fer).filter(p=>p.d===ds.d&&p.stato!=='no'),adm=pg.find(p=>p.da==='adm'),att=pg.find(p=>p.stato==='att');
+      if(att){const r=await ask(d.nome+' ha chiesto '+(att.tipo==='ferie'?'un giorno di ferie':'un permesso di '+fmt(n(att.h))+' h')+' il '+dIt(ds.d)+'. Approvare?');if(r)decide([{p:att,d}],'ok');return}
+      if(adm){if(await ask('Togliere le ferie assegnate a '+d.nome+' il '+dIt(ds.d)+'?')&&await ferWrite(F=>{F.prog=F.prog.filter(p=>p.u!==adm.u)}))odDraw();return}
+      if(pg.length){toast('Giorno già approvato: per toglierlo usa «Revoca» nell\'elenco sotto');return}
+      if(await ask('Assegnare un giorno di ferie a '+d.nome+' il '+dIt(ds.d)+'?')&&await ferWrite(F=>{F.prog.push({u:newId(),di:d.id,d:ds.d,tipo:'ferie',h:8,note:'',t:Date.now()})}))odDraw()}
+    else if(t.id==='faadd'){$('fadd').innerHTML=`<div class="rbox"><h3>Assegna ferie o permesso</h3><div class="g" style="grid-template-columns:repeat(auto-fit,minmax(150px,1fr))"><label>Dipendente${dipSel('fa1',f.dip,'—')}</label><label>Tipo<select id="fa2"><option value="ferie">Ferie (giorni interi)</option><option value="permesso">Permesso (ore)</option></select></label><label>Dal<input type="date" id="fa3" value="${oggiL()}"></label><label>Al<input type="date" id="fa4"></label><label>Ore di permesso<input type="number" id="fa5" min="0.5" max="8" step="0.5"></label><label class="f">Note<input id="fa6"></label></div><div class="ft"><button type="button" id="fax">Annulla</button><button type="button" class="p" id="fas">Assegna</button></div><p class="rates" style="margin:4px 0 0">Per le ferie su più giorni sabati, domeniche e festivi vengono saltati.</p></div>`}
+    else if(t.id==='fax')$('fadd').innerHTML='';
+    else if(t.id==='fas'){const di=$('fa1').value,tp=$('fa2').value,da=$('fa3').value,al=$('fa4').value||da,h=n($('fa5').value),note=$('fa6').value.trim();
+      if(!di){toast('Scegli il dipendente');return}if(!/^\d{4}-\d\d-\d\d$/.test(da)){toast('Indica la data');return}if(al<da){toast('La data finale è prima di quella iniziale');return}if(tp==='permesso'&&!(h>0)){toast('Indica le ore di permesso');return}
+      const G=[];for(let x=new Date(da+'T12:00');oggiDs(x)<=al;x.setDate(x.getDate()+1)){const s=oggiDs(x);if(tp==='permesso'||da===al||!giorno(s).fest)G.push(s)}
+      if(G.length>62){toast('Massimo due mesi per volta');return}
+      if(await ferWrite(F=>G.forEach(s=>F.prog.push({u:newId(),di,d:s,tipo:tp,h:tp==='permesso'?h:8,note,t:Date.now()})))){toast(G.length+(G.length===1?' giorno assegnato':' giorni assegnati'));odDraw()}}
+    else if(t.id==='fcsv')saveFile('ferie_'+f.m+'.csv',repCsv(dips.map(d=>({nome:d.nome,mese:f.m,voci:[],pers:(OD.ore[d.id]||{}).pers,prog:progOf(d.id,(OD.ore[d.id]||{}).rich,OD.fer)}))),'text/csv');
+    else if(t.id==='fprt'||t.id==='fpdf'){const html=`<section class="rep"><div class="rh"><h2>Ferie e permessi</h2><b>${MESI[+f.m.slice(5)-1]} ${f.m.slice(0,4)}</b></div>${ferCalHTML(f.m,dips)}${legendaHTML()}<p class="rn">F = ferie fatte · P = permesso · M = malattia · ? = richiesta in attesa. Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p></section>`+(PM.length?repTable('Ferie e permessi programmati','',['Giorno','Dipendente','Tipo','Stato','Note'],PM.map(x=>[dIt(x.p.d),esc(x.d.nome),x.p.tipo==='ferie'?'Ferie':'Permesso '+fmt(n(x.p.h))+' h',x.p.stato==='ok'?'Approvata':'Rifiutata',esc(x.p.note)])):'');
+      outReport(html,t.id==='fpdf'?'pdf':'print','Ferie_'+f.m+'.pdf',toast)}}}
+const oggiDs=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 function odDip(){const b=$('odb'),F=OD.dd=OD.dd||JSON.parse(JSON.stringify(OD.f));
-  b.innerHTML=`<p style="margin:0 0 10px">PIN amministratore: ${F.admin.pin?'<span class="pos">impostato ✓</span>':'<span class="neg">non impostato</span>'} <button type="button" id="odap">${F.admin.pin?'Cambia':'Imposta'} PIN amministratore</button><br><span class="rates">Con questo PIN entri nel programma «Ore Dipendenti» di qualsiasi PC e vedi o inserisci le ore di chiunque.</span></p>
+  b.innerHTML=`<p style="margin:0 0 10px">PIN amministratore: ${F.admin.pin?'<span class="pos">impostato ✓</span>':'<span class="neg">non impostato</span>'} <button type="button" id="odap">${F.admin.pin?'Cambia':'Imposta'} PIN amministratore</button><br><span class="rates">Con questo PIN entri nel programma «INSERT_SISTEM» di qualsiasi PC e vedi o inserisci le ore di chiunque.</span></p>
 <div class="tw"><table class="wt"><thead><tr><th>Nome e cognome</th><th>PIN</th><th>Ore su lavori</th><th style="text-align:center">Ferie, permessi, malattia</th><th style="text-align:center">Attivo</th></tr></thead><tbody>${F.dip.length?F.dip.map((d,i)=>{const p=Object.assign({lav:'tutti',ass:true},d.perm);return`<tr><td><input data-i="${i}" data-f="nome" value="${esc(d.nome)}" placeholder="Nome e cognome"></td><td style="white-space:nowrap">${d.pin?'<span class="pos">✓</span>':'<span class="neg">manca</span>'} <button type="button" data-pin="${i}">${d.pin?'Cambia':'Imposta'}</button></td><td><select data-i="${i}" data-f="lav"><option value="tutti" ${p.lav==='tutti'?'selected':''}>Tutti i lavori</option><option value="ws" ${p.lav==='ws'?'selected':''}>Solo cantieri (Worksite)</option><option value="no" ${p.lav==='no'?'selected':''}>Nessuno</option></select></td><td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="ass" ${p.ass?'checked':''}></td><td style="text-align:center"><input type="checkbox" data-i="${i}" data-f="attivo" ${d.attivo!==false?'checked':''}></td></tr>`}).join(''):'<tr><td colspan="5" class="em">Nessun dipendente: aggiungine uno.</td></tr>'}</tbody></table></div>
 <p class="rates">I dipendenti non si cancellano (le loro ore restano nei report): togli la spunta «Attivo» per nasconderli.${OD.dd!==OD.f&&JSON.stringify(OD.dd)!==JSON.stringify(OD.f)?' <b class="neg">Modifiche non ancora salvate.</b>':''}</p>
 <div class="ft"><button type="button" id="odda">+ Aggiungi dipendente</button><button type="button" class="p" id="odds">Salva dipendenti</button></div>`;
@@ -408,18 +538,18 @@ function odDip(){const b=$('odb'),F=OD.dd=OD.dd||JSON.parse(JSON.stringify(OD.f)
       M.odOn=true;saveMeta();pubCodici();odDraw();toast('Dipendenti salvati')}}}
 // Solo nelle prove nel browser: il programma dei dipendenti si apre qui dentro e usa la stessa cartella simulata
 function openOrePreview(){const d=$('ovp');
-  d.innerHTML='<div class="odh" style="margin-bottom:8px"><b>Ore Dipendenti (prova) · come lo vede il dipendente</b><button type="button" class="p" id="ovx">Chiudi e torna al pannello</button></div><iframe id="ovf" title="Ore Dipendenti" style="width:100%;height:calc(100% - 46px);border:1px solid var(--bd);border-radius:8px;background:var(--bg)"></iframe>';
+  d.innerHTML='<div class="odh" style="margin-bottom:8px"><b>INSERT_SISTEM (prova) · come lo vede il dipendente</b><button type="button" class="p" id="ovx">Chiudi e torna al pannello</button></div><iframe id="ovf" title="INSERT_SISTEM" style="width:100%;height:calc(100% - 46px);border:1px solid var(--bd);border-radius:8px;background:var(--bg)"></iframe>';
   const f=$('ovf');if(window.__ORE_HTML)f.srcdoc=window.__ORE_HTML;else f.src='Ore_Dipendenti.html';
   $('ovx').onclick=()=>d.close();d.onclose=async()=>{await odLoad();odBadge();if($('od').open)odDraw()};d.showModal()}
 function odImp(){const b=$('odb'),pub=M.odPub;
   b.innerHTML=`<h3 style="font-size:15px;margin:0 0 6px">Cartella condivisa sul server</h3>
 <p style="margin:0 0 8px">${OD.dir?'<b>'+esc(OD.dir)+'</b>':'<span class="neg">Non ancora scelta.</span>'} ${VFS.sim?'':'<button type="button" id="oic">Scegli cartella…</button>'}</p>
-${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del server è simulata qui. Per provare il programma dei dipendenti: <button type="button" id="oio">Apri Ore Dipendenti (prova)</button></p>':'<p class="rates">Crea sul server una cartella, ad esempio <b>\\\\SERVER\\ControlloLavori</b>, accessibile da tutti i PC, e sceglila qui e nel programma «Ore Dipendenti» di ogni dipendente (una sola volta per PC).</p>'}
+${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del server è simulata qui. Per provare il programma dei dipendenti: <button type="button" id="oio">Apri INSERT_SISTEM (prova)</button></p>':'<p class="rates">Crea sul server una cartella, ad esempio <b>\\\\SERVER\\ControlloLavori</b>, accessibile da tutti i PC, e sceglila qui e nel programma «INSERT_SISTEM» di ogni dipendente (una sola volta per PC).</p>'}
 <h3 style="font-size:15px;margin:14px 0 6px">Lavori visibili ai dipendenti</h3>
 <p style="margin:0 0 6px">${pub?`Elenco pubblicato: <b>${pub.n}</b> lavori, aggiornato il ${new Date(pub.t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.`:'Elenco non ancora pubblicato.'} <button type="button" id="oip">Pubblica ora</button></p>
 <label class="ck"><input type="checkbox" id="oif" ${M.odFin?'checked':''}> Mostra ai dipendenti anche i lavori in stato «Finito» (quelli «Non fare» non compaiono mai)</label>
 <p class="rates">L'elenco si aggiorna da solo a ogni modifica dei lavori. I dipendenti vedono solo codice, nome, cliente e se è un cantiere: non vedono importi né note.</p>
-<h3 style="font-size:15px;margin:14px 0 6px">PIN di apertura di Controllo Lavori</h3>
+<h3 style="font-size:15px;margin:14px 0 6px">PIN di apertura di CONTROLLO_SISTEM</h3>
 <p style="margin:0 0 6px">${M.lockPin?'<span class="pos">Attivo ✓</span>: il programma chiede il PIN all\'apertura e dopo 20 minuti di inattività.':'<span class="neg">Non attivo</span>: chi usa questo PC può aprire il programma.'} <button type="button" id="oil">${M.lockPin?'Cambia PIN':'Imposta PIN di apertura'}</button>${M.lockPin?' <button type="button" id="oiu">Togli PIN</button>':''}</p>
 <p class="rates" style="margin:0 0 6px">Usa un PIN diverso da quelli dei dipendenti. Se lo dimentichi, i dati non si perdono (sono nel file del salvataggio automatico): vedi la guida.</p>
 <h3 style="font-size:15px;margin:14px 0 6px">Riservatezza</h3>
@@ -428,7 +558,7 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
     if(t.id==='oil'){const v=await askText('Nuovo PIN di apertura (da 4 a 8 cifre):','es. 7350');if(v===null)return;if(!/^\d{4,8}$/.test(v.trim())){toast('Il PIN deve avere da 4 a 8 cifre');return}
       const v2=await askText('Ripeti il PIN per conferma:','');if(v2===null)return;if(v2.trim()!==v.trim()){toast('I due PIN non coincidono');return}
       M.lockPin=await hpin('apertura',v);saveMeta();lockUI();odDraw();toast('PIN di apertura attivo')}
-    else if(t.id==='oiu'){if(await ask('Togliere il PIN di apertura? Chiunque usi questo PC potrà aprire Controllo Lavori.')){delete M.lockPin;saveMeta();lockUI();odDraw();toast('PIN di apertura tolto')}}
+    else if(t.id==='oiu'){if(await ask('Togliere il PIN di apertura? Chiunque usi questo PC potrà aprire CONTROLLO_SISTEM.')){delete M.lockPin;saveMeta();lockUI();odDraw();toast('PIN di apertura tolto')}}
     else if(t.id==='oio')openOrePreview();
     else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
@@ -546,9 +676,12 @@ $('exp').onclick=async()=>{if(await saveFile(backupName(),backupData())){M.bk=Da
 function csvData(){
   const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');
   const NF=F.filter(f=>f[2]==='num').map(f=>f[0]);
-  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi','Worksite','Interventi','Interventi da contabilizzare','Ore da contabilizzare','di cui ore dipendenti','di cui ore dipendenti in trasferta'];
-  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | '),r.ws?'sì':'',r.ws?(r.iv||[]).length:'',r.ws?ivOpen(r):'',r.ws?num((r.iv||[]).filter(x=>!x.ok).reduce((s,x)=>s+n(x.h),0)):'',num(c.D.h||''),num(c.D.tr||'')].map(q).join(';')});
+  const H=[...F.map(f=>f[1]),'Tariffa €/h','Costo ore €','Costo km €','Spese €','Costo totale €','Rimanente €','Servizi eseguiti','Servizi','Worksite','Interventi','Interventi da contabilizzare','Ore da contabilizzare','di cui ore dipendenti','di cui ore dipendenti in trasferta','Esito offerta','Rif. offerta approvata','Contratto n.','Data contratto','Ente contratto','Tempistiche contratto','Note contratto'];
+  const L=S.rows.map(r=>{const c=calc(r),v=r.sv||[];return[...F.map(([k])=>NF.includes(k)?num(r[k]):r[k]),num(rate(r).h),num(c.ore),num(c.km),num(c.sp),num(c.tot),num(c.rim),v.length?v.filter(x=>x.ok).length+' su '+v.length:'',v.map(x=>(x.ok?'[fatto] ':'[da fare] ')+(x.t||'')+(x.d?' ('+x.d+')':'')).join(' | '),r.ws?'sì':'',r.ws?(r.iv||[]).length:'',r.ws?ivOpen(r):'',r.ws?num((r.iv||[]).filter(x=>!x.ok).reduce((s,x)=>s+n(x.h),0)):'',num(c.D.h||''),num(c.D.tr||''),r.offEs==='ok'?'Approvata':r.offEs==='no'?'Non approvata':'',...['rif','num','data','ente','tempi','note'].map(k=>(r.ctr||{})[k]||'')].map(q).join(';')});
   return '﻿'+[H.map(q).join(';'),...L].join('\r\n')}
+$('pdfl').onclick=()=>{if(!LAST.length){toast('Nessun lavoro da esportare');return}
+  const R=LAST.map(({r,c})=>[esc(r.cod),esc(r.nome),esc(r.cliente),esc(r.stato),r.offEs==='ok'?'Approvata'+(r.ctr&&r.ctr.num?' (contr. '+esc(r.ctr.num)+')':''):r.offEs==='no'?'Non approvata':'',r.prev===''?'':eur(n(r.prev)),r.fatt===''?'':eur(n(r.fatt)),eur(c.rim),eur(c.tot),esc(r.loc)]);
+  outReport(repTable('Elenco lavori',LAST.length+' lavori · '+new Date().toLocaleDateString('it-IT'),['Cod','Lavoro','Cliente','Stato','Offerta','Preventivo','Fatturato','Rimanente','Costo','Località'],R),'pdf','Elenco_lavori_'+oggiL()+'.pdf',toast)};
 $('csv').onclick=()=>{if(!S.rows.length){toast('Nessun lavoro da esportare');return}saveFile('lavori_'+new Date().toISOString().slice(0,10)+'.csv',csvData(),'text/csv')};
 // Promemoria backup: se ci sono modifiche e l'ultimo backup ha più di 7 giorni (non serve col salvataggio automatico dell'app)
 function remind(){const el=$('rem');if(!el)return;const g=M.bk?Math.floor((Date.now()-M.bk)/864e5):0;
@@ -573,7 +706,7 @@ async function deskInit(){if(!window.desktop)return;let r;try{r=await window.des
     if(p&&(!S.rows.length||r.mtime>(M.ch||0))){applyData(p,r.mtime);toast(p.rows.length+' lavori caricati da '+r.file);deskShow({ok:true,file:r.file,at:r.mtime});return}
     if(!p){deskShow(await window.desktop.save(backupData(),{keepOld:true}));return}}
   deskShow(await window.desktop.save(backupData()))}
-// PIN di apertura: chi si siede a questo PC non apre Controllo Lavori senza il PIN dell'amministratore.
+// PIN di apertura: chi si siede a questo PC non apre CONTROLLO_SISTEM senza il PIN dell'amministratore.
 // Si blocca anche dopo 20 minuti senza attività. L'impronta del PIN sta nei dati locali del programma.
 let lkTries=0,lkAct=Date.now();
 function lockNow(){if(!M.lockPin)return;document.querySelectorAll('dialog[open]').forEach(d=>d.close());$('lock').hidden=false;$('lki').value='';$('lke').textContent='';setTimeout(()=>$('lki').focus(),50)}

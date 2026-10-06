@@ -1,8 +1,8 @@
 {
   "name": "controllo-lavori",
-  "productName": "Controllo Lavori",
-  "version": "1.7.0",
-  "description": "Gestionale per il controllo dei lavori",
+  "productName": "CONTROLLO_SISTEM",
+  "version": "1.8.0",
+  "description": "CONTROLLO_SISTEM: gestionale lavori",
   "main": "main.js",
   "author": "sistembelluno",
   "license": "UNLICENSED",
@@ -18,7 +18,7 @@
   },
   "build": {
     "appId": "it.sistembelluno.controllolavori",
-    "productName": "Controllo Lavori",
+    "productName": "CONTROLLO_SISTEM",
     "files": [
       "main.js",
       "preload.js",
@@ -34,10 +34,10 @@
       ]
     },
     "portable": {
-      "artifactName": "Controllo-Lavori-${version}-portable.exe"
+      "artifactName": "CONTROLLO_SISTEM-${version}-portable.exe"
     },
     "nsis": {
-      "artifactName": "Controllo-Lavori-${version}-setup.exe",
+      "artifactName": "CONTROLLO_SISTEM-${version}-setup.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
@@ -46,13 +46,13 @@
         "dmg"
       ],
       "category": "public.app-category.business",
-      "artifactName": "Controllo-Lavori-${version}.${ext}"
+      "artifactName": "CONTROLLO_SISTEM-${version}.${ext}"
     },
     "linux": {
       "target": [
         "AppImage"
       ],
-      "artifactName": "Controllo-Lavori-${version}.${ext}"
+      "artifactName": "CONTROLLO_SISTEM-${version}.${ext}"
     }
   },
   "devDependencies": {

@@ -5,7 +5,10 @@ const fs = require('fs');
 // Lo stesso main.js serve due programmi: «Controllo Lavori» (amministratore) e «Ore Dipendenti».
 // Ogni build include una sola delle due pagine.
 const PAGE = fs.existsSync(path.join(__dirname, 'Controllo_Lavori.html')) ? 'Controllo_Lavori.html' : 'Ore_Dipendenti.html';
-const TITLE = PAGE === 'Controllo_Lavori.html' ? 'Controllo Lavori' : 'Ore Dipendenti';
+const ADMIN = PAGE === 'Controllo_Lavori.html';
+const TITLE = ADMIN ? 'CONTROLLO_SISTEM' : 'INSERT_SISTEM';
+// I programmi si chiamavano «Controllo Lavori» e «Ore Dipendenti»: i dati e le impostazioni restano nelle cartelle di sempre.
+app.setPath('userData', path.join(app.getPath('appData'), ADMIN ? 'Controllo Lavori' : 'Ore Dipendenti'));
 
 // Una sola istanza: i dati stanno nel localStorage del profilo dell'app,
 // due finestre aperte insieme si sovrascriverebbero a vicenda.
@@ -78,6 +81,21 @@ function saveData(json, opt) {
     return { ok: false, file, error: String((e && e.message) || e) };
   }
 }
+
+// Esporta PDF: la pagina mette il report nel riquadro di stampa, qui si sceglie dove salvarlo e si crea il PDF
+ipcMain.handle('pdf:save', async (e, name) => {
+  const safe = String(name || 'report.pdf').replace(/[\\/:*?"<>|]+/g, '_');
+  const r = await dialog.showSaveDialog(win, { title: 'Salva il PDF', defaultPath: path.join(app.getPath('documents'), safe.endsWith('.pdf') ? safe : safe + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
+  if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+  try {
+    const data = await win.webContents.printToPDF({ printBackground: true, pageSize: 'A4', preferCSSPageSize: true });
+    fs.writeFileSync(r.filePath, data);
+    shell.openPath(r.filePath);
+    return { ok: true, file: r.filePath };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
 
 ipcMain.handle('dati:init', () => info(dataDir()));
 ipcMain.handle('dati:save', (e, json, opt) => saveData(String(json), opt));

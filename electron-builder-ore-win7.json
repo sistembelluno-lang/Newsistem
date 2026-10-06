@@ -1,10 +1,10 @@
 {
   "appId": "it.sistembelluno.oredipendenti",
-  "productName": "Ore Dipendenti",
+  "productName": "INSERT_SISTEM",
   "electronVersion": "22.3.27",
   "extraMetadata": {
     "name": "ore-dipendenti",
-    "productName": "Ore Dipendenti"
+    "productName": "INSERT_SISTEM"
   },
   "files": [
     "main.js",
@@ -31,10 +31,10 @@
     ]
   },
   "portable": {
-    "artifactName": "Ore-Dipendenti-${version}-Windows7-32bit-portable.exe"
+    "artifactName": "INSERT_SISTEM-${version}-Windows7-32bit-portable.exe"
   },
   "nsis": {
-    "artifactName": "Ore-Dipendenti-${version}-Windows7-32bit-setup.exe",
+    "artifactName": "INSERT_SISTEM-${version}-Windows7-32bit-setup.exe",
     "oneClick": false,
     "allowToChangeInstallationDirectory": true
   }

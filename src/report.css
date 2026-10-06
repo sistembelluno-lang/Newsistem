@@ -5,7 +5,15 @@
 .rep .n{text-align:right;font-variant-numeric:tabular-nums}.rep tbody tr{cursor:default}.rep tbody tr:hover td{filter:none}
 .rep tr.we td{background:var(--hd)}.rep tbody td:first-child{white-space:nowrap}.rep tfoot td{font-weight:700;background:var(--hd)}.rep .rn{font-size:11px;color:var(--mu)}
 .firme{display:flex;gap:40px;margin-top:36px}.firme div{flex:1;border-top:1px solid var(--tx);padding-top:4px;font-size:12px}
+/* Colori dei giorni: rosso festivi, viola ferie programmate, blu ferie fatte, giallo malattia, viola a righe richiesta in attesa */
+.g-fest td,td.g-fest,div.g-fest,i.g-fest{background:rgba(214,48,49,.13)}.g-fest td:first-child,.g-fest .dl{color:#c0392b}
+.g-fp td,td.g-fp,div.g-fp,i.g-fp{background:rgba(138,92,209,.25)}
+.g-fe td,td.g-fe,div.g-fe,i.g-fe{background:rgba(31,111,209,.22)}
+.g-ma td,td.g-ma,div.g-ma,i.g-ma{background:rgba(232,180,0,.32)}
+.g-att td,td.g-att,div.g-att,i.g-att{background:repeating-linear-gradient(45deg,rgba(138,92,209,.22) 0 5px,transparent 5px 10px)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--mu);margin:6px 0}.leg span{display:inline-flex;align-items:center;gap:5px}.leg i{display:inline-block;width:14px;height:12px;border:1px solid var(--bd);border-radius:3px}
+.rep .rs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.rep .rs td.n{white-space:nowrap}.rep .rs table th{text-align:left}
 #print{display:none}
 @media print{body>*:not(#print){display:none!important}#print{display:block!important}body{background:#fff!important;color:#000!important}
 #print .rep{border:0;padding:0;margin:0;break-after:page;background:#fff;color:#000}#print .rep:last-child{break-after:auto}
-#print .rep th,#print .rep td{border-color:#888;padding:1px 4px;font-size:9.5pt;line-height:1.25}#print .rep h2{font-size:13pt}#print .rep h3{margin:8px 0 4px}#print .firme{margin-top:22px}#print .rep tr.we td,#print .rep tfoot td{background:#eee}#print .rep .rn{color:#444}.firme div{border-color:#000}@page{size:A4;margin:12mm}}
+#print .rep th,#print .rep td{border-color:#888;padding:0 3px;font-size:8.5pt;line-height:1.2}#print .rep .leg{margin:3px 0;font-size:8pt}#print .rep .rs{gap:6px}#print .rep h2{font-size:13pt}#print .rep h3{margin:8px 0 4px}#print .firme{margin-top:16px}#print .rep h3{margin:6px 0 3px;font-size:10pt}#print .rep .rn{margin:4px 0}#print .rep tfoot td{background:#eee}#print .g-fest td,#print .g-fp td,#print .g-fe td,#print .g-ma td,#print .g-att td,#print .leg i{-webkit-print-color-adjust:exact;print-color-adjust:exact}#print .rep .rn{color:#444}.firme div{border-color:#000}@page{size:A4;margin:12mm}}

@@ -1,8 +1,10 @@
-# Controllo Lavori
+# CONTROLLO_SISTEM e INSERT_SISTEM
 
 Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
-- **Controllo Lavori** (`Controllo_Lavori.html`): il gestionale dell'amministratore;
-- **Ore Dipendenti** (`Ore_Dipendenti.html`): ogni dipendente, entrando con il proprio PIN, inserisce ore/km/spese/note sui lavori, ferie, permessi, malattia e note del giorno.
+- **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
+- **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
+
+Novità 1.8: esito dell'offerta con scheda contratto (rif. offerta approvata, contratto n. e data, ente, tempistiche, note); «Esporta PDF» su tutti i report; colori dei giorni (rosso festivi e festività nazionali, viola ferie programmate, blu ferie fatte, giallo malattia); file `ferie.json` nella cartella condivisa con esiti e ferie assegnate dall'amministratore. I dati restano nelle cartelle di prima (`%APPDATA%\Controllo Lavori`, `%APPDATA%\Ore Dipendenti`).
 
 ## Ore dipendenti: come funziona
 I due programmi si scambiano i dati attraverso una **cartella condivisa sul server** (es. `\\SERVER\ControlloLavori`), scelta una volta su ogni PC:

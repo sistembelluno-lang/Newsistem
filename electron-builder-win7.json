@@ -1,6 +1,6 @@
 {
   "appId": "it.sistembelluno.controllolavori",
-  "productName": "Controllo Lavori",
+  "productName": "CONTROLLO_SISTEM",
   "electronVersion": "22.3.27",
   "files": [
     "main.js",
@@ -27,10 +27,10 @@
     ]
   },
   "portable": {
-    "artifactName": "Controllo-Lavori-${version}-Windows7-32bit-portable.exe"
+    "artifactName": "CONTROLLO_SISTEM-${version}-Windows7-32bit-portable.exe"
   },
   "nsis": {
-    "artifactName": "Controllo-Lavori-${version}-Windows7-32bit-setup.exe",
+    "artifactName": "CONTROLLO_SISTEM-${version}-Windows7-32bit-setup.exe",
     "oneClick": false,
     "allowToChangeInstallationDirectory": true
   }
