@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<title>STATISTICHE_SISTEM</title>
+<title>CALC_SISTEM</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--tx:#1c2330;--mu:#6b7585;--bd:#dde1e8;--ac:#1f5fbf;--ok:#1a7f4b;--ko:#c0392b;--hd:#eef1f5;
@@ -162,7 +162,7 @@ tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
 </style>
 </head>
 <body>
-<header class="appbar"><div class="brand"><span class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><h1>STATISTICHE_SISTEM</h1></div></div><div class="meta">Fatturato, ore, trasferte e spese<br>mese per mese e anno per anno</div></header>
+<header class="appbar"><div class="brand"><span class="logo"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><h1>CALC_SISTEM</h1></div></div><div class="meta">Fatturato, ore, trasferte e spese<br>mese per mese e anno per anno</div></header>
 <main>
 <div class="card src">
   <button type="button" class="p" id="bagg" title="Rilegge i file dal server">⟳ Aggiorna dal server</button>
@@ -412,7 +412,7 @@ function disegna(){const out=$('out');
   $('flt').hidden=$('tabs').hidden=false;riempiFiltri();
   [...$('tabs').querySelectorAll('[data-t]')].forEach(b=>b.classList.toggle('on',b.dataset.t===F.tab));
   out.innerHTML=({pan:vPan,anni:vAnni,dip:vDip,lav:vLav}[F.tab]||vPan)();
-  $('ph').innerHTML=`<span class="mu">SISTEM SRL STP · STATISTICHE_SISTEM</span><h2>${E($('tabs').querySelector('.on').textContent.replace(/^\S+\s/,''))} · ${E(filtriTxt())}</h2>`}
+  $('ph').innerHTML=`<span class="mu">SISTEM SRL STP · CALC_SISTEM</span><h2>${E($('tabs').querySelector('.on').textContent.replace(/^\S+\s/,''))} · ${E(filtriTxt())}</h2>`}
 function statoFonti(){const f=FILES,c=f.cartelle,dip=f.dip&&f.dip.dip?f.dip.dip.length:0,no=Object.keys(f.ore).length;
   const q=t=>t?new Date(t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'';
   $('stato').innerHTML=(c?`<div>Cartella dati: <b>${E(c.dati||'—')}</b>${c.daAdmin&&c.daAdmin.dati?' <span class="mu">(da CONTROLLO_SISTEM)</span>':''}</div><div>Cartella condivisa: <b>${E(c.condivisa||'non scelta')}</b>${c.daAdmin&&c.daAdmin.condivisa?' <span class="mu">(da CONTROLLO_SISTEM)</span>':''}</div>`:'')
@@ -446,10 +446,10 @@ $('out').addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]')
   tip.hidden=false;const w=tip.offsetWidth,h=tip.offsetHeight;tip.style.left=Math.min(innerWidth-w-8,e.clientX+14)+'px';tip.style.top=Math.max(8,e.clientY-h-12)+'px'});
 $('out').addEventListener('mouseleave',()=>$('tip').hidden=true);
 // Esportazioni
-function csv(){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',R=[['STATISTICHE_SISTEM',filtriTxt()],[]];
+function csv(){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',R=[['CALC_SISTEM',filtriTxt()],[]];
   $('out').querySelectorAll('table[data-t]').forEach(t=>{R.push([t.dataset.t]);t.querySelectorAll('tr').forEach(tr=>R.push([...tr.children].map(c=>c.dataset.v!=null?String(c.dataset.v).replace('.',','):c.textContent.trim())));R.push([])});
   return'﻿'+R.map(r=>r.map(q).join(';')).join('\r\n')}
-const nomeFile=ext=>'Statistiche_'+($('tabs').querySelector('.on').dataset.t)+'_'+(F.y||'tutti')+(F.dk?'_'+sigla(M.nomi[F.dk]):'')+'.'+ext;
+const nomeFile=ext=>'CALC_SISTEM_'+($('tabs').querySelector('.on').dataset.t)+'_'+(F.y||'tutti')+(F.dk?'_'+sigla(M.nomi[F.dk]):'')+'.'+ext;
 $('bcsv').onclick=async()=>{const t=csv();if(window.stat){const r=await window.stat.saveText(nomeFile('csv'),t);if(r&&r.ok)toast('Salvato: '+r.file);else if(r&&r.error)toast('Non salvato: '+r.error);return}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([t],{type:'text/csv'}));a.download=nomeFile('csv');a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
 $('bpdf').onclick=async()=>{if(window.stat){const r=await window.stat.savePdf(nomeFile('pdf'));toast(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return}toast('Nella finestra di stampa scegli «Salva come PDF»');window.print()};

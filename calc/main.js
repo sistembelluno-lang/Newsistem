@@ -2,10 +2,10 @@ const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require('electron')
 const path = require('path');
 const fs = require('fs');
 
-// STATISTICHE_SISTEM: tabelle e grafici dai dati di CONTROLLO_SISTEM e INSERT_SISTEM.
+// CALC_SISTEM: tabelle e grafici dai dati di CONTROLLO_SISTEM e INSERT_SISTEM.
 // Programma a parte e in sola lettura: legge i file .json, non scrive mai nelle cartelle dei dati.
-const TITLE = 'STATISTICHE_SISTEM';
-app.setPath('userData', path.join(app.getPath('appData'), 'Statistiche Sistem'));
+const TITLE = 'CALC_SISTEM';
+app.setPath('userData', path.join(app.getPath('appData'), 'Calc Sistem'));
 if (!app.requestSingleInstanceLock()) app.quit();
 
 let win;
@@ -28,7 +28,7 @@ function createWindow() {
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith('file:')) { e.preventDefault(); if (/^https?:/.test(url)) shell.openExternal(url); }
   });
-  win.loadFile(path.join(__dirname, 'Statistiche.html'));
+  win.loadFile(path.join(__dirname, 'Calc_Sistem.html'));
 }
 
 const settingsPath = () => path.join(app.getPath('userData'), 'impostazioni.json');
@@ -84,14 +84,14 @@ ipcMain.handle('st:files', async () => {
   return r.filePaths.map((p) => { try { return { nome: path.basename(p), testo: readText(p), t: fs.statSync(p).mtimeMs }; } catch (err) { return { nome: path.basename(p), errore: msg(err) }; } });
 });
 ipcMain.handle('st:saveText', async (e, name, text) => {
-  const safe = String(name || 'statistiche.csv').replace(/[\\/:*?"<>|]+/g, '_');
+  const safe = String(name || 'calc_sistem.csv').replace(/[\\/:*?"<>|]+/g, '_');
   const r = await dialog.showSaveDialog(win, { title: 'Salva per Excel', defaultPath: path.join(app.getPath('documents'), safe), filters: [{ name: 'Excel (CSV)', extensions: ['csv'] }] });
   if (r.canceled || !r.filePath) return { ok: false, canceled: true };
   try { fs.writeFileSync(r.filePath, String(text)); shell.openPath(r.filePath); return { ok: true, file: r.filePath }; }
   catch (err) { return { ok: false, error: msg(err) }; }
 });
 ipcMain.handle('pdf:save', async (e, name) => {
-  const safe = String(name || 'statistiche.pdf').replace(/[\\/:*?"<>|]+/g, '_');
+  const safe = String(name || 'calc_sistem.pdf').replace(/[\\/:*?"<>|]+/g, '_');
   const r = await dialog.showSaveDialog(win, { title: 'Salva il PDF', defaultPath: path.join(app.getPath('documents'), safe.endsWith('.pdf') ? safe : safe + '.pdf'), filters: [{ name: 'PDF', extensions: ['pdf'] }] });
   if (r.canceled || !r.filePath) return { ok: false, canceled: true };
   try {

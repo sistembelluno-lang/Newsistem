@@ -1,0 +1,44 @@
+{
+  "appId": "it.sistembelluno.calcsistem",
+  "productName": "CALC_SISTEM",
+  "extraMetadata": {
+    "name": "calc-sistem",
+    "productName": "CALC_SISTEM",
+    "main": "calc/main.js"
+  },
+  "files": [
+    "calc/main.js",
+    "calc/preload.js",
+    "calc/Calc_Sistem.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-calc"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "nsis"
+    ]
+  },
+  "portable": {
+    "artifactName": "CALC_SISTEM-${version}-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "CALC_SISTEM-${version}-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "CALC_SISTEM-${version}.${ext}"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "CALC_SISTEM-${version}.${ext}"
+  }
+}
