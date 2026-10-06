@@ -66,7 +66,7 @@ function repMonth(o){
     rows+=`<tr class="${coloreGiorno(ds,pp,pg)}"><td>${GGS[gi.dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(ca)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
   const LL=Object.values(byL).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true}));
   const fpg=PG.filter(p=>p.tipo==='ferie'&&p.stato==='ok').length;
-  return`<section class="rep"><div class="rh"><h2>Report ore · ${X(o.nome)}</h2><b>${MESI[M-1]} ${Y}</b></div>
+  return`<section class="rep"><div class="rh"><div><span class="raz">SISTEM SRL STP</span><h2>Report ore · ${X(o.nome)}</h2></div><b>${MESI[M-1]} ${Y}</b></div>
 <table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore</th><th class="n">di cui cantiere</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Perm. h</th><th class="n">Mal. h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
 <tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.cant)}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
 ${legendaHTML()}
@@ -88,7 +88,7 @@ function repCsv(list){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=
   R.sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1]));
   return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Dove','Km','Auto','Spese generiche €','Pasti €','Hotel €','Minuteria €','Spese totali €','Note'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
 // Tabella stampabile generica (elenchi): titolo, sottotitolo, intestazioni e righe già in HTML sicuro
-function repTable(titolo,sub,H,R,dopo){return`<section class="rep"><div class="rh"><h2>${titolo}</h2><b>${sub||''}</b></div><table><thead><tr>${H.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${R.length?R.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${H.length}">Nessun dato.</td></tr>`}</tbody></table>${dopo||''}<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p></section>`}
+function repTable(titolo,sub,H,R,dopo){return`<section class="rep"><div class="rh"><div><span class="raz">SISTEM SRL STP</span><h2>${titolo}</h2></div><b>${sub||''}</b></div><table><thead><tr>${H.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${R.length?R.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${H.length}">Nessun dato.</td></tr>`}</tbody></table>${dopo||''}<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p></section>`}
 // Stampa o PDF di un report: nell'app desktop il PDF si salva con «Salva con nome», nel browser si usa la stampa (Salva come PDF)
 async function outReport(html,modo,nomeFile,avviso){const pr=document.getElementById('print');pr.innerHTML=html;
   if(modo==='pdf'&&window.desktop&&window.desktop.savePdf){const r=await window.desktop.savePdf(nomeFile);if(avviso)avviso(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return r}

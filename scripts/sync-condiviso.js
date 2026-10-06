@@ -1,8 +1,9 @@
-// Copia src/condiviso.js e src/report.css dentro i due HTML (che devono restare file unici e autonomi).
+// Copia src/condiviso.js, src/report.css e src/tema.css dentro i due HTML (che devono restare file unici e autonomi).
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 const js = fs.readFileSync(path.join(root, 'src/condiviso.js'), 'utf8').trim();
 const css = fs.readFileSync(path.join(root, 'src/report.css'), 'utf8').trim();
+const tema = fs.readFileSync(path.join(root, 'src/tema.css'), 'utf8').trim();
 for (const f of ['Controllo_Lavori.html', 'Ore_Dipendenti.html']) {
   const p = path.join(root, f);
   let s = fs.readFileSync(p, 'utf8');
@@ -13,6 +14,7 @@ for (const f of ['Controllo_Lavori.html', 'Ore_Dipendenti.html']) {
   };
   put('/*CONDIVISO-INIZIO (da src/condiviso.js: non modificare qui)*/', '/*CONDIVISO-FINE*/', js);
   put('/*REPORT-CSS-INIZIO (da src/report.css)*/', '/*REPORT-CSS-FINE*/', css);
+  put('/*TEMA-INIZIO (da src/tema.css)*/', '/*TEMA-FINE*/', tema);
   fs.writeFileSync(p, s);
   console.log('aggiornato', f);
 }

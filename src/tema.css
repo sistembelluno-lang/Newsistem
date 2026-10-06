@@ -1,0 +1,69 @@
+/* Tema grafico SISTEM SRL STP: barra in alto con il marchio, schede con ombre morbide, pulsanti in gradiente.
+   Va in fondo agli stili e li sovrascrive; niente color-mix (Windows 7). */
+:root{--bg:#eef2f8;--card:#fff;--tx:#0f1b2d;--mu:#5d6b82;--bd:#dfe5ef;--ac:#2457d6;--ok:#13804f;--ko:#c2372b;--hd:#f3f6fb;
+  --g1:#2563eb;--g2:#5b3fd9;--bar1:#0b1f4b;--bar2:#1d3f9e;--bar3:#4a3ad1;--sh:0 1px 2px rgba(15,27,45,.06),0 8px 22px rgba(15,27,45,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b111d;--card:#141c2c;--tx:#e8edf6;--mu:#93a1b8;--bd:#25314a;--ac:#7aa2ff;--ok:#46c98d;--ko:#ff7d6e;--hd:#1a2438;
+  --bar1:#060c1a;--bar2:#13265e;--bar3:#33289a;--sh:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35)}}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",sans-serif;background:var(--bg);
+  background-image:radial-gradient(900px 340px at 8% -120px,rgba(37,99,235,.13),transparent 70%),radial-gradient(700px 300px at 100% -80px,rgba(91,63,217,.10),transparent 70%);background-repeat:no-repeat}
+/* Barra del marchio */
+.appbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 22px;color:#fff;
+  background:linear-gradient(110deg,var(--bar1) 0%,var(--bar2) 58%,var(--bar3) 100%);box-shadow:0 6px 20px rgba(8,22,60,.28)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .logo{flex:none;width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(140deg,#38bdf8 0%,#3b82f6 45%,#7c3aed 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 14px rgba(0,0,0,.28)}
+.brand .logo svg{width:26px;height:26px}
+.brand .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;opacity:.82;white-space:nowrap}
+.brand h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.03em;color:#fff;line-height:1.15;white-space:nowrap}
+.appbar .meta{font-size:12px;opacity:.85;text-align:right;white-space:nowrap}
+.appbar button,.appbar select{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff}
+.appbar button:hover:not(:disabled){background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.5)}
+.appbar select option{color:#0f1b2d}.appbar b,.appbar .mu{color:#fff}.appbar .mu{opacity:.8}
+/* Controlli */
+button,select,input,textarea{border-radius:10px;border-color:var(--bd)}
+button{font-weight:500;transition:background-color .15s,border-color .15s,box-shadow .15s}
+button:hover:not(:disabled){border-color:var(--ac);box-shadow:0 2px 8px rgba(36,87,214,.14)}
+button:active:not(:disabled){transform:translateY(1px)}
+button.p{background:linear-gradient(135deg,var(--g1),var(--g2));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 4px 12px rgba(79,70,229,.30)}
+button.p:hover:not(:disabled){box-shadow:0 6px 16px rgba(79,70,229,.40);border-color:transparent}
+button.d{color:var(--ko)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(36,87,214,.18)}
+input[type=checkbox],input[type=radio]{accent-color:var(--ac)}
+/* Schede, riquadri, finestre */
+.card,.tw,.mp,.rbox,.kpi div,.calc{border-radius:14px}
+.card,.tw,.mp,.rbox,.kpi div{box-shadow:var(--sh);border-color:var(--bd)}
+.kpi div{position:relative;overflow:hidden;padding:12px 14px 12px 18px;background:var(--card)}
+.kpi div::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--g1),var(--g2))}
+.kpi small{text-transform:uppercase;font-size:10.5px;letter-spacing:.06em;font-weight:600;color:var(--mu)}
+.kpi b{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.kpi .kc:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(36,87,214,.18)}
+dialog{border:0;border-radius:18px;box-shadow:0 30px 70px rgba(8,20,48,.38)}
+dialog::backdrop{background:rgba(8,16,36,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.tag{border-radius:999px;font-weight:600}
+/* Tabelle */
+th{text-transform:uppercase;font-size:11.5px;letter-spacing:.04em;color:var(--mu);font-weight:700}
+.tw table th{background:var(--hd)}
+tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
+.rep th{text-transform:none;letter-spacing:0;font-size:inherit;color:inherit}
+/* Schede a linguette */
+.tabs button.on,.vtabs button.on{color:var(--ac);border-bottom-color:var(--ac)}
+.vtabs,.tabs{border-bottom-color:var(--bd)}
+/* Controllo: barra degli strumenti e mappa */
+.top{margin-top:4px}.top .btns{gap:8px}
+.mp .mh{font-weight:700}
+/* Insert: accesso, giorni, calendario */
+#vlog{max-width:720px;margin:28px auto;padding:22px 24px}
+#vlog h2{font-size:20px!important}
+.who button{border-radius:14px;padding:16px 14px;box-shadow:var(--sh);border-color:var(--bd);font-size:15px}
+.who button.sel{border-color:var(--ac);background:rgba(36,87,214,.10);box-shadow:0 0 0 3px rgba(36,87,214,.18)}
+.day{border-radius:12px;box-shadow:0 1px 2px rgba(15,27,45,.05)}
+.cal .c{border-radius:12px;box-shadow:0 1px 2px rgba(15,27,45,.05)}
+.seg{border-radius:10px}
+/* Blocco con PIN */
+#lock{background:linear-gradient(140deg,var(--bar1),var(--bar2) 60%,var(--bar3))}
+#lock .lb{border:0;border-radius:20px;box-shadow:0 30px 70px rgba(0,0,0,.35);padding:28px 26px}
+#lock .lb .logo{margin:0 auto 10px;width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#38bdf8,#3b82f6 45%,#7c3aed)}
+#lock .lb .logo svg{width:32px;height:32px}
+#lock .lb .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--mu);margin-bottom:2px}
+#toast{border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+@media (max-width:640px){.appbar{padding:8px 12px}.brand h1{font-size:16px}.appbar .meta{display:none}}

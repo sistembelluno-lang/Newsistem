@@ -1,5 +1,5 @@
 .rep{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px;color:var(--tx)}
-.rep .rh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.rep h2{font-size:17px;margin:0 0 8px}.rep h3{font-size:14px;margin:14px 0 6px}
+.rep .rh{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;border-bottom:2px solid var(--ac);padding-bottom:4px;margin-bottom:8px}.rep .raz{display:block;font-size:10px;font-weight:700;letter-spacing:.2em;color:var(--mu)}.rep .rh h2{margin:0!important}.rep h2{font-size:17px;margin:0 0 8px}.rep h3{font-size:14px;margin:14px 0 6px}
 .rep table{min-width:0;width:100%;border-collapse:collapse;font-size:12px}
 .rep th,.rep td{padding:3px 6px;border:1px solid var(--bd);white-space:normal;position:static;cursor:default;text-align:left;vertical-align:top}
 .rep .n{text-align:right;font-variant-numeric:tabular-nums}.rep tbody tr{cursor:default}.rep tbody tr:hover td{filter:none}

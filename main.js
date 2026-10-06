@@ -23,6 +23,7 @@ function createWindow() {
     minWidth: 360,
     minHeight: 500,
     title: TITLE,
+    backgroundColor: '#eef2f8',
     autoHideMenuBar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, 'preload.js') },
   });

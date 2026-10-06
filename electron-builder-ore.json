@@ -11,7 +11,8 @@
     "Ore_Dipendenti.html"
   ],
   "directories": {
-    "output": "dist"
+    "output": "dist",
+    "buildResources": "build-ore"
   },
   "win": {
     "target": [
