@@ -75,8 +75,12 @@ jobs:
           files: |
             out/*.exe
             guida/Manuale_CONTROLLO_SISTEM.pdf
+            guida/Guida_Amministratore.pdf
+            guida/Guida_Dipendenti.pdf
+            guida/Guida_Amministratore.html
+            guida/Guida_Dipendenti.html
           body: |
-            **Manuale di installazione e d'uso**: `Manuale_CONTROLLO_SISTEM.pdf` (qui sotto, in Assets).
+            **Guide** (qui sotto, in Assets): `Guida_Amministratore.pdf` / `.html` per l'amministrazione e il server, `Guida_Dipendenti.pdf` / `.html` per i dipendenti, `Manuale_CONTROLLO_SISTEM.pdf` completo.
 
             **Quale file scaricare**
 
