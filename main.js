@@ -161,6 +161,14 @@ ipcMain.handle('sh:test', () => {
   if (!prova('Cartella condivisa raggiungibile', () => { if (!fs.statSync(r.dir).isDirectory()) throw Object.assign(new Error(''), { code: 'ENOTDIR' }) })) return r;
   const stat = n => { try { const s = fs.statSync(sharedPath(n)); return { n, t: s.mtimeMs, b: s.size } } catch (err) { return { n, err: err.code === 'ENOENT' ? 'manca' : shMsg(err) } } };
   r.file = ['dipendenti.json', 'codici.json', 'ferie.json', 'attivita.json', 'messaggi.json'].map(stat);
+  // Cartella sbagliata? Se qui manca dipendenti.json si cerca nella cartella superiore e nelle sottocartelle
+  if (r.file[0].err === 'manca') {
+    const cand = [path.dirname(path.resolve(r.dir))];
+    try { fs.readdirSync(r.dir, { withFileTypes: true }).filter((d) => d.isDirectory()).forEach((d) => cand.push(path.join(r.dir, d.name))); } catch (_) { }
+    r.forse = cand.filter((c) => c !== path.resolve(r.dir) && fs.existsSync(path.join(c, 'dipendenti.json')));
+  }
+  // Lettera di unità (es. L:): funziona solo se su ogni PC la stessa lettera porta alla stessa cartella del server
+  r.lettera = /^[a-z]:/i.test(r.dir) ? r.dir.slice(0, 2).toUpperCase() : '';
   prova('Lettura dell\'elenco dipendenti', () => { JSON.parse(fs.readFileSync(sharedPath('dipendenti.json'), 'utf8').replace(/^﻿/, '')); });
   if (prova('Cartella «ore» presente', () => { if (!fs.statSync(sharedPath('ore')).isDirectory()) throw Object.assign(new Error(''), { code: 'ENOTDIR' }) })) {
     try { r.ore = fs.readdirSync(sharedPath('ore')).filter(n => /\.json$/i.test(n)).map(n => stat('ore/' + n)); } catch (err) { r.prove.push({ nome: 'Elenco dei file nella cartella «ore»', ok: false, info: shMsg(err) }); }

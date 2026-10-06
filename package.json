@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "CONTROLLO_SISTEM",
-  "version": "1.10.1",
+  "version": "1.10.2",
   "description": "CONTROLLO_SISTEM: gestionale lavori",
   "main": "main.js",
   "author": "sistembelluno",

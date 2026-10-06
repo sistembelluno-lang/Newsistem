@@ -419,7 +419,7 @@ async function verificaCollegamento(nomi,extra){const E=s=>String(s??'').replace
   const riga=(ok,t,info,avv)=>`<tr><td style="width:28px;text-align:center;font-size:16px">${ok?'✅':avv?'⚠️':'❌'}</td><td><b>${E(t)}</b>${info?`<br><span style="color:var(--mu);font-size:12px">${E(info)}</span>`:''}</td></tr>`;
   let h=`<p style="margin:0 0 8px">Programma <b>${r.admin?'CONTROLLO_SISTEM':'INSERT_SISTEM'} ${E(r.ver)}</b> · PC <b>${E(r.pc)}</b>${r.utente?' · utente Windows <b>'+E(r.utente)+'</b>':''}</p>`;
   if(!r.dir)return h+'<p class="neg">❌ Nessuna cartella condivisa scelta su questo PC.</p>';
-  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p><table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
+  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p>${r.forse&&r.forse.length?`<div class="vcko"><b>Attenzione: in questa cartella non c'è l'elenco dei dipendenti, ma c'è in ${r.forse.map(x=>'<b>'+E(x)+'</b>').join(' e in ')}.</b> Probabilmente su questo PC è scelta la cartella sbagliata: scegli quella, che deve essere la stessa su tutti i PC.</div>`:''}${r.lettera?`<p style="margin:0 0 8px;font-size:12px;color:var(--mu)">Il percorso usa la lettera di unità <b>${E(r.lettera)}</b>: su ogni PC (amministratore e dipendenti) ${E(r.lettera)} deve essere collegata alla stessa cartella del server. Se su un PC non c'è, usa il percorso di rete \\\\SERVER\\…</p>`:''}<table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
   if(r.file.length)h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dell'amministrazione nella cartella</h3><table class="vc">${r.file.map(f=>riga(!f.err,f.n,f.err?f.err:'aggiornato il '+quando(f.t),f.err==='manca'&&/attivita|messaggi|ferie/.test(f.n))).join('')}</table>`;
   if(r.prove.some(p=>p.nome.includes('ore')&&p.ok)||r.ore.length){const ids=new Set(Object.keys(nomi||{}));
     h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dei dipendenti (cartella «ore»)</h3><table class="vc">${r.ore.length?r.ore.map(f=>{const id=f.n.replace(/^ore\//,'').replace(/\.json$/i,''),nm=nomi&&nomi[id];
@@ -590,7 +590,9 @@ function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=
   try{await VFS.write('codici.json',JSON.stringify({agg:Date.now(),lav:L}));M.odPub={t:Date.now(),n:L.length};saveMeta()}catch(e){}},800)}
 async function odLoad(){const r=await odLoad0();attDraw();return r}
 async function odLoad0(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
-  OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};
+  const f0=OD.f;OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};OD.fOk=true;
+  // la bozza di «Dipendenti e PIN» senza modifiche si riallinea al file del server (altrimenti si risalverebbe un elenco vecchio)
+  if(OD.dd&&JSON.stringify(OD.dd)===JSON.stringify(f0))OD.dd=null;
   if(OD.f.dip.length&&!M.odOn){M.odOn=true;saveMeta();pubCodici()}
   // un file illeggibile non blocca gli altri: si tengono i dati letti l'ultima volta e si segnala l'errore
   const O={};OD.rerr={};for(const d of OD.f.dip){try{O[d.id]=await rj('ore/'+d.id+'.json',null)}catch(e){O[d.id]=OD.ore[d.id]||null;OD.rerr[d.id]=String(e&&e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'')}}OD.ore=O;OD.fer=await rj('ferie.json',{e:{},prog:[]});
@@ -716,13 +718,21 @@ function odDip(){const b=$('odb'),F=OD.dd=OD.dd||JSON.parse(JSON.stringify(OD.f)
     else if(t.dataset.pin!==undefined||t.id==='odap'){const d=t.id==='odap'?null:F.dip[+t.dataset.pin];
       const v=await askText('Nuovo PIN '+(d?'per '+(d.nome||'il dipendente'):'amministratore')+' (da 4 a 8 cifre):','es. 4821');if(v===null)return;
       if(!/^\d{4,8}$/.test(v.trim())){toast('Il PIN deve avere da 4 a 8 cifre');return}
-      if(d)d.pin=await hpin(d.id,v);else F.admin.pin=await hpin('admin',v);odDip();toast('PIN pronto: premi «Salva dipendenti»')}
-    else if(t.id==='odds'){const nm=F.dip.map(d=>d.nome.trim());if(nm.some(x=>!x)){toast('Ogni dipendente deve avere un nome');return}
-      if(new Set(nm.map(x=>x.toLowerCase())).size!==nm.length){toast('Ci sono due dipendenti con lo stesso nome');return}
-      F.dip.forEach(d=>d.nome=d.nome.trim());
-      try{await VFS.write('dipendenti.json',JSON.stringify({v:1,admin:F.admin,dip:F.dip}))}catch(err){toast('Non salvato: cartella condivisa non raggiungibile');return}
-      OD.f=JSON.parse(JSON.stringify(F));OD.dd=null;
-      M.odOn=true;saveMeta();pubCodici();odDraw();toast('Dipendenti salvati')}}}
+      if(d)d.pin=await hpin(d.id,v);else F.admin.pin=await hpin('admin',v);odDip();
+      // il PIN si salva subito sul server: un PIN «pronto» ma non salvato era la causa più comune di «PIN errato» in INSERT_SISTEM
+      if(F.dip.every(x=>x.nome.trim()))odDipSalva(F,'PIN salvato sul server');else toast('PIN pronto: scrivi il nome e premi «Salva dipendenti»')}
+    else if(t.id==='odds')odDipSalva(F,'Dipendenti salvati')}}
+// Salva dipendenti.json. Prima rilegge il file dal server: se l'elenco non era stato letto (server irraggiungibile all'apertura)
+// non si salva, così non si cancellano dipendenti e PIN; i dipendenti presenti sul server ma non in questa bozza si tengono.
+async function odDipSalva(F,msg){const nm=F.dip.map(d=>d.nome.trim());if(nm.some(x=>!x)){toast('Ogni dipendente deve avere un nome');return false}
+  if(new Set(nm.map(x=>x.toLowerCase())).size!==nm.length){toast('Ci sono due dipendenti con lo stesso nome');return false}
+  if(!OD.fOk){toast('Prima l\'elenco dei dipendenti deve essere letto dal server: premi «🔌 Verifica collegamento»');return false}
+  let srv;try{srv=await rj('dipendenti.json',{v:1,admin:{},dip:[]})}catch(err){toast('Non salvato: cartella condivisa non raggiungibile');return false}
+  F.dip.forEach(d=>d.nome=d.nome.trim());const ids=new Set(F.dip.map(d=>d.id));
+  const dip=[...F.dip,...(srv.dip||[]).filter(d=>d&&d.id&&!ids.has(d.id))],admin=F.admin&&F.admin.pin?F.admin:(srv.admin||F.admin||{});
+  try{await VFS.write('dipendenti.json',JSON.stringify({v:1,admin,dip}))}catch(err){toast('Non salvato: '+String(err&&err.message||err).replace(/^Error invoking remote method '[^']+': (Error: )?/,''));return false}
+  OD.f={v:1,admin,dip:JSON.parse(JSON.stringify(dip))};OD.dd=null;
+  M.odOn=true;saveMeta();pubCodici();odDraw();toast(msg+(dip.length>F.dip.length?' (tenuti anche '+(dip.length-F.dip.length)+' dipendenti già presenti sul server)':''));return true}
 // ===== Messaggi personali ai dipendenti: messaggi.json (scritto solo da qui) {msg:[{u,t,di,lav,cod,nome,testo,entro}]}.
 // Il dipendente li vede in INSERT_SISTEM; letto / fatto / risposta arrivano dal suo file (ore/<id>.json, campo ms).
 async function msgWrite(mut){let F;try{F=await rj('messaggi.json',{msg:[]})}catch(e){toast('Cartella condivisa non raggiungibile: niente è stato modificato');return false}

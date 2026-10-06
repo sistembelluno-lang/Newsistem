@@ -412,7 +412,7 @@ async function verificaCollegamento(nomi,extra){const E=s=>String(s??'').replace
   const riga=(ok,t,info,avv)=>`<tr><td style="width:28px;text-align:center;font-size:16px">${ok?'✅':avv?'⚠️':'❌'}</td><td><b>${E(t)}</b>${info?`<br><span style="color:var(--mu);font-size:12px">${E(info)}</span>`:''}</td></tr>`;
   let h=`<p style="margin:0 0 8px">Programma <b>${r.admin?'CONTROLLO_SISTEM':'INSERT_SISTEM'} ${E(r.ver)}</b> · PC <b>${E(r.pc)}</b>${r.utente?' · utente Windows <b>'+E(r.utente)+'</b>':''}</p>`;
   if(!r.dir)return h+'<p class="neg">❌ Nessuna cartella condivisa scelta su questo PC.</p>';
-  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p><table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
+  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p>${r.forse&&r.forse.length?`<div class="vcko"><b>Attenzione: in questa cartella non c'è l'elenco dei dipendenti, ma c'è in ${r.forse.map(x=>'<b>'+E(x)+'</b>').join(' e in ')}.</b> Probabilmente su questo PC è scelta la cartella sbagliata: scegli quella, che deve essere la stessa su tutti i PC.</div>`:''}${r.lettera?`<p style="margin:0 0 8px;font-size:12px;color:var(--mu)">Il percorso usa la lettera di unità <b>${E(r.lettera)}</b>: su ogni PC (amministratore e dipendenti) ${E(r.lettera)} deve essere collegata alla stessa cartella del server. Se su un PC non c'è, usa il percorso di rete \\\\SERVER\\…</p>`:''}<table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
   if(r.file.length)h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dell'amministrazione nella cartella</h3><table class="vc">${r.file.map(f=>riga(!f.err,f.n,f.err?f.err:'aggiornato il '+quando(f.t),f.err==='manca'&&/attivita|messaggi|ferie/.test(f.n))).join('')}</table>`;
   if(r.prove.some(p=>p.nome.includes('ore')&&p.ok)||r.ore.length){const ids=new Set(Object.keys(nomi||{}));
     h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dei dipendenti (cartella «ore»)</h3><table class="vc">${r.ore.length?r.ore.map(f=>{const id=f.n.replace(/^ore\//,'').replace(/\.json$/i,''),nm=nomi&&nomi[id];
@@ -463,6 +463,8 @@ $('wl').onclick=e=>{const b=e.target.closest('button[data-id]');if(!b)return;sel
   $('pf').hidden=false;$('pn').textContent=sel==='@admin'?'PIN amministratore':'PIN di '+b.textContent;$('pe').textContent='';$('pi').value='';$('pi').focus()};
 $('pb').onclick=async()=>{const pin=$('pi').value.trim();if(!pin)return;
   if(tries>=5){$('pe').textContent='Troppi tentativi: attendi 30 secondi';return}
+  // si rilegge l'elenco dal server: un PIN appena creato o cambiato dall'amministratore vale subito, senza riaprire il programma
+  try{const f=await rj('dipendenti.json',null);if(f&&f.dip)DIPF=f}catch(e){}
   let ok=false,who=null;
   if(sel==='@admin')ok=DIPF.admin&&DIPF.admin.pin===await hpin('admin',pin);
   else{who=DIPF.dip.find(d=>d.id===sel);if(who&&!who.pin){$('pe').textContent='PIN non ancora impostato: chiedi all\'amministratore';return}ok=who&&who.pin===await hpin(who.id,pin)}
@@ -498,6 +500,10 @@ async function persist(){const rel='ore/'+cur.id+'.json',me=cur.id;
     try{localStorage.setItem(CK(me),JSON.stringify({dirty:false,d:D}))}catch(e){}banner('');return true}
   catch(e){const m=String(e&&e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'');
     banner((/accesso negato|EPERM|EACCES/.test(m)?'⚠ Il server <b>non permette a questo PC di salvare</b> (accesso negato). Quello che inserisci resta su questo PC: avvisa l\'amministratore di dare il permesso «Modifica» sulla cartella <b>ore</b>.':'⚠ Server non raggiungibile: la registrazione è salvata su questo PC e verrà inviata appena possibile.')+' <span class="mu">('+esc(m)+')</span> <button id="rt2">Riprova ora</button> <button type="button" class="vcb">🔌 Verifica collegamento</button>');$('rt2').onclick=()=>persist().then(()=>vis(vista));return false}}
+// Schermata del PIN: l'elenco dei dipendenti si aggiorna da solo (nuovi dipendenti creati in CONTROLLO_SISTEM) ogni minuto e quando si torna sul programma
+async function loginAgg(){if(cur||$('vlog').hidden||($('pf')&&!$('pf').hidden))return;let f;try{f=await rj('dipendenti.json',null)}catch(e){return}
+  if(JSON.stringify(f)!==JSON.stringify(DIPF))loadLogin()}
+setInterval(loginAgg,60000);window.addEventListener('focus',loginAgg);
 setInterval(()=>{if(!cur)return;try{const c=JSON.parse(localStorage.getItem(CK(cur.id)));if(c&&c.dirty)persist()}catch(e){}},30000);
 
 // Schede: «Ore e spese» e «Ferie e permessi»

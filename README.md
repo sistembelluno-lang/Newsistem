@@ -4,6 +4,8 @@ Due programmi a pagina singola, impacchettati come applicazioni desktop con Elec
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
 
+Novità 1.10.2: il PIN di un dipendente si salva subito sul server quando l'amministratore lo imposta; INSERT_SISTEM rilegge l'elenco dei dipendenti quando si inserisce il PIN, ogni minuto e quando si torna sul programma (nuovi dipendenti e PIN cambiati valgono subito); «Salva dipendenti» non cancella più dipendenti già presenti sul server; «Verifica collegamento» segnala se su un PC è scelta la cartella sbagliata e ricorda che la lettera di unità (es. L:) deve essere uguale su tutti i PC.
+
 Novità 1.10.1: pulsante «🔌 Verifica collegamento» in entrambi i programmi (prove di lettura e scrittura sul server, con il motivo degli errori e cosa fare); errori di permesso spiegati al dipendente; un file illeggibile non blocca più la lettura delle ore degli altri.
 
 Novità 1.10: messaggi personali dall'amministratore ai dipendenti (legati a una commessa, con scadenza, stato letto/fatto e risposta) e tabella aperta delle attività della settimana (data, codice lavoro, chi, strumentazione, auto), compilabile da amministratore e dipendenti.
