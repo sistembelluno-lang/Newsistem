@@ -4,6 +4,8 @@ Due programmi a pagina singola, impacchettati come applicazioni desktop con Elec
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
 
+Novità 1.11: CONTROLLO_SISTEM si collega alle cartelle **Preventivi** e **Gare** del server (pulsante «📁 Cartelle offerte» accanto al salvataggio automatico). Ogni offerta ha la sua sottocartella con il codice offerta nel nome (anche dentro una cartella per anno): la scheda del lavoro la trova dal «Rif. offerta» e la apre con un clic, oppure la crea se manca; l'icona 📁 nella colonna *Offerta* apre la cartella direttamente dalla tabella. Nella ricerca maiuscole, spazi e separatori non contano (`OFF 2025/012` trova `off-2025-012 Comune…`).
+
 Novità 1.10.1: pulsante «🔌 Verifica collegamento» in entrambi i programmi (prove di lettura e scrittura sul server, con il motivo degli errori e cosa fare); errori di permesso spiegati al dipendente; un file illeggibile non blocca più la lettura delle ore degli altri.
 
 Novità 1.10: messaggi personali dall'amministratore ai dipendenti (legati a una commessa, con scadenza, stato letto/fatto e risposta) e tabella aperta delle attività della settimana (data, codice lavoro, chi, strumentazione, auto), compilabile da amministratore e dipendenti.

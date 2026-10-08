@@ -240,6 +240,14 @@ Se il nome `SERVER` non funziona, usa l'indirizzo IP del server, per esempio `\\
 
 <figure><img src="img/admin_contratto.png"><figcaption>Offerta approvata e scheda del contratto.</figcaption></figure>
 
+**📁 Cartelle delle offerte (preventivi e gare)**: CONTROLLO_SISTEM apre la cartella del server che contiene i documenti dell'offerta.
+
+1. Nella riga «💾 Salvataggio automatico» (sopra la tabella dei lavori) premi **📁 Cartelle offerte** e con **Scegli…** indica la cartella dei preventivi (es. `\\SERVER\Preventivi`) e quella delle gare (es. `\\SERVER\Gare`). Si fa una volta sola.
+2. Ogni offerta deve avere una sottocartella con il **codice offerta** nel nome, es. `OFF-2025-012 Comune di Belluno`; può stare anche dentro una cartella per anno (`Preventivi\2025\OFF-2025-012 …`).
+3. Nella scheda del lavoro, il riquadro **📁 Cartella offerta** cerca il codice scritto in *Rif. offerta* (e, se l'offerta è approvata, anche il *Rif. offerta approvata*): clic sulla cartella trovata per aprirla. Maiuscole, spazi e separatori non contano: `OFF 2025/012` trova `off-2025-012 …`, ma `25-12` non trova `25-120`.
+4. Se la cartella non c'è, **+ Crea in Preventivi** o **+ Crea in Gare** la crea con il codice e il nome del lavoro e la apre.
+5. Nella tabella, l'icona **📁** nella colonna *Offerta* apre subito la cartella (se ce n'è più di una, o nessuna, apre la scheda del lavoro).
+
 **👥 Ore dipendenti**, scheda per scheda:
 
 | Scheda | Cosa trovi |

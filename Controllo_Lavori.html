@@ -92,6 +92,7 @@ tr.ivok td{background:rgba(26,127,75,0.22);background:color-mix(in srgb,var(--ok
 #lock input{font-size:22px;letter-spacing:6px;text-align:center;width:160px;margin:12px 0}
 fieldset.ctr{border:2px solid var(--ok);border-radius:10px;margin:10px 0 0;padding:8px 12px 12px;background:rgba(26,127,75,0.06)}fieldset.ctr legend{font-weight:600;color:var(--ok);padding:0 6px}
 .off{display:flex;flex-wrap:wrap;gap:14px;align-items:center;margin:12px 0 0;padding:8px 10px;border:1px solid var(--bd);border-radius:8px}.off b{font-size:13px}
+.docf{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 0;padding:8px 10px;border:1px dashed var(--bd);border-radius:8px;font-size:13px}.docf b{margin-right:4px}.docb{border:none;background:none;padding:0 2px;cursor:pointer;font-size:15px}
 .tag.oy{background:rgba(26,127,75,0.18);color:var(--ok);font-weight:600}.tag.on{background:rgba(192,57,43,0.16);color:var(--ko);font-weight:600}
 .fcal{border-collapse:collapse;min-width:0;width:100%;font-size:11px}.fcal th,.fcal td{border:1px solid var(--bd);padding:2px 1px;text-align:center;white-space:nowrap;position:static}.fcal th{background:var(--hd);cursor:default;font-weight:600}
 .fcal td.nm,.fcal th.nm{text-align:left;padding:2px 6px;min-width:120px}.fcal td.c{cursor:pointer;width:22px;height:24px}.fcal td.c:hover{outline:2px solid var(--ac)}.fcal th.g-fest{color:#c0392b}
@@ -240,6 +241,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 <dialog id="ls" style="width:min(1000px,96vw)"></dialog>
 <dialog id="od" style="width:min(1150px,97vw)"></dialog>
 <dialog id="vcd" style="width:min(760px,96vw)"></dialog>
+<dialog id="dof" style="width:min(680px,94vw)"></dialog>
 <dialog id="ovp" style="width:97vw;max-width:1200px;height:92vh;padding:10px"></dialog>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
 <div id="toast"></div>
@@ -478,7 +480,7 @@ function render(){
   const val=x=>sortK==='off'?({ok:2,no:1}[x.r.offEs]||0):sortK==='ws'?(x.r.ws?1+ivOpen(x.r):0):['rim','tot'].includes(sortK)?x.c[sortK]:['prev','fatt'].includes(sortK)?n(x.r[sortK]):(sortK==='cod'?n(x.r.cod):String(x.r[sortK]||'').toLowerCase());
   L.sort((a,b)=>{const x=val(a),y=val(b);return (x>y?1:x<y?-1:0)*sortD});
   $('th').innerHTML='<tr>'+COLS.map(([k,l,c])=>`<th class="${c==='n'?'n':''}" data-k="${k}">${l}${sortK===k?(sortD>0?' ▲':' ▼'):''}</th>`).join('')+'</tr>';
-  $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${offTag(r)}</td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="14" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
+  $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${offTag(r)}${docOn()&&docCodes(r).length?`<button type="button" class="docb" data-doc="${r.id}" title="Apri la cartella dell'offerta ${esc(docCodes(r).join(' / '))}">📁</button>`:''}</td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="14" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
   $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:rgba(59,155,230,0.25);background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
   const sg=S.rows.map(r=>r.loc||'').join('|');if(sg!==mapSig){mapSig=sg;mapDraw()}
   const A=S.rows,tp=A.reduce((s,r)=>s+n(r.prev),0),tf=A.reduce((s,r)=>s+n(r.fatt),0),tr=A.reduce((s,r)=>s+Math.max(0,n(r.prev)-n(r.fatt)),0);
@@ -492,15 +494,49 @@ function offHTML(r){const c=r.ctr||{},e=r.offEs||'',v=k=>esc(c[k]??'');
 <label class="f">Ente che rilascia il contratto<input name="c_ente" value="${v('ente')}"></label>
 <label class="f">Tempistiche di contratto<input name="c_tempi" value="${v('tempi')}" placeholder="es. inizio lavori entro 30 giorni, consegna entro il 30/06/2027"></label>
 <label class="f">Note<textarea name="c_note" rows="2">${v('note')}</textarea></label></div></fieldset>`}
+// Cartelle delle offerte (solo app desktop): sul server le cartelle «Preventivi» e «Gare» contengono una sottocartella
+// per offerta con il codice offerta nel nome; il lavoro la trova dal Rif. offerta (e dal rif. dell'offerta approvata).
+const DOCK={prev:'Preventivi',gare:'Gare'};
+const docOn=()=>!!(window.desktop&&window.desktop.docFind);
+const docCodes=r=>[...new Set([r.prevCode,r.offEs==='ok'&&r.ctr&&r.ctr.rif].map(x=>String(x||'').trim()).filter(Boolean))];
+async function docSet(){const d=$('dof');let D=await window.desktop.docGet();
+  const draw=()=>{d.innerHTML='<h2 style="margin:0 0 6px;font-size:17px">📁 Cartelle delle offerte</h2><p class="rates" style="white-space:normal">Scegli sul server la cartella dei <b>preventivi</b> e quella delle <b>gare</b>. Ogni offerta deve avere la sua sottocartella con il <b>codice offerta</b> nel nome (es. <code>OFF-2025-012 Comune di Belluno</code>), anche dentro una cartella per anno: la scheda del lavoro la trova dal campo «Rif. offerta». Maiuscole, spazi e separatori (- _ / .) non contano.</p>'+
+    Object.entries(DOCK).map(([k,l])=>`<div class="docf"><b>${l}</b><span style="flex:1;word-break:break-all">${D[k]?esc(D[k]):'<i class="rates">non impostata</i>'}</span><button type="button" data-ch="${k}">Scegli…</button>${D[k]?`<button type="button" data-cl="${k}">Togli</button>`:''}</div>`).join('')+
+    '<div class="ft"><span></span><span class="btns"><button type="button" class="p" id="dofx">Chiudi</button></span></div>';
+    $('dofx').onclick=()=>d.close()};
+  d.onclick=async e=>{const c=e.target.dataset.ch,x=e.target.dataset.cl;if(c){const r=await window.desktop.docChoose(c);if(r){D=r;draw()}}else if(x){D=await window.desktop.docClear(x);draw()}};
+  draw();d.showModal();await new Promise(res=>d.addEventListener('close',res,{once:true}));if($('docb')&&$('dlg').open)docBox()}
+let docSeq=0,docT;
+// Riquadro nella scheda del lavoro: cartelle trovate (clic = si aprono), altrimenti «Crea»
+async function docBox(){const el=$('docb');if(!el)return;const f=$('frm').elements,codes=docCodes({prevCode:f.prevCode.value,offEs:f.offEs.value,ctr:{rif:f.c_rif.value}}),seq=++docSeq;
+  const head='<b>📁 Cartella offerta</b>',set='<button type="button" data-dset>Imposta cartelle</button>';
+  let D;try{D=await window.desktop.docGet()}catch(e){return}
+  if(!D.prev&&!D.gare){el.innerHTML=head+'<span class="rates">Imposta le cartelle «Preventivi» e «Gare» del server per collegare il lavoro alla cartella dell\'offerta.</span>'+set;return}
+  if(!codes.length){el.innerHTML=head+'<span class="rates">Inserisci il «Rif. offerta» per trovare la cartella.</span>'+set;return}
+  el.innerHTML=head+'<span class="rates">ricerca in corso…</span>';
+  let r;try{r=await window.desktop.docFind(codes)}catch(e){r={found:[],errors:[{error:String(e.message||e)}]}}
+  if(seq!==docSeq||!el.isConnected)return;
+  const err=r.errors.map(x=>`<span class="neg">⚠ ${esc(x.error)}</span>`).join('');
+  el.innerHTML=head+(r.found.length?r.found.map((x,i)=>`<button type="button" data-dop="${i}" title="${esc(x.path)}">📂 ${DOCK[x.kind]} › ${esc(x.rel)}</button>`).join(''):
+    `<span class="rates">Nessuna cartella con il codice ${codes.map(c=>'«'+esc(c)+'»').join(' o ')}.</span>`+Object.keys(DOCK).filter(k=>D[k]).map(k=>`<button type="button" data-dmk="${k}">+ Crea in ${DOCK[k]}</button>`).join(''))+err+set;
+  el.onclick=async e=>{const t=e.target;
+    if(t.dataset.dset!==undefined){docSet();return}
+    if(t.dataset.dop!==undefined){const m=await window.desktop.docOpen(r.found[+t.dataset.dop].path);if(m)toast('Cartella non aperta: '+m);return}
+    if(t.dataset.dmk){const k=t.dataset.dmk;if(!await ask('Creare in «'+DOCK[k]+'» la cartella «'+codes[0]+(f.nome.value.trim()?' '+f.nome.value.trim():'')+'»?'))return;
+      try{await window.desktop.docCreate(k,codes[0],f.nome.value);toast('Cartella creata')}catch(err){toast(String(err.message||err).replace(/^Error invoking remote method '[^']+': (Error: )?/,''))}docBox()}}}
+// Dalla tabella: una sola cartella trovata si apre subito, altrimenti si apre la scheda del lavoro
+async function docGo(id){const r=S.rows.find(x=>x.id==id);if(!r)return;let res;try{res=await window.desktop.docFind(docCodes(r))}catch(e){res={found:[]}}
+  if(res.found.length===1){const m=await window.desktop.docOpen(res.found[0].path);if(!m)return}
+  openEdit(id);const b=$('docb');if(b)b.scrollIntoView({block:'center'})}
 function openEdit(id){
   editing=id?S.rows.find(r=>r.id==id):{id:0};
   const r=editing;
   $('frm').innerHTML='<h2 style="margin:0 0 10px;font-size:17px">'+(id?'Modifica lavoro':'Nuovo lavoro')+'</h2><div class="g">'+F.map(([k,l,t])=>{
     const v=esc(r[k]??'');
     const inp=t==='sel'?`<select name="${k}">${[...new Set([...STATI,r[k]].filter(Boolean))].map(s=>`<option ${s===r[k]?'selected':''}>${esc(s)}</option>`).join('')}</select>`:t==='area'?`<textarea name="${k}" rows="2">${v}</textarea>`:`<input name="${k}" value="${v}" ${t==='num'?'type="number" step="any"':t==='date'?'type="date"':''}>`;
-    return `<label class="${t==='f'||t==='area'?'f':''}">${l}${inp}</label>`}).join('')+'</div>'+offHTML(r)+'<h3 style="font-size:14px;margin:12px 0 6px">Servizi da svolgere</h3><div id="svb"></div><button type="button" id="sva">+ Aggiungi servizio</button>'+((r.ore||[]).length?'<h3 style="font-size:14px;margin:12px 0 6px">Ore registrate dai dipendenti</h3><div id="oreb"></div>':'')+'<div class="calc" id="cl"></div><div class="ft"><span>'+(id?'<button type="button" class="d" id="del">Elimina</button>':'')+'</span><span class="btns"><button type="button" id="can">Annulla</button><button type="button" class="p" id="sv">Salva</button></span></div>';
+    return `<label class="${t==='f'||t==='area'?'f':''}">${l}${inp}</label>`}).join('')+'</div>'+offHTML(r)+(docOn()?'<div class="docf" id="docb"></div>':'')+'<h3 style="font-size:14px;margin:12px 0 6px">Servizi da svolgere</h3><div id="svb"></div><button type="button" id="sva">+ Aggiungi servizio</button>'+((r.ore||[]).length?'<h3 style="font-size:14px;margin:12px 0 6px">Ore registrate dai dipendenti</h3><div id="oreb"></div>':'')+'<div class="calc" id="cl"></div><div class="ft"><span>'+(id?'<button type="button" class="d" id="del">Elimina</button>':'')+'</span><span class="btns"><button type="button" id="can">Annulla</button><button type="button" class="p" id="sv">Salva</button></span></div>';
   const upd=()=>{const t={};F.forEach(([k])=>t[k]=$('frm').elements[k].value);t.ore=r.ore;t.iv=r.iv;const c=calc(t);$('cl').innerHTML=`${t.loc?(geo(t.loc)?`<span>📍 ${esc(geo(t.loc).a)} (${geo(t.loc).p})</span>`:'<span class="neg">📍 località non trovata sulla mappa</span>'):''}<span>Tariffa: <b>${rate(t).h} €/h</b></span>${c.D.h?`<span>👥 Dalle ore dei dipendenti: <b>${fmt(c.D.h)} h</b> già comprese in Ore totali${c.D.tr?`, di cui <b>${fmt(c.D.tr)} h</b> in Ore trasferta`:''}</span>`:''}<span>€ ore: <b>${eur(c.ore)}</b></span><span>€ km: <b>${eur(c.km)}</b></span><span>€ spese: <b>${eur(c.sp)}</b></span><span>Costo totale: <b>${eur(c.tot)}</b></span><span>Rimanente: <b>${eur(c.rim)}</b></span>`};
-  $('frm').oninput=upd;upd();
+  $('frm').oninput=e=>{upd();if(docOn()&&['prevCode','c_rif','offEs'].includes(e.target.name)){clearTimeout(docT);docT=setTimeout(docBox,500)}};upd();if(docOn())docBox();
   $('frm').addEventListener('change',e=>{if(e.target.name==='offEs'){$('ctrb').hidden=e.target.value!=='ok';if(e.target.value==='ok'){const f=$('frm').elements;if(!f.c_rif.value)f.c_rif.value=f.prevCode.value;f.c_num.focus()}}});
   const oreL=(r.ore||[]).map(x=>({...x}));
   const ro=()=>{if(!$('oreb'))return;const L=[...oreL].sort((a,b)=>(a.d||'')<(b.d||'')?1:-1);$('oreb').innerHTML=`<div class="tw"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${L.map(x=>`<tr><td>${dIt(x.d)}</td><td>${esc(x.op)}</td><td class="n">${fmt(n(x.h))}${x.tr?' <span class="tag">trasferta</span>':''}</td><td class="n">${x.km===''?'':fmt(n(x.km))}</td><td class="n">${n(x.sp)?eur2(x.sp):''}</td><td class="w">${esc(x.note)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2"><b>Totale</b></td><td class="n"><b>${fmt(oreL.reduce((s,x)=>s+n(x.h),0))}</b></td><td class="n">${fmt(oreL.reduce((s,x)=>s+n(x.km),0))}</td><td class="n">${eur2(oreL.reduce((s,x)=>s+n(x.sp),0))}</td><td class="rates" style="white-space:normal">di cui trasferta ${fmt(oreL.filter(x=>x.tr).reduce((s,x)=>s+n(x.h),0))} h · già sommate nei campi del lavoro; si modificano dal programma INSERT_SISTEM</td></tr></tfoot></table></div>`};
@@ -520,7 +556,8 @@ function openEdit(id){
   if(id)$('del').onclick=async()=>{if(await ask('Eliminare definitivamente questo lavoro?')){S.rows=S.rows.filter(x=>x.id!=id);save();$('dlg').close();render()}};
   $('dlg').showModal();
 }
-$('tb').onclick=e=>{const c=e.target.closest('[data-ws]');if(c){toggleWs(c.dataset.ws,c.checked);return}
+$('tb').onclick=e=>{const dc=e.target.closest('[data-doc]');if(dc){docGo(dc.dataset.doc);return}
+  const c=e.target.closest('[data-ws]');if(c){toggleWs(c.dataset.ws,c.checked);return}
   const o=e.target.closest('[data-wo]');if(o){openWs(o.dataset.wo);return}if(e.target.closest('td.wsc'))return;
   const t=e.target.closest('tr[data-id]');if(t)openEdit(t.dataset.id)};
 // Worksite: cantieri con interventi periodici (r.ws = spunta, r.iv = [{d,h,km,op,note,ok}]); campi facoltativi, i backup vecchi restano validi
@@ -931,8 +968,8 @@ $('rems').onclick=()=>{M.snz=Date.now()+3*864e5;saveMeta();remind()};
 const DESK={on:false};let deskT;
 function deskSave(){if(!DESK.on)return;clearTimeout(deskT);deskT=setTimeout(async()=>{deskShow(await window.desktop.save(backupData()))},400)}
 function deskShow(r){DESK.last=r;const el=$('ds');el.hidden=false;
-  el.innerHTML=(r&&r.ok?'💾 Salvataggio automatico in ':'<span class="neg">⚠ Salvataggio automatico non riuscito'+(r&&r.error?' ('+esc(r.error)+')':'')+' in </span>')+'<b>'+esc((r&&r.file)||DESK.dir||'')+'</b>'+(r&&r.ok?' · ultimo alle '+new Date(r.at).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'')+' <button id="dsc">Cambia cartella</button> <button id="dso">Apri cartella</button>';
-  $('dsc').onclick=deskChoose;$('dso').onclick=()=>window.desktop.open();remind()}
+  el.innerHTML=(r&&r.ok?'💾 Salvataggio automatico in ':'<span class="neg">⚠ Salvataggio automatico non riuscito'+(r&&r.error?' ('+esc(r.error)+')':'')+' in </span>')+'<b>'+esc((r&&r.file)||DESK.dir||'')+'</b>'+(r&&r.ok?' · ultimo alle '+new Date(r.at).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'')+' <button id="dsc">Cambia cartella</button> <button id="dso">Apri cartella</button>'+(docOn()?' <button id="dsf">📁 Cartelle offerte</button>':'');
+  $('dsc').onclick=deskChoose;$('dso').onclick=()=>window.desktop.open();if($('dsf'))$('dsf').onclick=docSet;remind()}
 async function deskChoose(){const r=await window.desktop.choose();if(!r)return;DESK.dir=r.dir;let keep=false;
   if(r.exists&&r.data!==backupData()){let p=null;try{p=parseImport(r.data)}catch(e){}
     if(p&&await ask('Nella cartella scelta c\'è già un file dati con '+p.rows.length+' lavori. Caricare quei dati al posto dei '+S.rows.length+' lavori attuali? (Annulla = tieni i dati attuali; il file trovato viene conservato nella sottocartella "storico")')){applyData(p,r.mtime);deskShow(await window.desktop.save(backupData()));toast('Dati caricati dalla cartella');return}

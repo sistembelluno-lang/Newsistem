@@ -12,4 +12,10 @@ contextBridge.exposeInMainWorld('desktop', {
   shWrite: (rel, text) => ipcRenderer.invoke('sh:write', rel, text),
   shTest: () => ipcRenderer.invoke('sh:test'),
   savePdf: (name) => ipcRenderer.invoke('pdf:save', name),
+  docGet: () => ipcRenderer.invoke('doc:get'),
+  docChoose: (kind) => ipcRenderer.invoke('doc:choose', kind),
+  docClear: (kind) => ipcRenderer.invoke('doc:clear', kind),
+  docFind: (codes) => ipcRenderer.invoke('doc:find', codes),
+  docOpen: (p) => ipcRenderer.invoke('doc:open', p),
+  docCreate: (kind, code, nome) => ipcRenderer.invoke('doc:create', kind, code, nome),
 });

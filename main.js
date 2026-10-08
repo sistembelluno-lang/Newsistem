@@ -113,6 +113,75 @@ ipcMain.handle('dati:choose', async () => {
 });
 ipcMain.handle('dati:open', () => { const d = dataDir(); fs.mkdirSync(d, { recursive: true }); return shell.openPath(d); });
 
+// Cartelle delle offerte sul server: «Preventivi» e «Gare». Ogni offerta ha la sua sottocartella che riporta
+// il codice offerta nel nome (es. «OFF-2025-012 Comune di Belluno»), anche dentro una cartella per anno.
+const DOC_KIND = { prev: 'Preventivi', gare: 'Gare' };
+function docDirs() { const d = readSettings().docs || {}; return { prev: d.prev || '', gare: d.gare || '' }; }
+// Il codice si cerca ignorando maiuscole e separatori («OFF 25/012» trova «off-25_012 …»),
+// ma non dentro un codice più lungo («25-12» non trova «25-120»).
+function codeRx(code) {
+  const parts = String(code || '').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (!parts.length) return null;
+  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp('(?<![\\p{L}\\p{N}])' + parts.map(esc).join('[^\\p{L}\\p{N}]*') + '(?![\\p{L}\\p{N}])', 'iu');
+}
+const subDirs = (dir) => fs.readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => path.join(dir, e.name));
+function docFind(codes) {
+  const dirs = docDirs(), rxs = [...new Set((codes || []).map((c) => String(c || '').trim()).filter(Boolean))].map(codeRx).filter(Boolean);
+  const out = { dirs, found: [], errors: [] };
+  if (!rxs.length) return out;
+  for (const kind of Object.keys(DOC_KIND)) {
+    const base = dirs[kind];
+    if (!base) continue;
+    try {
+      // Primo livello e, per le cartelle che non corrispondono, il livello sotto (es. una cartella per anno)
+      for (const d of subDirs(base)) {
+        if (rxs.some((rx) => rx.test(path.basename(d)))) { out.found.push({ kind, path: d, rel: path.relative(base, d) }); continue; }
+        let sub = [];
+        try { sub = subDirs(d); } catch (_) { }
+        for (const s of sub) if (rxs.some((rx) => rx.test(path.basename(s)))) out.found.push({ kind, path: s, rel: path.relative(base, s) });
+      }
+    } catch (err) { out.errors.push({ kind, error: `${DOC_KIND[kind]}: ${shMsg(err)}` }); }
+  }
+  return out;
+}
+// Si aprono solo cartelle che stanno dentro le cartelle Preventivi o Gare impostate
+function docInside(p) {
+  const t = path.resolve(String(p || ''));
+  return Object.values(docDirs()).filter(Boolean).some((b) => { const r = path.resolve(b); return t === r || t.startsWith(r + path.sep); });
+}
+ipcMain.handle('doc:get', () => docDirs());
+ipcMain.handle('doc:choose', async (e, kind) => {
+  if (!DOC_KIND[kind]) return null;
+  const r = await dialog.showOpenDialog(win, {
+    title: `Scegli la cartella «${DOC_KIND[kind]}» sul server`,
+    defaultPath: docDirs()[kind] || undefined,
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const s = readSettings(); s.docs = { ...(s.docs || {}), [kind]: r.filePaths[0] }; writeSettings(s);
+  return docDirs();
+});
+ipcMain.handle('doc:clear', (e, kind) => { const s = readSettings(); if (s.docs) delete s.docs[kind]; writeSettings(s); return docDirs(); });
+ipcMain.handle('doc:find', (e, codes) => docFind(codes));
+ipcMain.handle('doc:open', async (e, p) => {
+  if (!docInside(p)) return 'Cartella non valida';
+  return shell.openPath(path.resolve(p));
+});
+// Crea la cartella dell'offerta (nome: codice offerta e, se c'è, nome del lavoro) e la apre
+ipcMain.handle('doc:create', async (e, kind, code, nome) => {
+  const base = docDirs()[kind];
+  if (!base) throw new Error(`Cartella «${DOC_KIND[kind] || kind}» non impostata`);
+  const clean = (s) => String(s || '').replace(/[\\/:*?"<>|\x00-\x1f]+/g, '-').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '');
+  const c = clean(code);
+  if (!c) throw new Error('Manca il codice offerta');
+  const name = (c + (clean(nome) ? ' ' + clean(nome) : '')).slice(0, 120).replace(/[. ]+$/, '');
+  const p = path.join(base, name);
+  try { fs.mkdirSync(p, { recursive: true }); } catch (err) { throw new Error(`Impossibile creare la cartella: ${shMsg(err)}`); }
+  shell.openPath(p);
+  return { kind, path: p, rel: name };
+});
+
 // Cartella condivisa sul server (scambio con il programma Ore Dipendenti): percorsi relativi, mai fuori dalla cartella.
 function sharedDir() { return readSettings().shared || ''; }
 function sharedPath(rel) {
