@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<title>REPORT_SISTEM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1c2330;--mu:#6b7585;--bd:#dde1e8;--ac:#1f5fbf;--ok:#1a7f4b;--ko:#c0392b;--wa:#a86b00;--hd:#eef1f5}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161c;--card:#1b212a;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--ac:#6ea3f5;--ok:#4cc38a;--ko:#ff7b6b;--wa:#e0a84a;--hd:#232a35}}
+:root[data-theme="dark"]{--bg:#12161c;--card:#1b212a;--tx:#e6e9ee;--mu:#98a2b3;--bd:#2c3440;--ac:#6ea3f5;--ok:#4cc38a;--ko:#ff7b6b;--wa:#e0a84a;--hd:#232a35}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1280px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:0}
+.btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,select,input,textarea{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 10px}
+button{cursor:pointer}button.p{background:var(--ac);border-color:var(--ac);color:#fff}button:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px}
+.mu{color:var(--mu);font-size:12px}.neg{color:var(--ko)}.pos{color:var(--ok)}
+.src{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:12px}
+.kpi div{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px}.kpi small{color:var(--mu);display:block}.kpi b{font-size:20px}
+.flt{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center}.flt input[type=search]{flex:1;min-width:200px}
+.flt label{display:flex;align-items:center;gap:6px;font-size:13px}
+.bulk{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px;padding:8px 12px;border-radius:10px;border:1px solid var(--ac);background:rgba(36,87,214,.08)}
+.tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:10px}
+table.sv{border-collapse:collapse;width:100%;min-width:980px}
+.sv th,.sv td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--bd);vertical-align:middle}
+.sv th{background:var(--hd);position:sticky;top:0;font-size:12px;white-space:nowrap}
+.sv td.c{width:34px;text-align:center}.sv input[type=checkbox]{width:17px;height:17px;padding:0;margin:0}
+.sv td.d{white-space:nowrap;width:118px}.sv td.w{min-width:200px}
+.sv input.a{width:170px;padding:4px 8px}.sv input.nt{width:100%;min-width:150px;padding:4px 8px}
+.sv tr.gr td{background:var(--hd);font-weight:700;padding-top:9px}.sv tr.gr td small{font-weight:400;color:var(--mu);margin-left:8px}
+.sv tr.late td.d{color:var(--ko);font-weight:600}
+.tag{padding:2px 8px;border-radius:99px;background:var(--hd);font-size:12px;white-space:nowrap}
+.na{color:var(--wa);font-weight:600;font-size:12px}
+.empty{padding:30px;text-align:center;color:var(--mu)}
+.ban{padding:10px 14px;border-radius:10px;margin-bottom:12px;border:1px solid var(--ko);background:rgba(192,57,43,0.1)}
+#toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:var(--tx);color:var(--bg);padding:8px 14px;border-radius:8px;display:none;z-index:50}
+/* Report stampato: righe di gruppo e scadenze passate */
+.rep tr.gr td{background:var(--hd);font-weight:700}.rep td.late{color:#c0392b;font-weight:700}
+/*REPORT-CSS-INIZIO (da src/report.css)*/
+.rep{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:12px;color:var(--tx)}
+.rep .rh{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;border-bottom:2px solid var(--ac);padding-bottom:4px;margin-bottom:8px}.rep .raz{display:block;font-size:10px;font-weight:700;letter-spacing:.2em;color:var(--mu)}.rep .rh h2{margin:0!important}.rep h2{font-size:17px;margin:0 0 8px}.rep h3{font-size:14px;margin:14px 0 6px}
+.rep table{min-width:0;width:100%;border-collapse:collapse;font-size:12px}
+.rep th,.rep td{padding:3px 6px;border:1px solid var(--bd);white-space:normal;position:static;cursor:default;text-align:left;vertical-align:top}
+.rep .n{text-align:right;font-variant-numeric:tabular-nums}.rep tbody tr{cursor:default}.rep tbody tr:hover td{filter:none}
+.rep tr.we td{background:var(--hd)}.rep tbody td:first-child{white-space:nowrap}.rep tfoot td{font-weight:700;background:var(--hd)}.rep .rn{font-size:11px;color:var(--mu)}
+.firme{display:flex;gap:40px;margin-top:36px}.firme div{flex:1;border-top:1px solid var(--tx);padding-top:4px;font-size:12px}
+/* Colori dei giorni: rosso festivi, viola ferie programmate, blu ferie fatte, giallo malattia, viola a righe richiesta in attesa */
+.g-fest td,td.g-fest,div.g-fest,i.g-fest{background:rgba(214,48,49,.13)}.g-fest td:first-child,.g-fest .dl{color:#c0392b}
+.g-fp td,td.g-fp,div.g-fp,i.g-fp{background:rgba(138,92,209,.25)}
+.g-fe td,td.g-fe,div.g-fe,i.g-fe{background:rgba(31,111,209,.22)}
+.g-ma td,td.g-ma,div.g-ma,i.g-ma{background:rgba(232,180,0,.32)}
+.g-att td,td.g-att,div.g-att,i.g-att{background:repeating-linear-gradient(45deg,rgba(138,92,209,.22) 0 5px,transparent 5px 10px)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;color:var(--mu);margin:6px 0}.leg span{display:inline-flex;align-items:center;gap:5px}.leg i{display:inline-block;width:14px;height:12px;border:1px solid var(--bd);border-radius:3px}
+.rep .rs{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.rep .rs td.n{white-space:nowrap}.rep .rs table th{text-align:left}
+#print{display:none}
+@media print{body>*:not(#print){display:none!important}#print{display:block!important}body{background:#fff!important;color:#000!important}
+#print .rep{border:0;padding:0;margin:0;break-after:page;background:#fff;color:#000}#print .rep:last-child{break-after:auto}
+#print .rep th,#print .rep td{border-color:#888;padding:0 3px;font-size:8.5pt;line-height:1.2}#print .rep .leg{margin:3px 0;font-size:8pt}#print .rep .rs{gap:6px}#print .rep h2{font-size:13pt}#print .rep h3{margin:8px 0 4px}#print .firme{margin-top:16px}#print .rep h3{margin:6px 0 3px;font-size:10pt}#print .rep .rn{margin:4px 0}#print .rep tfoot td{background:#eee}#print .g-fest td,#print .g-fp td,#print .g-fe td,#print .g-ma td,#print .g-att td,#print .leg i{-webkit-print-color-adjust:exact;print-color-adjust:exact}#print .rep .rn{color:#444}.firme div{border-color:#000}@page{size:A4;margin:12mm}}
+/*REPORT-CSS-FINE*/
+/*TEMA-INIZIO (da src/tema.css)*/
+/* Tema grafico SISTEM SRL STP: barra in alto con il marchio, schede con ombre morbide, pulsanti in gradiente.
+   Va in fondo agli stili e li sovrascrive; niente color-mix (Windows 7). */
+:root{--bg:#eef2f8;--card:#fff;--tx:#0f1b2d;--mu:#5d6b82;--bd:#dfe5ef;--ac:#2457d6;--ok:#13804f;--ko:#c2372b;--hd:#f3f6fb;
+  --g1:#2563eb;--g2:#5b3fd9;--bar1:#0b1f4b;--bar2:#1d3f9e;--bar3:#4a3ad1;--sh:0 1px 2px rgba(15,27,45,.06),0 8px 22px rgba(15,27,45,.07)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b111d;--card:#141c2c;--tx:#e8edf6;--mu:#93a1b8;--bd:#25314a;--ac:#7aa2ff;--ok:#46c98d;--ko:#ff7d6e;--hd:#1a2438;
+  --bar1:#060c1a;--bar2:#13265e;--bar3:#33289a;--sh:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.35)}}
+body{font-family:"Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",sans-serif;background:var(--bg);
+  background-image:radial-gradient(900px 340px at 8% -120px,rgba(37,99,235,.13),transparent 70%),radial-gradient(700px 300px at 100% -80px,rgba(91,63,217,.10),transparent 70%);background-repeat:no-repeat}
+/* Barra del marchio */
+.appbar{position:sticky;top:0;z-index:40;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 22px;color:#fff;
+  background:linear-gradient(110deg,var(--bar1) 0%,var(--bar2) 58%,var(--bar3) 100%);box-shadow:0 6px 20px rgba(8,22,60,.28)}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand .logo{flex:none;width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(140deg,#38bdf8 0%,#3b82f6 45%,#7c3aed 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 6px 14px rgba(0,0,0,.28)}
+.brand .logo svg{width:26px;height:26px}
+.brand .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;opacity:.82;white-space:nowrap}
+.brand h1{margin:0;font-size:20px;font-weight:800;letter-spacing:.03em;color:#fff;line-height:1.15;white-space:nowrap}
+.appbar .meta{font-size:12px;opacity:.85;text-align:right;white-space:nowrap}
+.appbar button,.appbar select{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.28);color:#fff}
+.appbar button:hover:not(:disabled){background:rgba(255,255,255,.22);border-color:rgba(255,255,255,.5)}
+.appbar select option{color:#0f1b2d}.appbar b,.appbar .mu{color:#fff}.appbar .mu{opacity:.8}
+/* Controlli */
+button,select,input,textarea{border-radius:10px;border-color:var(--bd)}
+button{font-weight:500;transition:background-color .15s,border-color .15s,box-shadow .15s}
+button:hover:not(:disabled){border-color:var(--ac);box-shadow:0 2px 8px rgba(36,87,214,.14)}
+button:active:not(:disabled){transform:translateY(1px)}
+button.p{background:linear-gradient(135deg,var(--g1),var(--g2));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 4px 12px rgba(79,70,229,.30)}
+button.p:hover:not(:disabled){box-shadow:0 6px 16px rgba(79,70,229,.40);border-color:transparent}
+button.d{color:var(--ko)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(36,87,214,.18)}
+input[type=checkbox],input[type=radio]{accent-color:var(--ac)}
+/* Schede, riquadri, finestre */
+.card,.tw,.mp,.rbox,.kpi div,.calc{border-radius:14px}
+.card,.tw,.mp,.rbox,.kpi div{box-shadow:var(--sh);border-color:var(--bd)}
+.kpi div{position:relative;overflow:hidden;padding:12px 14px 12px 18px;background:var(--card)}
+.kpi div::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--g1),var(--g2))}
+.kpi small{text-transform:uppercase;font-size:10.5px;letter-spacing:.06em;font-weight:600;color:var(--mu)}
+.kpi b{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.kpi .kc:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(36,87,214,.18)}
+dialog{border:0;border-radius:18px;box-shadow:0 30px 70px rgba(8,20,48,.38)}
+dialog::backdrop{background:rgba(8,16,36,.55);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+.tag{border-radius:999px;font-weight:600}
+/* Tabelle */
+th{text-transform:uppercase;font-size:11.5px;letter-spacing:.04em;color:var(--mu);font-weight:700}
+.tw table th{background:var(--hd)}
+tbody tr:hover td{filter:none;background-color:rgba(36,87,214,.05)}
+.rep th{text-transform:none;letter-spacing:0;font-size:inherit;color:inherit}
+/* Schede a linguette */
+.tabs button.on,.vtabs button.on{color:var(--ac);border-bottom-color:var(--ac)}
+.vtabs,.tabs{border-bottom-color:var(--bd)}
+/* Controllo: barra degli strumenti e mappa */
+.top{margin-top:4px}.top .btns{gap:8px}
+.mp .mh{font-weight:700}
+/* Insert: accesso, giorni, calendario */
+#vlog{max-width:720px;margin:28px auto;padding:22px 24px}
+#vlog h2{font-size:20px!important}
+.who button{border-radius:14px;padding:16px 14px;box-shadow:var(--sh);border-color:var(--bd);font-size:15px}
+.who button.sel{border-color:var(--ac);background:rgba(36,87,214,.10);box-shadow:0 0 0 3px rgba(36,87,214,.18)}
+.day{border-radius:12px;box-shadow:0 1px 2px rgba(15,27,45,.05)}
+.cal .c{border-radius:12px;box-shadow:0 1px 2px rgba(15,27,45,.05)}
+.seg{border-radius:10px}
+/* Blocco con PIN */
+#lock{background:linear-gradient(140deg,var(--bar1),var(--bar2) 60%,var(--bar3))}
+#lock .lb{border:0;border-radius:20px;box-shadow:0 30px 70px rgba(0,0,0,.35);padding:28px 26px}
+#lock .lb .logo{margin:0 auto 10px;width:54px;height:54px;border-radius:16px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#38bdf8,#3b82f6 45%,#7c3aed)}
+#lock .lb .logo svg{width:32px;height:32px}
+#lock .lb .az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;color:var(--mu);margin-bottom:2px}
+#toast{border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+@media (max-width:640px){.appbar{padding:8px 12px}.brand h1{font-size:16px}.appbar .meta{display:none}}
+/* Attività della settimana (uguale nei due programmi) e messaggi */
+.att-card{background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh);padding:14px 16px;margin-bottom:10px}
+.att-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px;margin-bottom:10px}.att-h h2{margin:0;font-size:17px}
+.att-mu{color:var(--mu);font-size:12px}
+.att-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}.att-f .w2{grid-column:span 2}
+.att-f label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--mu)}.att-f input,.att-f select{width:100%}
+.att-b{display:flex;gap:6px;justify-content:flex-end}
+.att-nav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}.att-nav b{font-size:15px;min-width:230px;text-align:center}
+.att-tw{overflow-x:auto;background:var(--card);border:1px solid var(--bd);border-radius:14px;box-shadow:var(--sh)}
+.att-t{width:100%;border-collapse:collapse;font-size:13px}.att-t th,.att-t td{padding:6px 8px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.att-t th{background:var(--hd);position:static}.att-t td{white-space:normal}
+.att-t td.att-g{white-space:nowrap;min-width:92px;border-right:1px solid var(--bd)}.att-g small{display:block;color:var(--mu);font-size:11px}.g-fest .att-g b{color:#c0392b}
+.att-t tr.att-oggi td.att-g{box-shadow:inset 3px 0 0 var(--ac)}.att-t tr.att-mia td:not(.att-g){background:rgba(36,87,214,.09)}
+.att-add{padding:0 8px;margin-top:3px;font-size:12px}.att-ac{white-space:nowrap;text-align:right}.att-ac button{padding:1px 8px;font-size:12px}
+.msg{border:1px solid var(--bd);border-radius:12px;padding:10px 12px;margin-bottom:8px;background:var(--card);box-shadow:var(--sh)}
+.msg.nuovo{border-color:var(--ac);box-shadow:0 0 0 2px rgba(36,87,214,.18)}.msg.fatto{opacity:.75}
+.msg .mt{white-space:pre-wrap;margin:6px 0;font-size:14px}.msg .mh{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px;color:var(--mu)}
+.msg .mb{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}.msg .rsp{margin-top:4px;padding:6px 10px;border-left:3px solid var(--ok);background:var(--hd);border-radius:0 8px 8px 0;font-size:13px}
+.nb{display:inline-block;min-width:18px;padding:0 6px;margin-left:4px;border-radius:99px;background:#c2372b;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center}
+/* Verifica collegamento */
+.vc{width:100%;border-collapse:collapse;font-size:13px}.vc td{padding:5px 6px;border-bottom:1px solid var(--bd);vertical-align:top}
+.vcko{margin-top:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--ko);background:rgba(194,55,43,.08)}.vcko ul{margin:6px 0 0;padding-left:20px}
+/*TEMA-FINE*/
+.brand .logo.rs{background:linear-gradient(140deg,#f59e0b 0%,#ef4444 50%,#7c3aed 100%)}
+@media print{#print .rep tr.gr td{background:#eee;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<header class="appbar"><div class="brand"><span class="logo rs"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><h1>REPORT_SISTEM</h1></div></div><div class="meta"><span id="abdata"></span><br>Report dei servizi aperti di CONTROLLO_SISTEM</div></header>
+<main>
+<div id="ban" class="ban" hidden></div>
+<div class="src">
+  <div><b>Dati da CONTROLLO_SISTEM</b><br><span class="mu" id="srci">—</span></div>
+  <div class="btns">
+    <button id="agg" title="Rileggi i dati di CONTROLLO_SISTEM">⟳ Aggiorna</button>
+    <button id="dir" hidden>Cambia cartella dati…</button>
+    <button id="apri" hidden>Apri file dati…</button>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </div>
+</div>
+<div class="kpi" id="kpi"></div>
+<div class="flt">
+  <input type="search" id="q" placeholder="Cerca servizio, codice, lavoro, cliente, persona…">
+  <select id="fst" title="Stato del lavoro"></select>
+  <select id="fch" title="Assegnato a"></select>
+  <label><input type="checkbox" id="fsc"> Solo scaduti</label>
+  <label>Raggruppa per <select id="grp"><option value="lav">Lavoro</option><option value="per">Persona</option><option value="sca">Scadenza (elenco unico)</option></select></label>
+</div>
+<div class="flt">
+  <span class="btns"><button class="p" id="prt">🖨 Stampa report</button><button id="pdf">Esporta PDF</button><button id="csv">Esporta Excel</button></span>
+  <span class="mu" id="cnt"></span>
+</div>
+<div class="bulk" id="bulk" hidden><b id="bn"></b> Assegna a <input id="ba" list="pers" placeholder="Nome o sigla" autocomplete="off"><button class="p" id="bok">Assegna</button><button id="btogli">Togli assegnazione</button><button id="bx">Annulla selezione</button></div>
+<div class="tw"><table class="sv"><thead><tr><th class="c"><input type="checkbox" id="all" title="Seleziona tutti quelli in elenco"></th><th>Scadenza</th><th>Servizio</th><th>Cod</th><th>Lavoro</th><th>Cliente</th><th>Stato lavoro</th><th>Assegnato a</th><th>Note per il report</th></tr></thead><tbody id="tb"></tbody></table></div>
+<p class="mu">Il programma legge i servizi aperti (non spuntati come fatti) dal file <b>dati_lavori.json</b> di CONTROLLO_SISTEM e non lo modifica mai: i servizi si chiudono in CONTROLLO_SISTEM. Le assegnazioni e le note restano in <b>servizi_assegnati.json</b>, nella stessa cartella. I dati si rileggono da soli ogni minuto.</p>
+<datalist id="pers"></datalist>
+</main>
+<div id="toast"></div>
+<div id="print"></div>
+
+<script>
+/*CONDIVISO-INIZIO (da src/condiviso.js: non modificare qui)*/
+// Accesso alla cartella condivisa sul server: nell'app desktop sono file veri, nel browser una simulazione in localStorage (solo per prova)
+const VFS=window.desktop&&window.desktop.shRead?{sim:false,
+  get:()=>window.desktop.shGet(),choose:()=>window.desktop.shChoose(),
+  read:r=>window.desktop.shRead(r),write:(r,t)=>window.desktop.shWrite(r,t)}
+ :{sim:true,get:async()=>({dir:'(cartella simulata nel browser)'}),choose:async()=>({dir:'(cartella simulata nel browser)'}),
+  read:async r=>{try{return localStorage.getItem('vfs:'+r)}catch(e){return null}},write:async(r,t)=>{localStorage.setItem('vfs:'+r,t);return true}};
+// Legge un JSON dalla cartella condivisa: def se il file non esiste, eccezione se il server non risponde
+async function rj(rel,def){const t=await VFS.read(rel);if(!t)return def;return JSON.parse(String(t).replace(/^﻿/,''))}
+// Il PIN non viene mai salvato in chiaro: nei file c'è solo l'impronta SHA-256
+async function hpin(id,pin){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('CL|'+id+'|'+String(pin).trim()));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const TIPI={lavoro:'Ore su lavoro',ferie:'Ferie',permesso:'Permesso',malattia:'Malattia',nota:'Nota del giorno'};
+const MESI=['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const GGS=['Dom','Lun','Mar','Mer','Gio','Ven','Sab'];
+// Dove sono state lavorate le ore, auto usata per i km, tipologie di spesa
+const LUOGHI={uff:'Ufficio',cant:'Cantiere',tr:'Trasferta'};
+const AUTO={az:'Auto aziendale',pr:'Auto propria'};
+const SPT={gen:'Spese generiche',pasti:'Pasti',hotel:'Hotel',min:'Minuteria'};
+const luogoOf=v=>v.cant?'cant':v.tr?'tr':'uff';
+// Spese di una registrazione: elenco per tipologia; le registrazioni vecchie (solo «sp») contano come spese generiche
+const splOf=v=>Array.isArray(v.spl)&&v.spl.length?v.spl:((parseFloat(v.sp)||0)?[{t:'gen',i:parseFloat(v.sp)}]:[]);
+// Festività nazionali italiane (sabati e domeniche a parte). Dal 2026 anche il 4 ottobre, San Francesco d'Assisi.
+const FEST_CACHE={};
+function festivi(Y){if(FEST_CACHE[Y])return FEST_CACHE[Y];const m=new Map(),a=(mm,dd,nm)=>m.set(Y+'-'+String(mm).padStart(2,'0')+'-'+String(dd).padStart(2,'0'),nm);
+  a(1,1,'Capodanno');a(1,6,'Epifania');a(4,25,'Festa della Liberazione');a(5,1,'Festa dei Lavoratori');a(6,2,'Festa della Repubblica');a(8,15,'Ferragosto');
+  a(11,1,'Ognissanti');a(12,8,'Immacolata Concezione');a(12,25,'Natale');a(12,26,'Santo Stefano');if(Y>=2026)a(10,4,"San Francesco d'Assisi");
+  // Pasqua (algoritmo di Meeus/Jones/Butcher) e Lunedì dell'Angelo
+  const A=Y%19,B=Math.floor(Y/100),C=Y%100,D=Math.floor(B/4),E=B%4,F=Math.floor((B+8)/25),G=Math.floor((B-F+1)/3),H=(19*A+B-D-G+15)%30,I=Math.floor(C/4),K=C%4,L=(32+2*E+2*I-H-K)%7,Q=Math.floor((A+11*H+22*L)/451),mo=Math.floor((H+L-7*Q+114)/31),dy=((H+L-7*Q+114)%31)+1;
+  a(mo,dy,'Pasqua');const lu=new Date(Y,mo-1,dy+1);a(lu.getMonth()+1,lu.getDate(),"Lunedì dell'Angelo");
+  return FEST_CACHE[Y]=m}
+// Un giorno 'AAAA-MM-GG': giorno della settimana, se è festivo (rosso) e il nome della festività
+function giorno(ds){const [y,m,d]=ds.split('-').map(Number),dw=new Date(y,m-1,d).getDay(),nome=festivi(y).get(ds)||'';return{dw,nome,fest:dw===0||dw===6||!!nome}}
+// Ferie e permessi programmati di un dipendente: richieste fatte dal dipendente (con l'esito dato dall'amministratore)
+// e giorni aggiunti direttamente dall'amministratore. stato: 'ok' approvata, 'att' in attesa, 'no' rifiutata.
+function progOf(dipId,rich,fer){fer=fer||{};const E=fer.e||{};
+  const R=(rich||[]).filter(r=>r&&!r.del&&r.d).map(r=>{const e=E[r.u];return{u:r.u,d:r.d,tipo:r.tipo,h:r.h,note:r.note,da:'dip',stato:e&&(+e.t||0)>=(+r.t||0)?e.s:'att',motivo:e&&e.m||''}});
+  const P=(fer.prog||[]).filter(p=>p&&!p.del&&p.di===dipId).map(p=>({u:p.u,d:p.d,tipo:p.tipo,h:p.h,note:p.note,da:'adm',stato:'ok'}));
+  return[...R,...P]}
+// Colore del giorno: giallo malattia, blu ferie fatte, viola ferie programmate approvate, rosso festivi
+function coloreGiorno(ds,pers,prog){const p=(pers||[]).filter(x=>!x.del&&x.d===ds),g=(prog||[]).filter(x=>x.d===ds);
+  if(p.some(x=>x.tipo==='malattia'))return'g-ma';if(p.some(x=>x.tipo==='ferie'))return'g-fe';
+  if(g.some(x=>x.tipo==='ferie'&&x.stato==='ok'))return'g-fp';if(giorno(ds).fest)return'g-fest';
+  if(g.some(x=>x.tipo==='ferie'&&x.stato==='att'))return'g-att';return''}
+const legendaHTML=()=>'<div class="leg"><span><i class="g-fest"></i>Festivi</span><span><i class="g-fp"></i>Ferie programmate</span><span><i class="g-fe"></i>Ferie fatte</span><span><i class="g-ma"></i>Malattia</span><span><i class="g-att"></i>Richiesta in attesa</span></div>';
+// Report mensile di un dipendente: o={nome, mese:'AAAA-MM', voci, pers, prog}
+function repMonth(o){
+  const N=v=>parseFloat(v)||0,X=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const F=v=>v?v.toLocaleString('it-IT',{maximumFractionDigits:2}):'',FE=v=>v?v.toLocaleString('it-IT',{style:'currency',currency:'EUR'}):'';
+  const S=(L,k)=>L.reduce((s,x)=>s+N(x[k]),0);
+  const [Y,M]=o.mese.split('-').map(Number),nd=new Date(Y,M,0).getDate();
+  const V=(o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese));
+  const P=(o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese));
+  const PG=(o.prog||[]).filter(p=>p.stato!=='no'&&String(p.d||'').startsWith(o.mese));
+  const T={h:0,cant:0,tr:0,fe:0,pe:0,ma:0,km:0,kaz:0,kpr:0,kno:0,sp:0,gg:0,spt:{gen:0,pasti:0,hotel:0,min:0}},byL={};let rows='';
+  for(let i=1;i<=nd;i++){const ds=o.mese+'-'+String(i).padStart(2,'0'),gi=giorno(ds);
+    const vv=V.filter(v=>v.d===ds),pp=P.filter(p=>p.d===ds),pg=PG.filter(p=>p.d===ds),pt=t=>S(pp.filter(p=>p.tipo===t),'h');
+    const h=S(vv,'h'),ca=S(vv.filter(v=>luogoOf(v)==='cant'),'h'),tr=S(vv.filter(v=>luogoOf(v)==='tr'),'h'),km=S(vv,'km'),fe=pt('ferie'),pe=pt('permesso'),ma=pt('malattia');
+    let sp=0;vv.forEach(v=>splOf(v).forEach(s=>{sp+=N(s.i);T.spt[s.t in T.spt?s.t:'gen']+=N(s.i)}));
+    vv.forEach(v=>{const k=N(v.km);if(!k)return;if(v.auto==='az')T.kaz+=k;else if(v.auto==='pr')T.kpr+=k;else T.kno+=k});
+    if(h>0)T.gg++;T.h+=h;T.cant+=ca;T.tr+=tr;T.km+=km;T.sp+=sp;T.fe+=fe;T.pe+=pe;T.ma+=ma;
+    vv.forEach(v=>{const k=(v.cod||'')+'|'+(v.nome||''),L=byL[k]=byL[k]||{cod:v.cod,nome:v.nome,cl:v.cliente,h:0,cant:0,tr:0,km:0,sp:0};const lu=luogoOf(v);L.h+=N(v.h);if(lu==='cant')L.cant+=N(v.h);if(lu==='tr')L.tr+=N(v.h);L.km+=N(v.km);L.sp+=splOf(v).reduce((s,x)=>s+N(x.i),0)});
+    const lav=vv.map(v=>{const lu=luogoOf(v);return`${X(v.cod)} ${X(v.nome)}: <b>${F(N(v.h))||0} h</b>${lu!=='uff'?' ('+LUOGHI[lu].toLowerCase()+')':''}${N(v.km)?' · '+F(N(v.km))+' km'+(v.auto?' '+(v.auto==='az'?'az.':'propria'):''):''}`}).join('<br>');
+    const note=[...pg.map(p=>(p.tipo==='ferie'?'Ferie programmate':'Permesso programmato'+(p.h?' '+F(N(p.h))+' h':''))+(p.stato==='att'?' (in attesa)':p.stato==='no'?' (rifiutata)':'')),
+      ...(gi.nome?[gi.nome]:[]),...vv.flatMap(v=>splOf(v).map(s=>SPT[s.t]+' '+FE(N(s.i)))),
+      ...vv.filter(v=>v.note).map(v=>X(v.cod)+': '+X(v.note)),...pp.filter(p=>p.note||p.tipo==='nota').map(p=>(p.tipo==='nota'?'':TIPI[p.tipo]+': ')+X(p.note))].join('<br>');
+    rows+=`<tr class="${coloreGiorno(ds,pp,pg)}"><td>${GGS[gi.dw]} ${i}</td><td>${lav}</td><td class="n">${F(h)}</td><td class="n">${F(ca)}</td><td class="n">${F(tr)}</td><td class="n">${F(fe)}</td><td class="n">${F(pe)}</td><td class="n">${F(ma)}</td><td class="n">${F(km)}</td><td class="n">${FE(sp)}</td><td>${note}</td></tr>`}
+  const LL=Object.values(byL).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true}));
+  const fpg=PG.filter(p=>p.tipo==='ferie'&&p.stato==='ok').length;
+  return`<section class="rep"><div class="rh"><div><span class="raz">SISTEM SRL STP</span><h2>Report ore · ${X(o.nome)}</h2></div><b>${MESI[M-1]} ${Y}</b></div>
+<table><thead><tr><th>Giorno</th><th>Lavori</th><th class="n">Ore</th><th class="n">di cui cantiere</th><th class="n">di cui trasf.</th><th class="n">Ferie h</th><th class="n">Perm. h</th><th class="n">Mal. h</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${rows}</tbody>
+<tfoot><tr><td colspan="2">Totale mese · ${T.gg} ${T.gg===1?'giorno lavorato':'giorni lavorati'}</td><td class="n">${F(T.h)||0}</td><td class="n">${F(T.cant)}</td><td class="n">${F(T.tr)}</td><td class="n">${F(T.fe)}</td><td class="n">${F(T.pe)}</td><td class="n">${F(T.ma)}</td><td class="n">${F(T.km)}</td><td class="n">${FE(T.sp)}</td><td></td></tr></tfoot></table>
+${legendaHTML()}
+<h3>Riepilogo del mese</h3><div class="rs">
+<table><tbody><tr><th colspan="2">Ore</th></tr><tr><td>In ufficio</td><td class="n">${F(T.h-T.cant-T.tr)||0} h</td></tr><tr><td>In cantiere</td><td class="n">${F(T.cant)||0} h</td></tr><tr><td>In trasferta</td><td class="n">${F(T.tr)||0} h</td></tr><tr><td><b>Totale ore lavorate</b></td><td class="n"><b>${F(T.h)||0} h</b></td></tr></tbody></table>
+<table><tbody><tr><th colspan="2">Km</th></tr><tr><td>Auto propria</td><td class="n">${F(T.kpr)||0} km</td></tr><tr><td>Auto aziendale</td><td class="n">${F(T.kaz)||0} km</td></tr>${T.kno?`<tr><td>Auto non indicata</td><td class="n">${F(T.kno)} km</td></tr>`:''}<tr><td><b>Totale km</b></td><td class="n"><b>${F(T.km)||0} km</b></td></tr></tbody></table>
+<table><tbody><tr><th colspan="2">Spese</th></tr>${Object.keys(SPT).map(k=>`<tr><td>${SPT[k]}</td><td class="n">${FE(T.spt[k])||'0,00 €'}</td></tr>`).join('')}<tr><td><b>Totale spese</b></td><td class="n"><b>${FE(T.sp)||'0,00 €'}</b></td></tr></tbody></table>
+<table><tbody><tr><th colspan="2">Assenze</th></tr><tr><td>Ferie fatte</td><td class="n">${F(T.fe)||0} h</td></tr><tr><td>Permessi</td><td class="n">${F(T.pe)||0} h</td></tr><tr><td>Malattia</td><td class="n">${F(T.ma)||0} h</td></tr><tr><td>Ferie programmate</td><td class="n">${fpg} gg</td></tr></tbody></table></div>
+<h3>Riepilogo per lavoro</h3><table><thead><tr><th>Codice</th><th>Lavoro</th><th>Cliente</th><th class="n">Ore</th><th class="n">di cui cantiere</th><th class="n">di cui trasf.</th><th class="n">Km</th><th class="n">Spese</th></tr></thead><tbody>${LL.length?LL.map(l=>`<tr><td>${X(l.cod)}</td><td>${X(l.nome)}</td><td>${X(l.cl)}</td><td class="n">${F(l.h)}</td><td class="n">${F(l.cant)}</td><td class="n">${F(l.tr)}</td><td class="n">${F(l.km)}</td><td class="n">${FE(l.sp)}</td></tr>`).join(''):'<tr><td colspan="8">Nessuna ora su lavori nel mese.</td></tr>'}</tbody></table>
+<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p>
+<div class="firme"><div>Firma dipendente</div><div>Firma responsabile</div></div></section>`}
+// Elenco piatto per Excel (una riga per registrazione), adatto a tabelle pivot
+function repCsv(list){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round((parseFloat(v)||0)*100)/100).replace('.',',');
+  const R=[];list.forEach(o=>{
+    (o.voci||[]).filter(v=>!v.del&&String(v.d||'').startsWith(o.mese)).forEach(v=>{const s={gen:0,pasti:0,hotel:0,min:0};splOf(v).forEach(x=>s[x.t in s?x.t:'gen']+=parseFloat(x.i)||0);const tot=s.gen+s.pasti+s.hotel+s.min;
+      R.push([o.nome,v.d,TIPI.lavoro,v.cod,v.nome,num(v.h),LUOGHI[luogoOf(v)],num(v.km),v.km?AUTO[v.auto]||'':'',num(s.gen||''),num(s.pasti||''),num(s.hotel||''),num(s.min||''),num(tot||''),v.note])});
+    (o.pers||[]).filter(p=>!p.del&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,TIPI[p.tipo]||p.tipo,'','',num(p.h),'','','','','','','','',p.note]));
+    (o.prog||[]).filter(p=>p.stato!=='no'&&String(p.d||'').startsWith(o.mese)).forEach(p=>R.push([o.nome,p.d,(p.tipo==='ferie'?'Ferie programmate':'Permesso programmato')+(p.stato==='att'?' (in attesa)':p.stato==='no'?' (rifiutata)':''),'','',num(p.h),'','','','','','','','',p.note]))});
+  R.sort((a,b)=>(a[0]+a[1]).localeCompare(b[0]+b[1]));
+  return'﻿'+[['Dipendente','Data','Tipo','Codice','Lavoro','Ore','Dove','Km','Auto','Spese generiche €','Pasti €','Hotel €','Minuteria €','Spese totali €','Note'],...R].map(r=>r.map(q).join(';')).join('\r\n')}
+// Tabella stampabile generica (elenchi): titolo, sottotitolo, intestazioni e righe già in HTML sicuro
+function repTable(titolo,sub,H,R,dopo){return`<section class="rep"><div class="rh"><div><span class="raz">SISTEM SRL STP</span><h2>${titolo}</h2></div><b>${sub||''}</b></div><table><thead><tr>${H.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${R.length?R.map(r=>`<tr>${r.map(c=>`<td>${c??''}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${H.length}">Nessun dato.</td></tr>`}</tbody></table>${dopo||''}<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})}.</p></section>`}
+// Stampa o PDF di un report: nell'app desktop il PDF si salva con «Salva con nome», nel browser si usa la stampa (Salva come PDF)
+async function outReport(html,modo,nomeFile,avviso){const pr=document.getElementById('print');pr.innerHTML=html;
+  if(modo==='pdf'&&window.desktop&&window.desktop.savePdf){const r=await window.desktop.savePdf(nomeFile);if(avviso)avviso(r&&r.ok?'PDF salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'PDF non salvato'+(r&&r.error?': '+r.error:''));return r}
+  if(modo==='pdf'&&avviso)avviso('Nella finestra di stampa scegli «Salva come PDF»');
+  window.print()}
+// ===== Attività settimanali: tabella aperta, la vedono e la compilano amministratore e dipendenti =====
+// Attività {u,t,d,lav,cod,nome,chi,strum,auto,note,by,mod}. L'amministratore scrive in attivita.json, ogni dipendente nel suo
+// ore/<id>.json (campo att): ogni file ha sempre un solo scrittore. Chiunque può correggere o cancellare una riga: la nuova
+// versione (stesso u, t più recente; cancellata = del) va nel file di chi modifica e nell'elenco vince la più recente.
+const sigla=nome=>String(nome||'').trim().split(/\s+/).filter(Boolean).map(p=>p[0].toUpperCase()).join('');
+function attUnisci(...liste){const m=new Map();liste.forEach(L=>(L||[]).forEach(x=>{if(!x||!x.u)return;const y=m.get(x.u);if(!y||(+x.t||0)>(+y.t||0))m.set(x.u,x)}));return[...m.values()].filter(x=>!x.del)}
+const dsOf=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function lunediDi(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()-(d.getDay()+6)%7);return dsOf(d)}
+function giorniSett(lun){return[...Array(7)].map((_,i)=>{const d=new Date(lun+'T12:00');d.setDate(d.getDate()+i);return dsOf(d)})}
+function nSett(ds){const d=new Date(ds+'T12:00');d.setDate(d.getDate()+3-(d.getDay()+6)%7);const w1=new Date(d.getFullYear(),0,4,12);return 1+Math.round(((d-w1)/864e5-3+(w1.getDay()+6)%7)/7)}
+function settLabel(lun){const G=giorniSett(lun),a=G[0].split('-').map(Number),b=G[6].split('-').map(Number);
+  return'Settimana '+nSett(lun)+' · '+a[2]+(a[1]!==b[1]?' '+MESI[a[1]-1].toLowerCase():'')+(a[0]!==b[0]?' '+a[0]:'')+' – '+b[2]+' '+MESI[b[1]-1].toLowerCase()+' '+b[0]}
+const lavLbl=l=>(l.cod?l.cod+' · ':'')+(l.nome||'')+(l.cliente?' ('+l.cliente+')':'');
+// Componente della tabella settimanale, uguale nei due programmi.
+// cfg: {el, tutte()→attività, salva(x)→Promise<bool>, ricarica()→Promise, lavori()→[{id,cod,nome,cliente}], persone()→[{nome}], io:{nome}, toast, ask}
+function attUI(cfg){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const st=cfg.st=cfg.st||{lun:lunediDi(dsOf(new Date())),edit:null};const el=cfg.el,q=s=>el.querySelector(s);
+  el.innerHTML=`<div class="att-card"><div class="att-h"><h2>📅 Attività della settimana</h2><span class="att-mu">Tabella aperta: la vedono e la compilano amministratore e dipendenti.</span></div>
+<div class="att-f"><label>Data<input type="date" data-a="d"></label><label class="w2">Codice lavoro<input data-a="lav" list="att-lav" placeholder="Scrivi codice o nome…" autocomplete="off"></label>
+<label>Chi<input data-a="chi" list="att-chi" placeholder="es. DV" autocomplete="off"></label><label class="w2">Strumentazione<input data-a="strum" list="att-str" placeholder="es. stazione totale" autocomplete="off"></label>
+<label>Auto<select data-a="auto"><option value="">—</option><option value="az">Auto aziendale</option><option value="pr">Auto propria</option></select></label>
+<label class="w2">Note<input data-a="note" maxlength="200"></label><div class="att-b"><button type="button" data-k="annulla" hidden>Annulla</button><button type="button" class="p" data-k="salva">Aggiungi</button></div></div>
+<datalist id="att-lav"></datalist><datalist id="att-chi"></datalist><datalist id="att-str"></datalist></div>
+<div class="att-nav"><button type="button" data-k="prev" title="Settimana precedente">‹</button><b data-k="lbl"></b><button type="button" data-k="next" title="Settimana successiva">›</button><button type="button" data-k="oggi">Questa settimana</button><span style="flex:1"></span><button type="button" data-k="agg">⟳ Aggiorna</button><button type="button" data-k="prt">Stampa</button><button type="button" data-k="pdf">Esporta PDF</button></div>
+<div class="att-l"></div>`;
+  const F=k=>q(`[data-a="${k}"]`),lavOf=v=>(cfg.lavori()||[]).find(l=>lavLbl(l)===v.trim()||String(l.cod??'')===v.trim());
+  const reset=d=>{st.edit=null;F('d').value=d||F('d').value||dsOf(new Date());['lav','strum','note'].forEach(k=>F(k).value='');F('chi').value=cfg.io&&cfg.io.nome?sigla(cfg.io.nome):'';F('auto').value='';q('[data-k=salva]').textContent='Aggiungi';q('[data-k=annulla]').hidden=true};
+  const liste=()=>{q('#att-lav').innerHTML=(cfg.lavori()||[]).map(l=>`<option value="${E(lavLbl(l))}">`).join('');
+    q('#att-chi').innerHTML=(cfg.persone()||[]).map(p=>`<option value="${E(sigla(p.nome))}">${E(p.nome)}</option>`).join('');
+    q('#att-str').innerHTML=[...new Set(cfg.tutte().map(x=>x.strum).filter(Boolean))].sort().map(s=>`<option value="${E(s)}">`).join('')};
+  const chiTit=c=>String(c||'').split(/[,;/+]/).map(s=>s.trim()).filter(Boolean).map(s=>{const p=(cfg.persone()||[]).find(p=>sigla(p.nome)===s.toUpperCase()||p.nome.toLowerCase()===s.toLowerCase());return p?p.nome:s}).join(', ');
+  const mia=x=>cfg.io&&cfg.io.nome&&String(x.chi||'').toUpperCase().split(/[^A-ZÀ-Ü]+/).includes(sigla(cfg.io.nome));
+  const righe=()=>{const G=giorniSett(st.lun),A=cfg.tutte();return G.map(ds=>({ds,L:A.filter(x=>x.d===ds).sort((a,b)=>String(a.cod).localeCompare(String(b.cod),'it',{numeric:true})||(+a.t-+b.t))}))};
+  function lista(){q('[data-k=lbl]').textContent=settLabel(st.lun);const oggi=dsOf(new Date());let h='',tot=0;
+    righe().forEach(({ds,L})=>{const g=giorno(ds),[,m,d]=ds.split('-').map(Number),dl=`<b>${GGS[g.dw]} ${d}/${m}</b>${g.nome?`<small>${E(g.nome)}</small>`:''}${ds===oggi?'<small>oggi</small>':''}<button type="button" class="att-add" data-add="${ds}" title="Aggiungi un'attività in questo giorno">+</button>`;
+      const cls=(g.fest?'g-fest ':'')+(ds===oggi?'att-oggi':'');tot+=L.length;
+      if(!L.length){h+=`<tr class="${cls}"><td class="att-g">${dl}</td><td colspan="8" class="att-mu">—</td></tr>`;return}
+      L.forEach((x,i)=>{h+=`<tr class="${cls} ${mia(x)?'att-mia':''}">${i?'':`<td class="att-g" rowspan="${L.length}">${dl}</td>`}<td><b>${E(x.cod)}</b></td><td>${E(x.nome)}</td><td title="${E(chiTit(x.chi))}"><b>${E(x.chi)}</b></td><td>${E(x.strum)}</td><td>${x.auto?AUTO[x.auto]:''}</td><td>${E(x.note)}</td><td class="att-mu">${E(x.by)}${x.mod&&x.mod!==x.by?'<br>mod. '+E(x.mod):''}</td><td class="att-ac"><button type="button" data-e="${E(x.u)}" title="Modifica">✎</button><button type="button" class="d" data-x="${E(x.u)}" title="Elimina">✕</button></td></tr>`})});
+    q('.att-l').innerHTML=`<div class="att-tw"><table class="att-t"><thead><tr><th>Giorno</th><th>Codice</th><th>Lavoro</th><th>Chi</th><th>Strumentazione</th><th>Auto</th><th>Note</th><th>Inserita da</th><th></th></tr></thead><tbody>${h}</tbody></table></div><p class="att-mu">${tot?tot+(tot===1?' attività':' attività')+' in settimana.':'Nessuna attività programmata in questa settimana.'}${cfg.io&&cfg.io.nome?' Le righe evidenziate riguardano te.':''}</p>`;
+    liste()}
+  async function salva(){const d=F('d').value,l=lavOf(F('lav').value),chi=F('chi').value.trim().replace(/\s*,\s*/g,', ');
+    if(!/^\d{4}-\d\d-\d\d$/.test(d)){cfg.toast('Inserisci la data');F('d').focus();return}
+    if(!l){cfg.toast('Scegli il lavoro dall\'elenco');F('lav').focus();return}
+    if(!chi){cfg.toast('Indica chi (es. DV)');F('chi').focus();return}
+    const me=cfg.io&&cfg.io.nome||'Amministratore',old=st.edit&&cfg.tutte().find(x=>x.u===st.edit);
+    const x={u:old?old.u:newId(),t:Date.now(),d,lav:l.id,cod:String(l.cod??''),nome:l.nome||'',chi,strum:F('strum').value.trim(),auto:F('auto').value,note:F('note').value.trim(),by:old?old.by:me};
+    if(old)x.mod=me;const b=q('[data-k=salva]');b.disabled=true;const ok=await cfg.salva(x);b.disabled=false;
+    if(ok===false)return;st.lun=lunediDi(d);reset(d);lista();cfg.toast(old?'Attività modificata':'Attività aggiunta')}
+  el.onclick=async e=>{const t=e.target.closest('button');if(!t||!el.contains(t))return;const k=t.dataset.k;
+    if(k==='prev'||k==='next'){const d=new Date(st.lun+'T12:00');d.setDate(d.getDate()+(k==='prev'?-7:7));st.lun=dsOf(d);lista()}
+    else if(k==='oggi'){st.lun=lunediDi(dsOf(new Date()));lista()}
+    else if(k==='agg'){await cfg.ricarica();lista();cfg.toast('Aggiornato')}
+    else if(k==='salva')salva();
+    else if(k==='annulla')reset();
+    else if(k==='prt'||k==='pdf'){const R=[];righe().forEach(({ds,L})=>{const g=giorno(ds),gl=GGS[g.dw]+' '+ds.split('-').reverse().join('/')+(g.nome?' · '+E(g.nome):'');
+        if(!L.length)R.push([gl,'','','','','','']);else L.forEach((x,i)=>R.push([i?'':gl,'<b>'+E(x.cod)+'</b>',E(x.nome),'<b>'+E(x.chi)+'</b>',E(x.strum),x.auto?AUTO[x.auto]:'',E(x.note)]))});
+      outReport(repTable('Attività della settimana',settLabel(st.lun),['Giorno','Codice','Lavoro','Chi','Strumentazione','Auto','Note'],R),k,'Attivita_settimana_'+nSett(st.lun)+'_'+st.lun.slice(0,4)+'.pdf',cfg.toast)}
+    else if(t.dataset.add){reset(t.dataset.add);F('lav').focus();q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'})}
+    else if(t.dataset.e){const x=cfg.tutte().find(y=>y.u===t.dataset.e);if(!x)return;st.edit=x.u;F('d').value=x.d;const l=(cfg.lavori()||[]).find(y=>y.id==x.lav&&String(y.cod??'')===x.cod);
+      F('lav').value=l?lavLbl(l):x.cod;F('chi').value=x.chi||'';F('strum').value=x.strum||'';F('auto').value=x.auto||'';F('note').value=x.note||'';
+      q('[data-k=salva]').textContent='Salva modifica';q('[data-k=annulla]').hidden=false;q('.att-f').scrollIntoView({block:'nearest',behavior:'smooth'});F('lav').focus()}
+    else if(t.dataset.x){const x=cfg.tutte().find(y=>y.u===t.dataset.x);if(!x||!await cfg.ask('Eliminare l\'attività '+x.cod+' del '+x.d.split('-').reverse().join('/')+' ('+x.chi+')? Sparisce per tutti.'))return;
+      if(await cfg.salva({u:x.u,t:Date.now(),del:true,mod:cfg.io&&cfg.io.nome||'Amministratore'})!==false){if(st.edit===x.u)reset();lista();cfg.toast('Attività eliminata')}}};
+  el.onkeydown=e=>{if(e.key==='Enter'&&e.target.closest('.att-f')&&e.target.tagName==='INPUT'){e.preventDefault();salva()}};
+  reset();lista();
+  return{lista,aggiorna:()=>{if(!el.isConnected)return;lista()}}}
+// ===== «Verifica collegamento»: risultato delle prove sulla cartella condivisa, spiegato passo passo =====
+// r: risultato di window.desktop.shTest(); nomi: {id→nome} dei dipendenti; extra: righe aggiuntive [[ok,testo]]
+async function verificaCollegamento(nomi,extra){const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const quando=t=>t?new Date(t).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):'';
+  if(!window.desktop||!window.desktop.shTest)return'<p>Versione di prova nel browser: la cartella del server è simulata, non c\'è niente da verificare.</p>';
+  let r;try{r=await window.desktop.shTest()}catch(e){return'<p class="neg">Verifica non riuscita: '+E(e.message||e)+'</p>'}
+  const riga=(ok,t,info,avv)=>`<tr><td style="width:28px;text-align:center;font-size:16px">${ok?'✅':avv?'⚠️':'❌'}</td><td><b>${E(t)}</b>${info?`<br><span style="color:var(--mu);font-size:12px">${E(info)}</span>`:''}</td></tr>`;
+  let h=`<p style="margin:0 0 8px">Programma <b>${r.admin?'CONTROLLO_SISTEM':'INSERT_SISTEM'} ${E(r.ver)}</b> · PC <b>${E(r.pc)}</b>${r.utente?' · utente Windows <b>'+E(r.utente)+'</b>':''}</p>`;
+  if(!r.dir)return h+'<p class="neg">❌ Nessuna cartella condivisa scelta su questo PC.</p>';
+  h+=`<p style="margin:0 0 8px">Cartella condivisa: <b>${E(r.dir)}</b></p><table class="vc">${r.prove.map(p=>riga(p.ok,p.nome,p.ok?p.info:p.info,p.avviso)).join('')}${(extra||[]).map(x=>riga(x[0],x[1],x[2],x[3])).join('')}</table>`;
+  if(r.file.length)h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dell'amministrazione nella cartella</h3><table class="vc">${r.file.map(f=>riga(!f.err,f.n,f.err?f.err:'aggiornato il '+quando(f.t),f.err==='manca'&&/attivita|messaggi|ferie/.test(f.n))).join('')}</table>`;
+  if(r.prove.some(p=>p.nome.includes('ore')&&p.ok)||r.ore.length){const ids=new Set(Object.keys(nomi||{}));
+    h+=`<h3 style="font-size:14px;margin:12px 0 4px">File dei dipendenti (cartella «ore»)</h3><table class="vc">${r.ore.length?r.ore.map(f=>{const id=f.n.replace(/^ore\//,'').replace(/\.json$/i,''),nm=nomi&&nomi[id];
+      return riga(!f.err&&!!nm,(nm?nm+' — ':'')+f.n,f.err?f.err:(nm?'':'nessun dipendente con questo codice (dipendente cancellato o ricreato?) · ')+'aggiornato il '+quando(f.t),!nm&&!f.err)}).join(''):riga(false,'Nessun file: nessun dipendente ha ancora salvato ore su questo server','',true)}
+${[...ids].filter(id=>!r.ore.some(f=>f.n==='ore/'+id+'.json')).map(id=>riga(false,nomi[id]+' — ore/'+id+'.json','non ancora presente: questo dipendente non ha mai salvato sul server',true)).join('')}</table>`}
+  const ko=r.prove.filter(p=>!p.ok&&!p.avviso);
+  h+=ko.length?`<div class="vcko"><b>Cosa fare</b><ul>${ko.map(p=>/«ore»/.test(p.nome)&&/accesso negato|EPERM|EACCES/.test(p.info)?'<li>Sul server dai al gruppo dei dipendenti il permesso <b>Modifica</b> sulla cartella <b>ore</b> (Proprietà → Sicurezza → Modifica… → spunta «Modifica»). Vedi la guida per l\'amministrazione, capitolo 4.3.</li>'
+      :/Cartella «ore» presente/.test(p.nome)?'<li>Crea la sottocartella <b>ore</b> dentro la cartella condivisa (capitolo 3 della guida).</li>'
+      :/raggiungibile/.test(p.nome)?'<li>Il PC non raggiunge il server: prova Windows + R → <b>'+E(r.dir)+'</b>. Se non si apre, controlla la rete o il nome del server.</li>'
+      :/principale/.test(p.nome)?'<li>L\'amministratore deve avere <b>Controllo completo</b> sulla cartella condivisa.</li>'
+      :/dipendenti/.test(p.nome)?'<li>Manca l\'elenco dei dipendenti: in CONTROLLO_SISTEM premi «Salva dipendenti» con la stessa cartella condivisa scelta qui.</li>':'<li>'+E(p.nome)+': '+E(p.info)+'</li>').join('')}</ul></div>`
+    :'<p class="pos" style="margin:10px 0 0"><b>Il collegamento al server funziona.</b> Controlla che su tutti i PC sia scelta la stessa cartella: <b>'+E(r.dir)+'</b>.</p>';
+  return h}
+/*CONDIVISO-FINE*/
+</script>
+<script>
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dIt=v=>v?String(v).split('-').reverse().join('/'):'';
+const oggi=()=>dsOf(new Date());
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3000)}
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const DESK=!!(window.desktop&&window.desktop.rsRead);
+
+// Stato: righe di CONTROLLO_SISTEM (sola lettura), assegnazioni {chiave:{chi,note,t}}, persone dal file dipendenti.json
+const ST={rows:[],mtime:0,file:'',err:'',A:{},pers:[],sel:new Set()};
+const PREF=LS.get('rs:pref',{grp:'lav',fst:'',fch:''});
+// Un servizio non ha un identificativo proprio: lo riconosciamo da lavoro + descrizione + scadenza
+const keyOf=(r,x)=>r.id+'|'+String(x.t||'').trim()+'|'+(x.d||'');
+
+async function leggiDati(){
+  if(DESK){let r;try{r=await window.desktop.init()}catch(e){ST.err='Impossibile leggere la cartella dei dati: '+(e.message||e);return}
+    ST.file=r.file;if(!r.exists){ST.err='Nella cartella «'+r.dir+'» non c\'è il file dati_lavori.json di CONTROLLO_SISTEM. Usa «Cambia cartella dati…» e scegli la cartella dove CONTROLLO_SISTEM salva i dati.';ST.rows=[];return}
+    if(r.mtime===ST.mtime&&!ST.err)return false;
+    try{const p=JSON.parse(String(r.data).replace(/^﻿/,''));ST.rows=righe(p);ST.mtime=r.mtime;ST.err=''}catch(e){ST.err='Il file dati_lavori.json non si riesce a leggere (forse CONTROLLO_SISTEM lo sta salvando): riprovo tra poco.'}
+    try{const t=await window.desktop.rsRead();ST.A=t?(JSON.parse(String(t).replace(/^﻿/,'')).a||{}):{}}catch(e){}
+  }else{const p=LS.get('rs:dati',null);if(p){ST.rows=righe(p.d);ST.file=p.nome;ST.mtime=p.t}else ST.err='Apri il file dati_lavori.json (o un backup .json) di CONTROLLO_SISTEM con «Apri file dati…».';ST.A=LS.get('rs:assegnati',{})}
+  return true}
+// Accetta il file dati di CONTROLLO_SISTEM o un suo backup (anche vecchio, con i lavori in un array)
+function righe(p){const R=Array.isArray(p)?p:Array.isArray(p&&p.rows)?p.rows:null;if(!R)throw new Error('Non è un file di CONTROLLO_SISTEM');return R.filter(r=>r&&typeof r==='object')}
+async function leggiPersone(){let L=[];try{const f=await rj('dipendenti.json',{dip:[]});L=(f.dip||[]).filter(d=>d&&d.nome&&d.attivo!==false).map(d=>d.nome)}catch(e){}
+  ST.pers=[...new Set([...L,...Object.values(ST.A).map(a=>a.chi).filter(Boolean)])].sort((a,b)=>a.localeCompare(b,'it'))}
+async function salvaA(k,v){
+  if(DESK){let cur={};try{const t=await window.desktop.rsRead();cur=t?(JSON.parse(String(t).replace(/^﻿/,'')).a||{}):{}}catch(e){}
+    Object.entries(k).forEach(([kk,vv])=>{if(vv)cur[kk]=vv;else delete cur[kk]});
+    try{await window.desktop.rsWrite(JSON.stringify({v:1,a:cur},null,1));ST.A=cur;return true}catch(e){toast('Assegnazione non salvata: '+(e.message||e));return false}}
+  Object.entries(k).forEach(([kk,vv])=>{if(vv)ST.A[kk]=vv;else delete ST.A[kk]});LS.set('rs:assegnati',ST.A);return true}
+// Nome scritto per sigla (es. «DV») → nome completo del dipendente
+const nomeDi=s=>{s=String(s||'').trim();if(!s)return'';const p=ST.pers.find(n=>n.toLowerCase()===s.toLowerCase()||sigla(n)===s.toUpperCase());return p||s};
+
+// Elenco dei servizi aperti con i filtri
+function aperti(){const L=[];ST.rows.forEach(r=>(Array.isArray(r.sv)?r.sv:[]).forEach(x=>{if(x&&!x.ok&&(x.t||x.d)){const k=keyOf(r,x),a=ST.A[k]||{};L.push({r,x,k,chi:a.chi||'',note:a.note||'',late:!!(x.d&&x.d<oggi())})}}));return L}
+function filtrati(){const q=$('q').value.trim().toLowerCase(),fs=$('fst').value,fc=$('fch').value,sc=$('fsc').checked;
+  return aperti().filter(o=>(!fs||o.r.stato===fs)&&(!fc||(fc==='-'?!o.chi:o.chi===fc))&&(!sc||o.late)&&(!q||[o.x.t,o.r.cod,o.r.nome,o.r.cliente,o.r.loc,o.chi,o.note].join(' ').toLowerCase().includes(q)))}
+const cmpD=(a,b)=>(a.x.d||'9999')<(b.x.d||'9999')?-1:(a.x.d||'9999')>(b.x.d||'9999')?1:0;
+const cmpL=(a,b)=>String(a.r.cod??'').localeCompare(String(b.r.cod??''),'it',{numeric:true})||String(a.r.nome||'').localeCompare(String(b.r.nome||''),'it');
+const lavT=r=>(r.cod?r.cod+' · ':'')+(r.nome||'(senza nome)');
+// Gruppi secondo la scelta: per lavoro, per persona o elenco unico per scadenza
+function gruppi(L){const g=$('grp').value,m=new Map();
+  if(g==='sca')return[{t:'',L:[...L].sort((a,b)=>cmpD(a,b)||cmpL(a,b))}];
+  L.forEach(o=>{const k=g==='lav'?o.r.id:(o.chi||'');if(!m.has(k))m.set(k,{t:g==='lav'?lavT(o.r):(o.chi||'Non assegnati'),sub:g==='lav'?[o.r.cliente,o.r.stato].filter(Boolean).join(' · '):'',r:o.r,chi:o.chi,L:[]});m.get(k).L.push(o)});
+  const G=[...m.values()];G.forEach(x=>x.L.sort(g==='lav'?cmpD:(a,b)=>cmpD(a,b)||cmpL(a,b)));
+  return g==='lav'?G.sort((a,b)=>cmpL({r:a.r},{r:b.r})):G.sort((a,b)=>!a.chi?1:!b.chi?-1:a.t.localeCompare(b.t,'it'))}
+
+function filtriSel(){const st=[...new Set(ST.rows.map(r=>r.stato).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it'));
+  const fill=(id,first,opts,v)=>{$(id).innerHTML=first+opts.map(([k,l])=>`<option value="${esc(k)}"${k===v?' selected':''}>${esc(l)}</option>`).join('')};
+  fill('fst','<option value="">Tutti gli stati</option>',st.map(s=>[s,s]),PREF.fst);
+  const chi=[...new Set(aperti().map(o=>o.chi).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it'));
+  fill('fch','<option value="">Tutte le persone</option><option value="-"'+(PREF.fch==='-'?' selected':'')+'>Non assegnati</option>',chi.map(s=>[s,s]),PREF.fch);
+  $('grp').value=PREF.grp||'lav';$('pers').innerHTML=ST.pers.map(n=>`<option value="${esc(n)}">${esc(sigla(n))}</option>`).join('')}
+
+function render(){
+  const A=aperti(),L=filtrati(),G=gruppi(L),g=$('grp').value;
+  $('ban').hidden=!ST.err;$('ban').textContent=ST.err;
+  $('srci').textContent=ST.file?ST.file+(ST.mtime?' · salvato il '+new Date(ST.mtime).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):''):'nessun file';
+  $('kpi').innerHTML=[['Servizi aperti',A.length],['Lavori coinvolti',new Set(A.map(o=>o.r.id)).size],['Scaduti',A.filter(o=>o.late).length,'neg'],['Senza assegnazione',A.filter(o=>!o.chi).length,'na'],['Persone coinvolte',new Set(A.map(o=>o.chi).filter(Boolean)).size]]
+    .map(([l,v,c])=>`<div><small>${l}</small><b class="${v&&c?c:''}">${v}</b></div>`).join('');
+  $('cnt').textContent=L.length===A.length?'':'In elenco '+L.length+' servizi su '+A.length+' (filtri attivi)';
+  ST.sel.forEach(k=>{if(!L.some(o=>o.k===k))ST.sel.delete(k)});
+  let h='';G.forEach(gr=>{if(gr.t)h+=`<tr class="gr"><td class="c"><input type="checkbox" data-g="${esc(gr.L.map(o=>o.k).join('\n'))}" ${gr.L.every(o=>ST.sel.has(o.k))?'checked':''}></td><td colspan="8">${esc(gr.t)}<small>${gr.L.length} ${gr.L.length===1?'servizio':'servizi'}${gr.sub?' · '+esc(gr.sub):''}</small></td></tr>`;
+    gr.L.forEach(o=>{h+=`<tr class="${o.late?'late':''}" data-k="${esc(o.k)}"><td class="c"><input type="checkbox" data-s ${ST.sel.has(o.k)?'checked':''}></td><td class="d">${o.x.d?dIt(o.x.d)+(o.late?' ⚠':''):'<span class="mu">—</span>'}</td><td class="w">${esc(o.x.t)||'<span class="mu">(senza descrizione)</span>'}</td><td style="white-space:nowrap">${esc(o.r.cod)}</td><td class="w">${esc(o.r.nome)}</td><td>${esc(o.r.cliente)}</td><td>${o.r.stato?`<span class="tag">${esc(o.r.stato)}</span>`:''}</td>
+<td><input class="a" data-f="chi" list="pers" value="${esc(o.chi)}" placeholder="da assegnare" autocomplete="off"></td><td><input class="nt" data-f="note" value="${esc(o.note)}" maxlength="200"></td></tr>`})});
+  $('tb').innerHTML=h||`<tr><td colspan="9" class="empty">${A.length?'Nessun servizio con questi filtri.':ST.err?'':'Nessun servizio aperto: tutti i servizi di CONTROLLO_SISTEM sono fatti. 🎉'}</td></tr>`;
+  $('all').checked=L.length>0&&L.every(o=>ST.sel.has(o.k));bulk()}
+function bulk(){$('bulk').hidden=!ST.sel.size;$('bn').textContent=ST.sel.size+(ST.sel.size===1?' servizio selezionato.':' servizi selezionati.')}
+
+// Modifica di assegnazione o nota: si salva quando si esce dal campo
+$('tb').addEventListener('change',async e=>{const t=e.target,tr=t.closest('tr[data-k]');
+  if(t.dataset.g!==undefined){t.dataset.g.split('\n').forEach(k=>t.checked?ST.sel.add(k):ST.sel.delete(k));render();return}
+  if(!tr)return;const k=tr.dataset.k;
+  if(t.dataset.s!==undefined){t.checked?ST.sel.add(k):ST.sel.delete(k);render();return}
+  const f=t.dataset.f;if(!f)return;const a={...(ST.A[k]||{})};a[f]=f==='chi'?nomeDi(t.value):t.value.trim();a.t=Date.now();
+  if(await salvaA({[k]:a.chi||a.note?a:null})){if(f==='chi'){await leggiPersone();filtriSel()}render();toast(f==='chi'?(a.chi?'Assegnato a '+a.chi:'Assegnazione tolta'):'Nota salvata')}});
+$('all').onchange=e=>{filtrati().forEach(o=>e.target.checked?ST.sel.add(o.k):ST.sel.delete(o.k));render()};
+async function assegna(chi){const L=aperti().filter(o=>ST.sel.has(o.k));if(!L.length)return;const m={};
+  L.forEach(o=>{const a={...(ST.A[o.k]||{}),chi,t:Date.now()};m[o.k]=a.chi||a.note?a:null});
+  if(await salvaA(m)){ST.sel.clear();$('ba').value='';await leggiPersone();filtriSel();render();toast(chi?L.length+' servizi assegnati a '+chi:'Assegnazione tolta a '+L.length+' servizi')}}
+$('bok').onclick=()=>{const c=nomeDi($('ba').value);if(!c){toast('Scrivi a chi assegnare i servizi');$('ba').focus();return}assegna(c)};
+$('btogli').onclick=()=>assegna('');
+$('bx').onclick=()=>{ST.sel.clear();render()};
+['q','fsc'].forEach(id=>$(id).addEventListener('input',render));
+['fst','fch','grp'].forEach(id=>$(id).addEventListener('change',()=>{PREF[id]=$(id).value;LS.set('rs:pref',PREF);render()}));
+
+// Report stampato: per lavoro (una tabella con i gruppi), per persona (una pagina per persona) o elenco per scadenza
+function reportHTML(){const L=filtrati(),G=gruppi(L),g=$('grp').value,d=new Date().toLocaleDateString('it-IT');
+  const fil=[$('fst').value&&'stato «'+$('fst').value+'»',$('fch').value&&($('fch').value==='-'?'non assegnati':'assegnati a '+$('fch').value),$('fsc').checked&&'solo scaduti',$('q').value.trim()&&'ricerca «'+$('q').value.trim()+'»'].filter(Boolean);
+  const nota=fil.length?`<p class="rn">Filtri: ${esc(fil.join(', '))}.</p>`:'';
+  const riga=(o,cols)=>`<tr><td class="${o.late?'late':''}">${o.x.d?dIt(o.x.d)+(o.late?' ⚠':''):'—'}</td><td>${esc(o.x.t)}</td>${cols.includes('lav')?`<td>${esc(o.r.cod)}</td><td>${esc(o.r.nome)}</td><td>${esc(o.r.cliente)}</td>`:''}${cols.includes('chi')?`<td>${esc(o.chi)||'<i>da assegnare</i>'}</td>`:''}<td>${esc(o.note)}</td><td style="width:34px"></td></tr>`;
+  const sez=(tit,sub,H,body)=>`<section class="rep"><div class="rh"><div><span class="raz">SISTEM SRL STP</span><h2>${tit}</h2></div><b>${sub}</b></div><table><thead><tr>${H.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${H.length}">Nessun servizio aperto.</td></tr>`}</tbody></table>${nota}<p class="rn">Generato il ${new Date().toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'})} dai dati di CONTROLLO_SISTEM${ST.mtime?' salvati il '+new Date(ST.mtime).toLocaleString('it-IT',{dateStyle:'short',timeStyle:'short'}):''}.</p></section>`;
+  const sub=L.length+(L.length===1?' servizio':' servizi')+' · '+d;
+  if(g==='per')return G.length?G.map(gr=>sez('Servizi aperti · '+esc(gr.t),gr.L.length+(gr.L.length===1?' servizio':' servizi')+' · '+d,['Scadenza','Servizio','Cod','Lavoro','Cliente','Note','Fatto'],gr.L.map(o=>riga(o,['lav'])).join(''))).join(''):sez('Servizi aperti',sub,['Scadenza','Servizio','Note'],'');
+  if(g==='sca')return sez('Servizi aperti per scadenza',sub,['Scadenza','Servizio','Cod','Lavoro','Cliente','Assegnato a','Note','Fatto'],G[0].L.map(o=>riga(o,['lav','chi'])).join(''));
+  return sez('Servizi aperti per lavoro',sub,['Scadenza','Servizio','Assegnato a','Note','Fatto'],G.map(gr=>`<tr class="gr"><td colspan="5">${esc(gr.t)}${gr.sub?' · <span style="font-weight:400">'+esc(gr.sub)+'</span>':''}</td></tr>`+gr.L.map(o=>riga(o,['chi'])).join('')).join(''))}
+const nomeFile=ext=>'Servizi_aperti_'+({lav:'per_lavoro',per:'per_persona',sca:'per_scadenza'}[$('grp').value])+'_'+oggi()+'.'+ext;
+$('prt').onclick=()=>outReport(reportHTML(),'print','',toast);
+$('pdf').onclick=()=>outReport(reportHTML(),'pdf',nomeFile('pdf'),toast);
+// Excel: CSV con «;», come lo legge Excel in italiano, nell'ordine dell'elenco a video
+$('csv').onclick=async()=>{const L=gruppi(filtrati()).flatMap(g=>g.L);if(!L.length){toast('Nessun servizio da esportare');return}
+  const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"';
+  const H=['Scadenza','Scaduto','Servizio','Cod','Lavoro','Cliente','Stato lavoro','Località','Assegnato a','Note'];
+  const txt='﻿'+[H,...L.map(o=>[dIt(o.x.d),o.late?'sì':'',o.x.t,o.r.cod,o.r.nome,o.r.cliente,o.r.stato,o.r.loc,o.chi,o.note])].map(a=>a.map(q).join(';')).join('\r\n');
+  const fn=nomeFile('csv');
+  if(window.desktop&&window.desktop.saveFile){const r=await window.desktop.saveFile(fn,txt);toast(r&&r.ok?'File salvato: '+r.file:r&&r.canceled?'Salvataggio annullato':'File non salvato'+(r&&r.error?': '+r.error:''));return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv'}));a.download=fn;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);toast('File scaricato')};
+
+// Origine dei dati: nell'app la cartella di CONTROLLO_SISTEM, nel browser un file scelto a mano
+async function aggiorna(forza){if(forza)ST.mtime=0;const ch=await leggiDati();
+  // mentre si scrive in un campo non si ridisegna, per non perdere il testo
+  if(ch===false&&!forza)return;if(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#tb'))return;
+  await leggiPersone();filtriSel();render()}
+$('agg').onclick=async()=>{await aggiorna(true);toast(ST.err?'Dati non letti':'Dati riletti')};
+if(DESK){$('dir').hidden=false;$('dir').onclick=async()=>{const r=await window.desktop.choose();if(r)aggiorna(true)}}
+else{$('apri').hidden=false;$('apri').onclick=()=>$('file').click();
+  $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse((await f.text()).replace(/^﻿/,''));righe(d);LS.set('rs:dati',{nome:f.name,t:f.lastModified,d});ST.err='';aggiorna(true);toast('Dati caricati: '+f.name)}catch(err){toast('File non valido: '+(err.message||err))}e.target.value=''}}
+$('abdata').textContent=new Date().toLocaleDateString('it-IT',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+aggiorna(true);
+setInterval(()=>aggiorna(false),60000);
+window.addEventListener('focus',()=>aggiorna(false));
+</script>
+</body>
+</html>

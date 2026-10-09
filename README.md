@@ -1,8 +1,11 @@
-# CONTROLLO_SISTEM e INSERT_SISTEM
+# CONTROLLO_SISTEM, INSERT_SISTEM e REPORT_SISTEM
 
-Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
+Tre programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
-- **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
+- **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva;
+- **REPORT_SISTEM** (`Report_Servizi.html`): report immediato di tutti i **servizi aperti** di CONTROLLO_SISTEM, con lavoro, scadenza e a chi è assegnato; si stampa, si esporta in PDF o in Excel.
+
+Novità 1.11: nuovo programma **REPORT_SISTEM**. Legge (senza mai modificarlo) il file `dati_lavori.json` di CONTROLLO_SISTEM: sullo stesso PC trova da solo la cartella dei dati e la cartella condivisa impostate in CONTROLLO_SISTEM, altrimenti si sceglie con «Cambia cartella dati…». Mostra tutti i servizi non ancora fatti (scaduti in rosso), con filtri per stato del lavoro, persona, solo scaduti e ricerca; raggruppa per lavoro, per persona (una pagina stampata per persona, da consegnare) o per scadenza. Ogni servizio si assegna a una persona (elenco dei dipendenti di `dipendenti.json`, si può scrivere anche la sigla, es. «DV») e si può aggiungere una nota; con le caselle si assegnano più servizi insieme. Assegnazioni e note stanno in `servizi_assegnati.json`, nella cartella dei dati accanto a `dati_lavori.json` (unico scrittore: REPORT_SISTEM). I servizi si chiudono sempre in CONTROLLO_SISTEM; il report si rilegge da solo ogni minuto. Per provarlo in sviluppo: `npm run start:report`.
 
 Novità 1.10.1: pulsante «🔌 Verifica collegamento» in entrambi i programmi (prove di lettura e scrittura sul server, con il motivo degli errori e cosa fare); errori di permesso spiegati al dipendente; un file illeggibile non blocca più la lettura delle ore degli altri.
 
@@ -23,13 +26,13 @@ Ogni file ha un solo scrittore, quindi non ci sono sovrascritture. Se il server 
 **Niente approvazione**: quello che il dipendente inserisce entra da solo nel lavoro appena Controllo Lavori rilegge la cartella (all'avvio, ogni minuto e quando si torna sul programma). Le ore si sommano a **Ore totali** (e anche a **Ore trasferta** se il dipendente spunta «Ore in trasferta»), i km a **Km**, le spese a **Extra €**; se il dipendente modifica o cancella, il lavoro si corregge da solo. Nei cantieri la registrazione compare anche tra gli interventi Worksite; negli altri lavori nel registro «Ore registrate dai dipendenti» della scheda. Mentre una scheda è aperta non si tocca nulla, e un file dipendente illeggibile non toglie mai ore.
 Nel pannello **👥 Ore dipendenti** l'amministratore vede tutte le registrazioni, crea dipendenti e PIN, vede ferie/permessi/note e stampa il **report mensile** per dipendente (per giorno e per lavoro, con trasferta e firme) o lo esporta in Excel.
 Controllo Lavori può chiedere un **PIN di apertura** (👥 Ore dipendenti → Impostazioni), anche dopo 20 minuti di inattività.
-Il codice comune ai due HTML sta in `src/` e si copia nei file con `npm run sync`.
+Il codice comune agli HTML sta in `src/` e si copia nei file con `npm run sync`.
 
 ## Scaricare l'eseguibile
 **Windows 7 a 32 bit**: usare i file `…-Windows7-32bit-…` (artifact `Programmi-Windows7-32bit`), costruiti con Electron 22, l'ultima versione che supporta Windows 7; funzionano anche su Windows 10/11.
 
 Ogni push su GitHub avvia il workflow **Build eseguibili** (scheda *Actions*). A fine build, nella pagina del run, sezione *Artifacts*:
-- `Controllo-Lavori-Windows`: `Controllo-Lavori-…` e `Ore-Dipendenti-…`, ciascuno in versione `-portable.exe` (si avvia senza installare) e `-setup.exe` (installer);
+- `Controllo-Lavori-Windows`: `Controllo-Lavori-…`, `Ore-Dipendenti-…` e `REPORT_SISTEM-…`, ciascuno in versione `-portable.exe` (si avvia senza installare) e `-setup.exe` (installer);
 - `Controllo-Lavori-macOS`: `.dmg`;
 - `Controllo-Lavori-Linux`: `.AppImage`.
 

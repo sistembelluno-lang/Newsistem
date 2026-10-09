@@ -1,0 +1,42 @@
+{
+  "appId": "it.sistembelluno.reportservizi",
+  "productName": "REPORT_SISTEM",
+  "electronVersion": "22.3.27",
+  "extraMetadata": {
+    "name": "report-servizi",
+    "productName": "REPORT_SISTEM"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "Report_Servizi.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-report"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "ia32"
+        ]
+      }
+    ]
+  },
+  "portable": {
+    "artifactName": "REPORT_SISTEM-${version}-Windows7-32bit-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "REPORT_SISTEM-${version}-Windows7-32bit-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}

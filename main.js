@@ -3,13 +3,17 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// Lo stesso main.js serve due programmi: «Controllo Lavori» (amministratore) e «Ore Dipendenti».
-// Ogni build include una sola delle due pagine.
-const PAGE = fs.existsSync(path.join(__dirname, 'Controllo_Lavori.html')) ? 'Controllo_Lavori.html' : 'Ore_Dipendenti.html';
+// Lo stesso main.js serve tre programmi: «Controllo Lavori» (amministratore), «Ore Dipendenti» e «Report Servizi».
+// Ogni build include una sola delle pagine; in sviluppo «npm run start:report» apre il report.
+const PAGE = process.argv.includes('--report') && fs.existsSync(path.join(__dirname, 'Report_Servizi.html')) ? 'Report_Servizi.html'
+  : ['Controllo_Lavori.html', 'Ore_Dipendenti.html', 'Report_Servizi.html'].find((p) => fs.existsSync(path.join(__dirname, p))) || 'Ore_Dipendenti.html';
 const ADMIN = PAGE === 'Controllo_Lavori.html';
-const TITLE = ADMIN ? 'CONTROLLO_SISTEM' : 'INSERT_SISTEM';
+const REPORT = PAGE === 'Report_Servizi.html';
+const TITLE = ADMIN ? 'CONTROLLO_SISTEM' : REPORT ? 'REPORT_SISTEM' : 'INSERT_SISTEM';
 // I programmi si chiamavano «Controllo Lavori» e «Ore Dipendenti»: i dati e le impostazioni restano nelle cartelle di sempre.
-app.setPath('userData', path.join(app.getPath('appData'), ADMIN ? 'Controllo Lavori' : 'Ore Dipendenti'));
+app.setPath('userData', path.join(app.getPath('appData'), ADMIN ? 'Controllo Lavori' : REPORT ? 'Report Servizi' : 'Ore Dipendenti'));
+// Il report legge i dati di CONTROLLO_SISTEM: se non si è scelta un'altra cartella usa quelle impostate in CONTROLLO_SISTEM sullo stesso PC.
+function ctrlSettings() { if (!REPORT) return {}; try { return JSON.parse(fs.readFileSync(path.join(app.getPath('appData'), 'Controllo Lavori', 'impostazioni.json'), 'utf8')); } catch (e) { return {}; } }
 
 // Una sola istanza: i dati stanno nel localStorage del profilo dell'app,
 // due finestre aperte insieme si sovrascriverebbero a vicenda.
@@ -48,7 +52,7 @@ const KEEP_DAYS = 60;
 const settingsPath = () => path.join(app.getPath('userData'), 'impostazioni.json');
 function readSettings() { try { return JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); } catch (e) { return {}; } }
 function writeSettings(s) { fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 1)); }
-function dataDir() { return readSettings().dir || path.join(app.getPath('documents'), 'Controllo Lavori'); }
+function dataDir() { return readSettings().dir || ctrlSettings().dir || path.join(app.getPath('documents'), 'Controllo Lavori'); }
 function localDate(d = new Date()) { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 
 function info(dir) {
@@ -100,10 +104,28 @@ ipcMain.handle('pdf:save', async (e, name) => {
 });
 
 ipcMain.handle('dati:init', () => info(dataDir()));
-ipcMain.handle('dati:save', (e, json, opt) => saveData(String(json), opt));
+// Il report non scrive mai il file dati di CONTROLLO_SISTEM
+ipcMain.handle('dati:save', (e, json, opt) => REPORT ? { ok: false, error: 'Il report legge soltanto i dati' } : saveData(String(json), opt));
+// Report servizi: a chi è assegnato ogni servizio aperto, in servizi_assegnati.json accanto a dati_lavori.json (unico scrittore: il report)
+const RS_FILE = 'servizi_assegnati.json';
+ipcMain.handle('rs:read', () => { try { return fs.readFileSync(path.join(dataDir(), RS_FILE), 'utf8'); } catch (e) { if (e.code === 'ENOENT') return null; throw e; } });
+ipcMain.handle('rs:write', (e, text) => {
+  if (!REPORT) throw new Error('Non permesso');
+  const p = path.join(dataDir(), RS_FILE), tmp = p + '.tmp';
+  fs.mkdirSync(dataDir(), { recursive: true });
+  try { fs.writeFileSync(tmp, String(text)); fs.renameSync(tmp, p); } catch (err) { fs.writeFileSync(p, String(text)); fs.rmSync(tmp, { force: true }); }
+  return true;
+});
+// Salva un file di testo (es. il .csv per Excel) dove sceglie l'utente
+ipcMain.handle('file:save', async (e, name, text) => {
+  const safe = String(name || 'export.csv').replace(/[\\/:*?"<>|]+/g, '_');
+  const r = await dialog.showSaveDialog(win, { title: 'Salva il file', defaultPath: path.join(app.getPath('documents'), safe) });
+  if (r.canceled || !r.filePath) return { ok: false, canceled: true };
+  try { fs.writeFileSync(r.filePath, String(text)); return { ok: true, file: r.filePath }; } catch (err) { return { ok: false, error: String((err && err.message) || err) }; }
+});
 ipcMain.handle('dati:choose', async () => {
   const r = await dialog.showOpenDialog(win, {
-    title: 'Scegli la cartella dove salvare i dati',
+    title: REPORT ? 'Scegli la cartella dei dati di CONTROLLO_SISTEM (quella con dati_lavori.json)' : 'Scegli la cartella dove salvare i dati',
     defaultPath: dataDir(),
     properties: ['openDirectory', 'createDirectory'],
   });
@@ -114,7 +136,7 @@ ipcMain.handle('dati:choose', async () => {
 ipcMain.handle('dati:open', () => { const d = dataDir(); fs.mkdirSync(d, { recursive: true }); return shell.openPath(d); });
 
 // Cartella condivisa sul server (scambio con il programma Ore Dipendenti): percorsi relativi, mai fuori dalla cartella.
-function sharedDir() { return readSettings().shared || ''; }
+function sharedDir() { return readSettings().shared || ctrlSettings().shared || ''; }
 function sharedPath(rel) {
   const base = sharedDir();
   if (!base) throw new Error('Cartella condivisa non impostata');

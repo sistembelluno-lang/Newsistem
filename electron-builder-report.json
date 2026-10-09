@@ -1,0 +1,43 @@
+{
+  "appId": "it.sistembelluno.reportservizi",
+  "productName": "REPORT_SISTEM",
+  "extraMetadata": {
+    "name": "report-servizi",
+    "productName": "REPORT_SISTEM"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "Report_Servizi.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-report"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "nsis"
+    ]
+  },
+  "portable": {
+    "artifactName": "REPORT_SISTEM-${version}-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "REPORT_SISTEM-${version}-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "REPORT_SISTEM-${version}.${ext}"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "REPORT_SISTEM-${version}.${ext}"
+  }
+}
