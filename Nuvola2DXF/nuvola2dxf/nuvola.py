@@ -51,6 +51,17 @@ class Nuvola:
         )
         self.anteprima = np.load(os.path.join(cartella, "anteprima.npy"))
 
+    def chiudi(self):
+        """Rilascia il file su disco (su Windows un file aperto non si può cancellare)."""
+        mm = getattr(self.punti, "_mmap", None)
+        self.punti = np.zeros((0, 3), np.float32)
+        self.n = 0
+        if mm is not None:
+            try:
+                mm.close()
+            except (BufferError, ValueError):
+                pass
+
     @property
     def nome(self):
         return os.path.basename(self.info["file"])

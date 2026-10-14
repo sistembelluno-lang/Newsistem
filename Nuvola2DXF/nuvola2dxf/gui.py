@@ -505,6 +505,8 @@ class Finestra(QtWidgets.QMainWindow):
         self._avvia(lavoro, self._nuvola_aperta, f"Apertura di {os.path.basename(percorso)}…")
 
     def _nuvola_aperta(self, nv):
+        if self.nuvola is not None and self.nuvola is not nv:
+            self.nuvola.chiudi()
         self.nuvola = nv
         self.risultato = None
         self.a = self.b = None
@@ -867,6 +869,8 @@ class Finestra(QtWidgets.QMainWindow):
             "Svuotarlo? Le nuvole andranno riconvertite alla prossima apertura.",
         )
         if r == QtWidgets.QMessageBox.StandardButton.Yes:
+            if self.nuvola is not None:
+                self.nuvola.chiudi()
             self.nuvola = None
             self.risultato = None
             nuvola.svuota_cache()

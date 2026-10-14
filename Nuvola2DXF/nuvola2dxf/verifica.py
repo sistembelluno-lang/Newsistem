@@ -38,7 +38,7 @@ def esegui(log):
         from .parametri import PROFILI
 
         par = list(PROFILI.values())[0]
-        with tempfile.TemporaryDirectory() as tmp:
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
             os.environ["LOCALAPPDATA"] = os.path.join(tmp, "cache")
             P = _stanza(np.random.default_rng(0))
             for est in ("las", "laz", "e57"):
@@ -65,6 +65,8 @@ def esegui(log):
                 dxf = os.path.join(tmp, est + ".dxf")
                 esporta.esporta(dxf, poli + l, "pianta", nv.origine, q, testi=t)
                 ok &= len(list(ezdxf.readfile(dxf).modelspace())) > 0
+                if est != "e57":
+                    nv.chiudi()
             a = np.array([2.0, -1.0]) + (100, 200) - nv.origine[:2]
             b = np.array([2.0, 4.0]) + (100, 200) - nv.origine[:2]
             sez = nv.fetta_sezione(a, b, 0.05)
@@ -77,6 +79,7 @@ def esegui(log):
             _, pp = prospetto.estrai_prospetto(nv.fascia(a, b, -0.5, 1.0), par)
             righe.append(f"prospetto: {len(pp)} elementi")
             ok &= len(pp) >= 1
+            nv.chiudi()
         from PySide6 import QtWidgets  # noqa: F401  (verifica che le librerie Qt ci siano)
         import pyqtgraph  # noqa: F401
     except Exception:
