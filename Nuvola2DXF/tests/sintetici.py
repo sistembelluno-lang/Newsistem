@@ -167,3 +167,49 @@ def edificio3d(rng, densita=3000, rumore=0.003):
     dentro = (np.abs(P[:, 0] - 7.5) < 0.14) & (np.abs(P[:, 1] - 2.8) < 0.14) & ((P[:, 2] < 0.01) | (P[:, 2] > H - 0.01))
     P = P[~dentro]
     return P + rng.normal(0, rumore, P.shape)
+
+
+# ---------------------------------------------------------------- tabià
+def _contorno(V, densita, rng):
+    """Punti sul contorno chiuso del poligono V (sezione di un elemento)."""
+    V = np.asarray(V, float)
+    L = np.hypot(*np.diff(np.vstack((V, V[:1])), axis=0).T).sum()
+    return campiona_spezzata(V, max(8, int(L * densita)), rng)
+
+
+def _rett2(x0, y0, x1, y1, densita, rng):
+    return _contorno([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], densita, rng)
+
+
+def tabia_sezione(rng, densita=1500, rumore=0.003):
+    """Sezione trasversale di un tabià di montagna.
+
+    - basamento in pietra: muri da 50 cm (x -0.5..0 e 6..6.5), alti 3 m
+    - solaio in legno a quota 3: travi 16x20 ogni 0.9 m, tavolato da 4 cm sopra
+    - pareti del fienile in tavole verticali da 2.5 cm (x 0..0.025 e 5.975..6)
+      da quota 3.04 a 6
+    - ballatoio a sud (x 6..7.3) a quota 4: mensole 12x16, tavolato da 4 cm,
+      parapetto in tavole da 2.5 cm alto 1 m sul bordo
+    - tetto a due falde a 30°: puntoni 12 cm di altezza e assito da 3 cm
+    """
+    d = densita
+    P = [_rett2(-0.5, 0, 0, 3, d, rng), _rett2(6, 0, 6.5, 3, d, rng)]
+    for x in np.arange(0.2, 5.9, 0.9):
+        P.append(_rett2(x, 2.8, x + 0.16, 3.0, d, rng))       # travi del solaio
+    P.append(_rett2(-0.5, 3.0, 6.5, 3.04, d, rng))            # tavolato
+    P.append(_rett2(0, 3.04, 0.025, 6.0, d, rng))             # parete ovest in tavole
+    P.append(_rett2(5.975, 3.04, 6.0, 6.0, d, rng))           # parete est in tavole
+    for y in (3.84,):
+        P.append(_rett2(6.0, y, 7.3, y + 0.16, d, rng))       # mensola del ballatoio
+    P.append(_rett2(6.0, 4.0, 7.3, 4.04, d, rng))             # tavolato del ballatoio
+    P.append(_rett2(7.275, 4.04, 7.3, 5.04, d, rng))          # parapetto
+    # falde a 30°: dall'imposta (x -0.6 e 6.6, quota 6) al colmo (x 3, quota 6 + 3.6 tan30)
+    h = 3.6 * np.tan(np.radians(30))
+    for xa, xb in ((-0.6, 3.0), (6.6, 3.0)):
+        a, b = np.array([xa, 6.0]), np.array([xb, 6.0 + h])
+        t = (b - a) / np.hypot(*(b - a))
+        n = np.array([-t[1], t[0]]) * (1 if xb > xa else -1)
+        P.append(_contorno([a, b, b + n * 0.12, a + n * 0.12], d, rng))              # puntone
+        P.append(_contorno([a + n * 0.12, b + n * 0.12, b + n * 0.15, a + n * 0.15], d, rng))  # assito
+    P = np.vstack(P)
+    return P + rng.normal(0, rumore, P.shape)

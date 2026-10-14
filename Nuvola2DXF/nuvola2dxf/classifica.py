@@ -409,3 +409,175 @@ def conta(poli):
     for p in poli:
         out[p.categoria] = out.get(p.categoria, 0) + 1
     return out
+
+
+# ---------------------------------------------------------------- legno (tabià)
+def _dimensioni(p):
+    """Lati del rettangolo minimo (orientato sui tratti) che contiene p."""
+    V = p.punti
+    migliore = None
+    for a, b, _ in p.tratti():
+        d = b - a
+        L = np.hypot(*d)
+        if L < 1e-6:
+            continue
+        d = d / L
+        u, v = V @ d, V @ np.array([-d[1], d[0]])
+        dim = sorted((np.ptp(u), np.ptp(v)))
+        if migliore is None or dim[0] * dim[1] < migliore[0] * migliore[1]:
+            migliore = dim
+    return migliore or (0.0, 0.0)
+
+
+def _spezza(poli, tagli):
+    """Inserisce vertici nei tratti: tagli = {(k, i): [punti]}."""
+    if not tagli:
+        return poli
+    out = []
+    for k, p in enumerate(poli):
+        if p.tipo == "cerchio" or not any(kk == k for kk, _ in tagli):
+            out.append(p)
+            continue
+        V, G = [], []
+        n = len(p.punti)
+        for i, (a, b, g) in enumerate(p.tratti()):
+            V.append(a)
+            extra = tagli.get((k, i), [])
+            if g or not extra:
+                G.append(g)
+                continue
+            d = b - a
+            L2 = d @ d
+            fr = sorted({round(float((x - a) @ d / L2), 6) for x in extra})
+            fr = [f for f in fr if 0.002 < f < 0.998]
+            for f in fr:
+                G.append(0.0)
+                V.append(a + f * d)
+            G.append(0.0)
+        if not p.chiusa:
+            V.append(p.punti[-1])
+            G.append(0.0)
+        out.append(Polilinea(np.array(V), np.array(G), chiusa=p.chiusa, tipo=p.tipo, categoria=p.categoria))
+    return out
+
+
+def _coppie_parallele(tratti, modificabili, cat, frazione=0.5):
+    """Coppie di tratti paralleli e affacciati: (x, y, distanza, tratto
+    sovrapposto di x come frazioni)."""
+    info = []
+    for a, b, g, k, i in tratti:
+        L = float(np.hypot(*(b - a)))
+        if g or L < 0.1 or cat[k][i] not in modificabili:
+            info.append(None)
+        else:
+            info.append((a, b, (b - a) / L, L))
+    out = []
+    for x in range(len(tratti)):
+        if info[x] is None:
+            continue
+        a1, b1, d1, L1 = info[x]
+        n1 = np.array([-d1[1], d1[0]])
+        for y in range(x + 1, len(tratti)):
+            if info[y] is None:
+                continue
+            a2, b2, d2, L2 = info[y]
+            if abs(d1[0] * d2[1] - d1[1] * d2[0]) > np.sin(np.radians(3)):
+                continue
+            w = abs((a2 - a1) @ n1)
+            if not 0.012 <= w <= 0.35:
+                continue
+            s2 = sorted(((a2 - a1) @ d1, (b2 - a1) @ d1))
+            lo, hi = max(0.0, s2[0]), min(L1, s2[1])
+            if hi - lo < frazione * min(L1, L2) or hi - lo < (0.1 if frazione else 0.3):
+                continue
+            out.append((x, y, w, lo, hi, info[x], info[y]))
+    return out, info
+
+
+def classifica_legno(poli, vista="sezione"):
+    """Tabià e strutture in legno: tavolati (tavole a due facce vicine),
+    travi e puntoni (sezioni piccole, coppie inclinate più spesse),
+    ballatoi e parapetti (elementi in legno fuori dal filo dei muri)."""
+    modificabili = ("muri", "pavimenti", "soffitti", "solai", "coperture", "pilastri")
+
+    def categorie(poli):
+        return {k: [p.categoria] * (len(p.punti) if p.chiusa else len(p.punti) - 1)
+                for k, p in enumerate(poli) if p.tipo != "cerchio"}
+
+    # 1) una faccia lunga affiancata da una tavola solo per un tratto (il
+    #    muro in pietra allineato con la parete in tavole) viene spezzata
+    #    dove finisce la tavola, così il legno prende solo la parte giusta
+    tratti = _tratti(poli)
+    cat = categorie(poli)
+    coppie, info = _coppie_parallele(tratti, modificabili, cat, frazione=0)
+    tagli = {}
+    for x, y, w, lo, hi, (a1, b1, d1, L1), (a2, b2, d2, L2) in coppie:
+        if w > 0.07:
+            continue
+        for z, (a, b, d, L), (ao, bo, do, Lo) in ((x, info[x], info[y]), (y, info[y], info[x])):
+            for e in (ao, bo):
+                f = (e - a) @ d
+                if 0.05 < f < L - 0.05:
+                    tagli.setdefault((tratti[z][3], tratti[z][4]), []).append(a + f * d)
+    poli = _spezza(poli, tagli)
+
+    tratti = _tratti(poli)
+    cat = categorie(poli)
+    coppie, info = _coppie_parallele(tratti, modificabili, cat)
+    indice = {(k, i): n for n, (a, b, g, k, i) in enumerate(tratti)}
+    sottili, spesse = set(), set()
+    for x, y, w, *_ in coppie:
+        (sottili if w <= 0.07 else spesse).update((x, y))
+    # sezioni chiuse sottili (tavole viste in sezione)
+    travi = set()
+    for k, p in enumerate(poli):
+        if not p.chiusa or p.tipo == "cerchio" or p.categoria not in modificabili:
+            continue
+        corto, lungo = _dimensioni(p)
+        n = len(cat[k])
+        if corto <= 0.07 and lungo > 0.2:
+            sottili.update(indice[(k, i)] for i in range(n))
+        elif vista == "sezione" and 0.06 <= corto and lungo <= 0.45:
+            travi.update(indice[(k, i)] for i in range(n))
+    # travi appese a un tavolato: tre lati corti a U (giù, orizzontale, su)
+    if vista == "sezione":
+        for k, p in enumerate(poli):
+            if p.tipo == "cerchio" or k not in cat:
+                continue
+            seg = list(p.tratti())
+            m = len(seg)
+            for i in range(m if p.chiusa else m - 2):
+                tre = [seg[(i + j) % m] for j in range(3)]
+                L = [np.hypot(*(b - a)) for a, b, _ in tre]
+                if any(g for _, _, g in tre) or not all(0.05 <= x <= 0.45 for x in L):
+                    continue
+                d0 = (tre[0][1] - tre[0][0]) / L[0]
+                d2 = (tre[2][1] - tre[2][0]) / L[2]
+                d1 = (tre[1][1] - tre[1][0]) / L[1]
+                if d0 @ d2 < -0.97 and abs(d0 @ d1) < 0.1:
+                    travi.update(indice[(k, (i + j) % m)] for j in range(3))
+    for x, (a, b, g, k, i) in enumerate(tratti):
+        if cat[k][i] not in modificabili:
+            continue
+        d = (b - a) / max(np.hypot(*(b - a)), 1e-12)
+        inclinato = ORIZZ < abs(d[1]) < VERT
+        if x in travi:
+            cat[k][i] = "travi"
+        elif x in sottili:
+            # le tavole inclinate del tetto (assito) restano nella copertura
+            cat[k][i] = "coperture" if inclinato and vista == "sezione" else "tavolati"
+        elif x in spesse and inclinato and vista == "sezione":
+            cat[k][i] = "travi"  # puntoni, saettoni, travi inclinate
+    # ballatoi: legno orizzontale o verticale fuori dal filo dei muri portanti
+    if vista == "sezione":
+        alti = [(a[0] + b[0]) / 2 for a, b, g, k, i in tratti
+                if cat[k][i] in ("muri", "tavolati") and abs(b[1] - a[1]) > 2.0 and abs(b[0] - a[0]) < 0.05]
+        if len(alti) >= 2:
+            x0, x1 = min(alti), max(alti)
+            for a, b, g, k, i in tratti:
+                fuori = not (x0 - 0.05 <= (a[0] + b[0]) / 2 <= x1 + 0.05)
+                if fuori and cat[k][i] in ("tavolati", "travi", "solai", "pavimenti", "muri") \
+                        and abs(b[1] - a[1]) < 1.5 and max(a[1], b[1]) > min(a[1], b[1]) - 1 \
+                        and min(abs(a[0] - x0), abs(a[0] - x1), abs(b[0] - x0), abs(b[0] - x1)) < 2.5:
+                    cat[k][i] = "ballatoi"
+    return _dividi(poli, [cat.get(k) for k in range(len(poli))])

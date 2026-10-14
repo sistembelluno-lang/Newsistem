@@ -12,7 +12,7 @@ from nuvola2dxf import elabora, esporta, nuvola, readers  # noqa: E402
 from nuvola2dxf.geometria import Polilinea, punti_arco  # noqa: E402
 from nuvola2dxf.parametri import PROFILI  # noqa: E402
 
-SQUADRATO, DRITTO, STORICO = (PROFILI[k] for k in PROFILI)
+SQUADRATO, DRITTO, STORICO = (PROFILI[k] for k in list(PROFILI)[:3])
 
 
 def _ruota(P, gradi, spost=(0, 0)):
@@ -404,3 +404,42 @@ def test_sezione_porta_con_anta_chiusa():
     assert porte
     anta = [p for p in porte if abs(p.punti[:, 0].mean() - 4.15) < 0.03 and p.lunghezza() > 1.5]
     assert anta
+
+
+TABIA = PROFILI[[k for k in PROFILI if k.startswith("Tabià")][0]]
+
+
+def test_tabia_sezione_legno():
+    from nuvola2dxf import classifica
+
+    P = sintetici.tabia_sezione(np.random.default_rng(1))
+    poli = classifica.classifica_legno(classifica.classifica_sezione(elabora.estrai(P, TABIA), P), "sezione")
+    lung = {}
+    for p in poli:
+        lung[p.categoria] = lung.get(p.categoria, 0) + p.lunghezza()
+    # tavolato del solaio (2 facce da 7 m) e pareti in tavole (4 facce da ~3 m)
+    assert lung.get("tavolati", 0) > 20
+    # 7 travi del solaio (U da ~0.5 m) e 2 puntoni da ~4 m
+    assert lung.get("travi", 0) > 10
+    # ballatoio: tavolato e mensola (4 facce da 1.3 m) e parapetto
+    assert lung.get("ballatoi", 0) > 5
+    # il basamento in pietra resta muro
+    muri = [p for p in poli if p.categoria == "muri"]
+    assert sum(p.lunghezza() for p in muri) > 8
+    # i ballatoi stanno fuori dal filo dei muri
+    for p in poli:
+        if p.categoria == "ballatoi":
+            assert p.punti[:, 0].min() >= 5.95
+
+
+def test_tabia_pianta_pareti_in_tavole():
+    from nuvola2dxf import classifica
+
+    rng = np.random.default_rng(2)
+    # stanza 5x4 con pareti in tavole da 3 cm: due facce per lato
+    P = np.vstack([sintetici.campiona_spezzata([(0, 0), (5, 0), (5, 4), (0, 4)], 20000, rng),
+                   sintetici.campiona_spezzata([(-0.03, -0.03), (5.03, -0.03), (5.03, 4.03), (-0.03, 4.03)], 20000, rng)])
+    P = P + rng.normal(0, 0.002, P.shape)
+    poli = classifica.classifica_legno(elabora.estrai(P, TABIA), "pianta")
+    assert {p.categoria for p in poli} == {"tavolati"}
+    assert sum(p.lunghezza() for p in poli) > 34

@@ -26,6 +26,7 @@ COLORI_CAT = {
     "pavimenti": (140, 80, 30), "soffitti": (190, 0, 190), "solai": (130, 130, 0), "coperture": (230, 120, 0),
     "volte": (130, 50, 200), "aggetti": (200, 160, 0), "altro": (150, 150, 150),
     "piombo": (220, 30, 30), "piombo_rif": (255, 140, 0),
+    "chiusure": (210, 0, 145), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
 }
 
 
@@ -665,6 +666,8 @@ class Finestra(QtWidgets.QMainWindow):
                 if riconosci:
                     av(0.5, "Riconoscimento di porte, finestre e pilastri…")
                     poli, aperture = classifica.classifica_pianta(poli, pts, nv, quota)
+                    if par.legno:
+                        poli = classifica.classifica_legno(poli, "pianta")
                 testi, report = [], []
                 if riconosci:
                     testi += classifica.testi_aperture(aperture)
@@ -711,6 +714,8 @@ class Finestra(QtWidgets.QMainWindow):
                     poli = elabora.estrai(pts, par, ann)
                     if riconosci:
                         poli = classifica.classifica_sezione(poli, pts)
+                        if par.legno:
+                            poli = classifica.classifica_legno(poli, "sezione")
                     testi, report = [], []
                     if pb:
                         l, testi, report = piombo.piombo_sezione(

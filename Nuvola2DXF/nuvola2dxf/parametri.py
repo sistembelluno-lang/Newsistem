@@ -17,6 +17,7 @@ class Parametri:
     raggio: float = 0.01         # m: punti a questa distanza da un punto della linea ne fanno parte
     chiudi_stanze: float = 1.0   # m: buchi e angoli nascosti (mobili, ombre) richiusi fino a qui
     buco_visibile: float = 0.10  # m: le chiusure più lunghe vanno nel layer «chiusure da verificare»
+    legno: bool = False          # riconosce tavolati, travi, ballatoi (tabià, fienili, strutture in legno)
 
     def copia(self, **kw):
         return replace(self, **kw)
@@ -38,6 +39,11 @@ PROFILI = {
         motore="libero", tolleranza=0.015, lung_min=0.08, chiudi_buchi=0.15,
         unisci_spigoli=0.20, squadra=False, allinea=False, tol_angolo=0.0, archi=True,
     ),
+    "Tabià / strutture in legno (tavole, travi, ballatoi)": Parametri(
+        motore="dritto", tolleranza=0.008, lung_min=0.05, chiudi_buchi=0.10,
+        unisci_spigoli=0.15, squadra=True, allinea=True, tol_angolo=4.0,
+        chiudi_stanze=0.6, legno=True,
+    ),
 }
 
 DESCRIZIONI = {
@@ -52,6 +58,10 @@ DESCRIZIONI = {
         "Segue fedelmente il contorno rilevato: tratti dritti dove la muratura è "
         "dritta, archi per absidi, colonne, volte e nicchie, spezzate per le "
         "parti irregolari.",
+    "Tabià / strutture in legno (tavole, travi, ballatoi)":
+        "Per tabià, fienili e strutture in legno: segue anche elementi sottili "
+        "(tavole da 2-4 cm), travi e puntoni inclinati, e riconosce tavolati, "
+        "travi e ballatoi su layer separati, oltre alle murature in pietra.",
 }
 
 
@@ -68,6 +78,9 @@ CATEGORIE = {
     "coperture": ("00_coperture", 30),
     "volte": ("00_volte_archi", 6),
     "aggetti": ("00_aggetti", 40),
+    "tavolati": ("00_legno_tavolati", 34),
+    "travi": ("00_legno_travi", 32),
+    "ballatoi": ("00_legno_ballatoi", 42),
     "altro": ("00_altro", 252),
     "chiusure": ("00_chiusure_da_verificare", 211),
     "piombo": ("00_fuori_piombo", 1),
@@ -87,6 +100,9 @@ NOMI_CATEGORIE = {
     "coperture": "Coperture e falde",
     "volte": "Volte e archi",
     "aggetti": "Aggetti (balconi, cornici, pensiline)",
+    "tavolati": "Legno: tavolati e pareti in tavole",
+    "travi": "Legno: travi, puntoni e montanti",
+    "ballatoi": "Legno: ballatoi e parapetti",
     "altro": "Altro (non riconosciuto)",
     "chiusure": "Chiusure di buchi e angoli nascosti (da verificare)",
     "piombo": "Fuori piombo: profilo e valori",

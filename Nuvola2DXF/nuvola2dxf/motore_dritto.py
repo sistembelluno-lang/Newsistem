@@ -57,16 +57,30 @@ def _gruppi_contigui(s, buco):
 
 def _e_superficie(seg, Q, tol):
     """Vero se i punti stanno su una linea netta e non in una macchia
-    (arredi, persone, vegetazione): accanto a un muro, appena fuori dalla
-    tolleranza, ci sono pochi punti."""
+    (arredi, persone, vegetazione): accanto alla linea, appena fuori dalla
+    tolleranza, ci sono pochi punti. Se quei punti formano a loro volta una
+    linea parallela (l'altra faccia di una tavola o di un tavolato) quel
+    lato conta come libero."""
     rel = Q - seg.a
     L = seg.lung()
     u = rel @ seg.t * (1 if (seg.b - seg.a) @ seg.t >= 0 else -1)
-    v = np.abs(rel @ seg.n)
+    v = rel @ seg.n
     lungo = (u > 0) & (u < L)
-    dentro = np.count_nonzero(lungo & (v < tol))
-    fascia = np.count_nonzero(lungo & (v > 1.5 * tol) & (v < 3 * tol))
-    return fascia < 0.5 * max(dentro, 1)
+    dentro = np.count_nonzero(lungo & (np.abs(v) < tol))
+    sporco = 0
+    for verso in (1, -1):
+        w = verso * v[lungo]
+        w = w[(w > 1.5 * tol) & (w < 3 * tol)]
+        if len(w) < 10:
+            sporco += len(w)
+            continue
+        cont, _ = np.histogram(w, bins=np.arange(1.5 * tol, 3 * tol + tol / 4, tol / 4))
+        # faccia parallela: i punti stanno quasi tutti in una fascia sottile
+        # e coprono il tratto per buona parte della lunghezza
+        if cont.max() + max(np.partition(cont, -2)[-2], 0) >= 0.7 * len(w) and len(w) > 0.3 * dentro:
+            continue
+        sporco += len(w)
+    return sporco < 0.5 * max(dentro, 1)
 
 
 def _cresci(Q, attivo, idx, tol, raggio, buco):
@@ -106,6 +120,32 @@ def _togli_isolati(Q, cella):
     vicini = cKDTree(Q).query_ball_point(Q, r, return_length=True)
     tieni = vicini >= 2  # il punto stesso più almeno un vicino
     return Q[tieni] if tieni.sum() > 0.5 * len(Q) else Q
+
+
+def _rifila(seg, Q, tol):
+    """Toglie dagli estremi i gruppetti di punti staccati dal resto: sono
+    la faccia perpendicolare che attraversa la fascia della linea (spigoli
+    di tavole e muri sottili) e allungherebbero la linea oltre lo spigolo."""
+    if len(seg.idx) < 20:
+        return
+    s = (Q[seg.idx] - seg.c) @ seg.t
+    o = np.argsort(s)
+    ss = s[o]
+    passo = float(np.median(np.diff(ss))) if len(ss) > 1 else 0.0
+    salto = max(8 * passo, 0.01)
+    tieni = np.ones(len(ss), bool)
+    for verso in (1, -1):
+        d = np.diff(ss) if verso == 1 else -np.diff(ss[::-1])
+        lim = np.flatnonzero(np.abs(ss - (ss[0] if verso == 1 else ss[-1])) <= 2.5 * tol)
+        n = len(lim)
+        if n and n < len(ss) - 1 and d[n - 1] > salto and n < 0.1 * len(ss):
+            if verso == 1:
+                tieni[:n] = False
+            else:
+                tieni[len(ss) - n:] = False
+    if not tieni.all():
+        seg.idx = seg.idx[o[tieni]]
+        seg.imposta(seg.c, seg.t, Q)
 
 
 def _ransac(Q, par, annulla):
@@ -184,6 +224,7 @@ def _ransac(Q, par, annulla):
         accettato = False
         c, t = retta_tls(Q[miglior])
         seg = _Seg(miglior, c, t, Q)
+        _rifila(seg, Q, tol)
         if seg.lung() >= par.lung_min and len(miglior) >= min_pt and _e_superficie(seg, Q, tol):
             segmenti.append(seg)
             accettato = True
@@ -316,7 +357,11 @@ def _unisci_spigoli(segmenti, par):
                 altro = s.b if k == 0 else s.a
                 if np.hypot(*(x - altro)) < 0.5 * s.lung():
                     continue
-                candidati.append((dist, i, k, j, x))
+                # a parità di distanza vince lo spigolo vero (a L): x vicino a
+                # un estremo di t. Con le tavole sottili la faccia opposta è
+                # a pochi centimetri e non deve "rubare" l'angolo
+                fuori_t = max(0.0, min(abs(tx - ta), abs(tx - tb)))
+                candidati.append((dist + fuori_t, i, k, j, x))
     candidati.sort(key=lambda c: c[0])
     fisso = set()
     for dist, i, k, j, x in candidati:
