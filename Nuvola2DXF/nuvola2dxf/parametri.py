@@ -14,6 +14,9 @@ class Parametri:
     allinea: bool = True         # linee quasi parallele rese parallele
     tol_angolo: float = 6.0      # gradi
     archi: bool = True           # (motore libero) riconosce archi e cerchi
+    raggio: float = 0.01         # m: punti a questa distanza da un punto della linea ne fanno parte
+    chiudi_stanze: float = 1.0   # m: buchi e angoli nascosti (mobili, ombre) richiusi fino a qui
+    buco_visibile: float = 0.10  # m: le chiusure più lunghe vanno nel layer «chiusure da verificare»
 
     def copia(self, **kw):
         return replace(self, **kw)
@@ -66,6 +69,7 @@ CATEGORIE = {
     "volte": ("00_volte_archi", 6),
     "aggetti": ("00_aggetti", 40),
     "altro": ("00_altro", 252),
+    "chiusure": ("00_chiusure_da_verificare", 211),
     "piombo": ("00_fuori_piombo", 1),
     "piombo_rif": ("00_fuori_piombo_riferimento", 2),
     "punti": ("00_punti_nuvola", 253),
@@ -84,6 +88,7 @@ NOMI_CATEGORIE = {
     "volte": "Volte e archi",
     "aggetti": "Aggetti (balconi, cornici, pensiline)",
     "altro": "Altro (non riconosciuto)",
+    "chiusure": "Chiusure di buchi e angoli nascosti (da verificare)",
     "piombo": "Fuori piombo: profilo e valori",
     "piombo_rif": "Fuori piombo: verticale teorica",
     "punti": "Punti della nuvola",

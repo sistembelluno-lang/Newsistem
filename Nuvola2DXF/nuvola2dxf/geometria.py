@@ -214,3 +214,28 @@ def catene(segmenti, tol=1e-6):
                 seq = seq[:-1]
             out.append(Polilinea([coord[k] for k in seq], chiusa=chiusa))
     return out
+
+
+def semplifica(poli, gradi=0.5):
+    """Toglie i vertici intermedi allineati (tratti dritti consecutivi
+    sulla stessa retta), per esempio dove è stato richiuso un buco."""
+    lim = np.sin(np.radians(gradi))
+    for p in poli:
+        if p.tipo == "cerchio" or len(p.punti) < 3 or np.any(p.bulge):
+            continue
+        V = list(p.punti)
+        cambiato = True
+        while cambiato and len(V) > (3 if p.chiusa else 2):
+            cambiato = False
+            n = len(V)
+            for i in range(n) if p.chiusa else range(1, n - 1):
+                a, b, c = V[i - 1], V[i], V[(i + 1) % n]
+                u, w = b - a, c - b
+                lu, lw = np.hypot(*u), np.hypot(*w)
+                if lu < 1e-9 or lw < 1e-9 or (abs(u[0] * w[1] - u[1] * w[0]) / (lu * lw) < lim and u @ w > 0):
+                    del V[i]
+                    cambiato = True
+                    break
+        p.punti = np.array(V)
+        p.bulge = np.zeros(len(V))
+    return poli

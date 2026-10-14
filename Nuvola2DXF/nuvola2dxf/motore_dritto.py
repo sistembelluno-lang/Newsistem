@@ -7,13 +7,17 @@
 3. Fusione dei tratti allineati separati da piccoli buchi.
 4. Unione negli spigoli: le linee vengono allungate o accorciate fino
    all'intersezione con quella vicina (angoli a L e innesti a T).
-5. Concatenazione in polilinee (chiuse quando formano un perimetro).
+5. Chiusura di ciò che resta aperto: spallette e testate dei muri (le due
+   facce che finiscono alla stessa altezza), angoli nascosti da mobili,
+   buchi lungo i muri e innesti mancanti. Le chiusure oltre i 10 cm vanno
+   in un layer a parte, da verificare.
+6. Concatenazione in polilinee (chiuse quando formano un perimetro).
 """
 
 import numpy as np
 from scipy.spatial import cKDTree
 
-from .geometria import catene, intersezione, passo_medio, retta_tls, sottocampiona
+from .geometria import catene, intersezione, passo_medio, retta_tls, semplifica, sottocampiona
 
 
 class _Seg:
@@ -65,6 +69,42 @@ def _e_superficie(seg, Q, tol):
     return fascia < 0.5 * max(dentro, 1)
 
 
+def _cresci(Q, attivo, idx, tol, raggio, buco):
+    """Allarga il gruppo di punti di una linea: oltre a quelli nella fascia
+    di tolleranza prende anche quelli appena fuori (fino a 2 volte la
+    tolleranza) che stanno entro 'raggio' da un punto già preso, cioè il
+    rumore attorno al muro, che altrimenti genera trattini spuri."""
+    c, t = retta_tls(Q[idx])
+    nrm = np.array([-t[1], t[0]])
+    s_idx = (Q[idx] - c) @ t
+    s0, s1 = s_idx.min() - raggio, s_idx.max() + raggio
+    rel = Q - c
+    s = rel @ t
+    cand = attivo & (np.abs(rel @ nrm) < 2 * tol) & (s > s0) & (s < s1)
+    cand[idx] = False
+    cand = np.flatnonzero(cand)
+    preso = idx
+    for _ in range(6):
+        if not len(cand):
+            break
+        d, _ = cKDTree(Q[preso]).query(Q[cand], distance_upper_bound=raggio)
+        nuovi = d <= raggio
+        if not nuovi.any():
+            break
+        preso = np.concatenate((preso, cand[nuovi]))
+        cand = cand[~nuovi]
+    return preso
+
+
+def _togli_isolati(Q, cella):
+    """Elimina i punti isolati (riflessi, polvere, persone di passaggio)."""
+    if len(Q) < 50:
+        return Q
+    vicini = cKDTree(Q).query_ball_point(Q, 3 * cella, return_length=True)
+    tieni = vicini >= 3
+    return Q[tieni] if tieni.sum() > 0.5 * len(Q) else Q
+
+
 def _ransac(Q, par, annulla):
     tol = par.tolleranza
     # passo reale tra i punti (dopo il sottocampionamento): con nuvole rade
@@ -75,6 +115,8 @@ def _ransac(Q, par, annulla):
     # nelle nuvole rade anche le interruzioni casuali sono più lunghe
     buco = max(par.chiudi_buchi, 8 * passo)
     raggio = max(0.25, 2 * par.lung_min)
+    # punti vicini: entro questo raggio da un punto della linea ne fanno parte
+    raggio_vicini = max(par.raggio, 1.5 * cella)
     albero = cKDTree(Q)
     attivo = np.ones(len(Q), bool)
     rng = np.random.default_rng(7)
@@ -135,6 +177,7 @@ def _ransac(Q, par, annulla):
             # il gruppo che contiene la maggior parte del candidato iniziale
             insieme = set(miglior.tolist())
             miglior = max(sel, key=lambda x: len(insieme.intersection(x.tolist())))
+        miglior = _cresci(Q, attivo, miglior, tol, raggio_vicini, buco)
         accettato = False
         c, t = retta_tls(Q[miglior])
         seg = _Seg(miglior, c, t, Q)
@@ -295,14 +338,253 @@ def _unisci_spigoli(segmenti, par):
                 break
 
 
-def _innesti_a_t(segmenti):
+class _Tratto:
+    """Tratto finale: estremi, categoria e se i punti lo confermano."""
+
+    __slots__ = ("a", "b", "cat")
+
+    def __init__(self, a, b, cat="muri"):
+        self.a, self.b, self.cat = np.asarray(a, float).copy(), np.asarray(b, float).copy(), cat
+
+    def estremo(self, k):
+        return self.a if k == 0 else self.b
+
+    def sposta(self, k, x):
+        if k == 0:
+            self.a = np.asarray(x, float).copy()
+        else:
+            self.b = np.asarray(x, float).copy()
+
+    def lung(self):
+        return float(np.hypot(*(self.b - self.a)))
+
+    def dir(self):
+        L = self.lung()
+        return (self.b - self.a) / L if L > 0 else np.array([1.0, 0.0])
+
+    def fuori(self, k):
+        """Direzione verso l'esterno dall'estremo k."""
+        return self.dir() if k == 1 else -self.dir()
+
+
+def _dist_punti_tratti(E, tratti):
+    """Distanza di ogni punto di E da ogni tratto (matrice)."""
+    A = np.array([t.a for t in tratti])
+    B = np.array([t.b for t in tratti])
+    AB = B - A
+    L2 = np.maximum((AB ** 2).sum(axis=1), 1e-18)
+    out = np.empty((len(E), len(tratti)))
+    for i0 in range(0, len(E), 2000):
+        P = E[i0:i0 + 2000, None, :]
+        f = np.clip(((P - A) * AB).sum(axis=2) / L2, 0, 1)
+        out[i0:i0 + 2000] = np.hypot(*(P - (A + f[..., None] * AB)).transpose(2, 0, 1))
+    return out
+
+
+def _liberi(tratti, eps=1e-4):
+    """Estremi che non toccano nessun altro tratto: (indice tratto, 0|1)."""
+    if not tratti:
+        return []
+    E = np.array([e for t in tratti for e in (t.a, t.b)])
+    d = _dist_punti_tratti(E, tratti)
+    propri = np.repeat(np.arange(len(tratti)), 2)
+    d[np.arange(len(E)), propri] = np.inf
+    return [(int(i // 2), int(i % 2)) for i in np.flatnonzero(d.min(axis=1) > eps)]
+
+
+def _copertura(Q, albero, a, b, tol, passo=0.02):
+    """Frazione del tratto a-b sostenuta da punti della nuvola."""
+    L = float(np.hypot(*(b - a)))
+    n = max(2, int(np.ceil(L / passo)))
+    f = (np.arange(n) + 0.5) / n
+    campioni = a + (b - a) * f[:, None]
+    d, _ = albero.query(campioni, distance_upper_bound=max(tol, passo))
+    return float(np.mean(np.isfinite(d)))
+
+
+def _solido(t, allungamento):
+    """Un tratto si allunga al massimo di quanto è lungo: i trattini (arredi,
+    rumore) non devono chiudere niente."""
+    return t.lung() >= 0.25 and allungamento <= max(t.lung(), 0.3)
+
+
+def _chiudi(segmenti, Q, par):
+    """Richiude stanze, muri e solai dove i punti mancano.
+
+    Ordine: (A) spallette e testate, (B) angoli nascosti, (C) buchi lungo
+    una stessa linea, (D) innesti a T, (E) estremi vicinissimi. Le chiusure
+    più lunghe di par.buco_visibile vanno nella categoria «chiusure».
+    """
+    tratti = [_Tratto(s.a, s.b) for s in segmenti if s.lung() > 0]
+    if len(tratti) < 2 or par.chiudi_stanze <= 0:
+        return tratti
+    D = par.chiudi_stanze
+    vis = par.buco_visibile
+    tol = par.tolleranza
+    albero = cKDTree(Q)
+    sin_par = np.sin(np.radians(8))
+
+    def aggiungi(p, q, sicuro=False):
+        L = float(np.hypot(*(q - p)))
+        if L < 1e-9:
+            return
+        tratti.append(_Tratto(p, q, "muri" if sicuro or L <= vis else "chiusure"))
+
+    def estendi(i, k, x):
+        e = tratti[i].estremo(k).copy()
+        if np.hypot(*(x - e)) <= vis:
+            tratti[i].sposta(k, x)
+            # un tratto che arriva qui va spostato con lui
+        else:
+            aggiungi(e, x)
+
+    def coppie(liberi, d_max):
+        if len(liberi) < 2:
+            return []
+        E = np.array([tratti[i].estremo(k) for i, k in liberi])
+        alb = cKDTree(E)
+        return [(liberi[u], liberi[v]) for u, v in sorted(alb.query_pairs(d_max))]
+
+    def applica(candidati, azione):
+        fatti = set()
+        for _, u, v, *resto in sorted(candidati, key=lambda c: c[0]):
+            if u in fatti or (v is not None and v in fatti):
+                continue
+            azione(u, v, *resto)
+            fatti.add(u)
+            if v is not None:
+                fatti.add(v)
+
+    # (A) spallette e testate: due facce parallele che finiscono insieme
+    cand = []
+    for (i, ki), (j, kj) in coppie(_liberi(tratti), 0.9):
+        ti, tj = tratti[i], tratti[j]
+        di, dj = ti.dir(), tj.dir()
+        if abs(di[0] * dj[1] - di[1] * dj[0]) > sin_par:
+            continue
+        oi, oj = ti.fuori(ki), tj.fuori(kj)
+        if oi @ oj < 0.9:
+            continue
+        ei, ej = ti.estremo(ki), tj.estremo(kj)
+        v = ej - ei
+        w = abs(v[0] * oi[1] - v[1] * oi[0])  # distanza tra le facce
+        if not (0.03 <= w <= 0.8) or abs(v @ oi) > max(0.15, 0.3 * w):
+            continue
+        cand.append((w, (i, ki), (j, kj)))
+
+    def spalletta(u, v):
+        ti, tj = tratti[u[0]], tratti[v[0]]
+        a, b = ti.estremo(u[1]).copy(), tj.estremo(v[1]).copy()
+        # le due facce finiscono alla stessa altezza: spalletta perpendicolare
+        o = ti.fuori(u[1])
+        m = ((a @ o) + (b @ o)) / 2
+        a = a + (m - a @ o) * ti.dir() * np.sign(ti.dir() @ o)
+        b = b + (m - b @ o) * tj.dir() * np.sign(tj.dir() @ o)
+        ti.sposta(u[1], a)
+        tj.sposta(v[1], b)
+        sostenuta = _copertura(Q, albero, a, b, tol) >= 0.4
+        aggiungi(a, b, sicuro=sostenuta or np.hypot(*(b - a)) <= 0.35)
+
+    applica(cand, spalletta)
+
+    # (B) angoli nascosti: due linee libere non parallele che si incontrano davanti
+    cand = []
+    for (i, ki), (j, kj) in coppie(_liberi(tratti), 2 * D):
+        ti, tj = tratti[i], tratti[j]
+        di, dj = ti.dir(), tj.dir()
+        if abs(di[0] * dj[1] - di[1] * dj[0]) < np.sin(np.radians(20)):
+            continue
+        ei, ej = ti.estremo(ki), tj.estremo(kj)
+        x = intersezione(ei, di, ej, dj)
+        if x is None:
+            continue
+        oi, oj = ti.fuori(ki), tj.fuori(kj)
+        if (x - ei) @ oi < -tol or (x - ej) @ oj < -tol:
+            continue
+        d1, d2 = float(np.hypot(*(x - ei))), float(np.hypot(*(x - ej)))
+        if max(d1, d2) > D or not (_solido(ti, d1) and _solido(tj, d2)):
+            continue
+        cand.append((max(d1, d2), (i, ki), (j, kj), x))
+
+    def angolo(u, v, x):
+        estendi(u[0], u[1], x)
+        estendi(v[0], v[1], x)
+
+    applica(cand, angolo)
+
+    # (C) buchi lungo la stessa linea (ombre, arredi, solai interrotti)
+    cand = []
+    for (i, ki), (j, kj) in coppie(_liberi(tratti), D):
+        ti, tj = tratti[i], tratti[j]
+        oi, oj = ti.fuori(ki), tj.fuori(kj)
+        if oi @ oj > -np.cos(np.radians(5)):
+            continue
+        ei, ej = ti.estremo(ki), tj.estremo(kj)
+        v = ej - ei
+        if v @ oi <= 0:
+            continue
+        if abs(v[0] * oi[1] - v[1] * oi[0]) > max(3 * tol, 0.04):
+            continue
+        g = float(np.hypot(*v))
+        if not (_solido(ti, g / 2) and _solido(tj, g / 2)):
+            continue
+        cand.append((float(np.hypot(*v)), (i, ki), (j, kj)))
+    applica(cand, lambda u, v: aggiungi(tratti[u[0]].estremo(u[1]).copy(), tratti[v[0]].estremo(v[1]).copy()))
+
+    # (D) innesti a T: la linea libera prosegue fino a incontrarne un'altra
+    liberi = _liberi(tratti)
+    cand = []
+    for i, ki in liberi:
+        ti = tratti[i]
+        e, o = ti.estremo(ki), ti.fuori(ki)
+        migliore = None
+        if ti.lung() < 0.25:
+            continue
+        for j, tj in enumerate(tratti):
+            if j == i or tj.lung() <= 0:
+                continue
+            dj = tj.dir()
+            if abs(o[0] * dj[1] - o[1] * dj[0]) < np.sin(np.radians(30)):
+                continue
+            x = intersezione(e, o, tj.a, dj)
+            if x is None:
+                continue
+            dist = (x - e) @ o
+            if dist < -tol or dist > min(D, max(ti.lung(), 0.5 * D)):
+                continue
+            f = (x - tj.a) @ dj
+            if f < -tol or f > tj.lung() + tol:
+                continue
+            if migliore is None or dist < migliore[0]:
+                migliore = (dist, j, x)
+        if migliore is not None:
+            dist, j, x = migliore
+            tj = tratti[j]
+            # se cade appena oltre un estremo del tratto colpito, usa l'estremo
+            f = (x - tj.a) @ tj.dir()
+            if f < 0:
+                x = tj.a.copy()
+            elif f > tj.lung():
+                x = tj.b.copy()
+            cand.append((max(dist, 0.0), (i, ki), None, x))
+    applica(cand, lambda u, v, x: estendi(u[0], u[1], x))
+
+    # (E) estremi rimasti vicinissimi
+    cand = [(float(np.hypot(*(tratti[i].estremo(ki) - tratti[j].estremo(kj)))), (i, ki), (j, kj))
+            for (i, ki), (j, kj) in coppie(_liberi(tratti), vis)]
+    applica(cand, lambda u, v: aggiungi(tratti[u[0]].estremo(u[1]).copy(), tratti[v[0]].estremo(v[1]).copy(),
+                                        sicuro=True))
+    return [t for t in tratti if t.lung() > 1e-9]
+
+
+def _innesti_a_t(tratti):
     """Spezza le linee nei punti dove arriva un'altra linea (innesto a T),
     così nel DXF i tratti si toccano esattamente."""
-    if not segmenti:
+    if not tratti:
         return []
-    estremi = np.array([e for s in segmenti for e in (s.a, s.b)])
+    estremi = np.array([e for s in tratti for e in (s.a, s.b)])
     out = []
-    for s in segmenti:
+    for s in tratti:
         L = s.lung()
         if L <= 0:
             continue
@@ -313,7 +595,7 @@ def _innesti_a_t(segmenti):
         sel = (u > 1e-6) & (u < L - 1e-6) & (np.abs(v) < 1e-6)
         punti = [s.a] + [s.a + x * d for x in np.unique(u[sel])] + [s.b]
         for p, q in zip(punti[:-1], punti[1:]):
-            out.append((p, q))
+            out.append((p, q, s.cat))
     return out
 
 
@@ -321,14 +603,19 @@ def estrai(P, par, annulla=None):
     """Da punti 2D (n, 2) a lista di Polilinea."""
     if len(P) < 10:
         return []
-    Q = sottocampiona(P, max(par.tolleranza / 2, 0.003))
+    cella = max(par.tolleranza / 2, 0.003)
+    Q = _togli_isolati(sottocampiona(P, cella), cella)
     segmenti, buco = _ransac(Q, par, annulla)
     _regolarizza(segmenti, Q, par)
     segmenti = _fondi(segmenti, Q, par, buco)
     _unisci_spigoli(segmenti, par)
     segmenti = [s for s in segmenti if s.lung() >= par.lung_min * 0.5]
-    linee = _innesti_a_t(segmenti)
-    poli = catene(linee)
-    for p in poli:
-        p.tipo = "linea"
+    tratti = _chiudi(segmenti, Q, par)
+    linee = _innesti_a_t(tratti)
+    poli = []
+    for cat in ("muri", "chiusure"):
+        for p in semplifica(catene([(a, b) for a, b, c in linee if c == cat])):
+            p.tipo = "linea"
+            p.categoria = cat
+            poli.append(p)
     return poli
