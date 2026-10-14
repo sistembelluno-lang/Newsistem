@@ -1,0 +1,297 @@
+<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Guida Nuvola2DXF</title><style>
+:root{--bg:#fff;--tx:#1c2330;--mu:#5b6575;--bd:#d5dae2;--hd:#eef1f5;--ac:#1862c4;--ar:#ff921c;--sc:#0c2244}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.55 "Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif}
+main{max-width:880px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:30px;margin:28px 0 4px;color:var(--sc)}h1+p{font-size:16px;color:var(--mu);margin:0 0 22px}
+.lead{border-left:4px solid var(--ar);background:#fff6ec;padding:8px 16px;margin:0 0 20px;border-radius:0 8px 8px 0}
+h2{font-size:21px;margin:28px 0 10px;padding-top:10px;border-top:2px solid var(--ac);color:var(--ac)}
+h3{font-size:16.5px;margin:18px 0 6px;color:var(--sc)}
+a{color:var(--ac)}table{border-collapse:collapse;width:100%;margin:10px 0 14px;font-size:13.5px}th,td{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--hd)}
+code{background:var(--hd);padding:1px 5px;border-radius:4px;font-size:.9em}
+li{margin:3px 0}
+figure{margin:14px 0 18px;text-align:center}figure img{max-width:100%;border:1px solid var(--bd);border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08)}figure.sm img{max-width:58%}figure.md img{max-width:78%}
+figcaption{font-size:13px;color:var(--mu);margin-top:6px}
+.duo{display:flex;gap:14px;align-items:flex-start;break-inside:avoid}.duo figure img{max-height:330px}.duo figure{flex:1;margin:8px 0}
+.box{border:1px solid var(--bd);border-radius:10px;padding:8px 14px;margin:12px 0;background:#fafbfd}
+.box.ok{border-color:#9fd3a9;background:#f2fbf4}.box.att{border-color:#f3c99a;background:#fff8ef}
+.box b.t{display:block;margin-bottom:2px}
+.n{display:inline-block;width:22px;height:22px;border-radius:11px;background:var(--ac);color:#fff;text-align:center;font-weight:700;font-size:13px;line-height:22px;margin-right:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sw{display:inline-block;width:22px;height:6px;border-radius:2px;vertical-align:3px;margin-right:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sw.tr{background:repeating-linear-gradient(90deg,#ff0096 0 6px,transparent 6px 9px)}
+header{background:linear-gradient(110deg,#0c2244,#1862c4);color:#fff;padding:12px 16px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.brand{max-width:880px;margin:0 auto;display:flex;gap:12px;align-items:center}.brand img{width:44px;height:44px}
+.brand b{font-size:19px}.brand b span{color:var(--ar)}.brand small{opacity:.85}
+.cop{text-align:center;padding:30px 0 10px}.cop img{width:170px}
+.toc{columns:2;font-size:14.5px}.toc li{break-inside:avoid}
+@media print{header{border-radius:8px}body{font-size:10.5pt}main{max-width:none;padding:0}.pb{break-after:page}h2,h3{break-after:avoid}figure,tr,li,.box{break-inside:avoid}@page{size:A4;margin:13mm}}
+</style></head><body>
+<header><div class="brand"><img src="img/ndxf_logo.png" alt=""><span><b>Nuvola<span>2DXF</span></b><br><small>SISTEM SRL STP · Guida per chi usa il programma</small></span></div></header>
+<main>
+<div class="cop"><img src="img/ndxf_logo.png" alt="Logo NDXF"></div>
+<h1>Nuvola2DXF (NDXF) – guida all'uso</h1>
+<p>Piante, sezioni e prospetti in DXF dalle nuvole di punti del laser scanner · versione 1.1.0</p>
+<div class="lead">
+<p><strong>Nuvola2DXF</strong> trasforma una nuvola di punti (per esempio un rilievo con Trimble X7 o X9) in disegni
+DXF pronti per il CAD: <strong>piante</strong>, <strong>sezioni</strong> e <strong>prospetti</strong>, con le linee già unite negli
+spigoli e gli elementi già divisi in layer (muri, porte, finestre, pilastri, pavimenti, soffitti, parti in legno…).
+Il programma fa il grosso del lavoro; a te resta il <strong>controllo in CAD</strong> dei punti che ti segnala.</p>
+</div>
+
+<p><strong>Indice</strong></p>
+<ol class="toc">
+<li>Scaricare e avviare il programma</li>
+<li>La finestra in breve</li>
+<li>Passo 1 – Aprire la nuvola</li>
+<li>Passo 2 – Pianta</li>
+<li>Passo 2 – Sezione</li>
+<li>Passo 2 – Prospetto</li>
+<li>Passo 3 – Tipo di edificio</li>
+<li>Estrarre e controllare il risultato</li>
+<li>Porte e finestre</li>
+<li>Passo 4 – Tagli, nomi ed esportazione DXF</li>
+<li>Tabià e strutture in legno</li>
+<li>Il lavoro in CAD: cosa controllare</li>
+<li>Regolazioni fini</li>
+<li>Analisi del fuori piombo</li>
+<li>Problemi frequenti</li>
+<li>Consigli per il rilievo</li>
+</ol>
+
+<div class="pb"></div>
+<h2>1. Scaricare e avviare il programma</h2>
+<p>Il programma è <strong>un solo file</strong>: non si installa. Scarica quello adatto al tuo PC dalla pagina
+<a href="https://github.com/sistembelluno-lang/Newsistem/releases/tag/nuvola2dxf-v1.1.0">Nuvola2DXF 1.1.0</a>:</p>
+<table><tr><th>Il tuo PC</th><th>File da scaricare</th></tr>
+<tr><td>Windows 10 o 11 (64 bit)</td><td><code>Nuvola2DXF.exe</code></td></tr>
+<tr><td>Windows 7 o 8.1 (64 bit)</td><td><code>Nuvola2DXF-Windows7.exe</code></td></tr></table>
+<ol>
+<li>Copia il file in una cartella comoda (per esempio <code>Documenti\Programmi</code>) e crea un collegamento sul desktop.</li>
+<li>Avvialo con un doppio clic. La prima volta Windows può mostrare l'avviso «Windows ha protetto il PC»:
+clicca <strong>Ulteriori informazioni</strong> e poi <strong>Esegui comunque</strong>.</li>
+<li>L'avvio richiede qualche secondo: il programma si prepara da solo.</li>
+</ol>
+<div class="box att"><b class="t">Quando esce una versione nuova</b>Cancella il vecchio file e usa quello nuovo. Le
+impostazioni (per esempio i nomi dei layer) restano.</div>
+
+<h2>2. La finestra in breve</h2>
+<figure class="md"><img src="img/ndxf_finestra.png" alt="La finestra del programma"><figcaption>La finestra: a sinistra i passi
+1-2-3, al centro la vista, a destra il passo 4 con l'elenco dei tagli.</figcaption></figure>
+<table>
+<tr><th>Zona</th><th>A cosa serve</th></tr>
+<tr><td><span class="n">1</span>Apri la nuvola</td><td>Apre il file del rilievo e ne mostra numero di punti, dimensioni e quote.</td></tr>
+<tr><td><span class="n">2</span>Scegli il taglio</td><td>Pianta, Sezione o Prospetto, con le relative impostazioni.</td></tr>
+<tr><td><span class="n">3</span>Tipo di edificio</td><td>Come ricostruire le linee: squadrato, prevalentemente dritto, storico, tabià/legno.</td></tr>
+<tr><td>Pulsante arancione</td><td><strong>Taglia ed estrai le linee</strong>: fa il taglio scelto.</td></tr>
+<tr><td>Centro</td><td><em>Vista dall'alto</em> della nuvola (dove si tracciano sezioni e prospetti) e <em>Risultato</em> con le linee estratte.</td></tr>
+<tr><td><span class="n">4</span>Tagli e DXF</td><td>Elenco di tutti i tagli fatti: si rinominano e si esportano in DXF.</td></tr>
+<tr><td>Guida · Altro ▾</td><td>In alto a destra: guida rapida, nomi dei layer, svuota archivio temporaneo.</td></tr>
+</table>
+
+<h2>3. Passo 1 – Aprire la nuvola</h2>
+<figure class="sm"><img src="img/ndxf_benvenuto.png" alt="Schermata iniziale"><figcaption>Schermata iniziale.</figcaption></figure>
+<ol>
+<li>Premi <strong>Apri nuvola…</strong> oppure <strong>trascina il file</strong> nella finestra.</li>
+<li>Formati letti: <strong>E57, LAS, LAZ</strong>, PTS, PTX, XYZ/TXT/ASC/CSV, PLY. Dal software dello scanner
+(Trimble RealWorks, Trimble Business Center…) esporta preferibilmente in <strong>E57</strong> o <strong>LAS/LAZ</strong>,
+con le coordinate del rilievo.</li>
+<li>La <strong>prima apertura</strong> di un file grande può richiedere parecchi minuti, a seconda della dimensione
+del file e del PC: il programma lo converte una volta sola in un formato veloce. La barra in basso mostra l'avanzamento; con
+<strong>Annulla</strong> ti fermi. Dalla volta dopo lo stesso file si apre subito.</li>
+</ol>
+<div class="box"><b class="t">Archivio temporaneo</b>Le nuvole convertite occupano circa 12 byte per punto (300 milioni
+di punti ≈ 3,6 GB) nella cartella <code>%LOCALAPPDATA%\Nuvola2DXF\cache</code>. Quando un lavoro è finito puoi liberare spazio con
+<em>Altro ▾ → Svuota archivio temporaneo</em>.</div>
+
+<h2>4. Passo 2 – Pianta</h2>
+<figure class="sm"><img src="img/ndxf_passi_1_2.png" alt="Nuvola aperta e pianta"><figcaption>Nuvola aperta, modo
+Pianta: quota di taglio, spessore e grafico delle quote.</figcaption></figure>
+<ol>
+<li>Premi <strong>Pianta</strong>.</li>
+<li><strong>Quota di taglio</strong>: il programma propone pavimento + 1 m. Nel grafico grigio i picchi sono
+<strong>pavimenti e soffitti</strong>: trascina la <strong>linea rossa</strong> alla quota voluta, di solito 1,00-1,20 m
+sopra il pavimento, così il taglio passa nelle finestre.</li>
+<li><strong>Spessore fetta</strong>: 3-5 cm vanno bene quasi sempre. Aumentalo (8-10 cm) solo se la nuvola è rada.</li>
+<li>Con <strong>Solo l'area nel riquadro verde</strong> lavori solo su una parte (un appartamento, un piano):
+il riquadro si sposta e si allarga sulla Vista dall'alto. È più veloce e più pulito.</li>
+</ol>
+
+<h2>5. Passo 2 – Sezione</h2>
+<figure class="md"><img src="img/ndxf_traccia.png" alt="Tracciare la sezione"><figcaption>La linea A-B della sezione sulla
+Vista dall'alto. Le linee tratteggiate sono le sezioni e i prospetti già fatti, con il loro nome.</figcaption></figure>
+<ol>
+<li>Premi <strong>Sezione</strong> e poi <strong>Traccia la linea di sezione</strong>.</li>
+<li>Sulla <strong>Vista dall'alto</strong> clicca il punto di inizio <strong>A</strong> e il punto di fine <strong>B</strong>.
+Con la rotella del mouse ingrandisci, tenendo premuto il tasto sinistro sposti la vista.</li>
+<li>Si guarda la sezione stando <strong>a destra della freccia A → B</strong>. Per guardarla dall'altra parte premi
+<strong>A ↔ B</strong>.</li>
+<li><strong>Spessore fetta</strong>: 3-5 cm.</li>
+</ol>
+<div class="box"><b class="t">Nel DXF</b>Sezioni e prospetti hanno X = distanza dal punto A e Y = quota reale.</div>
+
+<h2>6. Passo 2 – Prospetto</h2>
+<ol>
+<li>Premi <strong>Prospetto</strong> e poi <strong>Traccia la facciata</strong>.</li>
+<li>Clicca A e B <strong>lungo la facciata, da sinistra a destra</strong> come la vede chi la guarda da fuori.
+Con <em>Allinea la linea alla facciata più vicina</em> attivo, la linea si raddrizza da sola sulla facciata.</li>
+<li><strong>Profondità davanti</strong>: quanto prendere davanti alla facciata (balconi, cornici, pensiline).
+<strong>Profondità dietro</strong>: quanto prendere dietro (rientranze, serramenti).</li>
+<li>Il programma riconosce da che parte guarda la facciata e propone già il nome:
+«Prospetto nord», «Prospetto sud-est»…</li>
+</ol>
+
+<h2>7. Passo 3 – Tipo di edificio</h2>
+<p>Scegli il tipo più vicino all'edificio rilevato: cambia il modo in cui le linee vengono ricostruite.</p>
+<table>
+<tr><th>Tipo</th><th>Quando usarlo</th><th>Cosa fa</th></tr>
+<tr><td><strong>Squadrato</strong></td><td>Edifici moderni, muri dritti e angoli retti</td><td>Linee dritte, angoli quasi retti portati a 90°, spigoli uniti. Una stanza diventa un rettangolo di 4 linee.</td></tr>
+<tr><td><strong>Prevalentemente dritto</strong></td><td>Muri dritti ma angoli qualsiasi</td><td>Linee dritte e parallele, senza forzare l'angolo retto.</td></tr>
+<tr><td><strong>Storico / irregolare</strong></td><td>Chiese, absidi, archi, volte, colonne, murature irregolari</td><td>Segue il contorno con tratti dritti, archi e cerchi.</td></tr>
+<tr><td><strong>Tabià / strutture in legno</strong></td><td>Tabià, fienili, ballatoi, coperture in legno</td><td>Segue anche le tavole sottili (2-4 cm, a doppia linea), travi e puntoni inclinati; mette tavolati, travi e ballatoi in layer separati (vedi capitolo 11).</td></tr>
+</table>
+<p>Lascia attivo <strong>Riconosci muri, porte, finestre, pilastri, legno…</strong>: divide il disegno nei layer.</p>
+
+<h2>8. Estrarre e controllare il risultato</h2>
+<p>Premi il pulsante arancione <strong>Taglia ed estrai le linee</strong>. In pochi secondi si apre la scheda
+<strong>Risultato</strong>: in grigio i punti, colorate le linee estratte, in alto il conteggio per tipo di elemento.</p>
+<div class="duo">
+<figure><img src="img/ndxf_pianta.png" alt="Risultato pianta"><figcaption>Pianta: muri in nero, porte in verde,
+finestre in blu, pilastro in azzurro; misure dei vani scritte accanto.</figcaption></figure>
+<figure><img src="img/ndxf_sezione.png" alt="Risultato sezione"><figcaption>Sezione: pavimenti, soffitti, porta nel
+muro divisorio; in rosa tratteggiato le chiusure da verificare.</figcaption></figure>
+</div>
+<h3>Le stanze si chiudono da sole</h3>
+<p>Dove mobili, armadi o ombre nascondono un pezzo di muro o un angolo, il programma <strong>richiude la stanza</strong>
+(fino a 1 m). Fino a <strong>10 cm</strong> la chiusura è considerata sicura e va nel layer dei muri. Le chiusure più
+lunghe vanno nel layer <code>00_chiusure_da_verificare</code>: a schermo sono <span class="sw tr"></span><strong>rosa
+tratteggiate</strong>, nel DXF hanno un colore proprio. <strong>Vanno sempre guardate in CAD</strong>: di solito sono
+giuste, ma lì il muro non è stato rilevato.</p>
+<p>Il programma guarda anche la <strong>densità dei punti di ogni muro</strong>: vicino allo scanner ci sono milioni di
+punti, sulle pareti lontane (anche a 50 m) molti meno. I piccoli vuoti tra punti radi non vengono scambiati per buchi.</p>
+
+<h2>9. Porte e finestre</h2>
+<p>In pianta un vano è un'interruzione che c'è <strong>su tutte e due le facce del muro</strong>, nello stesso punto.
+Per ogni vano il programma fa da solo una <strong>sezione verticale nella nuvola 3D</strong> e misura:</p>
+<ul>
+<li>il <strong>pavimento</strong> e il <strong>soffitto</strong> della stanza;</li>
+<li>il punto più basso del vuoto: se è al livello del pavimento è una <strong>porta</strong>, se è più in alto è il
+<strong>davanzale</strong> di una <strong>finestra</strong>;</li>
+<li>il punto più alto del vuoto, cioè l'<strong>architrave</strong>.</li>
+</ul>
+<p>Accanto al vano scrive le misure: <code>P 90×210</code> = porta larga 90 cm e alta 210;
+<code>F 120×120 dav. 90</code> = finestra 120×120 con davanzale a 90 cm dal pavimento. La precisione è di qualche
+centimetro: per le misure di progetto controlla in CAD o in sezione.</p>
+<p>In <strong>sezione</strong> le porte si riconoscono dall'architrave con il pavimento sotto, anche con l'<strong>anta
+chiusa</strong>; le finestre dall'architrave con il davanzale sotto.</p>
+
+<h2>10. Passo 4 – Tagli, nomi ed esportazione DXF</h2>
+<div class="duo">
+<figure><img src="img/ndxf_tagli.png" alt="Elenco dei tagli"><figcaption>L'elenco dei tagli: doppio clic per
+rinominare.</figcaption></figure>
+<div style="flex:1.4">
+<ul>
+<li><strong>Ogni taglio si aggiunge all'elenco</strong> a destra: puoi fare tutte le piante, sezioni e prospetti che
+servono, uno dopo l'altro.</li>
+<li>Nomi proposti: «Pianta quota +51.20», «Sezione 1», «Sezione 2», «Prospetto nord»…</li>
+<li><strong>Doppio clic</strong> su un nome per <strong>rinominarlo</strong> (es. «Sezione A-A», «Prospetto via Roma»),
+poi Invio.</li>
+<li><strong>Clic</strong> su un taglio per rivederlo nella scheda Risultato.</li>
+<li><strong>Esporta tutti…</strong>: scegli una cartella e il programma salva <strong>un file DXF per ogni taglio</strong>,
+con il suo nome (es. <code>Rilievo_Sezione A-A.dxf</code>).</li>
+<li><strong>Esporta selezionato…</strong>: salva solo il taglio scelto.</li>
+<li><strong>Elimina selezionato</strong>: toglie un taglio venuto male; poi lo rifai.</li>
+</ul>
+</div></div>
+<div class="box att"><b class="t">Attenzione</b>I tagli restano in elenco finché il programma è aperto e finché non apri
+un'altra nuvola. <strong>Esportali prima di chiudere</strong> o di aprire un altro rilievo.</div>
+<h3>Opzioni del DXF</h3>
+<table>
+<tr><th>Opzione</th><th>Significato</th></tr>
+<tr><td>Polilinee unite</td><td>Attiva (consigliato): ogni contorno è una polilinea unica. Disattiva: linee e archi separati.</td></tr>
+<tr><td>Includi i punti della fetta</td><td>Mette anche i punti della nuvola tagliata in un layer a parte, utile per il controllo in CAD (file più pesante).</td></tr>
+<tr><td>Pianta alla quota reale</td><td>Le linee della pianta stanno alla quota del taglio invece che a quota 0.</td></tr>
+</table>
+<p>Le <strong>piante</strong> hanno le <strong>coordinate reali del rilievo</strong>: si sovrappongono alle altre piante e al
+rilievo topografico. Il DXF è in metri (AutoCAD 2010). I <strong>nomi dei layer</strong> si possono adattare al vostro
+standard da <em>Altro ▾ → Nomi dei layer…</em>.</p>
+
+<h2>11. Tabià e strutture in legno</h2>
+<figure class="md"><img src="img/ndxf_tabia.png" alt="Sezione di un tabià"><figcaption>Sezione di un tabià (nuvola di prova da 7,3
+milioni di punti): basamento in pietra in nero, tavolati arancio, travi e puntoni blu, ballatoio verde.</figcaption></figure>
+<p>Scegli il tipo <strong>Tabià / strutture in legno</strong>. Il programma:</p>
+<ul>
+<li>segue gli elementi sottili: una tavola da 2-4 cm diventa <strong>due linee</strong> (le due facce);</li>
+<li>segue anche le linee <strong>inclinate</strong> (puntoni, falde, saettoni), non solo quelle orizzontali e verticali;</li>
+<li>divide il legno in layer: <code>00_legno_tavolati</code> (pareti in tavole, solai in tavole),
+<code>00_legno_travi</code> (travi viste in sezione, puntoni), <code>00_legno_ballatoi</code> (ballatoi e parapetti fuori
+dal filo dei muri); l'assito del tetto resta in <code>00_coperture</code>;</li>
+<li>le murature in pietra del basamento restano in <code>00_muri</code>.</li>
+</ul>
+<div class="box"><b class="t">Consiglio</b>Per il legno usa uno spessore della fetta di 2-3 cm: con fette spesse le due facce
+di una tavola si confondono.</div>
+
+<h2>12. Il lavoro in CAD: cosa controllare</h2>
+<table>
+<tr><th>Layer</th><th>Contenuto</th><th>Controllo</th></tr>
+<tr><td><code>00_muri</code></td><td>Muri e pareti</td><td>Spigoli e innesti.</td></tr>
+<tr><td><code>00_chiusure_da_verificare</code></td><td>Buchi e angoli nascosti richiusi oltre 10 cm</td><td><strong>Sempre</strong>: confermali (spostali in 00_muri) o correggili.</td></tr>
+<tr><td><code>00_porte</code>, <code>00_finestre</code></td><td>Vani con le misure scritte</td><td>Che porte e finestre non siano scambiate (es. porta-finestra).</td></tr>
+<tr><td><code>00_pilastri</code></td><td>Pilastri e colonne</td><td>Piccoli elementi chiusi scambiati per pilastri (es. una cappa).</td></tr>
+<tr><td><code>00_pavimenti</code>, <code>00_soffitti</code>, <code>00_solai</code></td><td>Orizzontamenti in sezione</td><td>Quote.</td></tr>
+<tr><td><code>00_coperture</code>, <code>00_volte_archi</code>, <code>00_aggetti</code></td><td>Falde, archi, balconi e cornici</td><td>Forme curve.</td></tr>
+<tr><td><code>00_legno_…</code></td><td>Tavolati, travi, ballatoi</td><td>Elementi in legno con murature allineate.</td></tr>
+<tr><td><code>00_info</code></td><td>Note: file, quota, linea A-B, impostazioni</td><td>Da tenere: dice come è stato fatto il disegno.</td></tr>
+</table>
+<p>Il programma si sbaglia soprattutto su <strong>arredi addossati ai muri</strong> (armadi, cucine), <strong>vegetazione</strong>
+e <strong>persone</strong> rilevate durante la scansione: sono tutti punti che sembrano muri.</p>
+
+<h2>13. Regolazioni fini</h2>
+<figure class="sm"><img src="img/ndxf_regolazioni.png" alt="Regolazioni fini"><figcaption>Le regolazioni fini si aprono
+con la freccia; scegliendo un tipo di edificio tornano ai valori consigliati.</figcaption></figure>
+<p>Di solito non servono. Se il risultato non va bene, cambiane <strong>una alla volta</strong> e rifai il taglio:</p>
+<table>
+<tr><th>Regolazione</th><th>Cosa fa</th><th>Quando cambiarla</th></tr>
+<tr><td>Fascia (tolleranza)</td><td>Quanto i punti possono scostarsi dalla linea (2 cm)</td><td>Linee spezzettate su muri irregolari → aumenta. Tavole o elementi sottili → riduci (0,8 cm).</td></tr>
+<tr><td>Punti vicini entro</td><td>Oltre alla fascia, prende i punti entro questa distanza da un punto della linea (1 cm)</td><td>Nuvola rumorosa (pareti lontane) → 1,5-2 cm.</td></tr>
+<tr><td>Lunghezza minima</td><td>I tratti più corti vengono ignorati (10 cm)</td><td>Trattini su arredi, vegetazione → aumenta.</td></tr>
+<tr><td>Unisci interruzioni fino a</td><td>Vuoti lungo una stessa linea uniti in un solo tratto (20 cm)</td><td>Tenerlo sotto la larghezza delle porte.</td></tr>
+<tr><td>Richiudi stanze fino a</td><td>Angoli e buchi richiusi (100 cm)</td><td>Porte o passaggi chiusi per errore → riduci (es. 60 cm). 0 = mai.</td></tr>
+<tr><td>Segnala chiusure oltre</td><td>Oltre questa lunghezza la chiusura va nel layer da verificare (10 cm)</td><td>Di solito lasciarlo così.</td></tr>
+<tr><td>Unisci spigoli entro</td><td>Le linee si allungano fino all'angolo (30 cm)</td><td>Angoli non chiusi → aumenta.</td></tr>
+<tr><td>Angoli → 90°, linee → parallele, tolleranza angoli</td><td>Squadratura</td><td>Edifici storici → disattiva.</td></tr>
+<tr><td>Archi e cerchi</td><td>Riconosce archi e colonne (metodo «contorno libero»)</td><td>Edifici storici.</td></tr>
+<tr><td>Tavolati, travi e ballatoi</td><td>Riconoscimento del legno</td><td>Attivo nel tipo «Tabià».</td></tr>
+</table>
+
+<h2>14. Analisi del fuori piombo</h2>
+<p>Facoltativa: spunta <strong>Analisi fuori piombo</strong> prima di estrarre. Per pareti e pilastri il programma misura la
+posizione reale della superficie ogni 25 cm di altezza rispetto alla verticale passante per la base. Nel DXF trovi la
+verticale teorica tratteggiata, il profilo reale ingrandito (es. 10 volte) e i valori in cm reali; accanto al DXF
+viene salvato un file <strong>CSV</strong> da aprire in Excel.</p>
+
+<h2>15. Problemi frequenti</h2>
+<table>
+<tr><th>Problema</th><th>Cosa fare</th></tr>
+<tr><td>Il programma non parte su Windows 7 («python312.dll»)</td><td>Hai scaricato la versione per Windows 10: usa <code>Nuvola2DXF-Windows7.exe</code>.</td></tr>
+<tr><td>La prima apertura è lentissima</td><td>È normale per file di molti GB: avviene una volta sola. Lascia lavorare il PC; nelle aperture successive è immediata.</td></tr>
+<tr><td>«Nessun punto»</td><td>Quota di taglio fuori dall'edificio, linea A-B fuori dalla nuvola o riquadro verde troppo piccolo.</td></tr>
+<tr><td>Una porta viene chiusa</td><td>Riduci «Richiudi stanze fino a» sotto la larghezza della porta, oppure correggi in CAD.</td></tr>
+<tr><td>Una stanza resta aperta</td><td>L'apertura è più lunga di «Richiudi stanze» (1 m): aumentalo o chiudi in CAD.</td></tr>
+<tr><td>Trattini su mobili o piante</td><td>Aumenta «Lunghezza minima» oppure limita l'area con il riquadro verde.</td></tr>
+<tr><td>Linee spezzettate su muri irregolari</td><td>Prova il tipo «Prevalentemente dritto» o «Storico», oppure aumenta la fascia.</td></tr>
+<tr><td>Una finestra risulta porta (o il contrario)</td><td>Succede se sotto il vano mancano punti (davanzale nascosto) o se c'è un arredo davanti: correggi il layer in CAD.</td></tr>
+<tr><td>Le tavole di legno diventano una linea sola</td><td>Usa il tipo «Tabià» e una fetta di 2-3 cm.</td></tr>
+<tr><td>Disco pieno</td><td><em>Altro ▾ → Svuota archivio temporaneo</em>.</td></tr>
+</table>
+
+<h2>16. Consigli per il rilievo</h2>
+<ul>
+<li>Più stazioni dentro ogni stanza significano meno ombre e meno chiusure da verificare.</li>
+<li>Le pareti lontane dallo scanner hanno meno punti e più rumore: per le facciate fai stazioni vicine.</li>
+<li>Se possibile, apri le porte interne durante la scansione: il programma riconosce meglio i vani.</li>
+<li>Per i prospetti la nuvola deve contenere la facciata dall'esterno; per le sezioni servono punti sia sopra sia sotto i solai.</li>
+<li>Esporta la nuvola già registrata e georeferenziata: le piante manterranno le coordinate reali.</li>
+</ul>
+<div class="box ok"><b class="t">In sintesi</b>Apri la nuvola → scegli il taglio → scegli il tipo di edificio → premi
+il pulsante arancione → controlla → rinomina → <strong>Esporta tutti</strong> → in CAD controlla per prima cosa il layer
+<code>00_chiusure_da_verificare</code>.</div>
+</main></body></html>
