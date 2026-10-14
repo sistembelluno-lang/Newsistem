@@ -57,8 +57,36 @@ jobs:
           path: Nuvola2DXF/dist/Nuvola2DXF.exe
           if-no-files-found: error
 
+  # Windows 7 / 8.1: Python 3.8 è l'ultimo che ci gira, con Qt5 (PySide2)
+  windows7:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.8'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: Nuvola2DXF/requirements-win7.txt
+      - run: pip install -r requirements-win7.txt "pyinstaller>=6,<6.11"
+      - run: pyinstaller --noconfirm Nuvola2DXF.spec
+        env:
+          NOME_EXE: Nuvola2DXF-Windows7
+      - name: Autoverifica dell'eseguibile
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\Nuvola2DXF-Windows7.exe -ArgumentList '--verifica', 'verifica.txt' -Wait -PassThru
+          Get-Content verifica.txt
+          if ($p.ExitCode -ne 0) { exit 1 }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nuvola2DXF-Windows7
+          path: Nuvola2DXF/dist/Nuvola2DXF-Windows7.exe
+          if-no-files-found: error
+
   release:
-    needs: windows
+    needs: [windows, windows7]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
@@ -67,7 +95,8 @@ jobs:
         run: echo "version=$(sed -n 's/^__version__ = \"\(.*\)\"/\1/p' nuvola2dxf/__init__.py)" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
-          name: Nuvola2DXF-Windows
+          pattern: Nuvola2DXF-Windows*
+          merge-multiple: true
           path: out
       - uses: softprops/action-gh-release@v2
         with:
@@ -75,12 +104,19 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: Nuvola2DXF ${{ steps.v.outputs.version }}
           make_latest: false
-          files: out/Nuvola2DXF.exe
+          files: |
+            out/Nuvola2DXF.exe
+            out/Nuvola2DXF-Windows7.exe
           body: |
             **Nuvola2DXF**: piante, sezioni e prospetti in DXF da nuvole di punti laser scanner
             (LAS, LAZ, E57, PTS, PTX, XYZ, PLY), con riconoscimento di muri, porte, finestre, pilastri,
             pavimenti, soffitti e analisi del fuori piombo.
 
-            Scarica `Nuvola2DXF.exe` qui sotto (Assets): un solo file, nessuna installazione.
-            Funziona su Windows 10 e 11 a 64 bit.
+            Scarica qui sotto (Assets) il file adatto al tuo PC: un solo file, nessuna installazione.
+
+            | Windows | File |
+            |---|---|
+            | 10 e 11 (64 bit) | `Nuvola2DXF.exe` |
+            | 7 e 8.1 (64 bit) | `Nuvola2DXF-Windows7.exe` |
+
             Al primo avvio Windows può mostrare un avviso: «Ulteriori informazioni» → «Esegui comunque».

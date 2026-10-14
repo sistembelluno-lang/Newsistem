@@ -6,8 +6,12 @@ import time
 import traceback
 
 import numpy as np
+
+try:
+    from PySide6 import QtCore, QtGui, QtWidgets
+except ImportError:  # versione per Windows 7: Qt5
+    from PySide2 import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
-from PySide6 import QtCore, QtGui, QtWidgets
 
 from . import __version__, classifica, elabora, esporta, nuvola, piombo, prospetto, readers
 from .parametri import CATEGORIE, DESCRIZIONI, NOMI_CATEGORIE, PROFILI, Parametri
@@ -23,6 +27,11 @@ COLORI_CAT = {
     "volte": (130, 50, 200), "aggetti": (200, 160, 0), "altro": (150, 150, 150),
     "piombo": (220, 30, 30), "piombo_rif": (255, 140, 0),
 }
+
+
+def esegui(oggetto):
+    """exec() di Qt6, exec_() di Qt5."""
+    return oggetto.exec() if hasattr(oggetto, "exec") else oggetto.exec_()
 
 
 # ---------------------------------------------------------------- lavori in background
@@ -795,7 +804,7 @@ class Finestra(QtWidgets.QMainWindow):
         pulsanti.button(QtWidgets.QDialogButtonBox.StandardButton.RestoreDefaults).clicked.connect(
             lambda: [campi[c].setText(CATEGORIE[c][0]) for c in CATEGORIE])
         f.addRow(pulsanti)
-        if dlg.exec() == QtWidgets.QDialog.DialogCode.Accepted:
+        if esegui(dlg) == QtWidgets.QDialog.DialogCode.Accepted:
             imp = QtCore.QSettings("Nuvola2DXF", "Nuvola2DXF")
             for c, e in campi.items():
                 nome = e.text().strip() or CATEGORIE[c][0]
@@ -927,4 +936,4 @@ def main():
     w.show()
     if len(sys.argv) > 1 and os.path.isfile(sys.argv[1]):
         w.apri(sys.argv[1])
-    return app.exec()
+    return esegui(app)

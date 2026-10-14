@@ -7,6 +7,7 @@ pianta, sezione e prospetto, scrive i DXF e annota l'esito nel file.
 """
 
 import os
+import shutil
 import tempfile
 import traceback
 
@@ -38,7 +39,8 @@ def esegui(log):
         from .parametri import PROFILI
 
         par = list(PROFILI.values())[0]
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp:
+        tmp = tempfile.mkdtemp()
+        try:
             os.environ["LOCALAPPDATA"] = os.path.join(tmp, "cache")
             P = _stanza(np.random.default_rng(0))
             for est in ("las", "laz", "e57"):
@@ -80,7 +82,12 @@ def esegui(log):
             righe.append(f"prospetto: {len(pp)} elementi")
             ok &= len(pp) >= 1
             nv.chiudi()
-        from PySide6 import QtWidgets  # noqa: F401  (verifica che le librerie Qt ci siano)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        try:
+            from PySide6 import QtWidgets  # noqa: F401  (verifica che le librerie Qt ci siano)
+        except ImportError:
+            from PySide2 import QtWidgets  # noqa: F401
         import pyqtgraph  # noqa: F401
     except Exception:
         ok = False

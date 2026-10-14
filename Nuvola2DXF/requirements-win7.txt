@@ -1,0 +1,9 @@
+# Versione per Windows 7 (64 bit): ultime librerie che funzionano con Python 3.8
+numpy==1.24.4
+scipy==1.10.1
+pandas==2.0.3
+laspy[lazrs]>=2.5,<2.6
+pye57>=0.4,<0.5
+ezdxf>=1.1,<1.2
+PySide2==5.15.2.1
+pyqtgraph==0.13.3

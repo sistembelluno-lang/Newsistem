@@ -52,7 +52,9 @@ Le versioni pronte (`Nuvola2DXF.exe`, un solo file, nessuna installazione)
 sono nella pagina **Releases** del repository (voce *Nuvola2DXF*), oppure tra
 gli *Artifacts* della compilazione automatica "Nuvola2DXF" (scheda Actions).
 
-Requisiti: Windows 10 o 11 a 64 bit. Al primo avvio Windows può mostrare un
+Requisiti: `Nuvola2DXF.exe` per Windows 10 o 11 a 64 bit;
+`Nuvola2DXF-Windows7.exe` per Windows 7 e 8.1 a 64 bit (Python 3.8 e Qt5, stesse
+funzioni; va bene anche su Windows 10/11). Al primo avvio Windows può mostrare un
 avviso: «Ulteriori informazioni» → «Esegui comunque».
 
 Le nuvole convertite sono conservate in `%LOCALAPPDATA%\Nuvola2DXF\cache`

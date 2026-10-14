@@ -1,6 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 # Costruzione dell'eseguibile:  pyinstaller --noconfirm Nuvola2DXF.spec
+import importlib.util
+import os
+
 from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
+
+# Windows 10/11: PySide6 (Qt6); Windows 7: PySide2 (Qt5). Si esclude l'altra.
+QT_ESCLUSO = "PySide2" if importlib.util.find_spec("PySide6") else "PySide6"
 
 nascosti = collect_submodules("lazrs") + collect_submodules("pye57") + collect_submodules("laspy._compression") + [
     "laspy.lasappender", "laspy.compression", "laspy._compression.lazrsbackend",
@@ -13,7 +19,7 @@ a = Analysis(
     binaries=binari,
     datas=[("icona.png", ".")],
     hiddenimports=nascosti,
-    excludes=["tkinter", "matplotlib", "IPython", "PyQt5", "PyQt6", "PySide2",
+    excludes=["tkinter", "matplotlib", "IPython", "PyQt5", "PyQt6", QT_ESCLUSO,
               "pyqtgraph.opengl", "pyqtgraph.examples", "pytest"],
     noarchive=False,
 )
@@ -24,7 +30,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="Nuvola2DXF",
+    name=os.environ.get("NOME_EXE", "Nuvola2DXF"),
     console=False,
     icon="icona.ico",
     upx=False,
