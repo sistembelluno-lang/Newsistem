@@ -664,17 +664,19 @@ class Finestra(QtWidgets.QMainWindow):
                 poli = elabora.estrai(pts, par, ann)
                 if riconosci:
                     av(0.5, "Riconoscimento di porte, finestre e pilastri…")
-                    poli, _ = classifica.classifica_pianta(
-                        poli, pts, nv, quota)
+                    poli, aperture = classifica.classifica_pianta(poli, pts, nv, quota)
                 testi, report = [], []
+                if riconosci:
+                    testi += classifica.testi_aperture(aperture)
                 if pb:
                     av(0.7, "Analisi del fuori piombo…")
                     if not riconosci:
                         classifica.pilastri(poli)
-                    l, testi, report = piombo.piombo_pianta(
+                    l, testi_pb, report = piombo.piombo_pianta(
                         nv, poli, quota, passo=pb["passo"], banda=pb["banda"], esagera=pb["esagera"],
                         soglia=pb["soglia"], avanzamento=lambda f, m: av(0.7 + 0.3 * f, m), annulla=ann)
                     poli = poli + l
+                    testi += testi_pb
                 return dict(tipo="pianta", punti=pts, polilinee=poli, quota=quota, testi=testi, report=report,
                             spessore=spessore, durata=time.time() - t0, par=par)
         else:

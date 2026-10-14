@@ -106,31 +106,113 @@ def aperture_pianta(poli, punti2d):
     return aperture
 
 
+def _piani_orizzontali(z, quota, passo=0.02):
+    """Pavimento e soffitto: le quote con più punti sotto e sopra il taglio
+    (le superfici orizzontali concentrano i punti in una fascia sottile)."""
+    out = []
+    for sel, verso in ((z < quota - 0.3, -1), (z > quota + 0.3, 1)):
+        zz = z[sel]
+        if len(zz) < 30:
+            out.append(None)
+            continue
+        bins = np.arange(zz.min(), zz.max() + 2 * passo, passo)
+        if len(bins) < 2:
+            out.append(None)
+            continue
+        cont, bordi = np.histogram(zz, bins=bins)
+        k = int(np.argmax(cont))
+        # serve un picco netto rispetto alle fasce dei muri verticali
+        if cont[k] < 20 or cont[k] < 3 * max(np.median(cont), 1):
+            out.append(None)
+            continue
+        out.append(float(bordi[k] + passo / 2))
+    return out
+
+
+def profilo_vano(vano, intorno, quota, passo=0.02):
+    """Sezione verticale automatica attraverso un vano.
+
+    vano: punti (u, v, z) dentro il vano (spessore del muro); intorno: punti
+    della zona attorno, per trovare pavimento e soffitto. Restituisce dict con
+    pavimento, soffitto, inferiore (soglia o davanzale) e superiore
+    (architrave) del vuoto che contiene la quota di taglio.
+    """
+    pav, sof = _piani_orizzontali(intorno[:, 2], quota) if len(intorno) else (None, None)
+    z = vano[:, 2]
+    basso = pav if pav is not None else (float(np.percentile(intorno[:, 2], 1)) if len(intorno) else quota - 3)
+    alto = sof if sof is not None else (float(np.percentile(intorno[:, 2], 99)) if len(intorno) else quota + 3)
+    bins = np.arange(basso - passo, alto + 2 * passo, passo)
+    cont, bordi = np.histogram(z, bins=bins)
+    # fascia "piena": abbastanza punti (muro sotto il davanzale, sopra l'architrave)
+    soglia = max(3, 0.15 * np.percentile(cont[cont > 0], 75)) if np.any(cont) else 3
+    piena = cont >= soglia
+    k0 = int(np.clip(np.searchsorted(bordi, quota) - 1, 0, len(cont) - 1))
+    if piena[k0]:
+        return None  # il taglio non passa nel vuoto
+    i = k0
+    while i > 0 and not piena[i - 1]:
+        i -= 1
+    j = k0
+    while j < len(cont) - 1 and not piena[j + 1]:
+        j += 1
+    inferiore = float(bordi[i]) if i > 0 else basso
+    superiore = float(bordi[j + 1]) if j < len(cont) - 1 else alto
+    # base del muro sotto il vuoto (se il pavimento non si vede)
+    pieni_sotto = np.flatnonzero(piena[:i])
+    base = float(bordi[pieni_sotto[0]]) if len(pieni_sotto) else inferiore
+    return dict(pavimento=pav, soffitto=sof, inferiore=inferiore, superiore=superiore, base=base)
+
+
 def tipo_aperture(aperture, nv, quota):
-    """Porta o finestra guardando i punti 3D sotto il piano di taglio: se c'è
-    il davanzale (muro pieno sotto il vano) è una finestra."""
+    """Porta o finestra con una sezione verticale automatica in ogni vano:
+    una porta parte dal pavimento e finisce sotto il soffitto, una finestra
+    ha il davanzale sopra il pavimento."""
     if not aperture or nv is None:
         return
-    scatole = [dict(c=ap["c"], t=ap["t"], hu=max(0.05, ap["larghezza"] / 2 - 0.08),
-                    hv=ap["spessore"] / 2 + 0.03, z0=quota - 3.0, z1=quota - 0.05)
-               for ap in aperture]
-    for ap, pts in zip(aperture, nv.scatole(scatole)):
-        if len(pts) < 20:
+    scatole = []
+    for ap in aperture:
+        scatole.append(dict(c=ap["c"], t=ap["t"], hu=max(0.05, ap["larghezza"] / 2 - 0.06),
+                            hv=ap["spessore"] / 2 + 0.03, z0=quota - 4.0, z1=quota + 4.0))
+        scatole.append(dict(c=ap["c"], t=ap["t"], hu=ap["larghezza"] / 2 + 0.6,
+                            hv=ap["spessore"] / 2 + 1.2, z0=quota - 4.0, z1=quota + 4.0))
+    pts = nv.scatole(scatole)
+    for k, ap in enumerate(aperture):
+        vano, intorno = pts[2 * k], pts[2 * k + 1]
+        # attorno: solo fuori dallo spessore del muro (pavimento e soffitto delle stanze)
+        intorno = intorno[np.abs(intorno[:, 1]) > ap["spessore"] / 2 + 0.1]
+        pr = profilo_vano(vano, intorno, quota)
+        ap["profilo"] = pr
+        if pr is None:
             ap["categoria"] = "porte"
             continue
-        z = pts[:, 2]
-        pavimento = np.percentile(z, 2)
-        z_alti = z[z > pavimento + 0.15]
-        if len(z_alti) < 10 or quota - pavimento < 0.4:
-            ap["categoria"] = "porte"
-            continue
-        fasce = np.arange(pavimento + 0.15, quota - 0.1, 0.05)
-        if len(fasce) < 2:
-            ap["categoria"] = "porte"
-            continue
-        cont, _ = np.histogram(z_alti, bins=fasce)
-        piene = np.count_nonzero(cont >= 3) / len(cont)
-        ap["categoria"] = "finestre" if piene > 0.4 else "porte"
+        terra = pr["pavimento"] if pr["pavimento"] is not None else pr["base"]
+        ap["davanzale"] = max(0.0, pr["inferiore"] - terra)
+        ap["altezza"] = pr["superiore"] - pr["inferiore"]
+        ap["categoria"] = "finestre" if ap["davanzale"] > 0.15 else "porte"
+
+
+def testi_aperture(aperture):
+    """Etichette con le misure del vano: «P 90×210», «F 120×120 dav. 90»."""
+    from .geometria import Testo
+
+    out = []
+    for ap in aperture:
+        larg = round(ap["larghezza"] * 100)
+        if "altezza" in ap:
+            h = round(ap["altezza"] * 100)
+            if ap["categoria"] == "finestre":
+                testo = f"F {larg}×{h} dav. {round(ap['davanzale'] * 100)}"
+            else:
+                testo = f"P {larg}×{h}"
+        else:
+            testo = ("F " if ap["categoria"] == "finestre" else "P ") + str(larg)
+        t = ap["t"]
+        ang = float(np.degrees(np.arctan2(t[1], t[0])))
+        if ang > 90 or ang <= -90:
+            ang -= 180 * np.sign(ang)
+        pos = ap["c"] + ap["n"] * (ap["spessore"] / 2 + 0.12)
+        out.append(Testo(tuple(pos), testo, altezza=0.08, categoria=ap["categoria"], rotazione=ang, allinea="centro"))
+    return out
 
 
 def disegna_aperture(aperture):
@@ -246,18 +328,34 @@ def classifica_sezione(poli, punti2d=None):
                  if abs(f[0] - e[0]) < 0.05 and abs(f[1] - e[1]) > 0.1]
         return int(np.sign(sum(segni))) if segni else 0
 
-    architravi, davanzali, resto = [], [], []
-    for a, b, k, i in orizz:
-        L = abs(b[0] - a[0])
-        va, vb = (verso(a), verso(b)) if 0.05 <= L <= 1.0 else (0, 0)
-        if va == vb == 1:
-            architravi.append((a, b, k, i))
-            cat_poli[k][i] = "muri"
-        elif va == vb == -1:
-            davanzali.append((a, b, k, i))
-            cat_poli[k][i] = "muri"
+    # tratti orizzontali allineati e contigui (un'anta chiusa o un innesto
+    # spezzano l'architrave) valutati insieme
+    catena_di = {}
+    gruppi = []
+    for a, b, k, i in sorted(orizz, key=lambda t: (round(t[0][1], 2), min(t[0][0], t[1][0]))):
+        x0, x1 = sorted((a[0], b[0]))
+        z = (a[1] + b[1]) / 2
+        g = gruppi[-1] if gruppi else None
+        if g and abs(g["z"] - z) < 0.01 and abs(g["x1"] - x0) < 0.005:
+            g["x1"] = x1
+            g["membri"].append((a, b, k, i))
         else:
-            resto.append((a, b, k, i))
+            gruppi.append(dict(z=z, x0=x0, x1=x1, membri=[(a, b, k, i)]))
+    architravi, davanzali, resto = [], [], []
+    for g in gruppi:
+        a, b = np.array([g["x0"], g["z"]]), np.array([g["x1"], g["z"]])
+        L = g["x1"] - g["x0"]
+        # fino a 2 m: muri antichi spessi o tagliati di sbieco
+        va, vb = (verso(a), verso(b)) if 0.05 <= L <= 2.0 else (0, 0)
+        if va == vb == 1:
+            architravi.append((a, b, g["membri"]))
+        elif va == vb == -1:
+            davanzali.append((a, b, g["membri"]))
+        else:
+            resto.extend(g["membri"])
+            continue
+        for _, _, k, i in g["membri"]:
+            cat_poli[k][i] = "muri"
     for a, b, k, i in resto:
         su = sovrapposti(a, b, resto + [(p, q, -1, -1) for p, q in altri], True)
         giu = sovrapposti(a, b, resto, False)
@@ -273,22 +371,34 @@ def classifica_sezione(poli, punti2d=None):
             cat_poli[k][i] = "solai"
     extra = []
     pavimenti = [(a, b) for a, b, k, i in orizz if cat_poli[k][i] == "pavimenti"]
-    for a, b, k, i in architravi:
+    for a, b, membri in architravi:
         um = (a[0] + b[0]) / 2
         z = a[1]
         sotto = [d for d in davanzali if abs((d[0][0] + d[1][0]) / 2 - um) < 0.15 and 0.3 <= z - d[0][1] <= 3.0]
         if sotto:
             d = max(sotto, key=lambda d: d[0][1])
-            cat_poli[k][i] = "finestre"
-            cat_poli[d[2]][d[3]] = "finestre"
+            for _, _, k, i in membri + d[2]:
+                cat_poli[k][i] = "finestre"
             extra.append(_linea((um, d[0][1]), (um, z), "finestre"))
             continue
         # il pavimento può interrompersi sotto la soglia: basta che arrivi vicino
         base = [p for p, q in pavimenti if min(p[0], q[0]) - 0.6 <= um <= max(p[0], q[0]) + 0.6 and 1.5 <= z - p[1] <= 3.5]
         if base:
             zp = max(p[1] for p in base)
-            cat_poli[k][i] = "porte"
-            extra.append(_linea((um, zp), (um, z), "porte"))
+            for _, _, k, i in membri:
+                cat_poli[k][i] = "porte"
+            # anta chiusa: tratti verticali dentro il vano, sotto l'architrave
+            u0, u1 = sorted((a[0], b[0]))
+            anta = False
+            for p_, q_, g_, k2, i2 in tratti:
+                if cat_poli[k2][i2] != "muri":
+                    continue
+                if u0 + 0.01 < p_[0] < u1 - 0.01 and u0 + 0.01 < q_[0] < u1 - 0.01 \
+                        and max(p_[1], q_[1]) <= z + 0.02 and min(p_[1], q_[1]) >= zp - 0.05:
+                    cat_poli[k2][i2] = "porte"
+                    anta = True
+            if not anta:
+                extra.append(_linea((um, zp), (um, z), "porte"))
     nuove = [cat_poli.get(k) for k in range(len(poli))]
     return _dividi(poli, nuove) + extra
 

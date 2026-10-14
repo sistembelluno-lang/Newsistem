@@ -365,3 +365,42 @@ def test_stanze_chiuse_con_mobili_e_ombre():
         assert sum(1 for v in estremi.values() if v == 1) <= 4
         chiusure = [p for p in out if p.categoria == "chiusure"]
         assert chiusure and all(p.lunghezza() > 0.1 for p in chiusure)
+
+
+def test_pianta_misure_dei_vani(edificio):
+    """La sezione automatica in ogni vano dà davanzale e altezza."""
+    from nuvola2dxf import classifica
+
+    nv = edificio
+    q = 51.2 - nv.origine[2]
+    fet = nv.fetta_pianta(q, 0.05)
+    _, aperture = classifica.classifica_pianta(elabora.estrai(fet, SQUADRATO), fet, nv, q)
+    for ap in aperture:
+        if ap["categoria"] == "finestre":  # vano da 0.9 a 2.1 m
+            assert abs(ap["davanzale"] - 0.9) < 0.05 and abs(ap["altezza"] - 1.2) < 0.08
+        else:  # porte alte 2.1 e 2.2 m
+            assert ap["davanzale"] < 0.1 and 2.0 < ap["altezza"] < 2.3
+    testi = [t.testo for t in classifica.testi_aperture(aperture)]
+    assert sum(t.startswith("F ") and "dav." in t for t in testi) == 2
+    assert sum(t.startswith("P ") for t in testi) == 2
+
+
+def test_sezione_porta_con_anta_chiusa():
+    from nuvola2dxf import classifica
+
+    rng = np.random.default_rng(3)
+    s = lambda a, b: sintetici.segmento(a, b, 1500, rng)
+    P = np.vstack([
+        s((0, 0), (4, 0)), s((4.3, 0), (8, 0)),            # pavimenti
+        s((0, 3), (4, 3)), s((4.3, 3), (8, 3)),            # soffitti
+        s((4, 2.1), (4, 3)), s((4.3, 2.1), (4.3, 3)),      # muro sopra la porta
+        s((4, 2.1), (4.3, 2.1)),                           # architrave
+        s((4.15, 0.01), (4.15, 2.08)),                     # anta chiusa
+        s((0, 0), (0, 3)), s((8, 0), (8, 3)),
+    ])
+    P = P + rng.normal(0, 0.003, P.shape)
+    poli = classifica.classifica_sezione(elabora.estrai(P, SQUADRATO), P)
+    porte = [p for p in poli if p.categoria == "porte"]
+    assert porte
+    anta = [p for p in porte if abs(p.punti[:, 0].mean() - 4.15) < 0.03 and p.lunghezza() > 1.5]
+    assert anta
