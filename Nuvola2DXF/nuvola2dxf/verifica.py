@@ -75,6 +75,10 @@ def esegui(log):
             ps = classifica.classifica_sezione(elabora.estrai(sez, par), sez)
             righe.append(f"sezione: {len(ps)} elementi")
             ok &= len(ps) >= 2
+            legno = [p for k, p in PROFILI.items() if p.legno][0]
+            pl = classifica.classifica_legno(classifica.classifica_sezione(elabora.estrai(sez, legno), sez))
+            righe.append(f"sezione con profilo legno: {len(pl)} elementi")
+            ok &= len(pl) >= 2
             a = np.array([-1.0, -0.2]) + (100, 200) - nv.origine[:2]
             b = np.array([5.0, -0.2]) + (100, 200) - nv.origine[:2]
             a, b = prospetto.allinea_facciata(nv.anteprima, a, b)
@@ -89,6 +93,17 @@ def esegui(log):
         except ImportError:
             from PySide2 import QtWidgets  # noqa: F401
         import pyqtgraph  # noqa: F401
+
+        # la finestra si costruisce (stile, icone, logo) senza mostrarla
+        from . import gui
+
+        app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        w = gui.Finestra()
+        esito = os.path.exists(gui._risorsa("logo.png")) and len(w.tagli) == 0
+        righe.append(f"interfaccia: {'OK' if esito else 'logo mancante'}")
+        ok &= esito
+        w.close()
+        del app
     except Exception:
         ok = False
         righe.append(traceback.format_exc())

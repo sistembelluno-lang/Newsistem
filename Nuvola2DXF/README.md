@@ -1,4 +1,6 @@
-# Nuvola2DXF
+# Nuvola2DXF (NDXF)
+
+![NDXF](icona.png)
 
 Programma per Windows che trasforma le nuvole di punti dei laser scanner in
 **piante, sezioni e prospetti in DXF**, con le linee ricostruite in modo da
@@ -26,13 +28,32 @@ Esempio: 10.000 punti che descrivono il perimetro di una stanza diventano
   - *Squadrato*: linee dritte, angoli quasi retti portati a 90°, spigoli uniti;
   - *Prevalentemente dritto*: linee dritte e parallele, angoli liberi;
   - *Storico / irregolare*: segue il contorno con tratti dritti, archi e
-    cerchi (absidi, colonne, volte, nicchie, murature irregolari).
+    cerchi (absidi, colonne, volte, nicchie, murature irregolari);
+  - *Tabià / strutture in legno*: segue anche gli elementi sottili (tavole da
+    2–4 cm a doppia linea), travi e puntoni inclinati, e mette tavolati, travi
+    e ballatoi su layer separati, oltre alle murature in pietra.
+- **Stanze chiuse**: oltre ai punti nella fascia di tolleranza entrano nella
+  linea anche quelli vicini (entro 1 cm, regolabile); gli angoli nascosti da
+  mobili e i buchi lungo i muri vengono richiusi (fino a 1 m). Le chiusure
+  oltre i 10 cm vanno nel layer `00_chiusure_da_verificare`, di colore
+  diverso, da controllare in CAD. Le soglie seguono la densità dei punti di
+  ogni muro (vicino allo scanner milioni di punti, sulle pareti lontane
+  molti meno).
 - **Riconoscimento degli elementi** (layer modificabili):
   `00_muri`, `00_porte`, `00_finestre`, `00_pilastri`, `00_pavimenti`,
-  `00_soffitti`, `00_solai`, `00_coperture`, `00_volte_archi`, `00_aggetti`.
-  In pianta porta o finestra si decide guardando nella nuvola 3D se sotto il
-  vano c'è il davanzale; in sezione si riconoscono pavimento (base), soffitto,
-  architravi e davanzali.
+  `00_soffitti`, `00_solai`, `00_coperture`, `00_volte_archi`, `00_aggetti`,
+  `00_legno_tavolati`, `00_legno_travi`, `00_legno_ballatoi`,
+  `00_chiusure_da_verificare`.
+  In pianta i vani sono le interruzioni simili sulle due facce del muro: per
+  ognuno il programma fa da solo una sezione verticale nella nuvola 3D e
+  misura pavimento, soglia o davanzale e architrave (una porta parte dal
+  pavimento, una finestra ha il davanzale); nel DXF le misure, per esempio
+  «P 90×210» o «F 120×120 dav. 90». In sezione si riconoscono pavimento
+  (base), soffitto, architravi, davanzali e le porte anche con l'anta chiusa.
+- **Più tagli, file separati**: ogni pianta, sezione o prospetto estratto si
+  aggiunge a un elenco; si rinomina con un doppio clic («Sezione A-A»,
+  «Prospetto nord»: per i prospetti l'orientamento è proposto in automatico) e
+  «Esporta tutti» salva un DXF per ogni taglio con il suo nome.
 - **Analisi del fuori piombo** (facoltativa): per pareti e pilastri misura la
   posizione reale della superficie ogni 25 cm di altezza (regolabile) rispetto
   alla verticale passante per la base. Nel DXF: verticale teorica tratteggiata,
@@ -66,9 +87,12 @@ pulsante «Svuota archivio temporaneo».
 1. **Apri nuvola** (o trascina il file nella finestra).
 2. Scegli **Pianta**, **Sezione** o **Prospetto**; per sezione e prospetto
    traccia A e B sulla vista dall'alto.
-3. Scegli il **tipo di edificio** (eventualmente le «Regolazioni fini»).
-4. Se serve, attiva l'**analisi fuori piombo**.
-5. **Taglia ed estrai le linee**, controlla il risultato, **Esporta DXF**.
+3. Scegli il **tipo di edificio** (eventualmente le «Regolazioni fini») e, se
+   serve, l'**analisi fuori piombo**.
+4. **Taglia ed estrai le linee**: il taglio si aggiunge all'elenco «Tagli e
+   DXF» a destra. Ripeti per tutte le piante, sezioni e prospetti che servono,
+   rinominali con un doppio clic ed esportali (**Esporta tutti** = un DXF per
+   taglio).
 
 ## Per sviluppatori
 
@@ -94,3 +118,6 @@ Struttura:
 | `nuvola2dxf/piombo.py` | analisi del fuori piombo |
 | `nuvola2dxf/esporta.py` | DXF e report CSV |
 | `nuvola2dxf/gui.py` | interfaccia (PySide6 + pyqtgraph) |
+
+Il logo (`logo.png`, `icona.png`, `icona.ico`) si rigenera con
+`python grafica/crea_logo.py` (serve Pillow).

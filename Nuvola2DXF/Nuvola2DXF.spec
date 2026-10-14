@@ -17,7 +17,7 @@ a = Analysis(
     ["Nuvola2DXF.py"],
     pathex=[],
     binaries=binari,
-    datas=[("icona.png", ".")],
+    datas=[("icona.png", "."), ("logo.png", ".")],
     hiddenimports=nascosti,
     excludes=["tkinter", "matplotlib", "IPython", "PyQt5", "PyQt6", QT_ESCLUSO,
               "pyqtgraph.opengl", "pyqtgraph.examples", "pytest"],

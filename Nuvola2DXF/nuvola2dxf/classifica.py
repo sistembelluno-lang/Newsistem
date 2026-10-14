@@ -330,7 +330,6 @@ def classifica_sezione(poli, punti2d=None):
 
     # tratti orizzontali allineati e contigui (un'anta chiusa o un innesto
     # spezzano l'architrave) valutati insieme
-    catena_di = {}
     gruppi = []
     for a, b, k, i in sorted(orizz, key=lambda t: (round(t[0][1], 2), min(t[0][0], t[1][0]))):
         x0, x1 = sorted((a[0], b[0]))
@@ -439,7 +438,6 @@ def _spezza(poli, tagli):
             out.append(p)
             continue
         V, G = [], []
-        n = len(p.punti)
         for i, (a, b, g) in enumerate(p.tratti()):
             V.append(a)
             extra = tagli.get((k, i), [])

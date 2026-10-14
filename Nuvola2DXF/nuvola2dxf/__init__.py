@@ -1,3 +1,3 @@
 """Nuvola2DXF: piante e sezioni in DXF da nuvole di punti laser scanner."""
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"

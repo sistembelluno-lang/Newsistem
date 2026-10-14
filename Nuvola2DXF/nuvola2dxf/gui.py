@@ -23,10 +23,10 @@ COLORE_PUNTI = (90, 90, 90, 110)
 MAX_PUNTI_SCHERMO = 250_000
 COLORI_CAT = {
     "muri": (20, 20, 20), "pilastri": (0, 160, 190), "porte": (0, 150, 0), "finestre": (30, 80, 230),
-    "pavimenti": (140, 80, 30), "soffitti": (190, 0, 190), "solai": (130, 130, 0), "coperture": (230, 120, 0),
+    "pavimenti": (140, 80, 30), "soffitti": (110, 70, 190), "solai": (130, 130, 0), "coperture": (230, 120, 0),
     "volte": (130, 50, 200), "aggetti": (200, 160, 0), "altro": (150, 150, 150),
     "piombo": (220, 30, 30), "piombo_rif": (255, 140, 0),
-    "chiusure": (210, 0, 145), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
+    "chiusure": (255, 0, 150), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
 }
 
 
@@ -101,12 +101,170 @@ class VistaPiana(pg.PlotWidget):
         self.cliccato.emit(p.x(), p.y())
 
 
+ARANCIO = "#ff921c"
+BLU = "#1862c4"
+STILE = """
+QMainWindow, #pannello { background: #f3f5f8; }
+#testata { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #0c2244, stop:1 #1862c4); color: white; }
+#testata QLabel { color: white; }
+QPushButton { padding: 6px 10px; border: 1px solid #c4ccd8; border-radius: 6px; background: white; }
+QPushButton:hover { border-color: #1862c4; }
+QPushButton:checked { background: #dce8fa; border-color: #1862c4; }
+QPushButton:disabled { color: #a0a0a0; background: #f0f0f0; }
+QPushButton#primario { background: #1862c4; color: white; border: none; font-weight: 600; }
+QPushButton#primario:hover { background: #1d72e0; }
+QPushButton#primario:disabled { background: #9db6d8; }
+QPushButton#azione { background: #ff921c; color: white; border: none; font-size: 12pt; font-weight: 700; }
+QPushButton#azione:hover { background: #ffa340; }
+QPushButton#azione:disabled { background: #f3c99a; }
+QPushButton#leggero { background: transparent; color: white; border: 1px solid rgba(255,255,255,0.5); }
+QPushButton#leggero:hover { background: rgba(255,255,255,0.15); }
+QPushButton#leggero::menu-indicator { image: none; }
+QFrame#passo { background: white; border: 1px solid #dde3ea; border-radius: 10px; }
+QLabel#numero { background: #1862c4; color: white; border-radius: 11px; font-weight: 700; qproperty-alignment: AlignCenter; }
+QLabel#titolo_passo { font-size: 11pt; font-weight: 700; color: #0c2244; }
+QToolButton#modo { border: 1px solid #c4ccd8; border-radius: 8px; background: white; padding: 6px; font-weight: 600; }
+QToolButton#modo:checked { background: #dce8fa; border: 2px solid #1862c4; color: #0c2244; }
+QToolButton#ripiega { border: none; color: #1862c4; font-weight: 600; padding: 2px 0; }
+QListWidget { border: 1px solid #dde3ea; border-radius: 6px; background: #fbfcfe; }
+QListWidget::item { padding: 5px; }
+QListWidget::item:selected { background: #dce8fa; color: #0c2244; }
+QTabWidget::pane { border: none; }
+QTabBar::tab { padding: 8px 18px; font-weight: 600; }
+QGroupBox { font-weight: 600; color: #1862c4; border: none; margin-top: 6px; }
+QGroupBox::title { subcontrol-origin: margin; left: 0; }
+"""
+
+
+def _risorsa(nome):
+    """File accanto al programma (o dentro l'eseguibile)."""
+    return os.path.join(getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), nome)
+
+
+def _passo(layout, numero, titolo):
+    """Riquadro numerato di un passo; restituisce il layout interno."""
+    box = QtWidgets.QFrame()
+    box.setObjectName("passo")
+    v = QtWidgets.QVBoxLayout(box)
+    v.setContentsMargins(12, 10, 12, 12)
+    riga = QtWidgets.QHBoxLayout()
+    n = QtWidgets.QLabel(str(numero))
+    n.setObjectName("numero")
+    n.setFixedSize(22, 22)
+    t = QtWidgets.QLabel(titolo)
+    t.setObjectName("titolo_passo")
+    riga.addWidget(n)
+    riga.addWidget(t, 1)
+    v.addLayout(riga)
+    layout.addWidget(box)
+    return v
+
+
+def _sezione_ripiegabile(layout, titolo, spunta=False):
+    """Parte di pannello nascosta finché non serve. Con spunta=True è una
+    casella che attiva anche la funzione (isChecked)."""
+    corpo = QtWidgets.QWidget()
+    f = QtWidgets.QFormLayout(corpo)
+    f.setContentsMargins(4, 2, 0, 2)
+    corpo.setVisible(False)
+    if spunta:
+        g = QtWidgets.QGroupBox(titolo)
+        g.setCheckable(True)
+        g.setChecked(False)
+        gl = QtWidgets.QVBoxLayout(g)
+        gl.setContentsMargins(0, 4, 0, 0)
+        gl.addWidget(corpo)
+        g.toggled.connect(corpo.setVisible)
+        layout.addWidget(g)
+        return g, f
+    bt = QtWidgets.QToolButton()
+    bt.setObjectName("ripiega")
+    bt.setText(titolo)
+    bt.setCheckable(True)
+    bt.setArrowType(QtCore.Qt.ArrowType.RightArrow)
+    bt.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+
+    def apri(on):
+        corpo.setVisible(on)
+        bt.setArrowType(QtCore.Qt.ArrowType.DownArrow if on else QtCore.Qt.ArrowType.RightArrow)
+
+    bt.toggled.connect(apri)
+    layout.addWidget(bt)
+    layout.addWidget(corpo)
+    return bt, f
+
+
+def _icona_modo(tipo, lato=64):
+    """Piccolo disegno per i pulsanti Pianta / Sezione / Prospetto."""
+    pix = QtGui.QPixmap(lato, lato)
+    pix.fill(QtCore.Qt.GlobalColor.transparent)
+    p = QtGui.QPainter(pix)
+    p.setRenderHint(QtGui.QPainter.RenderHint.Antialiasing)
+    blu, arancio = QtGui.QColor(BLU), QtGui.QColor(ARANCIO)
+    p.setPen(QtGui.QPen(blu, 4))
+    s = lato / 64
+    linee = []
+    if tipo == "pianta":
+        linee = [(10, 12, 54, 12), (54, 12, 54, 52), (54, 52, 36, 52), (24, 52, 10, 52), (10, 52, 10, 12),
+                 (32, 12, 32, 30)]
+    elif tipo == "sezione":
+        linee = [(12, 54, 12, 26), (52, 54, 52, 26), (8, 28, 32, 10), (32, 10, 56, 28), (8, 54, 56, 54),
+                 (12, 38, 52, 38)]
+    else:
+        linee = [(10, 54, 10, 22), (54, 54, 54, 22), (6, 24, 32, 8), (32, 8, 58, 24), (6, 54, 58, 54)]
+    for x0, y0, x1, y1 in linee:
+        p.drawLine(QtCore.QPointF(x0 * s, y0 * s), QtCore.QPointF(x1 * s, y1 * s))
+    p.setPen(QtGui.QPen(arancio, 3))
+    if tipo == "pianta":
+        p.drawLine(QtCore.QPointF(24 * s, 52 * s), QtCore.QPointF(24 * s, 40 * s))  # porta
+    elif tipo == "sezione":
+        p.setPen(QtGui.QPen(arancio, 3, QtCore.Qt.PenStyle.DashLine))
+        p.drawLine(QtCore.QPointF(4 * s, 46 * s), QtCore.QPointF(60 * s, 46 * s))
+    else:
+        p.setBrush(arancio)
+        for x in (16, 36):
+            p.drawRect(QtCore.QRectF(x * s, 30 * s, 12 * s, 10 * s))
+        p.drawRect(QtCore.QRectF(27 * s, 42 * s, 10 * s, 12 * s))
+    p.end()
+    return QtGui.QIcon(pix)
+
+
+def _bottone_modo(testo, tipo, suggerimento):
+    b = QtWidgets.QToolButton()
+    b.setObjectName("modo")
+    b.setText(testo)
+    b.setToolTip(suggerimento)
+    b.setCheckable(True)
+    b.setIcon(_icona_modo(tipo))
+    b.setIconSize(QtCore.QSize(40, 40))
+    b.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+    b.setSizePolicy(QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed)
+    b.setMinimumHeight(76)
+    return b
+
+
+def _nome_file(testo):
+    """Nome di file sicuro su Windows."""
+    out = "".join(c if c.isalnum() or c in " -_.,()+" else "_" for c in testo).strip(" .")
+    return out or "taglio"
+
+
+def orientamento_prospetto(a, b):
+    """Nord / est / sud / ovest: dove guarda la facciata (chi la osserva sta
+    a destra della linea A -> B). Si assume l'asse Y verso nord."""
+    t = np.asarray(b, float) - np.asarray(a, float)
+    n = np.array([t[1], -t[0]])  # verso chi guarda
+    ang = np.degrees(np.arctan2(n[0], n[1])) % 360  # 0 = nord, 90 = est
+    return ["nord", "nord-est", "est", "sud-est", "sud", "sud-ovest", "ovest", "nord-ovest"][int((ang + 22.5) // 45) % 8]
+
+
 # ---------------------------------------------------------------- finestra
 class Finestra(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"Nuvola2DXF {__version__} – piante e sezioni da nuvole di punti")
-        self.resize(1400, 880)
+        self.setWindowTitle(f"Nuvola2DXF (NDXF) {__version__} – piante, sezioni e prospetti da nuvole di punti")
+        self.resize(1440, 900)
+        self.tagli = []  # risultati salvati: dict con "nome"
         self.nuvola = None
         self.lavoro = None
         self.risultato = None  # dict: tipo, punti, polilinee, quota, a, b, spessore
@@ -117,44 +275,63 @@ class Finestra(QtWidgets.QMainWindow):
 
     # ------------------------------------------------------------ interfaccia
     def _costruisci(self):
-        bar = self.addToolBar("Principale")
-        bar.setMovable(False)
-        bar.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        stile = self.style()
-        self.az_apri = bar.addAction(
-            stile.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogOpenButton), "Apri nuvola…", self.apri
-        )
-        self.az_esporta = bar.addAction(
-            stile.standardIcon(QtWidgets.QStyle.StandardPixmap.SP_DialogSaveButton), "Esporta DXF…", self.esporta_dxf
-        )
-        bar.addSeparator()
-        bar.addAction("Guida", self.guida)
-        bar.addAction("Svuota archivio temporaneo", self.svuota_cache)
+        self.setStyleSheet(STILE)
+        # ---- testata: logo, nome, comandi secondari
+        testata = QtWidgets.QFrame()
+        testata.setObjectName("testata")
+        th = QtWidgets.QHBoxLayout(testata)
+        th.setContentsMargins(14, 8, 14, 8)
+        lg = QtWidgets.QLabel()
+        pix = QtGui.QPixmap(_risorsa("logo.png"))
+        if not pix.isNull():
+            lg.setPixmap(pix.scaled(44, 44, QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                                    QtCore.Qt.TransformationMode.SmoothTransformation))
+        th.addWidget(lg)
+        tit = QtWidgets.QLabel(f"<span style='font-size:17pt;font-weight:700'>Nuvola<span style='color:{ARANCIO}'>"
+                               f"2DXF</span></span>&nbsp;&nbsp;<span style='color:#c9d6ea'>v{__version__} · piante, "
+                               "sezioni e prospetti DXF da nuvole di punti</span>")
+        th.addWidget(tit, 1)
+        bt_guida = QtWidgets.QPushButton("Guida")
+        bt_guida.setObjectName("leggero")
+        bt_guida.clicked.connect(self.guida)
+        th.addWidget(bt_guida)
+        bt_altro = QtWidgets.QPushButton("Altro ▾")
+        bt_altro.setObjectName("leggero")
+        menu = QtWidgets.QMenu(bt_altro)
+        menu.addAction("Nomi dei layer…", self.modifica_layer)
+        menu.addAction("Svuota archivio temporaneo…", self.svuota_cache)
+        bt_altro.setMenu(menu)
+        th.addWidget(bt_altro)
 
-        # pannello sinistro
+        # ---- pannello sinistro a passi
         pannello = QtWidgets.QWidget()
+        pannello.setObjectName("pannello")
         lay = QtWidgets.QVBoxLayout(pannello)
-        lay.setContentsMargins(8, 8, 8, 8)
+        lay.setContentsMargins(10, 10, 10, 10)
+        lay.setSpacing(10)
 
-        g = QtWidgets.QGroupBox("1. Nuvola di punti")
-        v = QtWidgets.QVBoxLayout(g)
-        self.lbl_info = QtWidgets.QLabel("Nessuna nuvola aperta.\nFormati: LAS, LAZ, E57, PTS, PTX, XYZ, TXT, ASC, CSV, PLY")
+        v = _passo(lay, 1, "Apri la nuvola di punti")
+        self.bt_apri = QtWidgets.QPushButton("Apri nuvola…")
+        self.bt_apri.setObjectName("primario")
+        self.bt_apri.clicked.connect(lambda: self.apri())
+        v.addWidget(self.bt_apri)
+        self.lbl_info = QtWidgets.QLabel("oppure trascina qui il file<br><span style='color:#777'>LAS, LAZ, E57, PTS, PTX, "
+                                         "XYZ, TXT, ASC, CSV, PLY</span>")
         self.lbl_info.setWordWrap(True)
         v.addWidget(self.lbl_info)
-        lay.addWidget(g)
 
-        g = QtWidgets.QGroupBox("2. Cosa vuoi ottenere")
-        v = QtWidgets.QVBoxLayout(g)
+        v = _passo(lay, 2, "Scegli il taglio")
         riga = QtWidgets.QHBoxLayout()
-        self.rb_pianta = QtWidgets.QRadioButton("Pianta")
-        self.rb_sezione = QtWidgets.QRadioButton("Sezione")
-        self.rb_prospetto = QtWidgets.QRadioButton("Prospetto")
-        self.rb_pianta.setToolTip("Taglio orizzontale a una quota")
-        self.rb_sezione.setToolTip("Taglio verticale lungo una linea A-B")
-        self.rb_prospetto.setToolTip("Facciata vista di fronte: traccia A-B lungo la facciata, da sinistra a destra "
-                                     "come la vede chi la guarda")
+        riga.setSpacing(6)
+        self.gruppo_modo = QtWidgets.QButtonGroup(self)
+        self.rb_pianta = _bottone_modo("Pianta", "pianta", "Taglio orizzontale a una quota")
+        self.rb_sezione = _bottone_modo("Sezione", "sezione", "Taglio verticale lungo una linea A-B")
+        self.rb_prospetto = _bottone_modo("Prospetto", "prospetto",
+                                          "Facciata vista di fronte: traccia A-B lungo la facciata, da sinistra a "
+                                          "destra come la vede chi la guarda")
         self.rb_pianta.setChecked(True)
         for rb in (self.rb_pianta, self.rb_sezione, self.rb_prospetto):
+            self.gruppo_modo.addButton(rb)
             riga.addWidget(rb)
             rb.toggled.connect(self._cambia_modo)
         v.addLayout(riga)
@@ -162,52 +339,54 @@ class Finestra(QtWidgets.QMainWindow):
         # --- pianta
         self.box_pianta = QtWidgets.QWidget()
         f = QtWidgets.QFormLayout(self.box_pianta)
-        f.setContentsMargins(0, 0, 0, 0)
+        f.setContentsMargins(0, 4, 0, 0)
         self.sp_quota = _spin(-10000, 10000, 1.0, 3, 0.05, "m")
-        self.sp_quota.setToolTip("Quota reale del piano di taglio (trascina anche la linea rossa nel grafico)")
+        self.sp_quota.setToolTip("Quota reale del piano di taglio (o trascina la linea rossa nel grafico)")
         self.sp_spessore_p = _spin(0.5, 100, 5, 1, 0.5, "cm")
         self.sp_spessore_p.setToolTip("Spessore della fetta di punti attorno alla quota di taglio")
         f.addRow("Quota di taglio:", self.sp_quota)
         f.addRow("Spessore fetta:", self.sp_spessore_p)
-        self.chk_riquadro = QtWidgets.QCheckBox("Usa solo l'area nel riquadro verde")
-        self.chk_riquadro.setToolTip("Mostra un riquadro sulla vista dall'alto: i punti fuori vengono ignorati")
-        self.chk_riquadro.toggled.connect(self._mostra_riquadro)
-        f.addRow(self.chk_riquadro)
         self.isto = pg.PlotWidget()
-        self.isto.setFixedHeight(170)
+        self.isto.setFixedHeight(130)
         self.isto.setLabel("left", "Quota (m)")
         self.isto.getPlotItem().hideAxis("bottom")
         self.isto.setMouseEnabled(x=False, y=True)
+        self.isto.setToolTip("Quanti punti ci sono a ogni quota: i picchi sono pavimenti e soffitti.\n"
+                             "Trascina la linea rossa per scegliere la quota di taglio.")
         self.linea_quota = pg.InfiniteLine(angle=0, movable=True, pen=pg.mkPen(COLORE_LINEE, width=2))
         self.linea_quota.sigPositionChangeFinished.connect(lambda l: self.sp_quota.setValue(l.value()))
         self.isto.addItem(self.linea_quota)
         self.sp_quota.valueChanged.connect(lambda val: self.linea_quota.setValue(val))
-        lbl = QtWidgets.QLabel("Distribuzione dei punti per quota (i picchi sono pavimenti e soffitti):")
-        lbl.setWordWrap(True)
-        f.addRow(lbl)
         f.addRow(self.isto)
+        self.chk_riquadro = QtWidgets.QCheckBox("Solo l'area nel riquadro verde")
+        self.chk_riquadro.setToolTip("Mostra un riquadro sulla vista dall'alto: i punti fuori vengono ignorati")
+        self.chk_riquadro.toggled.connect(self._mostra_riquadro)
+        f.addRow(self.chk_riquadro)
         v.addWidget(self.box_pianta)
 
-        # --- sezione
+        # --- sezione / prospetto
         self.box_sezione = QtWidgets.QWidget()
         f = QtWidgets.QFormLayout(self.box_sezione)
-        f.setContentsMargins(0, 0, 0, 0)
+        f.setContentsMargins(0, 4, 0, 0)
         self.bt_traccia = QtWidgets.QPushButton("Traccia la linea di sezione")
         self.bt_traccia.setCheckable(True)
         self.bt_traccia.setToolTip("Poi clicca due punti sulla vista dall'alto: inizio (A) e fine (B)")
         self.bt_traccia.toggled.connect(self._inizia_traccia)
-        f.addRow(self.bt_traccia)
+        bt_inv = QtWidgets.QPushButton("A ↔ B")
+        bt_inv.setToolTip("Inverti il verso della linea (cambia il lato da cui si guarda)")
+        bt_inv.clicked.connect(self._inverti)
+        r = QtWidgets.QHBoxLayout()
+        r.addWidget(self.bt_traccia, 1)
+        r.addWidget(bt_inv)
+        f.addRow(r)
         self.lbl_ab = QtWidgets.QLabel("A e B non ancora definiti")
         self.lbl_ab.setWordWrap(True)
+        self.lbl_ab.setStyleSheet("color:#555")
         f.addRow(self.lbl_ab)
-        bt_inv = QtWidgets.QPushButton("Inverti verso (A ↔ B)")
-        bt_inv.clicked.connect(self._inverti)
-        f.addRow(bt_inv)
         self.sp_spessore_s = _spin(0.5, 200, 5, 1, 0.5, "cm")
         self.sp_spessore_s.setToolTip("Spessore della fetta di punti attorno al piano di sezione")
         self.lbl_spessore_s = QtWidgets.QLabel("Spessore fetta:")
         f.addRow(self.lbl_spessore_s, self.sp_spessore_s)
-        # --- solo prospetto
         self.chk_allinea_facciata = QtWidgets.QCheckBox("Allinea la linea alla facciata più vicina")
         self.chk_allinea_facciata.setChecked(True)
         self.sp_davanti = _spin(0, 20, 0.5, 2, 0.1, "m")
@@ -221,15 +400,8 @@ class Finestra(QtWidgets.QMainWindow):
         f.addRow(self.lbl_dietro, self.sp_dietro)
         v.addWidget(self.box_sezione)
         self.box_sezione.hide()
-        self.chk_classifica = QtWidgets.QCheckBox("Riconosci gli elementi (muri, porte, finestre, pilastri, …)")
-        self.chk_classifica.setChecked(True)
-        self.chk_classifica.setToolTip("Divide il disegno nei layer 00_muri, 00_porte, 00_finestre, 00_pilastri, "
-                                       "00_pavimenti, 00_soffitti, …")
-        v.addWidget(self.chk_classifica)
-        lay.addWidget(g)
 
-        g = QtWidgets.QGroupBox("3. Tipo di edificio")
-        v = QtWidgets.QVBoxLayout(g)
+        v = _passo(lay, 3, "Tipo di edificio")
         self.cb_profilo = QtWidgets.QComboBox()
         self.cb_profilo.addItems(list(PROFILI))
         self.cb_profilo.currentTextChanged.connect(self._applica_profilo)
@@ -238,48 +410,57 @@ class Finestra(QtWidgets.QMainWindow):
         self.lbl_profilo.setWordWrap(True)
         self.lbl_profilo.setStyleSheet("color:#555")
         v.addWidget(self.lbl_profilo)
-        self.gr_avanzati = QtWidgets.QGroupBox("Regolazioni fini")
-        self.gr_avanzati.setCheckable(True)
-        self.gr_avanzati.setChecked(False)
-        f = QtWidgets.QFormLayout(self.gr_avanzati)
+        self.chk_classifica = QtWidgets.QCheckBox("Riconosci muri, porte, finestre, pilastri, legno…")
+        self.chk_classifica.setChecked(True)
+        self.chk_classifica.setToolTip("Divide il disegno in layer: 00_muri, 00_porte, 00_finestre, 00_pilastri, "
+                                       "00_pavimenti, 00_soffitti, 00_legno_tavolati, …")
+        v.addWidget(self.chk_classifica)
+
+        # regolazioni fini (chiuse)
+        self.gr_avanzati, f = _sezione_ripiegabile(v, "Regolazioni fini")
         self.cb_motore = QtWidgets.QComboBox()
         self.cb_motore.addItem("Linee dritte (squadra e unisce)", "dritto")
         self.cb_motore.addItem("Contorno libero (archi e irregolarità)", "libero")
         self.sp_tol = _spin(0.2, 20, 2, 1, 0.5, "cm")
-        self.sp_tol.setToolTip("Quanto possono scostarsi i punti dalla linea disegnata")
+        self.sp_tol.setToolTip("Quanto possono scostarsi i punti dalla linea disegnata (fascia)")
+        self.sp_raggio = _spin(0.2, 10, 1, 1, 0.5, "cm")
+        self.sp_raggio.setToolTip("Oltre alla fascia, fanno parte della linea anche i punti entro questa distanza\n"
+                                  "da un punto già preso (il rumore attorno al muro)")
         self.sp_min = _spin(1, 500, 10, 0, 5, "cm")
         self.sp_min.setToolTip("I tratti più corti vengono ignorati (riduce il disturbo)")
         self.sp_buchi = _spin(0, 300, 30, 0, 5, "cm")
-        self.sp_buchi.setToolTip("Interruzioni dei punti (ombre, oggetti davanti) più corte di così vengono richiuse.\nTenerlo più piccolo della larghezza delle porte.")
+        self.sp_buchi.setToolTip("Interruzioni dei punti più corte di così vengono unite nella stessa linea")
+        self.sp_stanze = _spin(0, 500, 100, 0, 10, "cm")
+        self.sp_stanze.setToolTip("Angoli nascosti e buchi lungo i muri (mobili, ombre) vengono richiusi fino a\n"
+                                  "questa lunghezza, così le stanze si chiudono. 0 = non richiudere.")
+        self.sp_visibile = _spin(0, 200, 10, 0, 1, "cm")
+        self.sp_visibile.setToolTip("Le chiusure più lunghe di così vanno nel layer «chiusure da verificare»\n"
+                                    "(colore diverso), per controllarle in CAD")
         self.sp_spigoli = _spin(0, 300, 30, 0, 5, "cm")
         self.sp_spigoli.setToolTip("Le linee vengono allungate fino a incontrarsi negli angoli entro questa distanza")
         self.chk_squadra = QtWidgets.QCheckBox("Angoli quasi retti → 90°")
         self.chk_allinea = QtWidgets.QCheckBox("Linee quasi parallele → parallele")
         self.sp_angolo = _spin(0, 20, 6, 1, 0.5, "°")
         self.chk_archi = QtWidgets.QCheckBox("Riconosci archi e cerchi")
+        self.chk_legno = QtWidgets.QCheckBox("Riconosci tavolati, travi e ballatoi in legno")
         f.addRow("Metodo:", self.cb_motore)
-        f.addRow("Tolleranza:", self.sp_tol)
+        f.addRow("Fascia (tolleranza):", self.sp_tol)
+        f.addRow("Punti vicini entro:", self.sp_raggio)
         f.addRow("Lunghezza minima:", self.sp_min)
-        f.addRow("Chiudi buchi fino a:", self.sp_buchi)
+        f.addRow("Unisci interruzioni fino a:", self.sp_buchi)
+        f.addRow("Richiudi stanze fino a:", self.sp_stanze)
+        f.addRow("Segnala chiusure oltre:", self.sp_visibile)
         f.addRow("Unisci spigoli entro:", self.sp_spigoli)
         f.addRow(self.chk_squadra)
         f.addRow(self.chk_allinea)
         f.addRow("Tolleranza angoli:", self.sp_angolo)
         f.addRow(self.chk_archi)
-        for w in self.gr_avanzati.findChildren(QtWidgets.QWidget):
-            w.setVisible(False)
-        self.gr_avanzati.toggled.connect(
-            lambda on: [w.setVisible(on) for w in self.gr_avanzati.findChildren(QtWidgets.QWidget)]
-        )
-        v.addWidget(self.gr_avanzati)
-        lay.addWidget(g)
+        f.addRow(self.chk_legno)
 
-        self.gr_piombo = QtWidgets.QGroupBox("Analisi fuori piombo (facoltativa)")
-        self.gr_piombo.setCheckable(True)
-        self.gr_piombo.setChecked(False)
+        # fuori piombo (chiuso)
+        self.gr_piombo, f = _sezione_ripiegabile(v, "Analisi fuori piombo", spunta=True)
         self.gr_piombo.setToolTip("Misura quanto pareti e pilastri si scostano dalla verticale.\n"
                                   "Sezione: pareti tagliate. Pianta: facce dei muri e pilastri (dai punti 3D).")
-        f = QtWidgets.QFormLayout(self.gr_piombo)
         self.sp_pb_passo = _spin(5, 200, 25, 0, 5, "cm")
         self.sp_pb_passo.setToolTip("Ogni quanto misurare la posizione della parete in altezza")
         self.sp_pb_esagera = _spin(1, 100, 10, 0, 1, "×")
@@ -292,48 +473,66 @@ class Finestra(QtWidgets.QMainWindow):
         f.addRow("Ingrandimento grafico:", self.sp_pb_esagera)
         f.addRow("In pianta mostra oltre:", self.sp_pb_soglia)
         f.addRow("Cerca entro:", self.sp_pb_banda)
-        for w in self.gr_piombo.findChildren(QtWidgets.QWidget):
-            w.setVisible(False)
-        self.gr_piombo.toggled.connect(
-            lambda on: [w.setVisible(on) for w in self.gr_piombo.findChildren(QtWidgets.QWidget)]
-        )
-        lay.addWidget(self.gr_piombo)
 
-        self.bt_estrai = QtWidgets.QPushButton("Taglia ed estrai le linee")
-        self.bt_estrai.setMinimumHeight(42)
-        f_ = self.bt_estrai.font()
-        f_.setPointSize(f_.pointSize() + 2)
-        f_.setBold(True)
-        self.bt_estrai.setFont(f_)
+        self.bt_estrai = QtWidgets.QPushButton("▶  Taglia ed estrai le linee")
+        self.bt_estrai.setObjectName("azione")
+        self.bt_estrai.setMinimumHeight(46)
         self.bt_estrai.clicked.connect(self.estrai)
         lay.addWidget(self.bt_estrai)
 
-        g = QtWidgets.QGroupBox("4. Esporta")
-        v = QtWidgets.QVBoxLayout(g)
+        destra = QtWidgets.QWidget()
+        destra.setObjectName("pannello")
+        dl = QtWidgets.QVBoxLayout(destra)
+        dl.setContentsMargins(10, 10, 10, 10)
+        v = _passo(dl, 4, "Tagli e DXF")
+        aiuto = QtWidgets.QLabel("Ogni taglio estratto si aggiunge qui: fai tutte le piante, sezioni e prospetti "
+                                 "che servono. <b>Doppio clic per rinominare</b> (es. «Sezione A-A», "
+                                 "«Prospetto nord»). Clic per rivederlo.")
+        aiuto.setWordWrap(True)
+        aiuto.setStyleSheet("color:#555")
+        v.addWidget(aiuto)
+        self.lista_tagli = QtWidgets.QListWidget()
+        self.lista_tagli.setMinimumHeight(260)
+        self.lista_tagli.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.DoubleClicked
+                                         | QtWidgets.QAbstractItemView.EditTrigger.EditKeyPressed)
+        self.lista_tagli.currentRowChanged.connect(self._scegli_taglio)
+        self.lista_tagli.itemChanged.connect(self._rinominato)
+        v.addWidget(self.lista_tagli)
+        r = QtWidgets.QVBoxLayout()
+        self.bt_esporta = QtWidgets.QPushButton("Esporta selezionato…")
+        self.bt_esporta.setToolTip("Salva il taglio selezionato in un DXF")
+        self.bt_esporta.clicked.connect(self.esporta_dxf)
+        self.bt_esporta_tutti = QtWidgets.QPushButton("Esporta tutti…")
+        self.bt_esporta_tutti.setObjectName("primario")
+        self.bt_esporta_tutti.setToolTip("Un file DXF per ogni taglio, con il suo nome, nella cartella scelta")
+        self.bt_esporta_tutti.clicked.connect(self.esporta_tutti)
+        self.bt_elimina = QtWidgets.QPushButton("Elimina selezionato")
+        self.bt_elimina.clicked.connect(self._elimina_taglio)
+        r.addWidget(self.bt_esporta_tutti)
+        r.addWidget(self.bt_esporta)
+        r.addWidget(self.bt_elimina)
+        v.addLayout(r)
+        _, f = _sezione_ripiegabile(v, "Opzioni del DXF")
         self.chk_unite = QtWidgets.QCheckBox("Polilinee unite (altrimenti linee e archi separati)")
         self.chk_unite.setChecked(True)
         self.chk_punti = QtWidgets.QCheckBox("Includi i punti della fetta (layer a parte)")
         self.chk_quota = QtWidgets.QCheckBox("Pianta alla quota reale (altrimenti a quota 0)")
-        v.addWidget(self.chk_unite)
-        v.addWidget(self.chk_punti)
-        v.addWidget(self.chk_quota)
-        bt = QtWidgets.QPushButton("Esporta DXF…")
-        bt.clicked.connect(self.esporta_dxf)
-        v.addWidget(bt)
-        self.bt_esporta = bt
-        bt_layer = QtWidgets.QPushButton("Nomi dei layer…")
-        bt_layer.clicked.connect(self.modifica_layer)
-        v.addWidget(bt_layer)
-        lay.addWidget(g)
+        f.addRow(self.chk_unite)
+        f.addRow(self.chk_punti)
+        f.addRow(self.chk_quota)
+        dl.addStretch(1)
+        destra.setMinimumWidth(280)
+        destra.setMaximumWidth(360)
         lay.addStretch(1)
 
         scorri = QtWidgets.QScrollArea()
         scorri.setWidget(pannello)
         scorri.setWidgetResizable(True)
-        scorri.setMinimumWidth(390)
-        scorri.setMaximumWidth(470)
+        scorri.setMinimumWidth(400)
+        scorri.setMaximumWidth(480)
+        scorri.setFrameShape(QtWidgets.QFrame.Shape.NoFrame)
 
-        # area centrale
+        # ---- area centrale
         self.schede = QtWidgets.QTabWidget()
         self.vista = VistaPiana()
         self.vista.setLabel("bottom", "X (m)")
@@ -341,6 +540,10 @@ class Finestra(QtWidgets.QMainWindow):
         self.vista.cliccato.connect(self._click_vista)
         self.img = pg.ImageItem()
         self.vista.addItem(self.img)
+        self.linee_tagli = pg.PlotDataItem(pen=pg.mkPen((120, 150, 200), width=2, style=QtCore.Qt.PenStyle.DashLine),
+                                           connect="finite")
+        self.vista.addItem(self.linee_tagli)
+        self.nomi_tagli = []
         self.linea_sez = pg.PlotDataItem(pen=pg.mkPen((0, 120, 255), width=3), symbol="o",
                                          symbolSize=9, symbolBrush=(0, 120, 255))
         self.vista.addItem(self.linea_sez)
@@ -363,10 +566,12 @@ class Finestra(QtWidgets.QMainWindow):
         self.curve_cat = {}
         self.vertici = pg.ScatterPlotItem(pxMode=True, size=4, pen=None, brush=pg.mkBrush(60, 60, 60))
         self.vista_ris.addItem(self.vertici)
+        self.etichette = []
         contenitore = QtWidgets.QWidget()
         cv = QtWidgets.QVBoxLayout(contenitore)
         cv.setContentsMargins(0, 0, 0, 0)
         riga = QtWidgets.QHBoxLayout()
+        riga.setContentsMargins(8, 6, 8, 0)
         self.lbl_ris = QtWidgets.QLabel("Nessun risultato: scegli il taglio e premi «Taglia ed estrai le linee».")
         self.lbl_ris.setWordWrap(True)
         riga.addWidget(self.lbl_ris, 1)
@@ -378,16 +583,38 @@ class Finestra(QtWidgets.QMainWindow):
         cv.addWidget(self.vista_ris)
 
         self.schede.addTab(self.vista, "Vista dall'alto")
-        self.schede.addTab(contenitore, "Risultato (linee estratte)")
+        self.schede.addTab(contenitore, "Risultato")
+
+        # schermata iniziale, finché non c'è una nuvola
+        benvenuto = QtWidgets.QLabel()
+        benvenuto.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter)
+        benvenuto.setStyleSheet("background:white; color:#33445c;")
+        logo = _risorsa("logo.png")
+        benvenuto.setText(
+            f"<div style='text-align:center'><img src='{logo}' width='150' height='150'><br><br>"
+            "<span style='font-size:18pt;font-weight:700;color:#0c2244'>Benvenuto in Nuvola2DXF</span><br><br>"
+            "<span style='font-size:11pt'>Apri una nuvola di punti oppure <b>trascinala qui</b>.<br><br>"
+            "1 · apri la nuvola<br>2 · scegli pianta, sezione o prospetto<br>"
+            "3 · scegli il tipo di edificio<br>4 · estrai le linee, rinomina i tagli ed esporta i DXF</span></div>")
+        self.centro = QtWidgets.QStackedWidget()
+        self.centro.addWidget(benvenuto)
+        self.centro.addWidget(self.schede)
 
         split = QtWidgets.QSplitter()
         split.addWidget(scorri)
-        split.addWidget(self.schede)
+        split.addWidget(self.centro)
+        split.addWidget(destra)
         split.setStretchFactor(1, 1)
-        self.setCentralWidget(split)
+        centro = QtWidgets.QWidget()
+        cl = QtWidgets.QVBoxLayout(centro)
+        cl.setContentsMargins(0, 0, 0, 0)
+        cl.setSpacing(0)
+        cl.addWidget(testata)
+        cl.addWidget(split, 1)
+        self.setCentralWidget(centro)
 
         sb = self.statusBar()
-        self.lbl_stato = QtWidgets.QLabel("Pronto")
+        self.lbl_stato = QtWidgets.QLabel("Pronto. Apri una nuvola di punti per cominciare.")
         self.barra = QtWidgets.QProgressBar()
         self.barra.setMaximumWidth(320)
         self.barra.setRange(0, 1000)
@@ -408,36 +635,45 @@ class Finestra(QtWidgets.QMainWindow):
         self.lbl_profilo.setText(DESCRIZIONI[nome])
         self.cb_motore.setCurrentIndex(0 if p.motore == "dritto" else 1)
         self.sp_tol.setValue(p.tolleranza * 100)
+        self.sp_raggio.setValue(p.raggio * 100)
         self.sp_min.setValue(p.lung_min * 100)
         self.sp_buchi.setValue(p.chiudi_buchi * 100)
+        self.sp_stanze.setValue(p.chiudi_stanze * 100)
+        self.sp_visibile.setValue(p.buco_visibile * 100)
         self.sp_spigoli.setValue(p.unisci_spigoli * 100)
         self.chk_squadra.setChecked(p.squadra)
         self.chk_allinea.setChecked(p.allinea)
         self.sp_angolo.setValue(p.tol_angolo)
         self.chk_archi.setChecked(p.archi)
+        self.chk_legno.setChecked(p.legno)
 
     def parametri(self):
         return Parametri(
             motore=self.cb_motore.currentData(),
             tolleranza=self.sp_tol.value() / 100,
+            raggio=self.sp_raggio.value() / 100,
             lung_min=self.sp_min.value() / 100,
             chiudi_buchi=self.sp_buchi.value() / 100,
+            chiudi_stanze=self.sp_stanze.value() / 100,
+            buco_visibile=self.sp_visibile.value() / 100,
             unisci_spigoli=self.sp_spigoli.value() / 100,
             squadra=self.chk_squadra.isChecked(),
             allinea=self.chk_allinea.isChecked(),
             tol_angolo=self.sp_angolo.value(),
             archi=self.chk_archi.isChecked(),
+            legno=self.chk_legno.isChecked(),
         )
 
     # ------------------------------------------------------------ stato
     def _aggiorna_stato(self):
         occupato = self.lavoro is not None
         ha = self.nuvola is not None
-        self.az_apri.setEnabled(not occupato)
+        self.bt_apri.setEnabled(not occupato)
         self.bt_estrai.setEnabled(ha and not occupato)
         pronto = self.risultato is not None and not occupato
-        self.az_esporta.setEnabled(pronto)
         self.bt_esporta.setEnabled(pronto)
+        self.bt_esporta_tutti.setEnabled(bool(self.tagli) and not occupato)
+        self.bt_elimina.setEnabled(pronto)
 
     def _cambia_modo(self):
         pianta = self.rb_pianta.isChecked()
@@ -520,6 +756,10 @@ class Finestra(QtWidgets.QMainWindow):
         self.nuvola = nv
         self.risultato = None
         self.a = self.b = None
+        self.tagli = []
+        self.lista_tagli.clear()
+        self._aggiorna_linee_tagli()
+        self.centro.setCurrentIndex(1)
         o = nv.origine
         dim = nv.max - nv.min
         self.lbl_info.setText(
@@ -539,7 +779,7 @@ class Finestra(QtWidgets.QMainWindow):
         self.vertici.clear()
         self.lbl_ris.setText("Nessun risultato: scegli il taglio e premi «Taglia ed estrai le linee».")
         self.schede.setCurrentIndex(0)
-        self.lbl_stato.setText("Nuvola pronta. Scegli pianta o sezione.")
+        self.lbl_stato.setText("Nuvola pronta. Scegli pianta, sezione o prospetto e premi «Taglia ed estrai le linee».")
         self._aggiorna_stato()
 
     def _disegna_vista(self):
@@ -681,7 +921,7 @@ class Finestra(QtWidgets.QMainWindow):
                     poli = poli + l
                     testi += testi_pb
                 return dict(tipo="pianta", punti=pts, polilinee=poli, quota=quota, testi=testi, report=report,
-                            spessore=spessore, durata=time.time() - t0, par=par)
+                            spessore=spessore, durata=time.time() - t0, par=par, profilo=self.cb_profilo.currentText())
         else:
             if self.a is None or self.b is None:
                 QtWidgets.QMessageBox.information(
@@ -703,7 +943,7 @@ class Finestra(QtWidgets.QMainWindow):
                         for p in poli:
                             p.categoria = "muri"
                     return dict(tipo="prospetto", punti=pts, polilinee=poli, a=a, b=b, testi=[], report=[],
-                                spessore=davanti + dietro, durata=time.time() - t0, par=par)
+                                spessore=davanti + dietro, durata=time.time() - t0, par=par, profilo=self.cb_profilo.currentText())
             else:
                 spessore = self.sp_spessore_s.value() / 100
 
@@ -722,11 +962,14 @@ class Finestra(QtWidgets.QMainWindow):
                             poli, pts, passo=pb["passo"], banda=pb["banda"], esagera=pb["esagera"])
                         poli = poli + l
                     return dict(tipo="sezione", punti=pts, polilinee=poli, a=a, b=b, testi=testi, report=report,
-                                spessore=spessore, durata=time.time() - t0, par=par)
+                                spessore=spessore, durata=time.time() - t0, par=par, profilo=self.cb_profilo.currentText())
 
         self._avvia(lavoro, self._mostra_risultato, "Taglio della nuvola…")
 
     def _mostra_risultato(self, ris):
+        self._aggiungi_taglio(ris)
+
+    def _visualizza(self, ris):
         self.risultato = ris
         pts = ris["punti"]
         sposta = np.zeros(2) if ris["tipo"] == "pianta" else np.array([0.0, self.nuvola.origine[2]])
@@ -751,13 +994,25 @@ class Finestra(QtWidgets.QMainWindow):
             item.setData([], [])
         for cat, (xs, ys) in per_cat.items():
             if cat not in self.curve_cat:
-                stile = QtCore.Qt.PenStyle.DashLine if cat == "piombo_rif" else QtCore.Qt.PenStyle.SolidLine
-                item = pg.PlotDataItem(pen=pg.mkPen(COLORI_CAT.get(cat, (120, 120, 120)), width=2, style=stile),
+                stile = QtCore.Qt.PenStyle.DashLine if cat in ("piombo_rif", "chiusure") else QtCore.Qt.PenStyle.SolidLine
+                item = pg.PlotDataItem(pen=pg.mkPen(COLORI_CAT.get(cat, (120, 120, 120)), width=3 if cat == "chiusure" else 2,
+                                                    style=stile),
                                        connect="finite")
                 self.vista_ris.addItem(item)
                 self.curve_cat[cat] = item
             self.curve_cat[cat].setData(np.array(xs, float), np.array(ys, float), connect="finite")
         self.vertici.setData(vx, vy)
+        for t in self.etichette:
+            self.vista_ris.removeItem(t)
+        self.etichette = []
+        for t in ris.get("testi") or []:
+            if t.categoria not in ("porte", "finestre"):
+                continue
+            col = COLORI_CAT.get(t.categoria, (60, 60, 60))
+            et = pg.TextItem(t.testo, color=col, anchor=(0.5, 0.5))
+            et.setPos(t.pos[0] + sposta[0], t.pos[1] + sposta[1])
+            self.vista_ris.addItem(et)
+            self.etichette.append(et)
         if ris["tipo"] == "pianta":
             self.vista_ris.setLabel("bottom", "X locale (m)")
             self.vista_ris.setLabel("left", "Y locale (m)")
@@ -783,7 +1038,8 @@ class Finestra(QtWidgets.QMainWindow):
         if len(pts) == 0:
             testo = "Nessun punto: controlla quota, spessore o la linea A-B."
         self.lbl_ris.setText(testo)
-        self.lbl_stato.setText("Fatto. Controlla il risultato ed esporta il DXF.")
+        self.lbl_stato.setText(f"Fatto: «{ris.get('nome', '')}». Controlla il risultato; puoi rinominarlo ed "
+                               "esportarlo dal riquadro 4.")
         self.schede.setCurrentIndex(1)
         self._aggiorna_stato()
 
@@ -823,13 +1079,8 @@ class Finestra(QtWidgets.QMainWindow):
             return
         nv = self.nuvola
         base = os.path.splitext(nv.nome)[0]
-        o = nv.origine
-        if ris["tipo"] == "pianta":
-            q = ris["quota"] + o[2]
-            nome = f"{base}_pianta_quota_{q:+.2f}.dxf".replace("+", "p").replace("-", "m")
-        else:
-            nome = f"{base}_{ris['tipo']}.dxf"
         cartella = os.path.dirname(nv.info["file"])
+        nome = _nome_file(f"{base}_{ris['nome']}") + ".dxf"
         percorso, _ = QtWidgets.QFileDialog.getSaveFileName(
             self, "Esporta DXF", os.path.join(cartella, nome), "DXF (*.dxf)"
         )
@@ -837,8 +1088,43 @@ class Finestra(QtWidgets.QMainWindow):
             return
         if not percorso.lower().endswith(".dxf"):
             percorso += ".dxf"
+        try:
+            extra = self._scrivi_dxf(ris, percorso)
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(self, "Esporta DXF", f"Impossibile salvare il file:\n{e}")
+            return
+        self.lbl_stato.setText(f"Salvato: {percorso}")
+        QtWidgets.QMessageBox.information(self, "Esporta DXF", f"DXF salvato:\n{percorso}{extra}")
+
+    def esporta_tutti(self):
+        if not self.tagli:
+            return
+        nv = self.nuvola
+        cartella = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Cartella in cui salvare un DXF per ogni taglio", os.path.dirname(nv.info["file"]))
+        if not cartella:
+            return
+        base = os.path.splitext(nv.nome)[0]
+        salvati, errori = [], []
+        for ris in self.tagli:
+            percorso = os.path.join(cartella, _nome_file(f"{base}_{ris['nome']}") + ".dxf")
+            try:
+                self._scrivi_dxf(ris, percorso)
+                salvati.append(os.path.basename(percorso))
+            except Exception as e:
+                errori.append(f"{ris['nome']}: {e}")
+        testo = f"Salvati {len(salvati)} file in\n{cartella}:\n\n" + "\n".join(salvati)
+        if errori:
+            testo += "\n\nNon salvati:\n" + "\n".join(errori)
+        self.lbl_stato.setText(f"Salvati {len(salvati)} DXF in {cartella}")
+        QtWidgets.QMessageBox.information(self, "Esporta tutti", testo)
+
+    def _scrivi_dxf(self, ris, percorso):
+        """Scrive il DXF di un taglio (e il report del fuori piombo)."""
+        nv = self.nuvola
+        o = nv.origine
         par = ris["par"]
-        note = [f"Nuvola2DXF {__version__} - {nv.nome}"]
+        note = [f"Nuvola2DXF {__version__} - {nv.nome} - {ris['nome']}"]
         if ris["tipo"] == "pianta":
             note.append(f"Pianta - quota di taglio {ris['quota'] + o[2]:.3f} m - fetta {ris['spessore'] * 100:.1f} cm")
         else:
@@ -847,34 +1133,114 @@ class Finestra(QtWidgets.QMainWindow):
             note.append(f"{titolo} A-B - A ({a[0]:.3f}; {a[1]:.3f}) - B ({b[0]:.3f}; {b[1]:.3f})"
                         f" - fascia {ris['spessore'] * 100:.0f} cm")
             note.append("X = distanza da A, Y = quota reale")
-        note.append(f"Tolleranza {par.tolleranza * 100:.1f} cm - {self.cb_profilo.currentText()}")
+        note.append(f"Tolleranza {par.tolleranza * 100:.1f} cm - {ris.get('profilo', '')}")
+        if any(p.categoria == "chiusure" for p in ris["polilinee"]):
+            note.append(f"Layer chiusure da verificare: buchi e angoli nascosti richiusi oltre "
+                        f"{par.buco_visibile * 100:.0f} cm")
         if ris.get("report"):
             note.append(f"Fuori piombo: scostamenti ingranditi {self.sp_pb_esagera.value():.0f} volte nel disegno, "
                         "valori scritti in cm reali (positivi verso B in sezione)")
-        try:
-            esporta.esporta(
-                percorso,
-                ris["polilinee"],
-                tipo=ris["tipo"],
-                origine=o,
-                quota=ris.get("quota", 0.0),
-                quota_reale=self.chk_quota.isChecked(),
-                punti=ris["punti"] if self.chk_punti.isChecked() else None,
-                polilinee_unite=self.chk_unite.isChecked(),
-                note=note,
-                testi=ris.get("testi"),
-                layer=self.nomi_layer(),
-            )
-            extra = ""
-            if ris.get("report"):
-                csv = os.path.splitext(percorso)[0] + "_fuori_piombo.csv"
-                esporta.esporta_report_piombo(csv, ris["report"], note)
-                extra = f"\n\nReport del fuori piombo:\n{csv}"
-        except Exception as e:
-            QtWidgets.QMessageBox.warning(self, "Esporta DXF", f"Impossibile salvare il file:\n{e}")
+        esporta.esporta(
+            percorso,
+            ris["polilinee"],
+            tipo=ris["tipo"],
+            origine=o,
+            quota=ris.get("quota", 0.0),
+            quota_reale=self.chk_quota.isChecked(),
+            punti=ris["punti"] if self.chk_punti.isChecked() else None,
+            polilinee_unite=self.chk_unite.isChecked(),
+            note=note,
+            testi=ris.get("testi"),
+            layer=self.nomi_layer(),
+        )
+        if ris.get("report"):
+            csv = os.path.splitext(percorso)[0] + "_fuori_piombo.csv"
+            esporta.esporta_report_piombo(csv, ris["report"], note)
+            return f"\n\nReport del fuori piombo:\n{csv}"
+        return ""
+
+    # ------------------------------------------------------------ elenco dei tagli
+    def _nome_proposto(self, ris):
+        if ris["tipo"] == "pianta":
+            nome = f"Pianta quota {ris['quota'] + self.nuvola.origine[2]:+.2f}"
+        elif ris["tipo"] == "sezione":
+            n = 1 + sum(t["tipo"] == "sezione" for t in self.tagli)
+            nome = f"Sezione {n}"
+        else:
+            nome = f"Prospetto {orientamento_prospetto(ris['a'], ris['b'])}"
+        esistenti = {t["nome"] for t in self.tagli}
+        base, k = nome, 2
+        while nome in esistenti:
+            nome = f"{base} ({k})"
+            k += 1
+        return nome
+
+    def _aggiungi_taglio(self, ris):
+        ris["nome"] = self._nome_proposto(ris)
+        self.tagli.append(ris)
+        item = QtWidgets.QListWidgetItem(ris["nome"])
+        item.setFlags(item.flags() | QtCore.Qt.ItemFlag.ItemIsEditable)
+        item.setToolTip("Doppio clic per rinominare")
+        self.lista_tagli.blockSignals(True)
+        self.lista_tagli.addItem(item)
+        self.lista_tagli.blockSignals(False)
+        self.lista_tagli.setCurrentRow(len(self.tagli) - 1)  # mostra il risultato
+        self._aggiorna_linee_tagli()
+
+    def _scegli_taglio(self, riga):
+        if 0 <= riga < len(self.tagli):
+            self._visualizza(self.tagli[riga])
+        else:
+            self.risultato = None
+            self._aggiorna_stato()
+
+    def _rinominato(self, item):
+        riga = self.lista_tagli.row(item)
+        if not 0 <= riga < len(self.tagli):
             return
-        self.lbl_stato.setText(f"Salvato: {percorso}")
-        QtWidgets.QMessageBox.information(self, "Esporta DXF", f"DXF salvato:\n{percorso}{extra}")
+        nome = item.text().strip()
+        if not nome:
+            self.lista_tagli.blockSignals(True)
+            item.setText(self.tagli[riga]["nome"])
+            self.lista_tagli.blockSignals(False)
+            return
+        self.tagli[riga]["nome"] = nome
+        self._aggiorna_linee_tagli()
+
+    def _elimina_taglio(self):
+        riga = self.lista_tagli.currentRow()
+        if not 0 <= riga < len(self.tagli):
+            return
+        del self.tagli[riga]
+        self.lista_tagli.takeItem(riga)
+        if not self.tagli:
+            self.risultato = None
+            self.scatter.clear()
+            for item in self.curve_cat.values():
+                item.setData([], [])
+            self.vertici.clear()
+            self.lbl_ris.setText("Nessun risultato.")
+        self._aggiorna_linee_tagli()
+        self._aggiorna_stato()
+
+    def _aggiorna_linee_tagli(self):
+        """Disegna sulla vista dall'alto le linee delle sezioni e dei prospetti
+        salvati, con il loro nome."""
+        for t in self.nomi_tagli:
+            self.vista.removeItem(t)
+        self.nomi_tagli = []
+        xs, ys = [], []
+        for ris in self.tagli:
+            if ris["tipo"] == "pianta":
+                continue
+            a, b = ris["a"], ris["b"]
+            xs += [a[0], b[0], np.nan]
+            ys += [a[1], b[1], np.nan]
+            t = pg.TextItem(ris["nome"], color=(40, 70, 130), anchor=(0.5, 1.2))
+            t.setPos((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+            self.vista.addItem(t)
+            self.nomi_tagli.append(t)
+        self.linee_tagli.setData(np.array(xs, float), np.array(ys, float), connect="finite")
 
     # ------------------------------------------------------------ varie
     def svuota_cache(self):
@@ -889,6 +1255,9 @@ class Finestra(QtWidgets.QMainWindow):
                 self.nuvola.chiudi()
             self.nuvola = None
             self.risultato = None
+            self.tagli = []
+            self.lista_tagli.clear()
+            self._aggiorna_linee_tagli()
             nuvola.svuota_cache()
             self.lbl_info.setText("Nessuna nuvola aperta.")
             self.img.clear()
@@ -904,31 +1273,31 @@ class Finestra(QtWidgets.QMainWindow):
         super().closeEvent(e)
 
 
-GUIDA = """<h3>Nuvola2DXF – guida rapida</h3>
+GUIDA = """<h3>Nuvola2DXF (NDXF) – guida rapida</h3>
 <ol>
-<li><b>Apri nuvola</b> (o trascina il file nella finestra). Formati: LAS, LAZ, E57, PTS, PTX, XYZ/TXT/ASC/CSV, PLY.
-La prima apertura di un file grande richiede qualche minuto (viene convertito in un formato veloce);
-le volte successive è immediata.</li>
-<li>Scegli cosa ottenere:<br>
+<li><b>Apri la nuvola</b> (o trascina il file nella finestra): LAS, LAZ, E57, PTS, PTX, XYZ/TXT/ASC/CSV, PLY.
+La prima apertura di un file grande richiede qualche minuto; le volte successive è immediata.</li>
+<li><b>Scegli il taglio</b>:<br>
 <b>Pianta</b>: quota di taglio (o trascina la linea rossa sul grafico delle quote) e spessore della fetta
-(3–10 cm). Puoi limitare l'area con il riquadro verde.<br>
+(3–10 cm).<br>
 <b>Sezione</b>: «Traccia la linea di sezione» e clicca A e B sulla vista dall'alto.<br>
-<b>Prospetto</b>: traccia A → B lungo la facciata, da sinistra a destra come la vede chi la guarda;
-la linea viene allineata da sola alla facciata.</li>
-<li><b>Riconosci gli elementi</b>: il disegno viene diviso nei layer 00_muri, 00_porte, 00_finestre,
-00_pilastri, 00_pavimenti, 00_soffitti, 00_solai, 00_coperture, 00_volte_archi, 00_aggetti.
-In pianta porta o finestra si decide guardando nella nuvola se sotto il vano c'è il davanzale.
-I nomi dei layer si cambiano con «Nomi dei layer…». Gli errori di riconoscimento si correggono in CAD.</li>
-<li><b>Tipo di edificio</b>: <i>Squadrato</i> per muri dritti e angoli retti, <i>Prevalentemente dritto</i>
-per angoli qualsiasi, <i>Storico / irregolare</i> per chiese, archi, volte, colonne e murature irregolari.</li>
-<li><b>Analisi fuori piombo</b> (facoltativa): in sezione misura le pareti tagliate, in pianta le facce dei
-muri e i pilastri usando i punti 3D su tutta l'altezza. Nel DXF: verticale teorica tratteggiata, profilo reale
-(ingrandito del fattore scelto), valori in cm; accanto al DXF un report CSV per Excel.</li>
-<li><b>Taglia ed estrai le linee</b>, controlla il risultato ed <b>esporta il DXF</b>. Le piante mantengono le
-coordinate reali del rilievo; sezioni e prospetti hanno X = distanza da A e Y = quota reale.</li>
+<b>Prospetto</b>: traccia A → B lungo la facciata, da sinistra a destra come la vede chi la guarda.</li>
+<li><b>Tipo di edificio</b>: <i>Squadrato</i>, <i>Prevalentemente dritto</i>, <i>Storico / irregolare</i>
+(archi, volte, colonne) oppure <i>Tabià / strutture in legno</i> (tavolati, travi, puntoni, ballatoi).
+Le stanze vengono richiuse dove mobili e ombre nascondono i muri: le chiusure oltre 10 cm vanno nel
+layer <i>00_chiusure_da_verificare</i> (colore diverso) per controllarle in CAD.<br>
+Porte e finestre: per ogni vano il programma fa da solo una sezione verticale nella nuvola e misura
+soglia o davanzale e architrave (es. «P 90×210», «F 120×120 dav. 90»).</li>
+<li>Premi <b>Taglia ed estrai le linee</b>. Ogni taglio si aggiunge all'elenco del riquadro 4: puoi farne
+quanti vuoi (più sezioni, più prospetti) e <b>rinominarli</b> con un doppio clic (es. «Sezione A-A»,
+«Prospetto nord»; per i prospetti il nome con l'orientamento è proposto in automatico).</li>
+<li><b>Esporta questo…</b> salva il taglio selezionato; <b>Esporta tutti…</b> salva un DXF per ogni taglio,
+con il suo nome, nella cartella scelta. Le piante mantengono le coordinate reali del rilievo; sezioni e
+prospetti hanno X = distanza da A e Y = quota reale.</li>
 </ol>
-<p>Consigli: se le porte vengono chiuse riduci «Chiudi buchi»; se le linee sono spezzettate aumenta la
-tolleranza; se compaiono trattini su arredi o vegetazione aumenta la «Lunghezza minima».</p>"""
+<p>Consigli: se le porte vengono chiuse riduci «Richiudi stanze»; se le linee sono spezzettate aumenta la
+fascia o i punti vicini; se compaiono trattini su arredi o vegetazione aumenta la «Lunghezza minima».
+I nomi dei layer si cambiano da «Altro ▾ → Nomi dei layer…».</p>"""
 
 
 def main():
