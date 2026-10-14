@@ -97,11 +97,14 @@ def _cresci(Q, attivo, idx, tol, raggio, buco):
 
 
 def _togli_isolati(Q, cella):
-    """Elimina i punti isolati (riflessi, polvere, persone di passaggio)."""
+    """Elimina i punti isolati (riflessi, polvere, persone di passaggio).
+    Il raggio segue la densità della fetta: nelle nuvole rade i punti di un
+    muro sono distanti tra loro e non vanno scambiati per rumore."""
     if len(Q) < 50:
         return Q
-    vicini = cKDTree(Q).query_ball_point(Q, 3 * cella, return_length=True)
-    tieni = vicini >= 3
+    r = max(3 * cella, 4 * passo_medio(Q), 0.05)
+    vicini = cKDTree(Q).query_ball_point(Q, r, return_length=True)
+    tieni = vicini >= 2  # il punto stesso più almeno un vicino
     return Q[tieni] if tieni.sum() > 0.5 * len(Q) else Q
 
 
@@ -341,10 +344,11 @@ def _unisci_spigoli(segmenti, par):
 class _Tratto:
     """Tratto finale: estremi, categoria e se i punti lo confermano."""
 
-    __slots__ = ("a", "b", "cat")
+    __slots__ = ("a", "b", "cat", "passo")
 
-    def __init__(self, a, b, cat="muri"):
+    def __init__(self, a, b, cat="muri", passo=0.0):
         self.a, self.b, self.cat = np.asarray(a, float).copy(), np.asarray(b, float).copy(), cat
+        self.passo = passo  # distanza media tra i punti che lo sostengono
 
     def estremo(self, k):
         return self.a if k == 0 else self.b
@@ -415,7 +419,7 @@ def _chiudi(segmenti, Q, par):
     una stessa linea, (D) innesti a T, (E) estremi vicinissimi. Le chiusure
     più lunghe di par.buco_visibile vanno nella categoria «chiusure».
     """
-    tratti = [_Tratto(s.a, s.b) for s in segmenti if s.lung() > 0]
+    tratti = [_Tratto(s.a, s.b, passo=s.lung() / max(len(s.idx), 1)) for s in segmenti if s.lung() > 0]
     if len(tratti) < 2 or par.chiudi_stanze <= 0:
         return tratti
     D = par.chiudi_stanze
@@ -529,7 +533,15 @@ def _chiudi(segmenti, Q, par):
         if not (_solido(ti, g / 2) and _solido(tj, g / 2)):
             continue
         cand.append((float(np.hypot(*v)), (i, ki), (j, kj)))
-    applica(cand, lambda u, v: aggiungi(tratti[u[0]].estremo(u[1]).copy(), tratti[v[0]].estremo(v[1]).copy()))
+    def buco(u, v):
+        ti, tj = tratti[u[0]], tratti[v[0]]
+        a, b = ti.estremo(u[1]).copy(), tj.estremo(v[1]).copy()
+        # un vuoto di pochi passi tra i punti (superfici rilevate rade, come
+        # pavimenti e soffitti visti di striscio) non è un buco vero
+        rado = np.hypot(*(b - a)) <= 8 * max(ti.passo, tj.passo)
+        aggiungi(a, b, sicuro=rado)
+
+    applica(cand, buco)
 
     # (D) innesti a T: la linea libera prosegue fino a incontrarne un'altra
     liberi = _liberi(tratti)

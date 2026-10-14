@@ -209,8 +209,9 @@ def _pezzo(p, idx, cat, n):
 
 
 def classifica_sezione(poli, punti2d=None):
-    tratti = _tratti(poli)
-    cat_poli = {k: ["muri"] * (len(p.punti) if p.chiusa else len(p.punti) - 1)
+    # le chiusure di buchi restano nel loro layer, da verificare
+    tratti = [t for t in _tratti(poli) if poli[t[3]].categoria != "chiusure"]
+    cat_poli = {k: [p.categoria if p.categoria == "chiusure" else "muri"] * (len(p.punti) if p.chiusa else len(p.punti) - 1)
                 for k, p in enumerate(poli) if p.tipo != "cerchio"}
     for a, b, g, k, i in tratti:
         cat_poli[k][i] = _categoria_tratto(a, b, g)

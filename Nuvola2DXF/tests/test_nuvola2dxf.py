@@ -345,3 +345,23 @@ def test_prospetto_sud(edificio):
     assert abs(fin[:, 1].min() + nv.origine[2] - 50.9) < 0.05 and abs(fin[:, 1].max() + nv.origine[2] - 52.1) < 0.05
     porta = cat["porte"].punti
     assert abs(porta[:, 0].min() + x0 - 6.5) < 0.05 and abs(porta[:, 1].max() + nv.origine[2] - 52.2) < 0.05
+
+
+def test_stanze_chiuse_con_mobili_e_ombre():
+    """Appartamento con armadi che nascondono angoli e tratti di muro, rumore
+    e densità variabile: le stanze si chiudono e le chiusure lunghe vanno nel
+    layer da verificare."""
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench"))
+    import difficili
+    from collections import Counter
+
+    for seme in range(2):
+        out = elabora.estrai(difficili.pianta(np.random.default_rng(seme)), SQUADRATO)
+        estremi = Counter()
+        for p in out:
+            if not p.chiusa:
+                for e in (p.punti[0], p.punti[-1]):
+                    estremi[(round(e[0], 4), round(e[1], 4))] += 1
+        assert sum(1 for v in estremi.values() if v == 1) <= 4
+        chiusure = [p for p in out if p.categoria == "chiusure"]
+        assert chiusure and all(p.lunghezza() > 0.1 for p in chiusure)
