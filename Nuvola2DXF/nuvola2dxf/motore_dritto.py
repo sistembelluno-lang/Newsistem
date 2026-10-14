@@ -457,6 +457,98 @@ def _solido(t, allungamento):
     return t.lung() >= 0.25 and allungamento <= max(t.lung(), 0.3)
 
 
+def _vani_gemelli(tratti, tol, g_min=0.45, g_max=3.5, w_min=0.05, w_max=0.8):
+    """Trova i vani (porte, finestre, passaggi) come buchi nello stesso punto
+    su due facce parallele di un muro e li sistema: estremi allineati sugli
+    stipiti e spallette tra le facce. Modifica 'tratti' sul posto."""
+    sin_par = np.sin(np.radians(3))
+    # stretto: un'anta chiusa (4 cm dentro il filo del muro) non deve
+    # sembrare la prosecuzione della faccia
+    allineato = max(1.5 * tol, 0.02)
+    n0 = len(tratti)
+    fatti = set()
+    for i in range(n0):
+        ti = tratti[i]
+        if ti.lung() < 0.2:
+            continue
+        d = ti.dir()
+        nrm = np.array([-d[1], d[0]])
+        for ki in (0, 1):
+            if (i, ki) in fatti:
+                continue
+            e = ti.estremo(ki)
+            o = ti.fuori(ki)
+            # tratti paralleli: posizione lungo o (u) e di lato (v) rispetto a e
+            info = []
+            for j in range(n0):
+                tj = tratti[j]
+                if j == i or tj.lung() < 0.1:
+                    continue
+                dj = tj.dir()
+                if abs(d[0] * dj[1] - d[1] * dj[0]) > sin_par:
+                    continue
+                ua, ub = sorted(((tj.a - e) @ o, (tj.b - e) @ o))
+                v = float(((tj.a + tj.b) / 2 - e) @ nrm)
+                info.append((j, ua, ub, v))
+            # prosecuzione sulla stessa linea oltre il buco
+            avanti = [(ua, j) for j, ua, ub, v in info if abs(v) < allineato and ua > -0.02]
+            if not avanti:
+                continue
+            g, j = min(avanti)
+            if not (g_min <= g <= g_max) or (j, 0) in fatti or (j, 1) in fatti:
+                continue
+            # faccia gemella: tratti alla stessa distanza w, con il buco nello stesso punto
+            for lato in (1, -1):
+                gem = [(j2, ua, ub, v) for j2, ua, ub, v in info if w_min <= lato * v <= w_max]
+                if not gem:
+                    continue
+                w = min(lato * v for _, _, _, v in gem)
+                gem = [t for t in gem if abs(lato * t[3] - w) < allineato]
+                prima = [t for t in gem if -0.3 <= t[2] <= 0.3 and t[1] < t[2] - 0.1]
+                dopo = [t for t in gem if g - 0.3 <= t[1] <= g + 0.3 and t[2] > t[1] + 0.1]
+                dentro = sum(max(0.0, min(t[2], g - 0.15) - max(t[1], 0.15)) for t in gem)
+                if not prima or not dopo or dentro > 0.2 * max(g - 0.3, 0.1):
+                    continue
+                p_ = max(prima, key=lambda t: t[2])
+                d_ = min(dopo, key=lambda t: t[1])
+                u0 = (0.0 + p_[2]) / 2
+                u1 = (g + d_[1]) / 2
+                if u1 - u0 < g_min:
+                    continue
+                tj = tratti[j]
+                kj = 0 if (tj.a - e) @ o < (tj.b - e) @ o else 1
+                tp, td = tratti[p_[0]], tratti[d_[0]]
+                kp = 0 if (tp.a - e) @ o > (tp.b - e) @ o else 1
+                kd = 0 if (td.a - e) @ o < (td.b - e) @ o else 1
+
+                def su(t, k, u):
+                    """Punto del tratto t alla posizione u lungo o."""
+                    a0 = t.estremo(k)
+                    return a0 + o * (u - (a0 - e) @ o)
+
+                a_i, a_j = su(ti, ki, u0), su(tj, kj, u1)
+                a_p, a_d = su(tp, kp, u0), su(td, kd, u1)
+                ti.sposta(ki, a_i)
+                tj.sposta(kj, a_j)
+                tp.sposta(kp, a_p)
+                td.sposta(kd, a_d)
+                for x, y in ((a_i, a_p), (a_j, a_d)):
+                    _spalletta(tratti, x, y)
+                fatti.update({(i, ki), (j, kj), (p_[0], kp), (d_[0], kd)})
+                break
+
+
+def _spalletta(tratti, x, y, toll=0.05):
+    """Aggiunge la spalletta x-y, o riallinea quella già rilevata."""
+    for t in tratti:
+        for k in (0, 1):
+            if np.hypot(*(t.estremo(k) - x)) < toll and np.hypot(*(t.estremo(1 - k) - y)) < toll:
+                t.sposta(k, x)
+                t.sposta(1 - k, y)
+                return
+    tratti.append(_Tratto(x, y))
+
+
 def _chiudi(segmenti, Q, par):
     """Richiude stanze, muri e solai dove i punti mancano.
 
@@ -503,6 +595,11 @@ def _chiudi(segmenti, Q, par):
             fatti.add(u)
             if v is not None:
                 fatti.add(v)
+
+    # (0) vani: le due facce di un muro interrotte nello stesso punto. Il
+    #     buco non va richiuso; si disegnano le spallette anche se un'anta
+    #     aperta tocca lo stipite e gli ha "rubato" l'estremo
+    _vani_gemelli(tratti, tol)
 
     # (A) spallette e testate: due facce parallele che finiscono insieme
     cand = []

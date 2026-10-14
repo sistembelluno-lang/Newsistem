@@ -26,7 +26,7 @@ COLORI_CAT = {
     "pavimenti": (140, 80, 30), "soffitti": (110, 70, 190), "solai": (130, 130, 0), "coperture": (230, 120, 0),
     "volte": (130, 50, 200), "aggetti": (200, 160, 0), "altro": (150, 150, 150),
     "piombo": (220, 30, 30), "piombo_rif": (255, 140, 0),
-    "chiusure": (255, 0, 150), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
+    "chiusure": (255, 0, 150), "arredi": (192, 138, 42), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
 }
 
 
@@ -902,12 +902,13 @@ class Finestra(QtWidgets.QMainWindow):
                 t0 = time.time()
                 pts = nv.fetta_pianta(quota, spessore, riquadro, lambda f, m: av(f * 0.3, m), ann)
                 av(0.3, f"Ricostruzione delle linee da {len(pts):,} punti…".replace(",", "."))
-                poli = elabora.estrai(pts, par, ann)
                 if riconosci:
-                    av(0.5, "Riconoscimento di porte, finestre e pilastri…")
-                    poli, aperture = classifica.classifica_pianta(poli, pts, nv, quota)
+                    # linee, arredi, vani e pilastri con l'aiuto della nuvola 3D
+                    poli, aperture = classifica.pianta(pts, par, nv, quota, ann)
                     if par.legno:
                         poli = classifica.classifica_legno(poli, "pianta")
+                else:
+                    poli = elabora.estrai(pts, par, ann)
                 testi, report = [], []
                 if riconosci:
                     testi += classifica.testi_aperture(aperture)

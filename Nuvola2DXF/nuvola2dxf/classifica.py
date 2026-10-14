@@ -95,9 +95,13 @@ def aperture_pianta(poli, punti2d):
         # il vano non deve essere attraversato da un muro pieno
         if len(punti2d):
             rel = punti2d - c
-            dentro = (np.abs(rel @ t) < w / 2 - 0.03) & (np.abs(rel @ d1) < spessore / 2)
-            if np.count_nonzero(dentro) > 3 * densita * w + 10:
+            # comprese le due facce: un tratto di muro tra due spallette ha
+            # punti su entrambe le facce per tutta la larghezza
+            dentro = (np.abs(rel @ t) < w / 2 - 0.03) & (np.abs(rel @ d1) < spessore / 2 + 0.02)
+            if np.count_nonzero(dentro) > 0.5 * densita * w + 10:
                 continue
+        if any(np.hypot(*(c - ap["c"])) < 0.15 for ap in aperture):
+            continue  # stesso vano (spallette doppie)
         usate.update((i, j))
         # facce del muro attraverso il vano: estremi delle spallette accoppiati
         s2 = (b2, a2) if np.hypot(*(a1 - a2)) > np.hypot(*(a1 - b2)) else (a2, b2)
@@ -224,13 +228,43 @@ def disegna_aperture(aperture):
         out.append(_linea(p2, q2, cat))
         if cat == "finestre":
             out.append(_linea((p1 + p2) / 2, (q1 + q2) / 2, cat))  # vetro
+        for a, b in ap.get("spallette", ()):  # vani visti da un lato: spallette ricostruite
+            out.append(_linea(a, b, "muri"))
     return out
 
 
+def pianta(punti2d, par, nv=None, quota=None, annulla=None, riconosci=True):
+    """Pianta completa: linee, arredi (con la nuvola 3D), vani e pilastri.
+    Restituisce (polilinee, aperture)."""
+    from . import elabora, verifica3d
+
+    poli = elabora.estrai(punti2d, par, annulla)
+    if not riconosci:
+        return poli, []
+    pts = punti2d
+    if nv is not None and quota is not None:
+        arr = verifica3d.arredi(poli, nv, quota)
+        if arr:
+            # il muro dietro gli arredi si ricostruisce senza i loro punti
+            poli = verifica3d.separa_arredi(poli, arr)
+            mobili = [p for p in poli if p.categoria == "arredi"]
+            pts = verifica3d.punti_fuori_arredi(punti2d, poli)
+            poli = elabora.estrai(pts, par, annulla) + mobili
+    return classifica_pianta(poli, pts, nv, quota)
+
+
 def classifica_pianta(poli, punti2d, nv=None, quota=None):
+    from . import verifica3d
+
     pilastri(poli)
     aperture = aperture_pianta(poli, punti2d)
     tipo_aperture(aperture, nv, quota)
+    if nv is not None and quota is not None:
+        poli = verifica3d.oggetti_isolati(poli, nv, quota)
+        altre, togliere = verifica3d.vani_una_faccia(poli, nv, quota, aperture)
+        if togliere:
+            poli = [p for k, p in enumerate(poli) if k not in togliere]
+        aperture = aperture + altre
     return poli + disegna_aperture(aperture), aperture
 
 
