@@ -1,0 +1,43 @@
+{
+  "appId": "it.sistembelluno.preventivi",
+  "productName": "PREVENTIVI_SISTEM",
+  "electronVersion": "22.3.27",
+  "extraMetadata": {
+    "name": "preventivi-sistem",
+    "productName": "PREVENTIVI_SISTEM",
+    "main": "preventivi-main.js"
+  },
+  "files": [
+    "preventivi-main.js",
+    "preventivi-preload.js",
+    "Preventivi.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-prev"
+  },
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "ia32"
+        ]
+      },
+      {
+        "target": "portable",
+        "arch": [
+          "ia32"
+        ]
+      }
+    ]
+  },
+  "portable": {
+    "artifactName": "PREVENTIVI_SISTEM-${version}-Windows7-32bit-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "PREVENTIVI_SISTEM-${version}-Windows7-32bit-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  }
+}

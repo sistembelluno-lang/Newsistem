@@ -1,8 +1,17 @@
-# CONTROLLO_SISTEM e INSERT_SISTEM
+# CONTROLLO_SISTEM, INSERT_SISTEM e PREVENTIVI_SISTEM
 
-Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
+Tre programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
+- **PREVENTIVI_SISTEM** (`Preventivi.html`, `preventivi-main.js`): crea le offerte («Offerta per servizi tecnici professionali») sulla carta intestata SISTEM SRL STP e le esporta in **PDF** e **Word (.docx)**; archivio delle offerte con esito e codice commessa.
+
+Novità 1.11: nuovo programma **PREVENTIVI_SISTEM**.
+- Offerta divisa nelle sezioni fisse SPETTABILE CLIENTE, PREMESSA, OFFERTA TECNICA, OFFERTA ECONOMICA, VALIDITA’ OFFERTA, FORO COMPETENTE, CONDIZIONI DI PAGAMENTO (i titoli non si modificano); anteprima dal vivo accanto ai campi.
+- Numero automatico come nelle offerte tipo (`OFFTO` + giorno + mese + anno + progressivo, es. `OFFTO910261`), modificabile; voci con «Euro … + cont prev 4,61% + iva 22%», riepilogo con contributo, IVA e totale a scelta; timbro e firma.
+- Modelli di partenza (rilievo As Built, collaudo notturno, monitoraggio) e modelli propri («Salva come modello»); duplica, ricerca, esito (bozza / inviata / accettata / rifiutata), export Excel.
+- Carta intestata su ogni pagina: logo, indirizzo, telefono, e-mail, PEC, sito; nel piè di pagina C.F./P.IVA e «Pag. X di Y». Dati dell'intestazione, contributo, IVA, coordinate bancarie e firma in ⚙ Impostazioni.
+- Dati in `Documenti\Preventivi SISTEM\preventivi.json` (cartella cambiabile, copia giornaliera in `storico\`); i PDF e i Word vanno in `Documenti\Preventivi SISTEM\Offerte`.
+- **Collegamento con CONTROLLO_SISTEM**: scegliendo in PREVENTIVI_SISTEM la stessa cartella condivisa sul server, il programma scrive `offerte.json`. Quando un'offerta diventa «accettata» le si assegna il **codice commessa** (il primo libero, letto da `codici.json`). In CONTROLLO_SISTEM il pulsante **📄 Offerte** elenca le offerte, segnala quelle accettate senza lavoro e con «+ Crea lavoro» apre il nuovo lavoro già compilato (codice = commessa, nome = oggetto, cliente, Rif. offerta, Preventivo €, esito); nel campo «Rif. offerta» di un lavoro si può anche scegliere l'offerta dall'elenco.
 
 Novità 1.10.1: pulsante «🔌 Verifica collegamento» in entrambi i programmi (prove di lettura e scrittura sul server, con il motivo degli errori e cosa fare); errori di permesso spiegati al dipendente; un file illeggibile non blocca più la lettura delle ore degli altri.
 
@@ -16,8 +25,9 @@ I due programmi si scambiano i dati attraverso una **cartella condivisa sul serv
 | File | Chi lo scrive | Contenuto |
 |---|---|---|
 | `dipendenti.json` | amministratore | dipendenti, permessi, impronta (SHA-256) dei PIN |
-| `codici.json` | amministratore (in automatico) | lavori attivi: codice, nome, cliente, cantiere sì/no (niente importi) |
+| `codici.json` | amministratore (in automatico) | lavori attivi: codice, nome, cliente, cantiere sì/no (niente importi) e il codice più alto usato |
 | `ore/<id>.json` | il dipendente | le sue registrazioni |
+| `offerte.json` | PREVENTIVI_SISTEM | offerte: numero, data, cliente, oggetto, importo, esito, codice commessa |
 
 Ogni file ha un solo scrittore, quindi non ci sono sovrascritture. Se il server non risponde, il programma dipendente conserva le registrazioni sul PC e le invia appena possibile.
 **Niente approvazione**: quello che il dipendente inserisce entra da solo nel lavoro appena Controllo Lavori rilegge la cartella (all'avvio, ogni minuto e quando si torna sul programma). Le ore si sommano a **Ore totali** (e anche a **Ore trasferta** se il dipendente spunta «Ore in trasferta»), i km a **Km**, le spese a **Extra €**; se il dipendente modifica o cancella, il lavoro si corregge da solo. Nei cantieri la registrazione compare anche tra gli interventi Worksite; negli altri lavori nel registro «Ore registrate dai dipendenti» della scheda. Mentre una scheda è aperta non si tocca nulla, e un file dipendente illeggibile non toglie mai ore.
@@ -50,6 +60,8 @@ Gli eseguibili non sono firmati: al primo avvio Windows (SmartScreen) chiede "Ul
 ```
 npm install
 npm start          # avvia l'app
+npm run start:preventivi   # avvia PREVENTIVI_SISTEM
 npm run dist:win   # crea gli .exe in dist/ (funziona anche da Linux)
 ```
 Il file HTML resta l'unica fonte: modificarlo e ricompilare.
+Logo e timbro di PREVENTIVI_SISTEM stanno in `assets/` e si copiano in `Preventivi.html` con `node scripts/immagini-preventivi.js`.

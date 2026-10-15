@@ -209,6 +209,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
     <button id="csv">Esporta Excel</button>
     <button id="pdfl">Esporta PDF</button>
     <button id="odbtn">👥 Ore dipendenti</button>
+    <button id="offbtn" title="Offerte create con PREVENTIVI_SISTEM">📄 Offerte</button>
     <button id="lkbtn" hidden title="Blocca il programma: per riaprirlo serve il PIN">🔒 Blocca</button>
     <input type="file" id="file" accept=".json,application/json" hidden>
   </div>
@@ -239,6 +240,7 @@ if(!(window.CSS&&CSS.supports('color','color-mix(in srgb,red 50%,blue)')))docume
 <dialog id="wd" style="width:min(900px,96vw)"></dialog>
 <dialog id="ls" style="width:min(1000px,96vw)"></dialog>
 <dialog id="od" style="width:min(1150px,97vw)"></dialog>
+<dialog id="offd" style="width:min(1150px,97vw)"></dialog>
 <dialog id="vcd" style="width:min(760px,96vw)"></dialog>
 <dialog id="ovp" style="width:97vw;max-width:1200px;height:92vh;padding:10px"></dialog>
 <dialog id="ask"><p id="askm"></p><div class="ft"><button id="askn">Annulla</button><button class="p" id="asky">Conferma</button></div></dialog>
@@ -481,6 +483,7 @@ function render(){
   $('tb').innerHTML=L.length?L.map(({r,c})=>`<tr data-id="${r.id}" class="${/^finit/i.test(r.stato||'')?(n(r.fatt)>0?'fat':'fin'):''}"><td>${esc(r.cod)}</td><td class="w">${esc(r.nome)}</td><td>${esc(r.cliente)}</td><td>${esc(r.materia)}</td><td><span class="tag">${esc(r.stato)}</span></td><td>${offTag(r)}</td><td>${esc(r.dir)}</td><td class="n">${r.prev===''?'':eur(n(r.prev))}</td><td class="n">${r.fatt===''?'':eur(n(r.fatt))}</td><td class="n ${c.rim>0.5?'pos':c.rim<-0.5?'neg':''}">${eur(c.rim)}</td><td class="n">${eur(c.tot)}</td><td>${esc(r.loc)}</td><td>${svb(r)}</td><td class="wsc"><input type="checkbox" data-ws="${r.id}" ${r.ws?'checked':''} title="Cantiere con interventi periodici">${r.ws?wsb(r):''}</td></tr>`).join(''):'<tr><td colspan="14" class="em">'+(S.rows.length?'Nessun lavoro corrisponde ai filtri.':'Nessun dato: usa «Importa dati» per caricare il file JSON, oppure «Nuovo lavoro».')+'</td></tr>';
   $('cnt').innerHTML=L.length+' lavori mostrati su '+S.rows.length+' · <span class="tag" style="background:rgba(59,155,230,0.25);background:color-mix(in srgb,#3b9be6 25%,transparent)">Finito</span> <span class="tag sg">Finito e fatturato (anche in parte)</span>';
   const sg=S.rows.map(r=>r.loc||'').join('|');if(sg!==mapSig){mapSig=sg;mapDraw()}
+  try{offBadge()}catch(e){}
   const A=S.rows,tp=A.reduce((s,r)=>s+n(r.prev),0),tf=A.reduce((s,r)=>s+n(r.fatt),0),tr=A.reduce((s,r)=>s+Math.max(0,n(r.prev)-n(r.fatt)),0);
   $('kpi').innerHTML=[['Lavori',A.length],['In corso',A.filter(r=>r.stato==='In corso').length],['Preventivato',eur(tp)],['Fatturato',eur(tf)],['Da fatturare',eur(tr)],['Servizi aperti',A.reduce((q,r)=>q+(r.sv||[]).filter(x=>!x.ok).length,0),'sv'],['Interventi da contab.',A.reduce((q,r)=>q+(r.ws?ivOpen(r):0),0),'iv']].map(([l,v,k])=>`<div${k?` class="kc" data-k="${k}" title="Clicca per vedere l'elenco"`:''}><small>${l}</small><b>${v}</b></div>`).join('');
 }
@@ -492,8 +495,8 @@ function offHTML(r){const c=r.ctr||{},e=r.offEs||'',v=k=>esc(c[k]??'');
 <label class="f">Ente che rilascia il contratto<input name="c_ente" value="${v('ente')}"></label>
 <label class="f">Tempistiche di contratto<input name="c_tempi" value="${v('tempi')}" placeholder="es. inizio lavori entro 30 giorni, consegna entro il 30/06/2027"></label>
 <label class="f">Note<textarea name="c_note" rows="2">${v('note')}</textarea></label></div></fieldset>`}
-function openEdit(id){
-  editing=id?S.rows.find(r=>r.id==id):{id:0};
+function openEdit(id,pre){
+  editing=id?S.rows.find(r=>r.id==id):{id:0,...(pre||{})};
   const r=editing;
   $('frm').innerHTML='<h2 style="margin:0 0 10px;font-size:17px">'+(id?'Modifica lavoro':'Nuovo lavoro')+'</h2><div class="g">'+F.map(([k,l,t])=>{
     const v=esc(r[k]??'');
@@ -501,7 +504,9 @@ function openEdit(id){
     return `<label class="${t==='f'||t==='area'?'f':''}">${l}${inp}</label>`}).join('')+'</div>'+offHTML(r)+'<h3 style="font-size:14px;margin:12px 0 6px">Servizi da svolgere</h3><div id="svb"></div><button type="button" id="sva">+ Aggiungi servizio</button>'+((r.ore||[]).length?'<h3 style="font-size:14px;margin:12px 0 6px">Ore registrate dai dipendenti</h3><div id="oreb"></div>':'')+'<div class="calc" id="cl"></div><div class="ft"><span>'+(id?'<button type="button" class="d" id="del">Elimina</button>':'')+'</span><span class="btns"><button type="button" id="can">Annulla</button><button type="button" class="p" id="sv">Salva</button></span></div>';
   const upd=()=>{const t={};F.forEach(([k])=>t[k]=$('frm').elements[k].value);t.ore=r.ore;t.iv=r.iv;const c=calc(t);$('cl').innerHTML=`${t.loc?(geo(t.loc)?`<span>📍 ${esc(geo(t.loc).a)} (${geo(t.loc).p})</span>`:'<span class="neg">📍 località non trovata sulla mappa</span>'):''}<span>Tariffa: <b>${rate(t).h} €/h</b></span>${c.D.h?`<span>👥 Dalle ore dei dipendenti: <b>${fmt(c.D.h)} h</b> già comprese in Ore totali${c.D.tr?`, di cui <b>${fmt(c.D.tr)} h</b> in Ore trasferta`:''}</span>`:''}<span>€ ore: <b>${eur(c.ore)}</b></span><span>€ km: <b>${eur(c.km)}</b></span><span>€ spese: <b>${eur(c.sp)}</b></span><span>Costo totale: <b>${eur(c.tot)}</b></span><span>Rimanente: <b>${eur(c.rim)}</b></span>`};
   $('frm').oninput=upd;upd();
-  $('frm').addEventListener('change',e=>{if(e.target.name==='offEs'){$('ctrb').hidden=e.target.value!=='ok';if(e.target.value==='ok'){const f=$('frm').elements;if(!f.c_rif.value)f.c_rif.value=f.prevCode.value;f.c_num.focus()}}});
+  {const pc=$('frm').elements.prevCode;if(pc&&(OD.off||[]).length){pc.setAttribute('list','offdl');pc.insertAdjacentHTML('afterend',`<datalist id="offdl">${OD.off.map(o=>`<option value="${esc(o.num)}">${esc([o.cliente,o.ogg].filter(Boolean).join(' · '))}</option>`).join('')}</datalist>`)}}
+  $('frm').addEventListener('change',e=>{if(e.target.name==='prevCode'){const o=(OD.off||[]).find(x=>x.num===e.target.value.trim());if(o){const f=$('frm').elements,P=offPre(o);['cod','nome','cliente','prev'].forEach(k=>{if(!f[k].value&&P[k]!=='')f[k].value=P[k]});if(P.offEs&&f.offEs.value===''){f.offEs.value=P.offEs;$('ctrb').hidden=P.offEs!=='ok'}if(!f.c_rif.value)f.c_rif.value=o.num;f.cod.dispatchEvent(new Event('input',{bubbles:true}));toast('Dati presi dall\'offerta '+o.num)}}
+    if(e.target.name==='offEs'){$('ctrb').hidden=e.target.value!=='ok';if(e.target.value==='ok'){const f=$('frm').elements;if(!f.c_rif.value)f.c_rif.value=f.prevCode.value;f.c_num.focus()}}});
   const oreL=(r.ore||[]).map(x=>({...x}));
   const ro=()=>{if(!$('oreb'))return;const L=[...oreL].sort((a,b)=>(a.d||'')<(b.d||'')?1:-1);$('oreb').innerHTML=`<div class="tw"><table class="wt"><thead><tr><th>Data</th><th>Dipendente</th><th class="n">Ore</th><th class="n">Km</th><th class="n">Spese</th><th>Note</th></tr></thead><tbody>${L.map(x=>`<tr><td>${dIt(x.d)}</td><td>${esc(x.op)}</td><td class="n">${fmt(n(x.h))}${x.tr?' <span class="tag">trasferta</span>':''}</td><td class="n">${x.km===''?'':fmt(n(x.km))}</td><td class="n">${n(x.sp)?eur2(x.sp):''}</td><td class="w">${esc(x.note)}</td></tr>`).join('')}</tbody><tfoot><tr><td colspan="2"><b>Totale</b></td><td class="n"><b>${fmt(oreL.reduce((s,x)=>s+n(x.h),0))}</b></td><td class="n">${fmt(oreL.reduce((s,x)=>s+n(x.km),0))}</td><td class="n">${eur2(oreL.reduce((s,x)=>s+n(x.sp),0))}</td><td class="rates" style="white-space:normal">di cui trasferta ${fmt(oreL.filter(x=>x.tr).reduce((s,x)=>s+n(x.h),0))} h · già sommate nei campi del lavoro; si modificano dal programma INSERT_SISTEM</td></tr></tfoot></table></div>`};
   ro();
@@ -585,10 +590,38 @@ ${sv||!L.length?'':`<div class="calc"><span>Ore: <b>${fmt(L.reduce((s,o)=>s+n(o.
 // riceve in automatico le registrazioni (sommate nei campi del lavoro) e stampa i report mensili.
 const OD={f:{v:1,admin:{},dip:[]},ore:{},fer:{e:{},prog:[]},att:[],msg:[],miss:[],tab:'app',err:'',dir:''};
 let pcT;
-function pubCodici(){if(!M.odOn)return;clearTimeout(pcT);pcT=setTimeout(async()=>{
+function pubCodici(){let on=M.odOn;try{on=on||!!OD.dir}catch(e){}if(!on)return;clearTimeout(pcT);pcT=setTimeout(async()=>{
   const L=S.rows.filter(r=>r.stato!=='Non fare'&&(M.odFin||!/^finit/i.test(r.stato||''))).map(r=>({id:r.id,cod:String(r.cod??''),nome:r.nome||'',cliente:r.cliente||'',ws:!!r.ws}));
-  try{await VFS.write('codici.json',JSON.stringify({agg:Date.now(),lav:L}));M.odPub={t:Date.now(),n:L.length};saveMeta()}catch(e){}},800)}
-async function odLoad(){const r=await odLoad0();attDraw();return r}
+  const max=Math.max(0,...S.rows.map(r=>/^\d+$/.test(String(r.cod??'').trim())?+String(r.cod).trim():0));
+  try{await VFS.write('codici.json',JSON.stringify({agg:Date.now(),max,lav:L}));M.odPub={t:Date.now(),n:L.length};saveMeta()}catch(e){}},800)}
+async function odLoad(){const r=await odLoad0();attDraw();await offLoad();return r}
+// ===== Offerte da PREVENTIVI_SISTEM =====
+// PREVENTIVI_SISTEM scrive offerte.json nella cartella condivisa; qui ogni offerta si collega al lavoro con il suo codice commessa
+// (o con il Rif. offerta) e, se manca, il lavoro si crea con codice, nome, cliente, rif. offerta, importo ed esito già compilati.
+const OFFST={bozza:'Bozza',inviata:'Inviata',accettata:'Accettata',rifiutata:'Rifiutata'};
+let offQ='',offSolo=false;
+async function offLoad(){if(!OD.dir){OD.off=[];offBadge();return}
+  try{const j=await rj('offerte.json',null);OD.off=(j&&Array.isArray(j.off))?j.off:[];OD.offAgg=j&&j.agg;OD.offErr=''}catch(e){OD.offErr=String(e&&e.message||e).replace(/^Error invoking remote method '[^']+': (Error: )?/,'')}
+  offBadge();if($('offd').open&&!$('dlg').open)offDraw()}
+const offLav=o=>S.rows.find(r=>(o.num&&String(r.prevCode??'').trim()===o.num)||(o.commessa&&String(r.cod??'').trim()===String(o.commessa).trim()));
+const offPre=o=>({cod:o.commessa||'',nome:o.ogg||'',cliente:o.cliente||'',prevCode:o.num||'',prev:o.imp===''||o.imp==null?'':+o.imp,stato:o.stato==='accettata'?'Da fare':'Preventivo',offEs:o.stato==='accettata'?'ok':o.stato==='rifiutata'?'no':'',data:o.data||''});
+function offBadge(){const k=(OD.off||[]).filter(o=>o.stato==='accettata'&&!offLav(o)).length;$('offbtn').innerHTML='📄 Offerte'+(k?` <span class="tag sr" title="Offerte accettate senza lavoro collegato">${k} da collegare</span>`:'')}
+function offDraw(){const d=$('offd'),q=offQ.toLowerCase(),O=(OD.off||[]).map(o=>({o,r:offLav(o)}))
+    .filter(({o,r})=>(!offSolo||(o.stato==='accettata'&&!r))&&(!q||[o.num,o.cliente,o.ogg,o.commessa,o.loc].join(' ').toLowerCase().includes(q))).sort((a,b)=>String(b.o.data||'').localeCompare(String(a.o.data||'')));
+  const es=(o,r)=>{const w=offPre(o).offEs;return r&&w&&r.offEs!==w?` <button type="button" class="s" data-up="${esc(o.num)}" title="Riporta nel lavoro l'esito dell'offerta">Aggiorna esito</button>`:''};
+  d.innerHTML=`<div class="odh"><h2>📄 Offerte da PREVENTIVI_SISTEM</h2><button type="button" id="offx">Chiudi</button></div>
+<p class="rates" style="margin:6px 0 10px">${!OD.dir?'<span class="neg">Cartella condivisa sul server non scelta: impostala in 👥 Ore dipendenti → Impostazioni, e la stessa in PREVENTIVI_SISTEM (⚙ Impostazioni).</span>':OD.offErr?'<span class="neg">⚠ '+esc(OD.offErr)+'</span>':!(OD.off||[]).length?'Nessuna offerta ancora: PREVENTIVI_SISTEM pubblica qui le sue offerte quando ha la stessa cartella condivisa.':`${OD.off.length} offerte · aggiornate il ${new Date(OD.offAgg||0).toLocaleString('it-IT')}. Un'offerta è collegata al lavoro con lo stesso <b>codice commessa</b> o con lo stesso <b>Rif. offerta</b>.`}</p>
+<div class="flt" style="margin-bottom:8px"><input id="offq" placeholder="Cerca per numero, cliente, oggetto, commessa…" value="${esc(offQ)}"><label class="ck"><input type="checkbox" id="offs" ${offSolo?'checked':''}> Solo accettate senza lavoro</label></div>
+<div class="tw ls"><table class="wt"><thead><tr><th>Rif. offerta</th><th>Data</th><th>Cliente</th><th>Oggetto</th><th class="n">Importo</th><th>Esito</th><th>Commessa</th><th>Lavoro</th></tr></thead><tbody>${O.length?O.map(({o,r})=>`<tr><td><b>${esc(o.num)}</b></td><td>${dIt(o.data)}</td><td>${esc(o.cliente)}</td><td class="w">${esc(o.ogg)}</td><td class="n">${o.imp?eur(n(o.imp)):''}</td><td><span class="tag ${o.stato==='accettata'?'oy':o.stato==='rifiutata'?'on':''}">${OFFST[o.stato]||esc(o.stato)}</span></td><td><b>${esc(o.commessa)}</b></td><td>${r?`<a href="#" data-o="${r.id}">${esc(r.cod)} · ${esc(String(r.nome||'').slice(0,40)+(String(r.nome||'').length>40?'…':''))||'(senza nome)'}</a>${es(o,r)}`:`<button type="button" class="${o.stato==='accettata'?'p':''}" data-new="${esc(o.num)}">+ Crea lavoro</button>`}</td></tr>`).join(''):`<tr><td colspan="8" class="em">${(OD.off||[]).length?'Nessuna offerta corrisponde.':'Nessuna offerta.'}</td></tr>`}</tbody></table></div>`;
+  const qi=$('offq');qi.oninput=()=>{offQ=qi.value;offDraw();const x=$('offq');x.focus();x.setSelectionRange(x.value.length,x.value.length)};
+  $('offs').onchange=e=>{offSolo=e.target.checked;offDraw()};$('offx').onclick=()=>d.close();
+  d.onclick=e=>{const t=e.target,O2=OD.off||[];
+    if(t.dataset.o){e.preventDefault();d.close();openEdit(t.dataset.o)}
+    else if(t.dataset.new!==undefined){const o=O2.find(x=>x.num===t.dataset.new);if(!o)return;if(o.commessa&&S.rows.some(r=>String(r.cod??'').trim()===String(o.commessa).trim())){toast('Esiste già un lavoro con codice '+o.commessa);return}
+      d.close();openEdit(0,offPre(o));toast('Controlla i dati e premi Salva')}
+    else if(t.dataset.up!==undefined){const o=O2.find(x=>x.num===t.dataset.up),r=o&&offLav(o);if(!r)return;r.offEs=offPre(o).offEs;if(r.offEs==='ok'){r.ctr=Object.assign({rif:o.num},r.ctr||{})}save();render();offDraw();offBadge();toast('Esito aggiornato nel lavoro '+r.cod)}}}
+async function openOff(){const d=$('offd');offDraw();if(!d.open)d.showModal();if(!OD.dir){const g=await VFS.get().catch(()=>null);OD.dir=g&&g.dir}if(OD.dir){await offLoad();offDraw()}}
+$('offbtn').onclick=()=>openOff();
 async function odLoad0(){OD.err='';try{const g=await VFS.get();OD.dir=g&&g.dir;if(!OD.dir){OD.err='cartella condivisa non impostata';return false}
   OD.f=await rj('dipendenti.json',{v:1,admin:{},dip:[]});OD.f.dip=OD.f.dip||[];OD.f.admin=OD.f.admin||{};
   if(OD.f.dip.length&&!M.odOn){M.odOn=true;saveMeta();pubCodici()}
@@ -801,7 +834,7 @@ ${VFS.sim?'<p class="rates">Versione di prova nel browser: la cartella del serve
     else if(t.id==='oic'){const r=await VFS.choose();if(r&&r.dir){await odLoad();odDraw()}}
     else if(t.id==='oip'){if(!OD.dir){toast('Prima scegli la cartella condivisa');return}M.odOn=true;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200);toast('Elenco lavori pubblicato')}};
   b.onchange=async e=>{if(e.target.id==='oif'){M.odFin=e.target.checked;saveMeta();pubCodici();setTimeout(()=>odDraw(),1200)}}}
-if(M.odOn){odLoad();pubCodici()}else VFS.get().then(g=>{if(g&&g.dir)odLoad()}).catch(()=>{})
+if(M.odOn){odLoad();pubCodici()}else VFS.get().then(g=>{if(g&&g.dir){OD.dir=g.dir;odLoad();pubCodici()}}).catch(()=>{})
 // Aggiornamento continuo: ogni minuto e quando si torna sul programma
 setInterval(()=>{if((M.odOn||OD.dir)&&!$('od').open)odLoad()},60000);addEventListener('focus',()=>{if((M.odOn||OD.dir)&&!$('od').open)odLoad()});
 function ivCsv(R){const q=v=>'"'+String(v??'').replace(/"/g,'""')+'"',num=v=>v===''||v==null?'':String(Math.round(n(v)*100)/100).replace('.',',');

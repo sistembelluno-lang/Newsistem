@@ -1,0 +1,44 @@
+{
+  "appId": "it.sistembelluno.preventivi",
+  "productName": "PREVENTIVI_SISTEM",
+  "extraMetadata": {
+    "name": "preventivi-sistem",
+    "productName": "PREVENTIVI_SISTEM",
+    "main": "preventivi-main.js"
+  },
+  "files": [
+    "preventivi-main.js",
+    "preventivi-preload.js",
+    "Preventivi.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-prev"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "nsis"
+    ]
+  },
+  "portable": {
+    "artifactName": "PREVENTIVI_SISTEM-${version}-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "PREVENTIVI_SISTEM-${version}-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "PREVENTIVI_SISTEM-${version}.${ext}"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "PREVENTIVI_SISTEM-${version}.${ext}"
+  }
+}
