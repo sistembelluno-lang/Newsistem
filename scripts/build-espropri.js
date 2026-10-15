@@ -4,7 +4,8 @@
 const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), src = path.join(root, 'espropri', 'src');
 const leggi = p => fs.readFileSync(p, 'utf8');
-const script = s => s.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
+// Nel testo degli script: niente «</script», niente «<!--», e il carattere U+FFFD della libreria PDF scritto come escape
+const script = s => s.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--').replace(/\uFFFD/g, '\\ufffd');
 let html = leggi(path.join(root, 'espropri', 'index.html'));
 const put = (a, b, body) => {
   const i = html.indexOf(a), j = b ? html.indexOf(b, i) : i + a.length;
