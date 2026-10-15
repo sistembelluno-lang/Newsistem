@@ -15,6 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Versioni Windows: da queste dipende la pagina di download
   build:
     strategy:
       fail-fast: false
@@ -26,6 +27,32 @@ jobs:
           - os: windows-latest
             cmd: dist:win7
             name: Windows7-32bit
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run ${{ matrix.cmd }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Programmi-${{ matrix.name }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.AppImage
+          if-no-files-found: error
+
+  # macOS e Linux a parte: un loro problema (es. server di GitHub non disponibile) non blocca la pagina di download
+  build-altri:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
           - os: macos-latest
             cmd: dist:mac
             name: macOS
