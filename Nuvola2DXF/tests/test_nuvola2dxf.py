@@ -443,3 +443,26 @@ def test_tabia_pianta_pareti_in_tavole():
     poli = classifica.classifica_legno(elabora.estrai(P, TABIA), "pianta")
     assert {p.categoria for p in poli} == {"tavolati"}
     assert sum(p.lunghezza() for p in poli) > 34
+
+
+def test_pianta_intuitiva_stanze_e_vani(edificio):
+    """Metodo intuitivo: piano, muri dalla fascia sotto il soffitto, vani dai
+    muri interi, stanze chiuse con la superficie."""
+    from nuvola2dxf import classifica
+
+    nv = edificio
+    q = 51.2 - nv.origine[2]
+    fet = nv.fetta_pianta(q, 0.05)
+    poli, aperture, testi = classifica.pianta(fet, SQUADRATO.copia(metodo="intuitivo"), nv, q)
+    locali = [p for p in poli if p.categoria == "locali"]
+    aree = sorted(abs(0.5 * np.sum(p.punti[:, 0] * np.roll(p.punti[:, 1], -1) - p.punti[:, 1] *
+                                   np.roll(p.punti[:, 0], -1))) for p in locali)
+    # stanza A 5 x 4 e stanza B 3 x 4 (meno il pilastro 30 x 30)
+    assert len(locali) == 2
+    assert abs(aree[0] - 12.0) < 0.4 and abs(aree[1] - 20.0) < 0.4
+    tipi = sorted(a["categoria"] for a in aperture)
+    assert tipi == ["finestre", "finestre", "porte", "porte"]
+    for a in aperture:
+        if a["categoria"] == "finestre":
+            assert abs(a["davanzale"] - 0.9) < 0.05 and abs(a["altezza"] - 1.2) < 0.06
+    assert any("m²" in t.testo for t in testi)

@@ -660,7 +660,10 @@ def _chiudi(segmenti, Q, par):
 
     # (C) buchi lungo la stessa linea (ombre, arredi, solai interrotti)
     cand = []
-    for (i, ki), (j, kj) in coppie(_liberi(tratti), D):
+    # lungo la stessa linea si richiude anche di più: dietro un armadio o una
+    # pianta il muro continua (un buco della nuvola non è un buco del muro)
+    D_lin = max(D, par.chiudi_allineati)
+    for (i, ki), (j, kj) in coppie(_liberi(tratti), D_lin):
         ti, tj = tratti[i], tratti[j]
         oi, oj = ti.fuori(ki), tj.fuori(kj)
         if oi @ oj > -np.cos(np.radians(5)):

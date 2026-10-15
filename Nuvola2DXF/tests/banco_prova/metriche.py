@@ -77,7 +77,7 @@ def valuta_pianta(poli, muri, arredi, fetta=None, tol=0.03):
         d, _ = cKDTree(fetta).query(G)
         G = G[d < 0.02]
     A = campiona_bordo(arredi)
-    E, cat = campiona_poli([p for p in poli if p.categoria not in ("porte", "finestre", "info", "arredi")])
+    E, cat = campiona_poli([p for p in poli if p.categoria not in ("porte", "finestre", "info", "arredi", "ante", "altro")])
     r = {"arredi_riconosciuti_m": float(sum(p.lunghezza() for p in poli if p.categoria == "arredi"))}
     if len(E):
         dE, _ = cKDTree(E).query(G)
@@ -128,3 +128,46 @@ def valuta_vani(aperture, vani, origine_z=0.0):
                 err_altezza_cm=float(np.mean(err_h) * 100) if err_h else float("nan"),
                 err_davanzale_cm=float(np.mean(err_d) * 100) if err_d else float("nan"),
                 righe=righe, falsi_lista=falsi)
+
+
+def stanze_vere(scena, z_alto):
+    """Stanze vere: lo spazio tra i muri tagliati sopra porte e finestre
+    (z_alto), senza la parte esterna."""
+    from shapely.geometry import box
+
+    muri = impronte(scena, z_alto, {"muro", "pilastro"})
+    if muri is None:
+        return []
+    muri = muri.buffer(0.001)  # i muri ruotati si toccano con fessure microscopiche
+    x0, y0, x1, y1 = muri.bounds
+    vuoto = box(x0 - 1, y0 - 1, x1 + 1, y1 + 1).difference(muri)
+    out = []
+    for g in getattr(vuoto, "geoms", [vuoto]):
+        if g.area > 1.0 and g.bounds[0] > x0 - 0.5 and g.bounds[2] < x1 + 0.5 \
+                and g.bounds[1] > y0 - 0.5 and g.bounds[3] < y1 + 0.5:
+            out.append(g)
+    return out
+
+
+def valuta_locali(info, vere):
+    """Per ogni stanza vera la stanza trovata che si sovrappone di più (IoU)."""
+    trovate = [Polygon(i["poligono"]).buffer(0) for i in info]
+    righe, usate = [], set()
+    for v in vere:
+        migliore = (0.0, None)
+        for k, t in enumerate(trovate):
+            if k in usate or not t.intersects(v):
+                continue
+            iou = t.intersection(v).area / t.union(v).area
+            if iou > migliore[0]:
+                migliore = (iou, k)
+        if migliore[1] is not None:
+            usate.add(migliore[1])
+        righe.append(dict(area_vera=v.area, iou=migliore[0],
+                          area_trovata=trovate[migliore[1]].area if migliore[1] is not None else 0.0))
+    giuste = [r for r in righe if r["iou"] >= 0.9]
+    return dict(stanze_vere=len(vere), stanze_trovate=len(trovate), stanze_giuste=len(giuste),
+                iou_medio=float(np.mean([r["iou"] for r in righe])) if righe else float("nan"),
+                err_area_pct=float(np.mean([abs(r["area_trovata"] - r["area_vera"]) / r["area_vera"] * 100
+                                            for r in giuste])) if giuste else float("nan"),
+                stanze_in_piu=len(trovate) - len(usate))

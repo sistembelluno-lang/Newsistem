@@ -13,7 +13,7 @@ except ImportError:  # versione per Windows 7: Qt5
     from PySide2 import QtCore, QtGui, QtWidgets
 import pyqtgraph as pg
 
-from . import __version__, classifica, elabora, esporta, nuvola, piombo, prospetto, readers
+from . import __version__, classifica, elabora, esporta, nuvola, piombo, prospetto, readers, vista3d
 from .parametri import CATEGORIE, DESCRIZIONI, NOMI_CATEGORIE, PROFILI, Parametri
 
 pg.setConfigOptions(antialias=True, background="w", foreground="k")
@@ -26,7 +26,7 @@ COLORI_CAT = {
     "pavimenti": (140, 80, 30), "soffitti": (110, 70, 190), "solai": (130, 130, 0), "coperture": (230, 120, 0),
     "volte": (130, 50, 200), "aggetti": (200, 160, 0), "altro": (150, 150, 150),
     "piombo": (220, 30, 30), "piombo_rif": (255, 140, 0),
-    "chiusure": (255, 0, 150), "arredi": (192, 138, 42), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
+    "chiusure": (255, 0, 150), "arredi": (192, 138, 42), "locali": (150, 80, 210), "ante": (0, 150, 0), "tavolati": (224, 123, 0), "travi": (31, 111, 209), "ballatoi": (26, 154, 58),
 }
 
 
@@ -347,7 +347,7 @@ class Finestra(QtWidgets.QMainWindow):
         f.addRow("Quota di taglio:", self.sp_quota)
         f.addRow("Spessore fetta:", self.sp_spessore_p)
         self.isto = pg.PlotWidget()
-        self.isto.setFixedHeight(130)
+        self.isto.setMinimumHeight(240)
         self.isto.setLabel("left", "Quota (m)")
         self.isto.getPlotItem().hideAxis("bottom")
         self.isto.setMouseEnabled(x=False, y=True)
@@ -410,6 +410,23 @@ class Finestra(QtWidgets.QMainWindow):
         self.lbl_profilo.setWordWrap(True)
         self.lbl_profilo.setStyleSheet("color:#555")
         v.addWidget(self.lbl_profilo)
+        # metodo di ricostruzione
+        self.lbl_metodo = QtWidgets.QLabel("<b>Ricostruzione</b>")
+        v.addWidget(self.lbl_metodo)
+        self.rb_matematico = QtWidgets.QRadioButton("Matematica: fedele ai punti del taglio")
+        self.rb_matematico.setToolTip("Disegna quello che c'è nella fetta della quota di taglio: linee molto fedeli,\n"
+                                      "ma dove armadi e oggetti nascondono i muri restano buchi da completare.")
+        self.rb_intuitivo = QtWidgets.QRadioButton("Intuitiva: guarda tutta la nuvola e immagina la struttura")
+        self.rb_intuitivo.setToolTip(
+            "Come una persona che si guarda attorno: trova pavimento e soffitto, ricava i muri\n"
+            "dalla fascia sotto il soffitto (dove non ci sono mobili), guarda ogni muro per intero\n"
+            "per trovare porte e finestre (un oggetto davanti non è un vano) e chiude le stanze.\n"
+            "Serve un soffitto rilevato. Per ora solo in pianta.")
+        self.rb_matematico.setChecked(True)
+        self.gruppo_metodo = QtWidgets.QButtonGroup(self)
+        for rb in (self.rb_matematico, self.rb_intuitivo):
+            self.gruppo_metodo.addButton(rb)
+            v.addWidget(rb)
         self.chk_classifica = QtWidgets.QCheckBox("Riconosci muri, porte, finestre, pilastri, legno…")
         self.chk_classifica.setChecked(True)
         self.chk_classifica.setToolTip("Divide il disegno in layer: 00_muri, 00_porte, 00_finestre, 00_pilastri, "
@@ -433,6 +450,9 @@ class Finestra(QtWidgets.QMainWindow):
         self.sp_stanze = _spin(0, 500, 100, 0, 10, "cm")
         self.sp_stanze.setToolTip("Angoli nascosti e buchi lungo i muri (mobili, ombre) vengono richiusi fino a\n"
                                   "questa lunghezza, così le stanze si chiudono. 0 = non richiudere.")
+        self.sp_allineati = _spin(0, 1000, 300, 0, 10, "cm")
+        self.sp_allineati.setToolTip("Buchi lungo uno stesso muro (dietro armadi, piante, oggetti) richiusi fino a\n"
+                                     "questa lunghezza: il muro continua anche dove la nuvola ha un buco.")
         self.sp_visibile = _spin(0, 200, 10, 0, 1, "cm")
         self.sp_visibile.setToolTip("Le chiusure più lunghe di così vanno nel layer «chiusure da verificare»\n"
                                     "(colore diverso), per controllarle in CAD")
@@ -448,7 +468,8 @@ class Finestra(QtWidgets.QMainWindow):
         f.addRow("Punti vicini entro:", self.sp_raggio)
         f.addRow("Lunghezza minima:", self.sp_min)
         f.addRow("Unisci interruzioni fino a:", self.sp_buchi)
-        f.addRow("Richiudi stanze fino a:", self.sp_stanze)
+        f.addRow("Angoli nascosti: richiudi fino a:", self.sp_stanze)
+        f.addRow("Muri allineati: richiudi fino a:", self.sp_allineati)
         f.addRow("Segnala chiusure oltre:", self.sp_visibile)
         f.addRow("Unisci spigoli entro:", self.sp_spigoli)
         f.addRow(self.chk_squadra)
@@ -540,6 +561,9 @@ class Finestra(QtWidgets.QMainWindow):
         self.vista.cliccato.connect(self._click_vista)
         self.img = pg.ImageItem()
         self.vista.addItem(self.img)
+        # i punti che il taglio prenderà ("grigetto" sopra la nuvola sbiadita)
+        self.sel_mappa = pg.ScatterPlotItem(pxMode=True, size=2, pen=None, brush=pg.mkBrush(55, 55, 60, 220))
+        self.vista.addItem(self.sel_mappa)
         self.linee_tagli = pg.PlotDataItem(pen=pg.mkPen((120, 150, 200), width=2, style=QtCore.Qt.PenStyle.DashLine),
                                            connect="finite")
         self.vista.addItem(self.linee_tagli)
@@ -559,6 +583,7 @@ class Finestra(QtWidgets.QMainWindow):
         self.riquadro.addScaleHandle([0, 1], [1, 0])
         self.vista.addItem(self.riquadro)
         self.riquadro.hide()
+        self.riquadro.sigRegionChanged.connect(self._aggiorna_taglio3d)
 
         self.vista_ris = VistaPiana()
         self.scatter = pg.ScatterPlotItem(pxMode=True, size=2, pen=None, brush=pg.mkBrush(*COLORE_PUNTI))
@@ -582,8 +607,47 @@ class Finestra(QtWidgets.QMainWindow):
         cv.addLayout(riga)
         cv.addWidget(self.vista_ris)
 
-        self.schede.addTab(self.vista, "Vista dall'alto")
+        self.vista3d = vista3d.Vista3D()
+        self.contenitore_ris = contenitore
+        pan_sel = QtWidgets.QWidget()
+        ps = QtWidgets.QVBoxLayout(pan_sel)
+        ps.setContentsMargins(0, 0, 0, 0)
+        r = QtWidgets.QHBoxLayout()
+        r.setContentsMargins(8, 4, 8, 0)
+        self.lbl_sel = QtWidgets.QLabel("<b>Anteprima del taglio</b>: qui vedi solo i punti che il taglio prenderà.")
+        self.lbl_sel.setWordWrap(True)
+        r.addWidget(self.lbl_sel, 1)
+        self.bt_precisa = QtWidgets.QPushButton("Anteprima precisa")
+        self.bt_precisa.setToolTip("Legge la fetta vera a piena risoluzione (qualche secondo sui file grandi).\n"
+                                   "Se poi estrai le linee con le stesse impostazioni, non viene riletta.")
+        self.bt_precisa.clicked.connect(self.anteprima_precisa)
+        r.addWidget(self.bt_precisa)
+        ps.addLayout(r)
+        self.vista_sel = VistaPiana()
+        self.sel_punti = pg.ScatterPlotItem(pxMode=True, size=2, pen=None, brush=pg.mkBrush(55, 55, 60, 200))
+        self.vista_sel.addItem(self.sel_punti)
+        ps.addWidget(self.vista_sel, 1)
+        self.split_mappa = QtWidgets.QSplitter(QtCore.Qt.Orientation.Vertical)
+        self.split_mappa.addWidget(self.vista)
+        self.split_mappa.addWidget(pan_sel)
+        self.split_mappa.setStretchFactor(0, 3)
+        self.split_mappa.setStretchFactor(1, 2)
+        self._fetta_precisa = None  # (chiave, punti) dell'ultima anteprima precisa
+        self._timer_sel = QtCore.QTimer(self)
+        self._timer_sel.setSingleShot(True)
+        self._timer_sel.setInterval(60)
+        self._timer_sel.timeout.connect(self._aggiorna_selezione)
+        self.schede.addTab(self.split_mappa, "Vista dall'alto")
+        self.schede.addTab(self.vista3d, "Vista 3D (taglio)")
         self.schede.addTab(contenitore, "Risultato")
+        # il piano di taglio nella vista 3D segue quota, spessori e linea A-B
+        for sp in (self.sp_quota, self.sp_spessore_p, self.sp_spessore_s, self.sp_davanti, self.sp_dietro):
+            sp.valueChanged.connect(self._aggiorna_taglio3d)
+        self.fascia_quota = None
+        self.sp_quota.valueChanged.connect(self._aggiorna_fascia_quota)
+        self.sp_spessore_p.valueChanged.connect(self._aggiorna_fascia_quota)
+        # trascinando la linea rossa l'anteprima segue subito (non solo al rilascio)
+        self.linea_quota.sigPositionChanged.connect(lambda l: self.sp_quota.setValue(l.value()))
 
         # schermata iniziale, finché non c'è una nuvola
         benvenuto = QtWidgets.QLabel()
@@ -640,6 +704,7 @@ class Finestra(QtWidgets.QMainWindow):
         self.sp_buchi.setValue(p.chiudi_buchi * 100)
         self.sp_stanze.setValue(p.chiudi_stanze * 100)
         self.sp_visibile.setValue(p.buco_visibile * 100)
+        self.sp_allineati.setValue(p.chiudi_allineati * 100)
         self.sp_spigoli.setValue(p.unisci_spigoli * 100)
         self.chk_squadra.setChecked(p.squadra)
         self.chk_allinea.setChecked(p.allinea)
@@ -656,12 +721,14 @@ class Finestra(QtWidgets.QMainWindow):
             chiudi_buchi=self.sp_buchi.value() / 100,
             chiudi_stanze=self.sp_stanze.value() / 100,
             buco_visibile=self.sp_visibile.value() / 100,
+            chiudi_allineati=self.sp_allineati.value() / 100,
             unisci_spigoli=self.sp_spigoli.value() / 100,
             squadra=self.chk_squadra.isChecked(),
             allinea=self.chk_allinea.isChecked(),
             tol_angolo=self.sp_angolo.value(),
             archi=self.chk_archi.isChecked(),
             legno=self.chk_legno.isChecked(),
+            metodo="intuitivo" if self.rb_intuitivo.isChecked() else "matematico",
         )
 
     # ------------------------------------------------------------ stato
@@ -689,6 +756,7 @@ class Finestra(QtWidgets.QMainWindow):
         if pianta:
             self.bt_traccia.setChecked(False)
         self.schede.setCurrentIndex(0)
+        self._aggiorna_taglio3d()
 
     def _avvia(self, funzione, alla_fine, messaggio):
         self.lavoro = Lavoro(funzione, self)
@@ -769,6 +837,9 @@ class Finestra(QtWidgets.QMainWindow):
         )
         self._disegna_vista()
         self._disegna_istogramma()
+        self.vista3d.imposta_nuvola(nv.anteprima)
+        self._fetta_precisa = None
+        self._aggiorna_taglio3d()
         self._aggiorna_sezione()
         r = self.riquadro
         r.setPos(nv.min[:2])
@@ -800,23 +871,54 @@ class Finestra(QtWidgets.QMainWindow):
         self.vista.getPlotItem().getViewBox().autoRange()
 
     def _disegna_istogramma(self):
+        """Profilo dei punti per quota (scala logaritmica, così si vedono anche
+        i muri e non solo i picchi di pavimenti e soffitti), con la fascia del
+        taglio evidenziata e i livelli principali scritti accanto."""
         nv = self.nuvola
-        cont, bordi = nv.istogramma_z(300)
+        cont, bordi = nv.istogramma_z(400)
         z = bordi + nv.origine[2]
         self.isto.clear()
-        self.isto.addItem(self.linea_quota)
         centri = (z[:-1] + z[1:]) / 2
-        barre = pg.BarGraphItem(x0=0, y=centri, height=np.diff(z), width=cont,
-                                brush=(150, 150, 150), pen=pg.mkPen(None))
-        self.isto.addItem(barre)
+        larg = np.log1p(cont)
+        larg = larg / max(larg.max(), 1e-9)
+        curva = pg.PlotDataItem(np.r_[0, larg, 0], np.r_[centri[0], centri, centri[-1]],
+                                pen=pg.mkPen((90, 100, 120), width=1), fillLevel=0,
+                                fillBrush=pg.mkBrush(150, 165, 190, 150))
+        curva.setFillLevel(0)
+        self.isto.addItem(curva)
+        self.isto.setXRange(0, 1.35, padding=0)
+        # livelli principali: i picchi più netti (pavimenti, soffitti, solai)
+        ordine = np.argsort(cont)[::-1]
+        livelli = []
+        for k in ordine:
+            if cont[k] < 0.15 * cont[ordine[0]] or len(livelli) >= 6:
+                break
+            if all(abs(centri[k] - l) > 0.4 for l in livelli):
+                livelli.append(centri[k])
+        livelli.sort()
+        for n, l in enumerate(livelli):
+            nome = "pavimento" if n == 0 else ("soffitto" if n == len(livelli) - 1 else "livello")
+            self.isto.addItem(pg.InfiniteLine(pos=l, angle=0, pen=pg.mkPen((150, 150, 150), style=QtCore.Qt.PenStyle.DotLine)))
+            t = pg.TextItem(f"{nome} {l:.2f}", color=(80, 90, 110), anchor=(1, 1))
+            t.setPos(1.33, l)
+            self.isto.addItem(t)
+        # fascia del taglio (spessore della fetta) attorno alla linea rossa
+        self.fascia_quota = pg.LinearRegionItem(orientation="horizontal", movable=False,
+                                                brush=pg.mkBrush(255, 146, 28, 70), pen=pg.mkPen(None))
+        self.isto.addItem(self.fascia_quota)
+        self.isto.addItem(self.linea_quota)
         self.sp_quota.setRange(z[0], z[-1])
-        # quota proposta: 1 m sopra il pavimento principale (picco più basso tra i più alti)
-        picchi = np.argsort(cont)[::-1][:5]
-        pavimento = centri[min(picchi)] if len(picchi) else centri[0]
+        pavimento = livelli[0] if livelli else centri[0]
         proposta = float(np.clip(pavimento + 1.0, z[0], z[-1]))
         self.sp_quota.setValue(round(proposta, 2))
         self.linea_quota.setValue(self.sp_quota.value())
-        self.isto.getPlotItem().getViewBox().autoRange()
+        self._aggiorna_fascia_quota()
+        self.isto.getPlotItem().getViewBox().setYRange(z[0], z[-1], padding=0.02)
+
+    def _aggiorna_fascia_quota(self, *_):
+        if getattr(self, "fascia_quota", None) is not None:
+            q, s = self.sp_quota.value(), max(self.sp_spessore_p.value() / 200, 0.005)
+            self.fascia_quota.setRegion((q - s, q + s))
 
     def _mostra_riquadro(self, on):
         self.riquadro.setVisible(on)
@@ -875,8 +977,156 @@ class Finestra(QtWidgets.QMainWindow):
             )
         else:
             self.lbl_ab.setText("A e B non ancora definiti")
+        self._aggiorna_taglio3d()
+
+    def _aggiorna_taglio3d(self, *_):
+        """Piano di taglio nella vista 3D (coordinate locali della nuvola)."""
+        if not hasattr(self, "vista3d") or self.nuvola is None:
+            return
+        o = self.nuvola.origine
+        if self.rb_pianta.isChecked():
+            t = dict(tipo="pianta", quota=self.sp_quota.value() - o[2], spessore=self.sp_spessore_p.value() / 100)
+        elif self.a is not None and self.b is not None:
+            if self.rb_prospetto.isChecked():
+                t = dict(tipo="prospetto", a=self.a, b=self.b, davanti=self.sp_davanti.value(),
+                         dietro=self.sp_dietro.value())
+            else:
+                t = dict(tipo="sezione", a=self.a, b=self.b, spessore=self.sp_spessore_s.value() / 100)
+        else:
+            t = None
+        self.vista3d.imposta_taglio(t)
+        if not self._timer_sel.isActive():
+            self._timer_sel.start()
+
+    def _chiave_taglio(self):
+        """Impostazioni del taglio attuale (per riusare l'anteprima precisa)."""
+        if self.nuvola is None:
+            return None
+        if self.rb_pianta.isChecked():
+            rq = None
+            if self.chk_riquadro.isChecked():
+                pos, dim = self.riquadro.pos(), self.riquadro.size()
+                rq = (round(pos.x(), 3), round(pos.y(), 3), round(pos.x() + dim.x(), 3), round(pos.y() + dim.y(), 3))
+            return ("pianta", round(self.sp_quota.value(), 4), round(self.sp_spessore_p.value(), 3), rq)
+        if self.a is None or self.b is None:
+            return None
+        ab = tuple(np.round(np.r_[self.a, self.b], 4))
+        if self.rb_prospetto.isChecked():
+            return ("prospetto", ab, round(self.sp_davanti.value(), 3), round(self.sp_dietro.value(), 3))
+        return ("sezione", ab, round(self.sp_spessore_s.value(), 3))
+
+    def _aggiorna_selezione(self):
+        """Il "grigetto": i punti dell'anteprima che il taglio prenderà, sulla
+        mappa (sopra la nuvola sbiadita) e da soli nel riquadro sotto."""
+        nv = self.nuvola
+        if nv is None:
+            return
+        P = nv.anteprima
+        chiave = self._chiave_taglio()
+        if chiave is None:
+            self.sel_mappa.clear()
+            self.sel_punti.clear()
+            self.img.setOpacity(1.0)
+            self.lbl_sel.setText("<b>Anteprima del taglio</b>: traccia la linea A-B sulla vista dall'alto.")
+            return
+        o = nv.origine
+        if chiave[0] == "pianta":
+            q = self.sp_quota.value() - o[2]
+            s = max(self.sp_spessore_p.value() / 200, 0.005)
+            m = np.abs(P[:, 2] - q) <= s
+            if chiave[3] is not None:
+                x0, y0, x1, y1 = chiave[3]
+                m &= (P[:, 0] >= x0) & (P[:, 0] <= x1) & (P[:, 1] >= y0) & (P[:, 1] <= y1)
+            mappa = P[m][:, :2]
+            vista = mappa
+            assi = ("X locale (m)", "Y locale (m)")
+            cosa = f"pianta a quota {self.sp_quota.value():.2f} m, fetta {self.sp_spessore_p.value():.1f} cm"
+        else:
+            a, b = self.a, self.b
+            L = float(np.hypot(*(b - a)))
+            d = (b - a) / max(L, 1e-9)
+            n = np.array([-d[1], d[0]])
+            rel = P[:, :2] - a
+            u, v = rel @ d, rel @ n
+            if chiave[0] == "prospetto":
+                m = (u >= 0) & (u <= L) & (v >= -self.sp_davanti.value()) & (v <= self.sp_dietro.value())
+                cosa = "prospetto: tutto quello che sta nella fascia davanti e dietro la linea"
+            else:
+                m = (u >= 0) & (u <= L) & (np.abs(v) <= max(self.sp_spessore_s.value() / 200, 0.005))
+                cosa = f"sezione lunga {L:.2f} m, fetta {self.sp_spessore_s.value():.1f} cm"
+            mappa = P[m][:, :2]
+            vista = np.column_stack((u[m], P[m, 2] + o[2]))
+            assi = ("Distanza da A (m)", "Quota (m)")
+        stima = int(m.sum() / max(len(P), 1) * nv.n)
+        if len(mappa) > 150_000:
+            k = np.random.default_rng(0).choice(len(mappa), 150_000, replace=False)
+            mappa, vista = mappa[k], vista[k]
+        self.img.setOpacity(0.35)  # nuvola sbiadita, selezione in evidenza
+        self.sel_mappa.setData(pos=mappa) if len(mappa) else self.sel_mappa.clear()
+        precisa = self._fetta_precisa is not None and self._fetta_precisa[0] == chiave
+        if precisa:
+            pts = self._fetta_precisa[1]
+            vis = pts if len(pts) <= 300_000 else pts[np.random.default_rng(0).choice(len(pts), 300_000, replace=False)]
+            if chiave[0] != "pianta":
+                vis = vis + np.array([0.0, o[2]])
+            self.sel_punti.setData(pos=vis) if len(vis) else self.sel_punti.clear()
+            self.lbl_sel.setText(f"<b>Anteprima precisa</b> ({cosa}): {len(pts):,} punti veri.".replace(",", "."))
+        else:
+            self.sel_punti.setData(pos=vista) if len(vista) else self.sel_punti.clear()
+            self.lbl_sel.setText(f"<b>Anteprima del taglio</b> ({cosa}): circa {stima:,} punti."
+                                 .replace(",", ".") + (" <span style='color:#c00'>Nessun punto: cambia quota o "
+                                                       "linea.</span>" if stima == 0 else ""))
+        self.vista_sel.setLabel("bottom", assi[0])
+        self.vista_sel.setLabel("left", assi[1])
+        if getattr(self, "_chiave_vista_sel", None) != (chiave[0], chiave[1] if chiave[0] != "pianta" else None):
+            self._chiave_vista_sel = (chiave[0], chiave[1] if chiave[0] != "pianta" else None)
+            self.vista_sel.getPlotItem().getViewBox().autoRange()
+
+    def anteprima_precisa(self):
+        """Legge la fetta vera a piena risoluzione e la mostra."""
+        nv = self.nuvola
+        chiave = self._chiave_taglio()
+        if nv is None or chiave is None:
+            return
+        o = nv.origine
+        if chiave[0] == "pianta":
+            q, s, rq = self.sp_quota.value() - o[2], self.sp_spessore_p.value() / 100, chiave[3]
+
+            def lavoro(av, ann):
+                return chiave, nv.fetta_pianta(q, s, rq, av, ann)
+        elif chiave[0] == "sezione":
+            a, b, s = self.a.copy(), self.b.copy(), self.sp_spessore_s.value() / 100
+
+            def lavoro(av, ann):
+                return chiave, nv.fetta_sezione(a, b, s, av, ann)
+        else:
+            a, b = self.a.copy(), self.b.copy()
+            dav, die = self.sp_davanti.value(), self.sp_dietro.value()
+
+            def lavoro(av, ann):
+                fa = nv.fascia(a, b, -dav, die, av, ann)
+                return chiave, (fa[:, [0, 2]] if len(fa) else np.zeros((0, 2)), fa)
+
+        def fatto(r):
+            k, pts = r
+            if k[0] == "prospetto":
+                self._fascia_precisa = (k, pts[1])
+                pts = pts[0]
+            self._fetta_precisa = (k, pts)
+            self._aggiorna_selezione()
+            self.lbl_stato.setText("Anteprima precisa pronta: estraendo le linee con le stesse impostazioni "
+                                   "la fetta non viene riletta.")
+
+        self._avvia(lavoro, fatto, "Lettura della fetta a piena risoluzione…")
+
+    def _fetta_riusabile(self):
+        """La fetta dell'anteprima precisa, se corrisponde al taglio attuale."""
+        if self._fetta_precisa is not None and self._fetta_precisa[0] == self._chiave_taglio():
+            return self._fetta_precisa[1]
+        return None
 
     # ------------------------------------------------------------ estrazione
+
     def _opzioni_piombo(self):
         if not self.gr_piombo.isChecked():
             return None
@@ -898,20 +1148,23 @@ class Finestra(QtWidgets.QMainWindow):
                 pos, dim = self.riquadro.pos(), self.riquadro.size()
                 riquadro = (pos.x(), pos.y(), pos.x() + dim.x(), pos.y() + dim.y())
 
+            gia = self._fetta_riusabile()
+
             def lavoro(av, ann):
                 t0 = time.time()
-                pts = nv.fetta_pianta(quota, spessore, riquadro, lambda f, m: av(f * 0.3, m), ann)
+                pts = gia if gia is not None else nv.fetta_pianta(quota, spessore, riquadro,
+                                                                   lambda f, m: av(f * 0.3, m), ann)
                 av(0.3, f"Ricostruzione delle linee da {len(pts):,} punti…".replace(",", "."))
                 if riconosci:
                     # linee, arredi, vani e pilastri con l'aiuto della nuvola 3D
-                    poli, aperture = classifica.pianta(pts, par, nv, quota, ann)
+                    poli, aperture, testi_locali = classifica.pianta(pts, par, nv, quota, ann)
                     if par.legno:
                         poli = classifica.classifica_legno(poli, "pianta")
                 else:
                     poli = elabora.estrai(pts, par, ann)
                 testi, report = [], []
                 if riconosci:
-                    testi += classifica.testi_aperture(aperture)
+                    testi += classifica.testi_aperture(aperture) + testi_locali
                 if pb:
                     av(0.7, "Analisi del fuori piombo…")
                     if not riconosci:
@@ -934,10 +1187,13 @@ class Finestra(QtWidgets.QMainWindow):
             if self.rb_prospetto.isChecked():
                 davanti, dietro = self.sp_davanti.value(), self.sp_dietro.value()
 
+                gia = self._fetta_riusabile()
+                gia = self._fascia_precisa[1] if gia is not None and getattr(self, "_fascia_precisa", None) else None
+
                 def lavoro(av, ann):
                     t0 = time.time()
                     # chi guarda la facciata sta a destra della linea A -> B
-                    fa = nv.fascia(a, b, -davanti, dietro, lambda f, m: av(f * 0.5, m), ann)
+                    fa = gia if gia is not None else nv.fascia(a, b, -davanti, dietro, lambda f, m: av(f * 0.5, m), ann)
                     av(0.5, f"Ricostruzione del prospetto da {len(fa):,} punti…".replace(",", "."))
                     pts, poli = prospetto.estrai_prospetto(fa, par)
                     if not riconosci:
@@ -947,10 +1203,12 @@ class Finestra(QtWidgets.QMainWindow):
                                 spessore=davanti + dietro, durata=time.time() - t0, par=par, profilo=self.cb_profilo.currentText())
             else:
                 spessore = self.sp_spessore_s.value() / 100
+                gia = self._fetta_riusabile()
 
                 def lavoro(av, ann):
                     t0 = time.time()
-                    pts = nv.fetta_sezione(a, b, spessore, lambda f, m: av(f * 0.5, m), ann)
+                    pts = gia if gia is not None else nv.fetta_sezione(a, b, spessore,
+                                                                         lambda f, m: av(f * 0.5, m), ann)
                     av(0.5, f"Ricostruzione delle linee da {len(pts):,} punti…".replace(",", "."))
                     poli = elabora.estrai(pts, par, ann)
                     if riconosci:
@@ -1007,7 +1265,7 @@ class Finestra(QtWidgets.QMainWindow):
             self.vista_ris.removeItem(t)
         self.etichette = []
         for t in ris.get("testi") or []:
-            if t.categoria not in ("porte", "finestre"):
+            if t.categoria not in ("porte", "finestre", "locali"):
                 continue
             col = COLORI_CAT.get(t.categoria, (60, 60, 60))
             et = pg.TextItem(t.testo, color=col, anchor=(0.5, 0.5))
@@ -1041,7 +1299,7 @@ class Finestra(QtWidgets.QMainWindow):
         self.lbl_ris.setText(testo)
         self.lbl_stato.setText(f"Fatto: «{ris.get('nome', '')}». Controlla il risultato; puoi rinominarlo ed "
                                "esportarlo dal riquadro 4.")
-        self.schede.setCurrentIndex(1)
+        self.schede.setCurrentWidget(self.contenitore_ris)
         self._aggiorna_stato()
 
     # ------------------------------------------------------------ esportazione
@@ -1164,6 +1422,8 @@ class Finestra(QtWidgets.QMainWindow):
     def _nome_proposto(self, ris):
         if ris["tipo"] == "pianta":
             nome = f"Pianta quota {ris['quota'] + self.nuvola.origine[2]:+.2f}"
+            if getattr(ris.get("par"), "metodo", "") == "intuitivo":
+                nome += " intuitiva"
         elif ris["tipo"] == "sezione":
             n = 1 + sum(t["tipo"] == "sezione" for t in self.tagli)
             nome = f"Sezione {n}"

@@ -23,7 +23,9 @@ import scene  # noqa: E402
 
 SPOSTA = np.array([700000.0, 5100000.0, 1000.0])  # coordinate "georeferenziate"
 QUOTE = {"appartamento": 1.2, "storico": 1.5}
-PROFILI_SCENA = {"appartamento": ["Squadrato", "Prevalentemente"], "storico": ["Prevalentemente", "Storico"]}
+ALTO = {"appartamento": 2.5, "storico": 4.0}  # sopra porte e finestre: per le stanze vere
+PROFILI_SCENA = {"appartamento": ["Squadrato", "Squadrato+intuitivo"],
+                 "storico": ["Prevalentemente", "Prevalentemente+intuitivo"]}
 
 
 def nuvola_scena(nome, cartella):
@@ -55,21 +57,25 @@ def esegui(nome, cartella, profili=None):
     zc = QUOTE[nome]
     muri = metriche.impronte(sc, zc, {"muro", "pilastro"})
     arredi = metriche.impronte(sc, zc, {"arredo", "anta", "persona"})
+    stanze = metriche.stanze_vere(sc, ALTO[nome])
     q = zc + SPOSTA[2] - nv.origine[2]
     fet = nv.fetta_pianta(q, 0.05)
     loc = SPOSTA[:2] - nv.origine[:2]  # dalla scena alle coordinate locali
     risultati = {}
     for nome_p in profili or PROFILI_SCENA[nome]:
-        k = [p for p in PROFILI if p.startswith(nome_p)][0]
-        par = PROFILI[k]
+        intu = nome_p.endswith("+intuitivo")
+        k = [p for p in PROFILI if p.startswith(nome_p.replace("+intuitivo", ""))][0]
+        par = PROFILI[k].copia(metodo="intuitivo") if intu else PROFILI[k]
         t = time.time()
-        poli, aperture = classifica.pianta(fet, par, nv, q)
+        poli, aperture, _ = classifica.pianta(fet, par, nv, q)
         durata = time.time() - t
         for p in poli:
             p.punti = p.punti - loc
         for ap in aperture:
             ap["c"] = ap["c"] - loc
-        r = metriche.valuta_pianta(poli, muri, arredi, fet - loc)
+        linfo = [dict(poligono=p.punti) for p in poli if p.categoria == "locali"]
+        r = metriche.valuta_pianta([p for p in poli if p.categoria != "locali"], muri, arredi, fet - loc)
+        r.update(metriche.valuta_locali(linfo, stanze))
         v = metriche.valuta_vani(aperture, sc.vani)
         r.update({k2: v[k2] for k2 in v if k2 not in ("righe", "falsi_lista")})
         r["secondi"] = durata
@@ -89,7 +95,7 @@ def disegna(percorso, fet, poli, muri, arredi, v, stazioni, titolo):
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
-    col = dict(arredi="#c08a2a", muri="#111", porte="#1a9a3a", finestre="#1f6fd1", pilastri="#00a0be", chiusure="#ff0096")
+    col = dict(locali="#8a3fd1", arredi="#c08a2a", muri="#111", porte="#1a9a3a", finestre="#1f6fd1", pilastri="#00a0be", chiusure="#ff0096")
     fig, ax = plt.subplots(figsize=(15, 10))
     for geom, c in ((arredi, "#f4d9a8"), (muri, "#d6dbe3")):
         for g in getattr(geom, "geoms", [geom]) if geom is not None else []:
@@ -101,7 +107,7 @@ def disegna(percorso, fet, poli, muri, arredi, v, stazioni, titolo):
         if p.chiusa and p.tipo != "cerchio":
             c = np.vstack((c, c[:1]))
         ax.plot(c[:, 0], c[:, 1], lw=1.6, c=col.get(p.categoria, "#c00"), zorder=3,
-                ls="--" if p.categoria == "chiusure" else "-")
+                ls="--" if p.categoria in ("chiusure", "locali") else "-")
     for r in v["righe"]:
         x, y = r["vero"]["c"]
         ok = r["trovato"] is not None and r["trovato"]["categoria"] == r["vero"]["tipo"]

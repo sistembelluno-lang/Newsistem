@@ -15,9 +15,11 @@ class Parametri:
     tol_angolo: float = 6.0      # gradi
     archi: bool = True           # (motore libero) riconosce archi e cerchi
     raggio: float = 0.01         # m: punti a questa distanza da un punto della linea ne fanno parte
-    chiudi_stanze: float = 1.0   # m: buchi e angoli nascosti (mobili, ombre) richiusi fino a qui
+    chiudi_stanze: float = 1.5   # m: angoli nascosti (mobili, ombre) richiusi fino a qui
+    chiudi_allineati: float = 3.0  # m: buchi lungo uno stesso muro richiusi fino a qui
     buco_visibile: float = 0.10  # m: le chiusure più lunghe vanno nel layer «chiusure da verificare»
     legno: bool = False          # riconosce tavolati, travi, ballatoi (tabià, fienili, strutture in legno)
+    metodo: str = "matematico"   # matematico (fedele ai punti) | intuitivo (immagina la struttura)
 
     def copia(self, **kw):
         return replace(self, **kw)
@@ -42,7 +44,7 @@ PROFILI = {
     "Tabià / strutture in legno (tavole, travi, ballatoi)": Parametri(
         motore="dritto", tolleranza=0.008, lung_min=0.05, chiudi_buchi=0.10,
         unisci_spigoli=0.15, squadra=True, allinea=True, tol_angolo=4.0,
-        chiudi_stanze=0.6, legno=True,
+        chiudi_stanze=0.6, chiudi_allineati=1.5, legno=True,
     ),
 }
 
@@ -71,6 +73,8 @@ CATEGORIE = {
     "muri": ("00_muri", 7),
     "pilastri": ("00_pilastri", 4),
     "porte": ("00_porte", 3),
+    "ante": ("00_porte", 3),
+    "locali": ("00_locali", 6),
     "finestre": ("00_finestre", 5),
     "pavimenti": ("00_pavimenti", 8),
     "soffitti": ("00_soffitti", 9),
@@ -94,6 +98,8 @@ NOMI_CATEGORIE = {
     "muri": "Muri e pareti",
     "pilastri": "Pilastri e colonne",
     "porte": "Porte",
+    "ante": "Ante delle porte",
+    "locali": "Locali (contorno e superficie)",
     "finestre": "Finestre",
     "pavimenti": "Pavimenti (base)",
     "soffitti": "Soffitti",

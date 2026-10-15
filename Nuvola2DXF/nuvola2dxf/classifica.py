@@ -219,6 +219,35 @@ def testi_aperture(aperture):
     return out
 
 
+def ante(poli, aperture, vicino=0.12):
+    """Ante delle porte: linee sottili lunghe come una porta, con un estremo
+    sullo stipite di un vano. Non sono muri: vanno nel layer delle porte e
+    non dividono gli ambienti."""
+    stipiti = [np.asarray(x, float) for ap in aperture for f in ap["facce"] for x in f]
+    if not stipiti:
+        return
+    S = np.array(stipiti)
+    for p in poli:
+        if p.categoria not in ("muri", "altro") or p.tipo == "cerchio":
+            continue
+        P = p.punti
+        # spessore misurato lungo la normale del tratto più lungo
+        tratti = [(a, b) for a, b, g in p.tratti()]
+        a, b = max(tratti, key=lambda t: np.hypot(*(t[1] - t[0])))
+        L = float(np.hypot(*(b - a)))
+        if L < 0.5 or L > 1.4:
+            continue
+        d = (b - a) / L
+        n = np.array([-d[1], d[0]])
+        spess = float(np.ptp(P @ n))
+        lung = float(np.ptp(P @ d))
+        if spess > 0.08 or lung > 1.4:
+            continue
+        estremi = (P[0], P[-1]) if not p.chiusa else tuple(P)
+        if min(np.hypot(*(S - e).T).min() for e in estremi) < vicino:
+            p.categoria = "ante"
+
+
 def disegna_aperture(aperture):
     out = []
     for ap in aperture:
@@ -234,13 +263,18 @@ def disegna_aperture(aperture):
 
 
 def pianta(punti2d, par, nv=None, quota=None, annulla=None, riconosci=True):
-    """Pianta completa: linee, arredi (con la nuvola 3D), vani e pilastri.
-    Restituisce (polilinee, aperture)."""
+    """Pianta completa: linee, arredi (con la nuvola 3D), vani, pilastri e
+    locali. Restituisce (polilinee, aperture, testi dei locali)."""
     from . import elabora, verifica3d
 
+    if par.metodo == "intuitivo" and nv is not None and quota is not None and riconosci:
+        # si guarda attorno: piano, muri interi, vani; poi disegna la pianta
+        from . import modello
+
+        return modello.pianta(nv, quota, par, annulla)
     poli = elabora.estrai(punti2d, par, annulla)
     if not riconosci:
-        return poli, []
+        return poli, [], []
     pts = punti2d
     if nv is not None and quota is not None:
         arr = verifica3d.arredi(poli, nv, quota)
@@ -250,7 +284,14 @@ def pianta(punti2d, par, nv=None, quota=None, annulla=None, riconosci=True):
             mobili = [p for p in poli if p.categoria == "arredi"]
             pts = verifica3d.punti_fuori_arredi(punti2d, poli)
             poli = elabora.estrai(pts, par, annulla) + mobili
-    return classifica_pianta(poli, pts, nv, quota)
+    poli, aperture = classifica_pianta(poli, pts, nv, quota)
+    # gli ambienti: stanze chiuse con superficie; i lati senza muro diventano
+    # chiusure da verificare, fino agli spigoli geometrici
+    from . import locali as _locali
+
+    lp, lt, info = _locali.locali(poli)
+    poli = poli + _locali.completa_muri(poli, info) + lp
+    return poli, aperture, lt
 
 
 def classifica_pianta(poli, punti2d, nv=None, quota=None):
@@ -265,6 +306,7 @@ def classifica_pianta(poli, punti2d, nv=None, quota=None):
         if togliere:
             poli = [p for k, p in enumerate(poli) if k not in togliere]
         aperture = aperture + altre
+    ante(poli, aperture)
     return poli + disegna_aperture(aperture), aperture
 
 
