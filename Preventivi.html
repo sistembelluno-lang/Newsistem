@@ -250,7 +250,7 @@ function status(){const t=lastSave?new Date(lastSave).toLocaleTimeString('it-IT'
 
 // ===== Cartella condivisa sul server: offerte.json per CONTROLLO_SISTEM, codici.json per le commesse =====
 const SH={dir:'',cod:null,err:'',pub:0};
-async function shInit(){if(!DESK)return;try{SH.dir=(await window.desktop.shGet()).dir||''}catch(e){}if(SH.dir){await shLoad();pubOff()}}
+async function shInit(){if(!DESK)return;try{const g=await window.desktop.shGet();SH.dir=g.dir||'';if(g.auto)toast('Collegato a CONTROLLO_SISTEM: uso la sua cartella condivisa '+g.dir,5000)}catch(e){}if(SH.dir){await shLoad();pubOff()}}
 async function shLoad(){if(!SH.dir)return;try{const t=await window.desktop.shRead('codici.json');SH.cod=t?JSON.parse(String(t).replace(/^﻿/,'')):null;SH.err=''}catch(e){SH.err=errMsg(e)}}
 function pubOff(){if(!SH.dir)return;clearTimeout(pubOff.t);pubOff.t=setTimeout(async()=>{
   const off=D.prev.filter(p=>p.num).map(p=>({id:p.id,num:p.num,data:p.data,stato:p.stato,commessa:String(p.commessa||''),cliente:p.cli.ditta||'',loc:(p.cli.loc||'').replace(/\n/g,' '),ogg:p.ogg||'',imp:totals(p).imp,tempi:p.tempi&&p.tempi!=='---'?p.tempi:''}));
@@ -526,18 +526,21 @@ $('modOk').onclick=()=>{const nome=$('modN').value.trim();if(!nome){$('modN').fo
 
 // ===== Impostazioni =====
 function renderSet(){const s=D.set,a=s.az,i=(k,l,v,o='')=>`<label${o}>${l}<input data-s="${k}" value="${esc(v)}"></label>`;
-  $('dSetB').innerHTML=`<h4 style="margin-top:0">CARTA INTESTATA</h4><div class="g2">${i('az.rag','Ragione sociale',a.rag)}${i('az.ind','Indirizzo',a.ind)}${i('az.tel','Telefono',a.tel)}${i('az.email','E-mail',a.email)}${i('az.pec','PEC',a.pec)}${i('az.web','Sito web',a.web)}${i('az.piva','C.F. / P.IVA (piè di pagina)',a.piva)}</div>
+  $('dSetB').innerHTML=`<h4 style="margin-top:0">COLLEGAMENTO CON CONTROLLO_SISTEM</h4><p style="margin:0 0 8px">Cartella condivisa sul server (la stessa scelta in CONTROLLO_SISTEM → 👥 Ore dipendenti → Impostazioni): <b>${SH.dir?esc(SH.dir):'non scelta'}</b> ${SH.err?`<span class="warn">⚠ ${esc(SH.err)}</span>`:SH.pub?'<span class="okc">✓ offerte pubblicate</span>':''}</p>
+<p style="margin:0 0 6px"><button id="shc">Scegli cartella condivisa…</button></p>
+<div style="display:flex;gap:8px;align-items:center;margin:0 0 6px"><input id="shp" placeholder="oppure scrivi il percorso, es. \\\\SERVER\\ControlloLavori" value="${esc(SH.dir)}"><button id="shs">Usa questo percorso</button></div>
+<p class="muted" style="margin:0 0 6px">Nella finestra «Scegli cartella condivisa…» seleziona la cartella con un clic (o entraci) e premi <b>«Seleziona cartella»</b> in basso a destra. Se PREVENTIVI_SISTEM è sullo stesso PC di CONTROLLO_SISTEM, la cartella viene presa da sola.</p><p class="muted">Qui PREVENTIVI_SISTEM scrive <b>offerte.json</b>: in CONTROLLO_SISTEM il pulsante «📄 Offerte» le elenca e crea il lavoro con il codice commessa, il rif. offerta, il cliente e l’importo. Da <b>codici.json</b> legge i codici già usati per proporre la commessa successiva.</p><h4>CARTA INTESTATA</h4><div class="g2">${i('az.rag','Ragione sociale',a.rag)}${i('az.ind','Indirizzo',a.ind)}${i('az.tel','Telefono',a.tel)}${i('az.email','E-mail',a.email)}${i('az.pec','PEC',a.pec)}${i('az.web','Sito web',a.web)}${i('az.piva','C.F. / P.IVA (piè di pagina)',a.piva)}</div>
 <h4>VALORI PREDEFINITI</h4><div class="g2">${i('pref','Prefisso numero offerta',s.pref)}${i('luogo','Luogo',s.luogo)}${i('cp','Contributo previdenziale %',s.cp)}${i('iva','IVA %',s.iva)}${i('conto','Apertura conto dedicato €',s.conto)}${i('val','Validità (giorni)',s.val)}${i('foro','Foro competente',s.foro)}${i('term','Pagamento entro',s.term)}
 <label class="f">Coordinate bancarie<textarea data-s="banca" rows="2">${esc(s.banca)}</textarea></label>${i('firma.soc','Firma: società',s.firma.soc)}${i('firma.ruolo','Firma: ruolo',s.firma.ruolo)}${i('firma.nome','Firma: nome',s.firma.nome,' class="f"')}</div>
 <p class="muted">Contributo, IVA e carta intestata valgono per tutte le offerte; le note con l’asterisco delle nuove offerte usano questi valori.</p>
 <h4>DOVE SONO I DATI</h4><p style="margin:0 0 8px" id="sdir"></p><p style="margin:0 0 6px"><button id="schoose">Cambia cartella…</button> <button id="sopen">Apri cartella</button></p>
-<h4>COLLEGAMENTO CON CONTROLLO_SISTEM</h4><p style="margin:0 0 8px">Cartella condivisa sul server (la stessa scelta in CONTROLLO_SISTEM → 👥 Ore dipendenti → Impostazioni): <b>${SH.dir?esc(SH.dir):'non scelta'}</b> ${SH.err?`<span class="warn">⚠ ${esc(SH.err)}</span>`:SH.pub?'<span class="okc">✓ offerte pubblicate</span>':''}</p>
-<p style="margin:0 0 6px"><button id="shc">Scegli cartella condivisa…</button></p><p class="muted">Qui PREVENTIVI_SISTEM scrive <b>offerte.json</b>: in CONTROLLO_SISTEM il pulsante «📄 Offerte» le elenca e crea il lavoro con il codice commessa, il rif. offerta, il cliente e l’importo. Da <b>codici.json</b> legge i codici già usati per proporre la commessa successiva.</p>`;
+`;
   if(DESK)window.desktop.init().then(r=>{$('sdir').innerHTML='File: <b>'+esc(r.file)+'</b>'});else $('sdir').textContent='Versione di prova nel browser: i dati restano in questo browser.'}
 $('dSetB').addEventListener('input',e=>{const k=e.target.dataset.s;if(!k)return;let v=e.target.value;if(['cp','iva','conto','val'].includes(k))v=num(v);setK(D.set,k,v);save();if(cur){renderForm();preview()}});
 $('dSetB').addEventListener('click',async e=>{const id=e.target.id;
   if(id==='schoose'&&DESK){const r=await window.desktop.choose();if(!r)return;if(r.exists&&r.data&&await ask('Nella cartella c’è già un file di offerte. Caricare quelle offerte al posto di quelle aperte ora?')){load(r.data)}else save();renderSet();renderArch()}
   if(id==='sopen'&&DESK)window.desktop.open();
+  if(id==='shs'&&DESK){const r=await window.desktop.shSet($('shp').value);if(!r.ok){toast(r.error,5000);return}SH.dir=r.dir;await shLoad();pubOff();toast('Cartella condivisa impostata');setTimeout(renderSet,1500);renderSet()}
   if(id==='shc'&&DESK){const r=await window.desktop.shChoose();if(r&&r.dir){SH.dir=r.dir;await shLoad();pubOff();setTimeout(renderSet,1500);renderSet()}}});
 $('nSet').onclick=()=>{renderSet();$('dSet').showModal()};
 $('dSet').onclose=()=>{if(!cur)renderArch()};

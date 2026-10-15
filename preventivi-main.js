@@ -127,6 +127,15 @@ function zip(files) {
 
 // ===== Cartella condivisa sul server (la stessa di CONTROLLO_SISTEM): si scrive offerte.json e si legge codici.json =====
 function sharedDir() { return readSettings().shared || ''; }
+// Sullo stesso PC di CONTROLLO_SISTEM si usa da sola la cartella condivisa già scelta lì
+function adoptShared() {
+  if (sharedDir()) return '';
+  try {
+    const d = JSON.parse(fs.readFileSync(path.join(app.getPath('appData'), 'Controllo Lavori', 'impostazioni.json'), 'utf8')).shared;
+    if (d && fs.statSync(d).isDirectory()) { const s = readSettings(); s.shared = d; writeSettings(s); return d; }
+  } catch (e) { }
+  return '';
+}
 function sharedPath(rel) {
   const base = sharedDir();
   if (!base) throw new Error('Cartella condivisa non impostata');
@@ -137,7 +146,16 @@ function sharedPath(rel) {
 const SH_ERR = { EPERM: 'accesso negato: manca il permesso di scrittura', EACCES: 'accesso negato: manca il permesso', ENOENT: 'percorso non trovato', EBUSY: 'file in uso da un altro programma',
   ETIMEDOUT: 'il server non risponde', EHOSTUNREACH: 'server non raggiungibile', ENETUNREACH: 'rete non raggiungibile', EIO: 'errore di rete', UNKNOWN: 'errore di rete o percorso non valido', ENOTDIR: 'il percorso non è una cartella', EROFS: 'cartella in sola lettura' };
 const shMsg = (err) => (SH_ERR[err.code] || err.message) + (err.code ? ` [${err.code}]` : '');
-ipcMain.handle('sh:get', () => ({ dir: sharedDir() }));
+ipcMain.handle('sh:get', () => { const auto = adoptShared(); return { dir: sharedDir(), auto: !!auto }; });
+// Percorso scritto a mano (es. \\SERVER\ControlloLavori), in alternativa alla finestra di scelta
+ipcMain.handle('sh:set', (e, p) => {
+  const d = String(p || '').trim().replace(/^"|"$/g, '').replace(/[\\/]+$/, '');
+  if (!d) return { ok: false, error: 'Scrivi il percorso della cartella' };
+  try { if (!fs.statSync(d).isDirectory()) return { ok: false, error: 'Il percorso non è una cartella' }; }
+  catch (err) { return { ok: false, error: 'Cartella non raggiungibile: ' + shMsg(err) }; }
+  const s = readSettings(); s.shared = d; writeSettings(s);
+  return { ok: true, dir: d };
+});
 ipcMain.handle('sh:choose', async () => {
   const r = await dialog.showOpenDialog(win, { title: 'Scegli la cartella condivisa sul server (la stessa di CONTROLLO_SISTEM)', defaultPath: sharedDir() || undefined, properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return null;

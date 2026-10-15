@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('desktop', {
   expFolder: () => ipcRenderer.invoke('doc:folder'),
   shGet: () => ipcRenderer.invoke('sh:get'),
   shChoose: () => ipcRenderer.invoke('sh:choose'),
+  shSet: (p) => ipcRenderer.invoke('sh:set', p),
   shRead: (rel) => ipcRenderer.invoke('sh:read', rel),
   shWrite: (rel, text) => ipcRenderer.invoke('sh:write', rel, text),
 });

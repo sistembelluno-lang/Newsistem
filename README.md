@@ -5,6 +5,8 @@ Tre programmi a pagina singola, impacchettati come applicazioni desktop con Elec
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
 - **PREVENTIVI_SISTEM** (`Preventivi.html`, `preventivi-main.js`): crea le offerte («Offerta per servizi tecnici professionali») sulla carta intestata SISTEM SRL STP e le esporta in **PDF** e **Word (.docx)**; archivio delle offerte con esito e codice commessa.
 
+Novità 1.11.1: PREVENTIVI_SISTEM prende da solo la cartella condivisa di CONTROLLO_SISTEM se è sullo stesso PC; in ⚙ Impostazioni il percorso del server si può anche scrivere a mano (es. `\\SERVER\ControlloLavori`).
+
 Novità 1.11: nuovo programma **PREVENTIVI_SISTEM**.
 - Offerta divisa nelle sezioni fisse SPETTABILE CLIENTE, PREMESSA, OFFERTA TECNICA, OFFERTA ECONOMICA, VALIDITA’ OFFERTA, FORO COMPETENTE, CONDIZIONI DI PAGAMENTO (i titoli non si modificano); anteprima dal vivo accanto ai campi.
 - Numero automatico come nelle offerte tipo (`OFFTO` + giorno + mese + anno + progressivo, es. `OFFTO910261`), modificabile; voci con «Euro … + cont prev 4,61% + iva 22%», riepilogo con contributo, IVA e totale a scelta; timbro e firma.
