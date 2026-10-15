@@ -29,7 +29,7 @@ header{background:linear-gradient(110deg,#0c2244,#1862c4);color:#fff;padding:12p
 <main>
 <div class="cop"><img src="img/ndxf_logo.png" alt="Logo NDXF"></div>
 <h1>Nuvola2DXF (NDXF) – guida all'uso</h1>
-<p>Piante, sezioni e prospetti in DXF dalle nuvole di punti del laser scanner · versione 1.2.0</p>
+<p>Piante, sezioni e prospetti in DXF dalle nuvole di punti del laser scanner · versione 1.3.0</p>
 <div class="lead">
 <p><strong>Nuvola2DXF</strong> trasforma una nuvola di punti (per esempio un rilievo con Trimble X7 o X9) in disegni
 DXF pronti per il CAD: <strong>piante</strong>, <strong>sezioni</strong> e <strong>prospetti</strong>, con le linee già unite negli
@@ -60,7 +60,7 @@ Il programma fa il grosso del lavoro; a te resta il <strong>controllo in CAD</st
 <div class="pb"></div>
 <h2>1. Scaricare e avviare il programma</h2>
 <p>Il programma è <strong>un solo file</strong>: non si installa. Scarica quello adatto al tuo PC dalla pagina
-<a href="https://github.com/sistembelluno-lang/Newsistem/releases/tag/nuvola2dxf-v1.2.0">Nuvola2DXF 1.2.0</a>:</p>
+<a href="https://github.com/sistembelluno-lang/Newsistem/releases/tag/nuvola2dxf-v1.3.0">Nuvola2DXF 1.3.0</a>:</p>
 <table><tr><th>Il tuo PC</th><th>File da scaricare</th></tr>
 <tr><td>Windows 10 o 11 (64 bit)</td><td><code>Nuvola2DXF.exe</code></td></tr>
 <tr><td>Windows 7 o 8.1 (64 bit)</td><td><code>Nuvola2DXF-Windows7.exe</code></td></tr></table>
@@ -139,6 +139,19 @@ Con <em>Allinea la linea alla facciata più vicina</em> attivo, la linea si radd
 «Prospetto nord», «Prospetto sud-est»…</li>
 </ol>
 
+<h3>Anteprima del taglio e vista 3D</h3>
+<p>Prima di estrarre vedi <strong>esattamente quali punti prenderà il taglio</strong>: sulla Vista dall'alto la nuvola
+diventa sbiadita e la fetta (o la fascia della sezione) è in grigio scuro; sotto la mappa la fetta compare da sola, con
+la stima dei punti. Muovendo la quota, lo spessore o la linea A-B l'anteprima segue subito. <strong>Anteprima
+precisa</strong> legge la fetta vera a piena risoluzione; se poi estrai con le stesse impostazioni non viene riletta.
+La scheda <strong>Vista 3D</strong> mostra la nuvola in assonometria con il piano di taglio (trascina per ruotare,
+rotella per ingrandire) e in rosso i punti presi.</p>
+<div class="duo">
+<figure><img src="img/ndxf_anteprima.png" alt="Anteprima del taglio"><figcaption>Anteprima del taglio: in grigio scuro i
+punti presi, sotto la fetta da sola.</figcaption></figure>
+<figure><img src="img/ndxf_3d.png" alt="Vista 3D"><figcaption>Vista 3D con il piano di taglio.</figcaption></figure>
+</div>
+
 <h2>7. Passo 3 – Tipo di edificio</h2>
 <p>Scegli il tipo più vicino all'edificio rilevato: cambia il modo in cui le linee vengono ricostruite.</p>
 <table>
@@ -149,6 +162,26 @@ Con <em>Allinea la linea alla facciata più vicina</em> attivo, la linea si radd
 <tr><td><strong>Tabià / strutture in legno</strong></td><td>Tabià, fienili, ballatoi, coperture in legno</td><td>Segue anche le tavole sottili (2-4 cm, a doppia linea), travi e puntoni inclinati; mette tavolati, travi e ballatoi in layer separati (vedi capitolo 11).</td></tr>
 </table>
 <p>Lascia attivo <strong>Riconosci muri, porte, finestre, pilastri, legno…</strong>: divide il disegno nei layer.</p>
+<h3>Ricostruzione: matematica o intuitiva</h3>
+<table>
+<tr><th>Metodo</th><th>Come lavora</th><th>Quando usarlo</th></tr>
+<tr><td><strong>Matematica</strong></td><td>Disegna quello che c'è nella fetta alla quota di taglio: linee molto fedeli ai
+punti. Dove armadi e oggetti nascondono i muri, li richiude sul prolungamento dei muri (layer da verificare).</td>
+<td>Rilievi puliti, pochi mobili; edifici senza soffitto piano.</td></tr>
+<tr><td><strong>Intuitiva</strong></td><td>Si "guarda attorno" come una persona: trova pavimento e soffitto, ricava i muri
+dalla fascia appena sotto il soffitto (dove non ci sono mobili), guarda ogni muro <strong>per intero</strong> per trovare
+porte e finestre (un oggetto davanti non è un vano; se dall'altro lato il muro è pieno non c'è un vano) e chiude le
+stanze. Gli arredi non vengono disegnati.</td><td>Stanze arredate, muri nascosti, quando il metodo matematico lascia
+buchi. Serve il soffitto rilevato. Per ora solo in pianta.</td></tr>
+</table>
+<p>Puoi fare la stessa pianta con tutti e due i metodi: nell'elenco dei tagli quella intuitiva ha il nome che finisce con
+«intuitiva». Esporta quella che ti convince di più.</p>
+<figure class="md"><img src="img/ndxf_intuitiva.png" alt="Pianta intuitiva"><figcaption>Pianta con il metodo intuitivo:
+stanze chiuse con nome e superficie, porte e finestre con le misure.</figcaption></figure>
+<h3>Locali</h3>
+<p>In pianta ogni stanza diventa un <strong>contorno chiuso</strong> nel layer <code>00_locali</code>, con nome e
+superficie («Locale 1 – 18,40 m²»). Il contorno segue le facce dei muri; dove una linea di muro manca, viene aggiunta
+una chiusura sul prolungamento del muro fino allo spigolo geometrico (layer da verificare).</p>
 
 <h2>8. Estrarre e controllare il risultato</h2>
 <p>Premi il pulsante arancione <strong>Taglia ed estrai le linee</strong>. In pochi secondi si apre la scheda
@@ -245,6 +278,7 @@ di una tavola si confondono.</div>
 <tr><td><code>00_legno_…</code></td><td>Tavolati, travi, ballatoi</td><td>Elementi in legno con murature allineate.</td></tr>
 <tr><td><code>00_arredi</code></td><td>Armadi, frigoriferi, librerie riconosciuti con la nuvola 3D (non arrivano al soffitto)</td><td>Che non ci sia finito un muro basso; il muro dietro è richiuso in 00_muri o 00_chiusure_da_verificare.</td></tr>
 <tr><td><code>00_altro</code></td><td>Persone di passaggio, piccoli oggetti isolati</td><td>Di solito si cancella.</td></tr>
+<tr><td><code>00_locali</code></td><td>Contorni chiusi delle stanze con nome e superficie</td><td>Nomi delle stanze (rinominale in CAD).</td></tr>
 <tr><td><code>00_info</code></td><td>Note: file, quota, linea A-B, impostazioni</td><td>Da tenere: dice come è stato fatto il disegno.</td></tr>
 </table>
 <p>Il programma si sbaglia soprattutto su <strong>arredi addossati ai muri</strong> (armadi, cucine), <strong>vegetazione</strong>

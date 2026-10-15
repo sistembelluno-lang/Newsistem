@@ -50,6 +50,19 @@ Esempio: 10.000 punti che descrivono il perimetro di una stanza diventano
   pavimento, una finestra ha il davanzale); nel DXF le misure, per esempio
   «P 90×210» o «F 120×120 dav. 90». In sezione si riconoscono pavimento
   (base), soffitto, architravi, davanzali e le porte anche con l'anta chiusa.
+- **Due metodi di ricostruzione** (pianta): *matematico*, fedele ai punti del
+  taglio; *intuitivo*, che guarda tutta la nuvola come una persona che si
+  guarda attorno: trova pavimento e soffitto, ricava i muri dalla fascia sotto
+  il soffitto (dove non ci sono mobili), guarda ogni muro per intero per porte
+  e finestre (un oggetto davanti non è un vano; controllo anche dall'altro
+  lato del muro) e chiude le stanze.
+- **Locali**: ogni stanza è un contorno chiuso con nome e superficie (layer
+  `00_locali`), agganciato ai muri; i lati senza muro diventano chiusure sul
+  prolungamento dei muri, fino agli spigoli geometrici.
+- **Anteprima del taglio**: prima di estrarre si vedono solo i punti che il
+  taglio prenderà (sulla vista dall'alto e da soli), con la stima dei punti;
+  vista 3D assonometrica con il piano di taglio; anteprima precisa a piena
+  risoluzione, riusata dall'estrazione.
 - **Controlli con la nuvola 3D** (pianta): gli arredi alti (armadi,
   frigoriferi, librerie) finiscono sotto il soffitto e dietro hanno un muro:
   vanno nel layer `00_arredi` e il muro dietro si richiude; i vani dei muri

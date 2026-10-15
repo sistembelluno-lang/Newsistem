@@ -74,6 +74,12 @@ def esegui(log):
             sez = nv.fetta_sezione(a, b, 0.05)
             ps = classifica.classifica_sezione(elabora.estrai(sez, par), sez)
             righe.append(f"sezione: {len(ps)} elementi")
+            # metodo intuitivo e locali sulla stanza di prova
+            pi, _, _ = classifica.pianta(nv.fetta_pianta(51.5 - nv.origine[2], 0.05), par.copia(metodo="intuitivo"),
+                                         nv, 51.5 - nv.origine[2])
+            nloc = sum(p.categoria == "locali" for p in pi)
+            righe.append(f"pianta intuitiva: {len(pi)} elementi, {nloc} locali")
+            ok &= nloc == 1
             ok &= len(ps) >= 2
             legno = [p for k, p in PROFILI.items() if p.legno][0]
             pl = classifica.classifica_legno(classifica.classifica_sezione(elabora.estrai(sez, legno), sez))

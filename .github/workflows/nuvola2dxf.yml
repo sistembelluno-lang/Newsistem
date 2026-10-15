@@ -112,6 +112,12 @@ jobs:
             (LAS, LAZ, E57, PTS, PTX, XYZ, PLY), con riconoscimento di muri, porte, finestre, pilastri,
             pavimenti, soffitti, strutture in legno (tabià: tavolati, travi, ballatoi) e analisi del fuori piombo.
 
+            Novità della 1.3: metodo di ricostruzione «intuitivo» che guarda tutta la nuvola (pavimento,
+            soffitto, muri interi dalla fascia sotto il soffitto, porte e finestre su tutta l'altezza dei muri) e
+            chiude le stanze; locali con nome e superficie (layer 00_locali); muri dietro armadi e oggetti richiusi
+            fino allo spigolo geometrico; anteprima del taglio sulla vista dall'alto, vista 3D con il piano di
+            taglio, profilo delle quote leggibile.
+
             Novità della 1.2: porte e finestre riconosciute anche nei muri rilevati da un solo lato
             (muri esterni visti da dentro), con la luce netta anche per i vani strombati; i vani non vengono
             più richiusi per errore quando un'anta aperta tocca lo stipite; armadi, frigoriferi e librerie nel
