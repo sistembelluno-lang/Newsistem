@@ -3,13 +3,21 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 
-// Lo stesso main.js serve due programmi: «Controllo Lavori» (amministratore) e «Ore Dipendenti».
-// Ogni build include una sola delle due pagine.
-const PAGE = fs.existsSync(path.join(__dirname, 'Controllo_Lavori.html')) ? 'Controllo_Lavori.html' : 'Ore_Dipendenti.html';
+// Lo stesso main.js serve tre programmi: «Controllo Lavori» (amministratore), «Ore Dipendenti» ed «Espropri».
+// Ogni build include una sola delle pagine.
+const PROGRAMMI = {
+  'Controllo_Lavori.html': { title: 'CONTROLLO_SISTEM', userData: 'Controllo Lavori', dir: 'Controllo Lavori', file: 'dati_lavori.json', pref: 'lavori' },
+  'Ore_Dipendenti.html': { title: 'INSERT_SISTEM', userData: 'Ore Dipendenti', dir: 'Controllo Lavori', file: 'dati_lavori.json', pref: 'lavori' },
+  'Espropri.html': { title: 'ESPROPRI_SISTEM', userData: 'Espropri SISTEM', dir: 'ESPROPRI_SISTEM', file: 'dati_espropri.json', pref: 'espropri' },
+};
+// Nello sviluppo ci sono tutte le pagine: «electron . --pagina=Espropri.html» sceglie quale aprire
+const ARG = (process.argv.find((a) => a.startsWith('--pagina=')) || '').slice(9);
+const PAGE = PROGRAMMI[ARG] && fs.existsSync(path.join(__dirname, ARG)) ? ARG : Object.keys(PROGRAMMI).find((f) => fs.existsSync(path.join(__dirname, f))) || 'Ore_Dipendenti.html';
+const PROG = PROGRAMMI[PAGE];
 const ADMIN = PAGE === 'Controllo_Lavori.html';
-const TITLE = ADMIN ? 'CONTROLLO_SISTEM' : 'INSERT_SISTEM';
+const TITLE = PROG.title;
 // I programmi si chiamavano «Controllo Lavori» e «Ore Dipendenti»: i dati e le impostazioni restano nelle cartelle di sempre.
-app.setPath('userData', path.join(app.getPath('appData'), ADMIN ? 'Controllo Lavori' : 'Ore Dipendenti'));
+app.setPath('userData', path.join(app.getPath('appData'), PROG.userData));
 
 // Una sola istanza: i dati stanno nel localStorage del profilo dell'app,
 // due finestre aperte insieme si sovrascriverebbero a vicenda.
@@ -42,13 +50,13 @@ function createWindow() {
 }
 
 // Salvataggio automatico: i dati vanno anche in <cartella>/dati_lavori.json (stesso formato del backup),
-// con una copia al giorno in <cartella>/storico. La cartella predefinita è Documenti\Controllo Lavori.
-const FILE = 'dati_lavori.json';
+// con una copia al giorno in <cartella>/storico. La cartella predefinita è Documenti\Controllo Lavori (Espropri: Documenti\ESPROPRI_SISTEM, file dati_espropri.json).
+const FILE = PROG.file;
 const KEEP_DAYS = 60;
 const settingsPath = () => path.join(app.getPath('userData'), 'impostazioni.json');
 function readSettings() { try { return JSON.parse(fs.readFileSync(settingsPath(), 'utf8')); } catch (e) { return {}; } }
 function writeSettings(s) { fs.writeFileSync(settingsPath(), JSON.stringify(s, null, 1)); }
-function dataDir() { return readSettings().dir || path.join(app.getPath('documents'), 'Controllo Lavori'); }
+function dataDir() { return readSettings().dir || path.join(app.getPath('documents'), PROG.dir); }
 function localDate(d = new Date()) { const p = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 
 function info(dir) {
@@ -69,14 +77,14 @@ function saveData(json, opt) {
     fs.mkdirSync(hist, { recursive: true });
     if (opt && opt.keepOld && fs.existsSync(file)) {
       const t = new Date().toISOString().replace(/[:.]/g, '-');
-      fs.copyFileSync(file, path.join(hist, `dati_lavori_sostituito_${t}.json`));
+      fs.copyFileSync(file, path.join(hist, `dati_${PROG.pref}_sostituito_${t}.json`));
     }
     // Scrittura sicura: file temporaneo e poi rinomina, così un'interruzione non lascia il file a metà.
     const tmp = file + '.tmp';
     fs.writeFileSync(tmp, json);
     try { fs.renameSync(tmp, file); } catch (e) { fs.writeFileSync(file, json); fs.rmSync(tmp, { force: true }); }
-    fs.writeFileSync(path.join(hist, `backup_lavori_${localDate()}.json`), json);
-    const old = fs.readdirSync(hist).filter((f) => /^backup_lavori_\d{4}-\d\d-\d\d\.json$/.test(f)).sort();
+    fs.writeFileSync(path.join(hist, `backup_${PROG.pref}_${localDate()}.json`), json);
+    const old = fs.readdirSync(hist).filter((f) => new RegExp(`^backup_${PROG.pref}_\\d{4}-\\d\\d-\\d\\d\\.json$`).test(f)).sort();
     old.slice(0, Math.max(0, old.length - KEEP_DAYS)).forEach((f) => fs.rmSync(path.join(hist, f), { force: true }));
     return { ok: true, file, at: Date.now() };
   } catch (e) {
@@ -169,6 +177,75 @@ ipcMain.handle('sh:test', () => {
     prova('Sostituzione e cancellazione di file nella cartella «ore» (permesso «Modifica»)', () => { fs.writeFileSync(g, 'prova'); fs.renameSync(g, f); fs.rmSync(f); });
   }
   if (ADMIN) prova('Scrittura nella cartella principale', () => { const h = sharedPath(`_prova_${r.pc.replace(/[^\w-]/g, '')}.tmp`); fs.writeFileSync(h, 'prova'); fs.rmSync(h); });
+  return r;
+});
+
+// ===== Fascicolo dell'esproprio (solo ESPROPRI_SISTEM) =====
+// Una cartella per pratica e dentro una cartella per ditta («DITTA 1 ROSSI MARIO»): i documenti si salvano lì man mano.
+// La pagina usa solo percorsi relativi alla cartella base; qui si impedisce di uscirne.
+function fascBase() { return readSettings().fascicoli || path.join(app.getPath('documents'), PROG.dir, 'Pratiche'); }
+function fascPath(rel) {
+  const root = path.resolve(fascBase()), p = path.resolve(root, String(rel || ''));
+  if (p !== root && !p.startsWith(root + path.sep)) throw new Error('Percorso non valido');
+  return p;
+}
+ipcMain.handle('fs:base', () => ({ dir: fascBase() }));
+ipcMain.handle('fs:scegli', async () => {
+  const r = await dialog.showOpenDialog(win, { title: 'Cartella dei fascicoli degli espropri', defaultPath: fascBase(), properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const s = readSettings(); s.fascicoli = r.filePaths[0]; writeSettings(s);
+  return { dir: s.fascicoli };
+});
+ipcMain.handle('fs:scrivi', (e, rel, dati) => {
+  const p = fascPath(rel);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, typeof dati === 'string' ? dati : Buffer.from(dati));
+  return { ok: true, file: p };
+});
+ipcMain.handle('fs:leggi', (e, rel) => { try { return new Uint8Array(fs.readFileSync(fascPath(rel))); } catch (err) { return null; } });
+ipcMain.handle('fs:elenco', (e, rel) => {
+  const d = fascPath(rel);
+  try {
+    return fs.readdirSync(d, { withFileTypes: true }).map((x) => { const st = fs.statSync(path.join(d, x.name)); return { nome: x.name, dir: x.isDirectory(), size: st.size, mtime: st.mtimeMs }; });
+  } catch (err) { return []; }
+});
+ipcMain.handle('fs:apri', (e, rel) => { const p = fascPath(rel); if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); return shell.openPath(p); });
+ipcMain.handle('fs:mostra', (e, rel) => { shell.showItemInFolder(fascPath(rel)); return true; });
+// PDF della stampa corrente restituito alla pagina (per salvarlo nel fascicolo senza chiedere dove)
+ipcMain.handle('pdf:dati', async (e, opt) => {
+  const data = await win.webContents.printToPDF({ printBackground: true, pageSize: (opt && opt.formato) || 'A4', landscape: !!(opt && opt.orizzontale), preferCSSPageSize: true });
+  return new Uint8Array(data);
+});
+
+// DWG → DXF con ODA File Converter (gratuito, da installare a parte): il DWG è un formato chiuso e non si legge direttamente.
+function trovaOda() {
+  const s = readSettings(); if (s.oda && fs.existsSync(s.oda)) return s.oda;
+  const basi = [process.env.ProgramFiles, process.env['ProgramFiles(x86)'], '/usr/bin', '/Applications'].filter(Boolean);
+  for (const b of basi) {
+    try {
+      for (const d of fs.readdirSync(b)) {
+        if (!/^ODA/i.test(d)) continue;
+        const dir = path.join(b, d);
+        const cand = [path.join(dir, 'ODAFileConverter.exe'), ...fs.readdirSync(dir).map((x) => path.join(dir, x, 'ODAFileConverter.exe')), path.join(dir, 'Contents', 'MacOS', 'ODAFileConverter')];
+        const f = cand.find((x) => fs.existsSync(x)); if (f) return f;
+      }
+    } catch (e) { /* cartella non leggibile */ }
+    if (fs.existsSync(path.join(b, 'ODAFileConverter'))) return path.join(b, 'ODAFileConverter');
+  }
+  return '';
+}
+ipcMain.handle('dwg:converti', async (e, nome, dati) => {
+  const exe = trovaOda();
+  if (!exe) return { ok: false, error: 'Per leggere i DWG installa «ODA File Converter» (gratuito, opendesign.com) oppure salva il disegno come DXF da AutoCAD/BricsCAD/QCAD.' };
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'espr-')), inp = path.join(tmp, 'in'), out = path.join(tmp, 'out');
+  fs.mkdirSync(inp); fs.mkdirSync(out);
+  const base = String(nome || 'disegno.dwg').replace(/[\\/:*?"<>|]+/g, '_');
+  fs.writeFileSync(path.join(inp, base), Buffer.from(dati));
+  const { execFile } = require('child_process');
+  await new Promise((res) => execFile(exe, [inp, out, 'ACAD2013', 'DXF', '0', '1', '*.DWG'], { timeout: 120000, windowsHide: true }, () => res()));
+  const f = fs.readdirSync(out).find((x) => /\.dxf$/i.test(x));
+  const r = f ? { ok: true, dati: new Uint8Array(fs.readFileSync(path.join(out, f))) } : { ok: false, error: 'Conversione del DWG non riuscita' };
+  try { fs.rmSync(tmp, { recursive: true, force: true }); } catch (err) { /* pulizia non essenziale */ }
   return r;
 });
 

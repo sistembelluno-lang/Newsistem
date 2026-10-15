@@ -1,0 +1,9 @@
+﻿N. ditta;Comune;Foglio;Mappale;Qualità;Classe;Superficie mq;Reddito dominicale;Reddito agrario;Intestatari;Indirizzo;CAP;Città
+1;Comune di Prova;1;100;Seminativo;2;1200;5,58;3,41;"ROSSI MARIO nato a BELLUNO (BL) il 12/03/1960 - CF: RSSMRA60C12A757X Proprieta' 1/2; BIANCHI ANNA nata a FELTRE (BL) il 05/07/1962 - CF: BNCNNA62L45D530Y Proprieta' 1/2";Via Roma, 1;32100;Belluno (BL)
+1;Comune di Prova;1;101;Seminativo;2;1200;5,58;3,41;;;;
+2;Comune di Prova;1;102;Prato;3;1200;2,17;2,48;VERDI LUIGI nato a SEDICO (BL) il 01/01/1950 - CF: VRDLGU50A01I563Z Proprieta' 1/1;Via dei Prati, 7;32036;Sedico (BL)
+3;Comune di Prova;1;103;Prato;3;1200;2,17;2,48;AGRICOLA ESEMPIO S.R.L. con sede in BELLUNO (BL) - CF: 01234567890 Proprieta' 1/1;Via Industria, 3;32100;Belluno (BL)
+4;Comune di Prova;1;104;Seminativo;1;1200;7,44;4,34;"NERI GIOVANNI nato a BELLUNO (BL) il 20/10/1945 - CF: NREGNN45R20A757K Usufrutto 1/1; NERI PAOLA nata a BELLUNO (BL) il 11/11/1975 - CF: NREPLA75S51A757W Nuda proprieta' 1/1";Via Piave, 10;32100;Belluno (BL)
+4;Comune di Prova;1;105;Seminativo;1;1200;7,44;4,34;;;;
+5;Comune di Prova;1;106;Bosco ceduo;2;1200;0,93;0,31;GIALLI ELENA nata a AGORDO (BL) il 03/04/1980 - CF: GLLLNE80D43A083Q Proprieta' 1/1;Piazza Libertà, 2;32021;Agordo (BL)
+5;Comune di Prova;1;107;Bosco ceduo;2;1200;0,93;0,31;;;;

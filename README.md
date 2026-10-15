@@ -1,8 +1,10 @@
-# CONTROLLO_SISTEM e INSERT_SISTEM
+# CONTROLLO_SISTEM, INSERT_SISTEM ed ESPROPRI_SISTEM
 
-Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
+Tre programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.
+
+- **ESPROPRI_SISTEM** (`Espropri.html`, novità 1.11): gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001): lettura DXF/DWG, piano particellare, ditte, indennità, iter e scadenze, documenti Word/PDF, fascicolo per ditta, stati di consistenza con foto. Guida in [`espropri/README.md`](espropri/README.md), studio della normativa in [`guida/Normativa_Espropri.md`](guida/Normativa_Espropri.md). `Espropri.html` si genera con `npm run build:espropri`.
 
 Novità 1.10.1: pulsante «🔌 Verifica collegamento» in entrambi i programmi (prove di lettura e scrittura sul server, con il motivo degli errori e cosa fare); errori di permesso spiegati al dipendente; un file illeggibile non blocca più la lettura delle ore degli altri.
 
@@ -50,6 +52,8 @@ Gli eseguibili non sono firmati: al primo avvio Windows (SmartScreen) chiede "Ul
 ```
 npm install
 npm start          # avvia l'app
+npm run start:espropri   # avvia ESPROPRI_SISTEM
+npm test           # prove automatiche di ESPROPRI_SISTEM
 npm run dist:win   # crea gli .exe in dist/ (funziona anche da Linux)
 ```
-Il file HTML resta l'unica fonte: modificarlo e ricompilare.
+Per CONTROLLO_SISTEM e INSERT_SISTEM il file HTML resta l'unica fonte: modificarlo e ricompilare. ESPROPRI_SISTEM invece si compone dai sorgenti in `espropri/` con `npm run build:espropri`.

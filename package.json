@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "CONTROLLO_SISTEM",
-  "version": "1.10.1",
+  "version": "1.11.0",
   "description": "CONTROLLO_SISTEM: gestionale lavori",
   "main": "main.js",
   "author": "sistembelluno",
@@ -10,11 +10,14 @@
   "scripts": {
     "start": "electron .",
     "sync": "node scripts/sync-condiviso.js",
-    "dist": "electron-builder --publish never && electron-builder --publish never -c electron-builder-ore.json",
-    "dist:win": "electron-builder --win --publish never && electron-builder --win --publish never -c electron-builder-ore.json",
-    "dist:mac": "electron-builder --mac --publish never && electron-builder --mac --publish never -c electron-builder-ore.json",
-    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json",
-    "dist:win7": "electron-builder --win --publish never -c electron-builder-win7.json && electron-builder --win --publish never -c electron-builder-ore-win7.json"
+    "dist": "electron-builder --publish never && electron-builder --publish never -c electron-builder-ore.json && electron-builder --publish never -c electron-builder-espropri.json",
+    "dist:win": "electron-builder --win --publish never && electron-builder --win --publish never -c electron-builder-ore.json && electron-builder --win --publish never -c electron-builder-espropri.json",
+    "dist:mac": "electron-builder --mac --publish never && electron-builder --mac --publish never -c electron-builder-ore.json && electron-builder --mac --publish never -c electron-builder-espropri.json",
+    "dist:linux": "electron-builder --linux --publish never && electron-builder --linux --publish never -c electron-builder-ore.json && electron-builder --linux --publish never -c electron-builder-espropri.json",
+    "dist:win7": "electron-builder --win --publish never -c electron-builder-win7.json && electron-builder --win --publish never -c electron-builder-ore-win7.json && electron-builder --win --publish never -c electron-builder-espropri-win7.json",
+    "build:espropri": "node scripts/build-espropri.js",
+    "test": "node --test \"espropri/test/*.test.js\"",
+    "start:espropri": "electron . --pagina=Espropri.html"
   },
   "build": {
     "appId": "it.sistembelluno.controllolavori",
@@ -57,6 +60,8 @@
   },
   "devDependencies": {
     "electron": "^44.5.1",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "pdf-lib": "^1.17.1",
+    "polygon-clipping": "^0.15.7"
   }
 }

@@ -1,0 +1,43 @@
+{
+  "appId": "it.sistembelluno.espropri",
+  "productName": "ESPROPRI_SISTEM",
+  "extraMetadata": {
+    "name": "espropri-sistem",
+    "productName": "ESPROPRI_SISTEM"
+  },
+  "files": [
+    "main.js",
+    "preload.js",
+    "Espropri.html"
+  ],
+  "directories": {
+    "output": "dist",
+    "buildResources": "build-espropri"
+  },
+  "win": {
+    "target": [
+      "portable",
+      "nsis"
+    ]
+  },
+  "portable": {
+    "artifactName": "ESPROPRI_SISTEM-${version}-portable.exe"
+  },
+  "nsis": {
+    "artifactName": "ESPROPRI_SISTEM-${version}-setup.exe",
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true
+  },
+  "mac": {
+    "target": [
+      "dmg"
+    ],
+    "artifactName": "ESPROPRI_SISTEM-${version}.${ext}"
+  },
+  "linux": {
+    "target": [
+      "AppImage"
+    ],
+    "artifactName": "ESPROPRI_SISTEM-${version}.${ext}"
+  }
+}

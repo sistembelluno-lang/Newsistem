@@ -40,6 +40,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # ESPROPRI_SISTEM: prove automatiche e controllo che Espropri.html sia stato ricompilato dai sorgenti
+      - if: matrix.os == 'ubuntu-latest'
+        run: npm test && npm run build:espropri && git diff --exit-code -- Espropri.html
       - run: npm run ${{ matrix.cmd }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -70,7 +73,7 @@ jobs:
         with:
           tag_name: v${{ steps.v.outputs.version }}
           target_commitish: ${{ github.sha }}
-          name: CONTROLLO_SISTEM e INSERT_SISTEM ${{ steps.v.outputs.version }}
+          name: CONTROLLO_SISTEM, INSERT_SISTEM ed ESPROPRI_SISTEM ${{ steps.v.outputs.version }}
           make_latest: true
           files: |
             out/*.exe
@@ -79,6 +82,7 @@ jobs:
             guida/Guida_Dipendenti.pdf
             guida/Guida_Amministratore.html
             guida/Guida_Dipendenti.html
+            guida/Normativa_Espropri.md
           body: |
             **Guide** (qui sotto, in Assets): `Guida_Amministratore.pdf` / `.html` per l'amministrazione e il server, `Guida_Dipendenti.pdf` / `.html` per i dipendenti, `Manuale_CONTROLLO_SISTEM.pdf` completo.
 
@@ -88,6 +92,7 @@ jobs:
             |---|---|---|
             | Amministratore (Windows 7 32 bit) | CONTROLLO_SISTEM | `CONTROLLO_SISTEM-${{ steps.v.outputs.version }}-Windows7-32bit-setup.exe` |
             | Dipendenti (qualsiasi Windows) | INSERT_SISTEM | `INSERT_SISTEM-${{ steps.v.outputs.version }}-Windows7-32bit-setup.exe` |
+            | Ufficio espropri | ESPROPRI_SISTEM | `ESPROPRI_SISTEM-${{ steps.v.outputs.version }}-setup.exe` (Windows 10/11) o `…-Windows7-32bit-setup.exe` |
 
             I file *Windows7-32bit* funzionano su Windows 7, 8, 10 e 11. Le versioni *portable* partono senza installazione; quelle senza «Windows7» sono per Windows 10/11 a 64 bit.
             Al primo avvio Windows può mostrare un avviso: «Ulteriori informazioni» → «Esegui comunque».
