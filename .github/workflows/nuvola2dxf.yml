@@ -112,6 +112,11 @@ jobs:
             (LAS, LAZ, E57, PTS, PTX, XYZ, PLY), con riconoscimento di muri, porte, finestre, pilastri,
             pavimenti, soffitti, strutture in legno (tabià: tavolati, travi, ballatoi) e analisi del fuori piombo.
 
+            Novità della 1.2: porte e finestre riconosciute anche nei muri rilevati da un solo lato
+            (muri esterni visti da dentro), con la luce netta anche per i vani strombati; i vani non vengono
+            più richiusi per errore quando un'anta aperta tocca lo stipite; armadi, frigoriferi e librerie nel
+            nuovo layer 00_arredi con il muro dietro richiuso; persone di passaggio nel layer 00_altro.
+
             Novità della 1.1: stanze richiuse dove mobili e ombre nascondono i muri (chiusure oltre 10 cm in un
             layer da verificare), misure di porte e finestre con una sezione automatica in ogni vano, porte
             riconosciute meglio in sezione, profilo «Tabià / strutture in legno», più tagli con nome esportati

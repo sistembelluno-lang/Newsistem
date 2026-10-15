@@ -43,13 +43,21 @@ Esempio: 10.000 punti che descrivono il perimetro di una stanza diventano
   `00_muri`, `00_porte`, `00_finestre`, `00_pilastri`, `00_pavimenti`,
   `00_soffitti`, `00_solai`, `00_coperture`, `00_volte_archi`, `00_aggetti`,
   `00_legno_tavolati`, `00_legno_travi`, `00_legno_ballatoi`,
-  `00_chiusure_da_verificare`.
+  `00_chiusure_da_verificare`, `00_arredi`.
   In pianta i vani sono le interruzioni simili sulle due facce del muro: per
   ognuno il programma fa da solo una sezione verticale nella nuvola 3D e
   misura pavimento, soglia o davanzale e architrave (una porta parte dal
   pavimento, una finestra ha il davanzale); nel DXF le misure, per esempio
   «P 90×210» o «F 120×120 dav. 90». In sezione si riconoscono pavimento
   (base), soffitto, architravi, davanzali e le porte anche con l'anta chiusa.
+- **Controlli con la nuvola 3D** (pianta): gli arredi alti (armadi,
+  frigoriferi, librerie) finiscono sotto il soffitto e dietro hanno un muro:
+  vanno nel layer `00_arredi` e il muro dietro si richiude; i vani dei muri
+  rilevati da un solo lato (muri esterni visti da dentro) si riconoscono
+  dall'architrave e dal davanzale, con la luce netta anche se strombati;
+  persone e piccoli oggetti isolati vanno in `00_altro`.
+- **Banco di prova** (`tests/banco_prova`, solo per sviluppo): simulatore di
+  laser scanner su edifici di prova con pianta nota, per misurare gli errori.
 - **Più tagli, file separati**: ogni pianta, sezione o prospetto estratto si
   aggiunge a un elenco; si rinomina con un doppio clic («Sezione A-A»,
   «Prospetto nord»: per i prospetti l'orientamento è proposto in automatico) e

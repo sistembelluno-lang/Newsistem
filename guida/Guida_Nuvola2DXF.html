@@ -29,7 +29,7 @@ header{background:linear-gradient(110deg,#0c2244,#1862c4);color:#fff;padding:12p
 <main>
 <div class="cop"><img src="img/ndxf_logo.png" alt="Logo NDXF"></div>
 <h1>Nuvola2DXF (NDXF) – guida all'uso</h1>
-<p>Piante, sezioni e prospetti in DXF dalle nuvole di punti del laser scanner · versione 1.1.0</p>
+<p>Piante, sezioni e prospetti in DXF dalle nuvole di punti del laser scanner · versione 1.2.0</p>
 <div class="lead">
 <p><strong>Nuvola2DXF</strong> trasforma una nuvola di punti (per esempio un rilievo con Trimble X7 o X9) in disegni
 DXF pronti per il CAD: <strong>piante</strong>, <strong>sezioni</strong> e <strong>prospetti</strong>, con le linee già unite negli
@@ -60,7 +60,7 @@ Il programma fa il grosso del lavoro; a te resta il <strong>controllo in CAD</st
 <div class="pb"></div>
 <h2>1. Scaricare e avviare il programma</h2>
 <p>Il programma è <strong>un solo file</strong>: non si installa. Scarica quello adatto al tuo PC dalla pagina
-<a href="https://github.com/sistembelluno-lang/Newsistem/releases/tag/nuvola2dxf-v1.1.0">Nuvola2DXF 1.1.0</a>:</p>
+<a href="https://github.com/sistembelluno-lang/Newsistem/releases/tag/nuvola2dxf-v1.2.0">Nuvola2DXF 1.2.0</a>:</p>
 <table><tr><th>Il tuo PC</th><th>File da scaricare</th></tr>
 <tr><td>Windows 10 o 11 (64 bit)</td><td><code>Nuvola2DXF.exe</code></td></tr>
 <tr><td>Windows 7 o 8.1 (64 bit)</td><td><code>Nuvola2DXF-Windows7.exe</code></td></tr></table>
@@ -180,6 +180,10 @@ Per ogni vano il programma fa da solo una <strong>sezione verticale nella nuvola
 <p>Accanto al vano scrive le misure: <code>P 90×210</code> = porta larga 90 cm e alta 210;
 <code>F 120×120 dav. 90</code> = finestra 120×120 con davanzale a 90 cm dal pavimento. La precisione è di qualche
 centimetro: per le misure di progetto controlla in CAD o in sezione.</p>
+<p>Se un muro è stato rilevato <strong>da un solo lato</strong> (per esempio un muro esterno visto solo da dentro), il
+vano si riconosce lo stesso: il programma guarda nella nuvola 3D se sopra il buco c'è l'architrave e sotto il davanzale
+o il pavimento, e che davanti non ci sia un mobile. Per le finestre <strong>strombate</strong> la larghezza scritta è
+la luce netta, nel punto più stretto.</p>
 <p>In <strong>sezione</strong> le porte si riconoscono dall'architrave con il pavimento sotto, anche con l'<strong>anta
 chiusa</strong>; le finestre dall'architrave con il davanzale sotto.</p>
 
@@ -239,6 +243,8 @@ di una tavola si confondono.</div>
 <tr><td><code>00_pavimenti</code>, <code>00_soffitti</code>, <code>00_solai</code></td><td>Orizzontamenti in sezione</td><td>Quote.</td></tr>
 <tr><td><code>00_coperture</code>, <code>00_volte_archi</code>, <code>00_aggetti</code></td><td>Falde, archi, balconi e cornici</td><td>Forme curve.</td></tr>
 <tr><td><code>00_legno_…</code></td><td>Tavolati, travi, ballatoi</td><td>Elementi in legno con murature allineate.</td></tr>
+<tr><td><code>00_arredi</code></td><td>Armadi, frigoriferi, librerie riconosciuti con la nuvola 3D (non arrivano al soffitto)</td><td>Che non ci sia finito un muro basso; il muro dietro è richiuso in 00_muri o 00_chiusure_da_verificare.</td></tr>
+<tr><td><code>00_altro</code></td><td>Persone di passaggio, piccoli oggetti isolati</td><td>Di solito si cancella.</td></tr>
 <tr><td><code>00_info</code></td><td>Note: file, quota, linea A-B, impostazioni</td><td>Da tenere: dice come è stato fatto il disegno.</td></tr>
 </table>
 <p>Il programma si sbaglia soprattutto su <strong>arredi addossati ai muri</strong> (armadi, cucine), <strong>vegetazione</strong>
