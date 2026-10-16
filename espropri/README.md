@@ -104,6 +104,9 @@ node scripts/build-espropri.js --demo prova.html   # versione di prova con dati 
 | `normativa.js` | scheda di sintesi della normativa |
 | `app.js`, `app2.js` | interfaccia |
 
+Guida dei processi (percorsi, passi, termini, documenti) in `guida/Guida_Processi_Espropri.md` e `.html`: si genera dai
+dati del programma con `npm run build:espropri` ed è allegata a ogni release.
+
 Librerie incluse nella pagina: polygon-clipping 0.15.7 e pdf-lib 1.17.1 (licenza MIT), pdf.js 3.11.174 (Mozilla,
 licenza Apache-2.0) per leggere le tavole PDF. Dati d'esempio fittizi in
 `espropri/esempi/` (`genera_esempio.py`).

@@ -38,3 +38,5 @@ const out = demo > 0 ? path.resolve(process.argv[demo + 1]) : path.join(root, 'E
 if (demo > 0) html = html.replace('<title>ESPROPRI_SISTEM</title>', '<title>ESPROPRI_SISTEM prova</title>');
 fs.writeFileSync(out, html);
 console.log('scritto', out, Math.round(html.length / 1024), 'KB');
+// Guida dei processi (pubblicata con ogni release): sempre allineata a questa versione
+if (demo < 0) require('./guida-processi.js');

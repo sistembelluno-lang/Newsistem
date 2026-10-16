@@ -42,7 +42,7 @@ jobs:
       - run: npm ci
       # ESPROPRI_SISTEM: prove automatiche e controllo che Espropri.html sia stato ricompilato dai sorgenti
       - if: matrix.os == 'ubuntu-latest'
-        run: npm test && npm run build:espropri && git diff --exit-code -- Espropri.html
+        run: npm test && npm run build:espropri && git diff --exit-code -- Espropri.html guida/
       - run: npm run ${{ matrix.cmd }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -79,6 +79,8 @@ jobs:
           files: |
             out/ESPROPRI_SISTEM-*.exe
             guida/Normativa_Espropri.md
+            guida/Guida_Processi_Espropri.html
+            guida/Guida_Processi_Espropri.md
           body: |
             **ESPROPRI_SISTEM** – gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001).
 
@@ -90,4 +92,5 @@ jobs:
             Al primo avvio Windows può mostrare un avviso: «Ulteriori informazioni» → «Esegui comunque».
             I dati si salvano in `Documenti\ESPROPRI_SISTEM`; i fascicoli delle pratiche in `Documenti\ESPROPRI_SISTEM\Pratiche` (cartella modificabile).
             Per leggere i DWG installare il convertitore gratuito «ODA File Converter»; in alternativa salvare il disegno come DXF.
+            **Guida dei processi** di questa versione (percorsi art. 20, 22, 22-bis, 42-bis, 49 e cessione, passi, termini, documenti): `Guida_Processi_Espropri.html` (si apre con il browser e si stampa) o `Guida_Processi_Espropri.md`.
             Studio della normativa: `Normativa_Espropri.md`.
