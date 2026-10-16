@@ -19,6 +19,19 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    Le sovrapposizioni si tolgono per priorità (esproprio > servitù opere > servitù fascia > occupazione), le schegge
    sotto la soglia si scartano, le aree senza numero si assegnano a mano. Il DWG si legge nel programma installato
    tramite **ODA File Converter** (gratuito, da installare); altrimenti si salva il disegno come DXF.
+   **Tavole in PDF** (novità 1.13): se il piano grafico c'è solo in PDF esportato dal CAD (non scansionato) lo si
+   sceglie allo stesso modo e il programma lo legge «come una persona»: trova la **legenda** (scritta «Legenda», righe
+   con il simbolo a sinistra) e capisce da ogni descrizione il tipo d'area (esproprio, servitù, occupazione; le voci
+   «non più interessate», strade, acque e ferrovie no; «… variata in esproprio» vale come esproprio), legge ogni simbolo
+   come colore di riempimento, tratteggio o riempimento con tratteggio sopra, e cerca nel disegno le aree con lo stesso
+   aspetto (anche quando lo stesso colore distingue due voci solo per il tratteggio). Riconosce la **cornice della
+   mappa** (esclusi cartiglio e tabelle), i confini delle particelle (dai livelli CAD se ci sono, altrimenti dalle
+   linee del disegno; se la mappa è un'immagine, ogni area prende il numero «p.lla 62» scritto dentro o sul suo bordo),
+   i numeri di particella (non i numeri di ditta cerchiati), la **scala** dal cartiglio («1:2000») e il **foglio**
+   dalle scritte «FOGLIO 912 sez. C» più vicine. La scala si può correggere o **stimare dalle superfici catastali**
+   delle ditte già importate; i colori che la legenda non spiega (es. un colore per ditta) si assegnano a mano.
+   Le superfici sono una proposta segnata «dal PDF – da verificare»: si correggono nel piano particellare con quelle
+   misurate.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
@@ -87,10 +100,12 @@ node scripts/build-espropri.js --demo prova.html   # versione di prova con dati 
 | `office.js` | ZIP, Word .docx, compilazione modelli Word dell'utente, Excel .xlsx |
 | `modelli.js`, `testi.js` | dati per i documenti, linguaggio dei modelli, modelli integrati |
 | `tavola.js` | tavola grafica ed estratti in SVG |
+| `pdfvett.js` | lettura delle tavole PDF: legenda, simboli, aree, confini, scala, fogli |
 | `normativa.js` | scheda di sintesi della normativa |
 | `app.js`, `app2.js` | interfaccia |
 
-Librerie incluse nella pagina (licenza MIT): polygon-clipping 0.15.7, pdf-lib 1.17.1. Dati d'esempio fittizi in
+Librerie incluse nella pagina: polygon-clipping 0.15.7 e pdf-lib 1.17.1 (licenza MIT), pdf.js 3.11.174 (Mozilla,
+licenza Apache-2.0) per leggere le tavole PDF. Dati d'esempio fittizi in
 `espropri/esempi/` (`genera_esempio.py`).
 
 ## Libreria dei modelli (da convertire nelle prossime versioni)

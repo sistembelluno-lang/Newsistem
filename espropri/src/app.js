@@ -210,12 +210,13 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
   };
 
   // ---------- Vista: Importa ----------
-  let impDxf = null, impGeo = null, impTab = null;
+  let impDxf = null, impGeo = null, impTab = null, impPdf = null;
   APP.viste.importa = (m, p) => {
     m.innerHTML = `<h2>📥 Importa</h2>
-<div class="card"><h3 style="margin-top:0">1 · Disegno DXF / DWG</h3>
+<div class="card"><h3 style="margin-top:0">1 · Disegno DXF / DWG / PDF</h3>
 <p class="mu">Il disegno può contenere le <b>aree d'intervento già tagliate</b> sui limiti di particella con dentro il numero della particella originaria (es. «100», «Fg.1 100»), oppure il <b>layer delle particelle catastali</b> con i numeri e le aree d'intervento intere: il programma divide da solo per particella. Le sovrapposizioni si tolgono per priorità: esproprio, servitù ingombro opere, servitù fascia, occupazione.</p>
-<div class="row"><button class="p" id="idxf">Scegli DXF o DWG…</button><span class="mu" id="idxfn">${impDxf ? E(impDxf.nome) : ''}</span></div>
+<p class="mu">Se la tavola c'è solo in <b>PDF</b> (esportato dal CAD, non scansionato) il programma la legge «a occhio»: cerca la legenda e i suoi simboli (colori, tratteggi), riconosce le aree con lo stesso aspetto, i confini e i numeri delle particelle, la scala e i fogli. È una <b>proposta da verificare</b>: le superfici dedotte si correggono poi nel piano particellare con quelle misurate.</p>
+<div class="row"><button class="p" id="idxf">Scegli DXF, DWG o PDF…</button><span class="mu" id="idxfn">${impPdf ? E(impPdf.nome) : impDxf ? E(impDxf.nome) : ''}</span></div>
 <div id="ilay"></div></div>
 <div class="card"><h3 style="margin-top:0">2 · Elenco ditte (Excel .xlsx o CSV)</h3>
 <p class="mu">Una riga per particella (foglio, mappale, qualità, superficie, redditi…) con gli intestatari: in colonne separate (nome, nato a, il, C.F., diritto, quota, indirizzo) oppure tutti in una cella come nelle visure («ROSSI MARIO nato a … CF … Proprieta' 1/2; …»). Va bene anche il <b>formato a blocchi del riepilogo visure</b> (numero «N.» sulla prima riga della ditta, sotto gli intestatari riga per riga: nome, «CF:…», «Proprieta': 1/1»; particelle nelle colonne a destra). La ditta è formata dalle particelle con <b>gli stessi intestatari e le stesse quote</b>. Il mappale «1706 ex 1367» è letto come particella derivata da frazionamento.</p>
@@ -223,7 +224,9 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
 <div id="itabv"></div></div>
 <div class="card"><h3 style="margin-top:0">Situazione della pratica</h3>${riepilogoImport(p)}</div>`;
     m.querySelector('#idxf').onclick = async () => {
-      const [f] = await APP.scegliFile('.dxf,.dwg'); if (!f) return;
+      const [f] = await APP.scegliFile('.dxf,.dwg,.pdf'); if (!f) return;
+      if (/\.pdf$/i.test(f.nome)) { await apriPdf(f); return; }
+      impPdf = null;
       let buf = f.buf;
       if (/\.dwg$/i.test(f.nome)) {
         if (!(window.desktop && window.desktop.dwg)) { toast('Il DWG si legge nel programma installato (con ODA File Converter); qui salva il disegno come DXF', 6000); return; }
@@ -241,7 +244,8 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
       try { impTab = { nome: f.nome, dati: await ES.tab.leggi(f.nome, f.buf), foglio: 0 }; } catch (err) { toast(err.message, 6000); return; }
       APP.render();
     };
-    if (impDxf) vistaLayer(m.querySelector('#ilay'), p);
+    if (impPdf) vistaPdf(m.querySelector('#ilay'), p);
+    else if (impDxf) vistaLayer(m.querySelector('#ilay'), p);
     if (impTab) vistaTabella(m.querySelector('#itabv'), p);
   };
   function riepilogoImport(p) {
@@ -276,6 +280,94 @@ ${senza.length ? tabSenza(senza) : ''}`;
     normalizza(p); APP.salva(); toast(P.length + ' particelle aggiunte: completa gli intestatari nella scheda Ditte'); APP.render();
   });
 
+  // ---- Tavola in PDF: lettura «da persona» (legenda → simboli → aree), poi stessa analisi del DXF ----
+  const NOMI_PDF = { espr: 'Esproprio', servop: 'Servitù – ingombro opere', serv: 'Servitù – fascia', occ: 'Occupazione temporanea' };
+  APP.pdfjs = () => {
+    const L = window.pdfjsLib; if (!L) return null;
+    if (!L.GlobalWorkerOptions.workerSrc) { const t = document.getElementById('pdfjs-worker'); if (t && t.textContent.length > 1000) L.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t.textContent], { type: 'text/javascript' })); }
+    return L;
+  };
+  async function apriPdf(f) {
+    const L = APP.pdfjs(); if (!L) { toast('Lettore PDF non disponibile in questa versione', 5000); return; }
+    toast('Lettura del PDF in corso…', 20000);
+    let r;
+    try { r = await ES.pdfv.leggi(L, new Uint8Array(f.buf)); } catch (err) { toast('PDF non leggibile: ' + err.message, 6000); console.error(err); return; }
+    const pag = r.pagine.map((x, i) => [x.poli.length, i]).sort((a, b) => b[0] - a[0])[0];
+    if (!pag || pag[0] < 30) { toast('', 1); APP.dlg('PDF senza disegno vettoriale', '<p>Il PDF sembra una <b>scansione</b> (un\'immagine): non contiene linee né aree da leggere. Serve il PDF esportato dal CAD, oppure il DXF/DWG della tavola.</p>'); return; }
+    impPdf = { nome: f.nome, r, pag: pag[1], scala: r.scala || 0, colori: {} }; impDxf = null; impGeo = null;
+    toast('PDF letto: controlla legenda e scala, poi «Leggi la tavola»');
+    APP.render();
+  }
+  const campione = s => {
+    const c = s.colore, tr = s.tratt || (s.tipo === 'tratteggio' ? c : null);
+    const bg = s.tipo === 'area' ? c : '#fff', hatch = tr ? `background-image:repeating-linear-gradient(45deg,${tr} 0 1.5px,transparent 1.5px 5px);` : '';
+    return `<span style="display:inline-block;width:34px;height:16px;vertical-align:middle;border:1px solid #888;background-color:${bg};${hatch}"></span>`;
+  };
+  const selRuolo = (attr, v) => `<select ${attr}><option value="">— non è un'area d'intervento —</option>${Object.entries(NOMI_PDF).map(([k, n]) => `<option value="${k}" ${v === k ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+  function vistaPdf(el, p) {
+    const P = ES.pdfv, pg = impPdf.r.pagine[impPdf.pag];
+    if (!impPdf.leg) {
+      impPdf.leg = P.legenda(pg); impPdf.voci = impPdf.leg.voci.map(v => ({ ...v }));
+      const I0 = P.interpreta(pg, impPdf.scala || 1000);
+      impPdf.altri = I0.altri; impPdf.fogli = [...new Set(I0.fogli.map(f => f.fg + (f.sez ? ' sez. ' + f.sez : '')))];
+    }
+    const opt = impPdf.opt = impPdf.opt || { fg: '', comune: p.ente.comune || '', fgMap: false, sottrai: true, scheggia: 0.5, sostituisci: !p.geo };
+    const pagine = impPdf.r.pagine;
+    el.innerHTML = `<h3>Lettura della tavola PDF</h3>
+<div class="ban">Lettura intuitiva: i valori sono <b>dedotti dal disegno</b> e vanno verificati. Le superfici si correggono poi nel piano particellare (campi manuali della particella).</div>
+<div class="g">${pagine.length > 1 ? `<label>Pagina<select id="ppag">${pagine.map((x, i) => `<option value="${i}" ${i === impPdf.pag ? 'selected' : ''}>Pagina ${x.n} (${x.poli.length} elementi)</option>`).join('')}</select></label>` : ''}
+<label>Scala del disegno 1:<input id="psc" value="${impPdf.scala || ''}" placeholder="es. 1000"></label>
+<label>Foglio (se il disegno non lo scrive)<input id="pfg" value="${E(opt.fg)}" placeholder="${E(impPdf.fogli.join(', '))}"></label>
+<label>Comune catastale<input id="pcom" value="${E(opt.comune)}"></label></div>
+<p class="mu">${impPdf.r.scala ? 'Scala letta nel cartiglio: 1:' + impPdf.r.scala + '.' : 'Scala non scritta nel PDF: indicala, oppure stimala dalle superfici catastali delle ditte già importate.'} ${impPdf.fogli.length ? 'Fogli scritti nel disegno: ' + E(impPdf.fogli.join(', ')) + '.' : ''}
+${p.particelle.some(x => U.num(x.sup) > 0) ? ' <button class="s" id="pstima">Stima la scala dalle superfici catastali</button>' : ''}</p>
+<h3>Legenda ${impPdf.leg.ancora ? '' : '<span class="mu">(scritta «Legenda» non trovata: voci riconosciute dalle parole chiave)</span>'}</h3>
+${impPdf.voci.length ? `<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Simbolo</th><th>Voce di legenda</th><th>Nel programma</th></tr></thead><tbody>
+${impPdf.voci.map((v, i) => `<tr><td>${campione(v.simbolo)}</td><td>${E(v.testo)}</td><td>${selRuolo(`data-pv="${i}"`, v.ruolo)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="ban">Nessuna legenda trovata nel PDF: indica qui sotto cosa rappresentano i colori del disegno.</div>'}
+${impPdf.altri.length ? `<h3>Altri colori nel disegno</h3><p class="mu">Aree colorate che la legenda non spiega (per esempio un colore per ogni ditta): indica se sono aree d'intervento.</p>
+<div class="tw"><table class="t"><thead><tr><th>Colore</th><th>Nel programma</th></tr></thead><tbody>${impPdf.altri.map(c => `<tr><td>${campione({ tipo: 'area', colore: c })} <span class="mu">${E(P.nomeColore(c))} ${c}</span></td><td>${selRuolo(`data-pc="${c}"`, impPdf.colori[c] || '')}</td></tr>`).join('')}</tbody></table></div>` : ''}
+<div class="g" style="margin-top:10px"><label>Scarta schegge sotto (mq)<input id="psch" value="${opt.scheggia}"></label>
+<label class="chk"><input type="checkbox" id="psot" ${opt.sottrai ? 'checked' : ''}> Togli le sovrapposizioni tra tipi</label>
+<label class="chk"><input type="checkbox" id="psost" ${opt.sostituisci ? 'checked' : ''}> Sostituisci il disegno già importato</label></div>
+<div class="row" style="margin-top:10px"><button class="p" id="pleggi">Leggi la tavola</button></div><div id="ires"></div>`;
+    const pp = el.querySelector('#ppag'); if (pp) pp.onchange = () => { impPdf.pag = +pp.value; impPdf.leg = null; impGeo = null; APP.render(); };
+    el.querySelectorAll('[data-pv]').forEach(s => s.onchange = () => { impPdf.voci[+s.dataset.pv].ruolo = s.value || null; });
+    el.querySelectorAll('[data-pc]').forEach(s => s.onchange = () => { impPdf.colori[s.dataset.pc] = s.value; });
+    const leggiOpt = () => { impPdf.scala = U.num(el.querySelector('#psc').value) || 0; opt.fg = el.querySelector('#pfg').value.trim(); opt.comune = el.querySelector('#pcom').value.trim(); opt.scheggia = U.num(el.querySelector('#psch').value); opt.sottrai = el.querySelector('#psot').checked; opt.sostituisci = el.querySelector('#psost').checked; };
+    const st = el.querySelector('#pstima'); if (st) st.onclick = () => {
+      leggiOpt();
+      const I = P.interpreta(pg, 1000, { voci: impPdf.voci, colori: impPdf.colori });
+      const g = A.importaDxf(I.dxf, { ruoli: I.ruoli, fg: opt.fg, fgDa: I.fgDa, sottrai: false });
+      const perK = new Map(), perMap = new Map();
+      p.particelle.forEach(x => { const s = U.num(x.sup); if (!s) return; perK.set(A.chiave(x.fg, x.map, x.sub), s); perMap.set(String(x.map), perMap.has(String(x.map)) ? -1 : s); });
+      const coppie = g.part.filter(q => q.k).map(q => [q.a, perK.get(q.k) || (perMap.get(String(q.map)) > 0 ? perMap.get(String(q.map)) : 0)]).filter(c => c[1]);
+      const sc = P.scalaDaSuperfici(coppie);
+      if (!sc) { APP.dlg('Stima della scala', '<p>Nessuna particella del disegno corrisponde a quelle dell\'elenco ditte (o il PDF non ha i confini delle particelle in vettoriale). Indica la scala a mano.</p>'); return; }
+      impPdf.scala = sc; APP.render(); toast(`Scala stimata 1:${sc} confrontando ${coppie.length} particelle con le superfici catastali`, 6000);
+    };
+    el.querySelector('#pleggi').onclick = () => {
+      leggiOpt();
+      if (!impPdf.scala) { toast('Indica la scala del disegno (es. 1000)', 5000); el.querySelector('#psc').focus(); return; }
+      if (![...impPdf.voci.map(v => v.ruolo), ...Object.values(impPdf.colori)].some(Boolean)) { toast('Indica almeno un tipo d\'area (legenda o colori)', 5000); return; }
+      try {
+        const I = P.interpreta(pg, impPdf.scala, { voci: impPdf.voci, colori: impPdf.colori });
+        impDxf = { nome: impPdf.nome, dxf: I.dxf, ruoli: I.ruoli, opt: { ...opt }, pdf: true };
+        impGeo = A.importaDxf(I.dxf, { ...opt, ruoli: I.ruoli, fgDa: I.fgDa });
+        impPdf.avvisi = I.avvisi;
+      } catch (err) { toast('Lettura non riuscita: ' + err.message, 6000); console.error(err); return; }
+      risultatoDxf(el.querySelector('#ires'), p);
+    };
+    if (impGeo) risultatoDxf(el.querySelector('#ires'), p);
+  }
+  // Anteprima della lettura: solo la zona delle aree d'intervento
+  function anteprimaPdf(g, p) {
+    if (!g.pezzi.length || !ES.tavola) return '';
+    const b = [Infinity, Infinity, -Infinity, -Infinity]; g.pezzi.forEach(z => ES.geo.bboxMP(z.mp, b));
+    const m = Math.max(b[2] - b[0], b[3] - b[1]) * 0.15 + 5;
+    const geo = { ...g, bbox: [b[0] - m, b[1] - m, b[2] + m, b[3] + m] };
+    try { const v = ES.tavola.schermo({ geo, particelle: p.particelle, ditte: p.ditte }, null); return `<h3>Anteprima della lettura</h3><div style="max-width:900px;border:1px solid #ccd;background:#fff">${v.svg.replace('<svg ', '<svg style="width:100%;height:auto;display:block" ')}</div>`; } catch (e) { return ''; }
+  }
+
   function vistaLayer(el, p) {
     const L = Object.keys(impDxf.dxf.layers).sort(U.cmp);
     const opt = impDxf.opt = impDxf.opt || { fg: '', comune: p.ente.comune || '', fgMap: false, sottrai: true, scheggia: 0.5, sostituisci: !p.geo };
@@ -301,18 +393,22 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
     const g = impGeo, per = {};
     g.pezzi.forEach(z => { const k = z.k || '—'; const o = per[k] = per[k] || { fg: z.fg, map: z.map, espr: 0, servop: 0, serv: 0, occ: 0, n: 0, da: new Set() }; o[z.tipo] += z.a; o.n++; if (z.da) o.da.add(z.da); });
     const R = Object.values(per).sort((a, b) => U.cmp(a.fg, b.fg) || U.cmp(a.map, b.map));
-    el.innerHTML = `<h3>Risultato</h3>${g.avvisi.map(a => `<div class="ban">${E(a)}</div>`).join('')}
+    const avv = (impPdf && impPdf.avvisi || []).concat(g.avvisi).map(a => `<div class="ban">${E(a)}</div>`);
+    el.innerHTML = `<h3>Risultato</h3>${avv.length > 4 ? avv.slice(0, 2).join('') + `<details><summary class="mu">Altri ${avv.length - 2} avvisi</summary>${avv.slice(2).join('')}</details>` : avv.join('')}
 <div class="kpi"><div><small>Particelle catastali lette</small><b>${g.part.length}</b></div><div><small>Aree d'intervento</small><b>${g.pezzi.length}</b></div><div><small>Particelle interessate</small><b>${R.filter(r => r.map).length}</b></div></div>
 <div class="tw" style="max-height:45vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th class="n">Esproprio</th><th class="n">Servitù ingombro</th><th class="n">Servitù fascia</th><th class="n">Occupazione</th><th>Origine</th></tr></thead><tbody>
-${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : 'etichetta nel disegno').join(', ')}</td></tr>`).join('')}</tbody></table></div>
+${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
+${impPdf ? anteprimaPdf(g, p) : ''}
 ${g.pezzi.some(z => !z.k) ? '<h3>Aree senza particella</h3>' + tabSenza(g.pezzi.filter(z => !z.k)) : ''}
 <div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
     el.querySelector('#iapp').onclick = () => {
+      if (impPdf) impGeo.pezzi.forEach(z => { z.stima = 'pdf'; });
       p.geo = A.unisciGeo(p.geo, impGeo, impDxf.opt.sostituisci);
       if (impDxf.opt.comune && !p.ente.comune) p.ente.comune = impDxf.opt.comune;
       // Confini automatici per le particelle già presenti
       p.particelle.forEach(x => { if (!x.confini) x.confini = A.confini(p.geo, A.chiave(x.fg, x.map, x.sub)); });
-      impGeo = null; impDxf = null; APP.salva(); toast('Disegno collegato alla pratica'); APP.render();
+      const daPdf = !!impPdf;
+      impGeo = null; impDxf = null; impPdf = null; APP.salva(); toast(daPdf ? 'Tavola PDF collegata alla pratica: verifica e correggi le superfici nel piano particellare' : 'Disegno collegato alla pratica'); APP.render();
     };
   }
 

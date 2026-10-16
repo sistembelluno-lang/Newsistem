@@ -72,7 +72,22 @@
     };
     let seg = [];
     linee.forEach(l => { const pts = l.chiusa ? [...l.pts, l.pts[0]] : l.pts; for (let i = 0; i + 1 < pts.length; i++) { const a = vid(pts[i][0], pts[i][1]), b = vid(pts[i + 1][0], pts[i + 1][1]); if (a !== b) seg.push([a, b]); } });
-    // Spezza i tratti nei vertici che ci cadono sopra (giunzioni a T)
+    // Incroci a metà tratto (linee che si attraversano senza vertice comune): si aggiunge il punto d'incrocio come vertice
+    {
+      const b0 = G.bboxPts(P), gsz = Math.max(1, Math.max(b0[2] - b0[0], b0[3] - b0[1]) / 300), cel = new Map(), nuoviP = [];
+      seg.forEach((sg, i) => { const A = P[sg[0]], B = P[sg[1]]; for (let gx = Math.floor(Math.min(A[0], B[0]) / gsz); gx <= Math.floor(Math.max(A[0], B[0]) / gsz); gx++) for (let gy = Math.floor(Math.min(A[1], B[1]) / gsz); gy <= Math.floor(Math.max(A[1], B[1]) / gsz); gy++) { const k = gx + ',' + gy; (cel.get(k) || cel.set(k, []).get(k)).push(i); } });
+      const visti = new Set();
+      cel.forEach(L => { for (let a = 0; a < L.length; a++) for (let b = a + 1; b < L.length; b++) {
+        const i = L[a], j = L[b], kk = i < j ? i + '_' + j : j + '_' + i; if (visti.has(kk)) continue; visti.add(kk);
+        const [p1, p2] = seg[i], [p3, p4] = seg[j]; if (p1 === p3 || p1 === p4 || p2 === p3 || p2 === p4) continue;
+        const A = P[p1], B = P[p2], C = P[p3], D = P[p4], d = (B[0] - A[0]) * (D[1] - C[1]) - (B[1] - A[1]) * (D[0] - C[0]);
+        if (Math.abs(d) < 1e-12) continue;
+        const t = ((C[0] - A[0]) * (D[1] - C[1]) - (C[1] - A[1]) * (D[0] - C[0])) / d, u = ((C[0] - A[0]) * (B[1] - A[1]) - (C[1] - A[1]) * (B[0] - A[0])) / d;
+        if (t > 1e-9 && t < 1 - 1e-9 && u > 1e-9 && u < 1 - 1e-9) nuoviP.push([A[0] + t * (B[0] - A[0]), A[1] + t * (B[1] - A[1])]);
+      } });
+      nuoviP.forEach(q => vid(q[0], q[1]));
+    }
+    // Spezza i tratti nei vertici che ci cadono sopra (giunzioni a T e incroci appena aggiunti)
     const grid = new Map(), gs = Math.max(1, (() => { const b = G.bboxPts(P); return Math.max(b[2] - b[0], b[3] - b[1]) / 200; })());
     P.forEach((p, id) => { const k = Math.floor(p[0] / gs) + ',' + Math.floor(p[1] / gs); (grid.get(k) || grid.set(k, []).get(k)).push(id); });
     const nuovi = [];

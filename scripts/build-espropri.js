@@ -19,7 +19,10 @@ put('/*TEMA-INIZIO (da src/tema.css)*/', '/*TEMA-FINE*/', leggi(path.join(root, 
 put('/*STILE-DOPO*/', null, '.nav{top:62px}');
 const lib = f => leggi(path.join(root, 'node_modules', f));
 const librerie = ['/* polygon-clipping 0.15.7 – MIT – Mike Fogel */', lib('polygon-clipping/dist/polygon-clipping.umd.min.js'),
-  '/* pdf-lib 1.17.1 – MIT – Andrew Dillon */', lib('pdf-lib/dist/pdf-lib.min.js')].join('\n');
+  '/* pdf-lib 1.17.1 – MIT – Andrew Dillon */', lib('pdf-lib/dist/pdf-lib.min.js'),
+  '/* pdf.js 3.11.174 (legacy) – Apache-2.0 – Mozilla */', lib('pdfjs-dist/legacy/build/pdf.min.js')].join('\n');
+// Il «worker» di pdf.js resta come testo nella pagina e parte da un Blob (niente file esterni)
+const worker = lib('pdfjs-dist/legacy/build/pdf.worker.min.js');
 const ordine = JSON.parse(leggi(path.join(src, 'ordine.json')));
 let moduli = ordine.concat(['normativa.js', 'app.js', 'app2.js']).map(f => '/* ---- ' + f + ' ---- */\n' + leggi(path.join(src, f))).join('\n')
   .replace(/^if \(typeof module !== 'undefined'\) module\.exports = ES;$/m, '');
@@ -29,7 +32,8 @@ if (demo > 0) {
   moduli += '\nwindow.__DEMO=' + JSON.stringify({ dxf: leggi(path.join(es, 'esempio.dxf')), csv: leggi(path.join(es, 'ditte.csv')) }) + ';';
 }
 moduli += '\nAPP.avvia();';
-html = html.replace('<script>/*LIBRERIE*/</script>', () => '<script>\n' + script(librerie) + '\n</script>').replace('<script>/*MODULI*/</script>', () => '<script>\n' + script(moduli) + '\n</script>');
+html = html.replace('<script>/*LIBRERIE*/</script>', () => '<script>\n' + script(librerie) + '\n</script>')
+  .replace('/*PDFWORKER*/', () => script(worker)).replace('<script>/*MODULI*/</script>', () => '<script>\n' + script(moduli) + '\n</script>');
 const out = demo > 0 ? path.resolve(process.argv[demo + 1]) : path.join(root, 'Espropri.html');
 if (demo > 0) html = html.replace('<title>ESPROPRI_SISTEM</title>', '<title>ESPROPRI_SISTEM prova</title>');
 fs.writeFileSync(out, html);

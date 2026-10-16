@@ -47,7 +47,7 @@
     opt = Object.assign({ sottrai: true, scheggia: 0.5, poligonizza: true, tol: 0.01 }, opt || {});
     const ruolo = l => (opt.ruoli && opt.ruoli[l]) || A.ruoloAuto(l);
     const avvisi = [];
-    const chiusi = { part: [], espr: [], servop: [], serv: [], occ: [] }, aperte = [], sfondo = [];
+    const chiusi = { part: [], espr: [], servop: [], serv: [], occ: [] }, aperte = [], sfondo = [], chiusePart = [];
     dxf.poli.forEach(p => {
       const r = ruolo(p.layer);
       if (r === 'ignora' || r === 'testi') return;
@@ -55,17 +55,20 @@
       if (r === 'part' && !p.chiusa) {
         // Polilinea aperta ma con estremi coincidenti: è chiusa di fatto
         const a = p.pts[0], b = p.pts[p.pts.length - 1];
-        if (p.pts.length > 3 && Math.hypot(a[0] - b[0], a[1] - b[1]) <= opt.tol) { const q = G.pulisci(p.pts); if (q) chiusi.part.push({ layer: p.layer, poly: [q] }); }
+        if (p.pts.length > 3 && Math.hypot(a[0] - b[0], a[1] - b[1]) <= opt.tol) { const q = G.pulisci(p.pts); if (q) chiusePart.push({ layer: p.layer, pts: q, chiusa: true }); }
         else aperte.push(p);
         return;
       }
       const q = p.chiusa || Math.hypot(p.pts[0][0] - p.pts[p.pts.length - 1][0], p.pts[0][1] - p.pts[p.pts.length - 1][1]) <= opt.tol ? G.pulisci(p.pts) : null;
-      if (q) chiusi[r].push({ layer: p.layer, poly: [q] });
+      if (q && r === 'part') chiusePart.push({ layer: p.layer, pts: q, chiusa: true });
+      else if (q) chiusi[r].push({ layer: p.layer, poly: [q] });
       else if (r !== 'part') { sfondo.push({ layer: p.layer, pts: p.pts, chiusa: false }); avvisi.push(`Layer «${p.layer}»: una linea non chiusa è stata disegnata ma non conteggiata`); }
     });
     // Confini catastali disegnati a tratti: si ricostruiscono i poligoni
+    // Se ci sono linee sciolte anche i contorni chiusi entrano nel grafo: le linee che vi si appoggiano chiudono le particelle vicine
+    if (!(opt.poligonizza && aperte.length)) chiusePart.forEach(c => chiusi.part.push({ layer: c.layer, poly: [c.pts] }));
     if (opt.poligonizza && aperte.length) {
-      const facce = G.poligonizza(aperte, opt.tol);
+      const facce = G.poligonizza(aperte.concat(chiusePart), opt.tol);
       facce.forEach(P => chiusi.part.push({ layer: aperte[0].layer, poly: P }));
       if (facce.length) avvisi.push(`${facce.length} particelle ricostruite da linee sciolte`);
     }
@@ -83,20 +86,29 @@
     };
     const leggi = (p, pref) => {
       const L = p.testi.slice().sort((a, b) => (b.layer === pref) - (a.layer === pref) || b.h - a.h);
-      for (const t of L) { const e = A.etichetta(t.t, opt); if (e) return { ...e, fg: e.fg || opt.fg || '', testo: t.t }; }
+      for (const t of L) { const e = A.etichetta(t.t, opt); if (e) return { ...e, fg: e.fg || (opt.fgDa && opt.fgDa(t.x, t.y)) || opt.fg || '', testo: t.t }; }
       return null;
     };
 
     // Particelle catastali
     assegna(chiusi.part, t => ['part', 'testi', 'sfondo'].includes(ruolo(t.layer)));
     const part = chiusi.part.map(p => {
-      const e = leggi(p, p.layer);
+      // Un poligono con dentro tre o più buchi è lo «sfondo» tra le particelle (la zona fuori dai confini), non una particella
+      const e = p.poly.length > 3 ? null : leggi(p, p.layer);
       return { k: e ? A.chiave(e.fg, e.map, e.sub) : null, fg: e ? e.fg : '', map: e ? e.map : '', sub: e ? e.sub : '', mp: G.arrotonda([p.poly]), a: p.a, b: p.b };
     });
+    // Particelle doppie (polilinea chiusa e contorno ricostruito dalle linee): resta quella con il numero
+    for (let i = part.length - 1; i >= 0; i--) {
+      const p = part[i];
+      const gemella = part.find((q, j) => j !== i && Math.abs(q.a - p.a) <= Math.max(0.5, p.a * 0.005) && Math.abs(q.b[0] - p.b[0]) + Math.abs(q.b[1] - p.b[1]) + Math.abs(q.b[2] - p.b[2]) + Math.abs(q.b[3] - p.b[3]) < Math.max(0.2, Math.sqrt(p.a) * 0.02) && (q.k || (!p.k && j < i)));
+      if (gemella && !p.k) part.splice(i, 1);
+    }
     const senzaNum = part.filter(p => !p.k).length;
     if (senzaNum) avvisi.push(`${senzaNum} poligoni di particella senza numero leggibile (strade, acque o testo mancante)`);
     const doppie = {}; part.forEach(p => { if (p.k) doppie[p.k] = (doppie[p.k] || 0) + 1; });
-    Object.keys(doppie).filter(k => doppie[k] > 1).forEach(k => avvisi.push(`La particella ${k.replace(/\|/g, ' / ')} compare in ${doppie[k]} poligoni: le superfici si sommano`));
+    const ripet = Object.keys(doppie).filter(k => doppie[k] > 1);
+    if (ripet.length > 4) avvisi.push(`${ripet.length} particelle compaiono in più poligoni (le superfici si sommano): ${ripet.slice(0, 12).map(k => k.replace(/\|/g, ' / ')).join(', ')}${ripet.length > 12 ? '…' : ''}`);
+    else ripet.forEach(k => avvisi.push(`La particella ${k.replace(/\|/g, ' / ')} compare in ${doppie[k]} poligoni: le superfici si sommano`));
 
     // Aree d'intervento: etichette lette prima di togliere le sovrapposizioni
     const interv = [];
@@ -106,11 +118,22 @@
     });
     const unioni = {};
     A.TIPI.forEach(t => { unioni[t] = G.unione(interv.filter(x => x.tipo === t).map(x => [x.poly])); });
-    const pezzi = [];
+    const pezzi = [], giaContato = {};
+    // Numero di particella scritto dentro un pezzo (per i pezzi che non cadono in una particella disegnata)
+    const etichettaDentro = (M, pref) => {
+      for (const t of testi) {
+        if (ruolo(t.layer) === 'ignora' || !G.inMP(t.x, t.y, M)) continue;
+        const e = A.etichetta(t.t, opt); if (e) return { ...e, fg: e.fg || (opt.fgDa && opt.fgDa(t.x, t.y)) || opt.fg || '' };
+      }
+      return pref || null;
+    };
     interv.forEach(x => {
       let mp = [x.poly];
       if (opt.sottrai) { const sopra = A.TIPI.slice(0, A.TIPI.indexOf(x.tipo)).map(t => unioni[t]); mp = G.differenza(mp, ...sopra); }
+      // Aree dello stesso tipo disegnate due volte (frequente nei PDF): si conta solo la parte non ancora contata
+      if (giaContato[x.tipo] && giaContato[x.tipo].length) mp = G.differenza(mp, giaContato[x.tipo]);
       if (!mp.length || G.areaMP(mp) < 1e-4) return;
+      giaContato[x.tipo] = G.unione([giaContato[x.tipo] || [], mp].filter(m => m.length));
       const bb = G.bboxMP(mp);
       const cand = part.filter(p => G.bboxOverlap(p.b, bb));
       if (cand.length) {
@@ -119,13 +142,19 @@
           const q = G.intersezione(mp, p.mp), a = G.areaMP(q);
           if (a < opt.scheggia) return;
           dentro += a;
-          const lab = p.k ? { fg: p.fg, map: p.map, sub: p.sub } : x.lab;
+          const lab = p.k ? { fg: p.fg, map: p.map, sub: p.sub } : etichettaDentro(q, null);
           pezzi.push({ tipo: x.tipo, layer: x.layer, mp: G.arrotonda(q), a, fg: lab ? lab.fg : '', map: lab ? lab.map : '', sub: lab ? lab.sub : '', da: p.k ? 'catasto' : (x.lab ? 'etichetta' : '') });
         });
         const resto = G.areaMP(mp) - dentro;
         if (resto >= opt.scheggia) {
+          // Parti fuori dalle particelle disegnate: ogni pezzo prende il numero scritto dentro di sé
+          // (o, se il poligono era già tagliato su una sola particella, la sua etichetta)
           const fuori = G.differenza(mp, ...cand.map(p => p.mp));
-          if (G.areaMP(fuori) >= opt.scheggia) pezzi.push({ tipo: x.tipo, layer: x.layer, mp: G.arrotonda(fuori), a: G.areaMP(fuori), fg: x.lab ? x.lab.fg : '', map: x.lab ? x.lab.map : '', sub: x.lab ? x.lab.sub : '', da: x.lab ? 'etichetta' : '' });
+          fuori.forEach(P => {
+            const a = G.areaPoly(P); if (a < opt.scheggia) return;
+            const lab = etichettaDentro([P], cand.length ? null : x.lab);
+            pezzi.push({ tipo: x.tipo, layer: x.layer, mp: G.arrotonda([P]), a, fg: lab ? lab.fg : '', map: lab ? lab.map : '', sub: lab ? lab.sub : '', da: lab ? 'etichetta' : '' });
+          });
         }
       } else {
         pezzi.push({ tipo: x.tipo, layer: x.layer, mp: G.arrotonda(mp), a: G.areaMP(mp), fg: x.lab ? x.lab.fg : '', map: x.lab ? x.lab.map : '', sub: x.lab ? x.lab.sub : '', da: x.lab ? 'etichetta' : '' });
