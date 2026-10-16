@@ -57,9 +57,11 @@ jobs:
 
   # Pagina di download di ESPROPRI_SISTEM: release separata (tag espropri-v…) con i soli file di questo programma,
   # così non tocca le release degli altri programmi della suite e non diventa la release principale.
+  # Pubblica anche se manca il Mac (runner macOS a volte non disponibile): servono solo i file Windows,
+  # e se mancano la pubblicazione si ferma (fail_on_unmatched_files).
   release:
     needs: build
-    if: github.event_name == 'push'
+    if: ${{ always() && github.event_name == 'push' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -83,6 +85,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: ESPROPRI_SISTEM ${{ steps.v.outputs.version }}
           make_latest: false
+          fail_on_unmatched_files: true
           files: |
             out/ESPROPRI_SISTEM-*.exe
             guida/Guida_Processi_Espropri.pdf
