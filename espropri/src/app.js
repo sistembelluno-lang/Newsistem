@@ -90,9 +90,18 @@
   // ---------- Fascicolo su disco ----------
   const FS = APP.FS = {
     ok: FASC,
-    dirPratica: p => san((p.codice ? p.codice + ' ' : '') + (p.nome || 'Pratica')),
+    // Con la cartella di lavoro della pratica: <cartella>/ESPROPRI_SISTEM/…; altrimenti <base dei fascicoli>/<nome pratica>/…
+    dirPratica: p => (p.cartella ? String(p.cartella).replace(/[\\/]+$/, '') + '/ESPROPRI_SISTEM' : san((p.codice ? p.codice + ' ' : '') + (p.nome || 'Pratica'))),
     dirDitta: (p, d) => FS.dirPratica(p) + '/DITTA ' + d.n + ' ' + san((d.intest[0] && d.intest[0].nome) || ''),
     dirGenerale: p => FS.dirPratica(p) + '/00 GENERALE',
+    // Prima di scrivere: se la pratica non ha ancora la cartella di lavoro, si chiede all'operatore
+    async pronto(p) {
+      if (!FASC) return true;
+      if (p.cartella) { await window.desktop.fsAmmetti(p.cartella); return true; }
+      const r = await APP.dlg('Cartella di lavoro della pratica', `<p>Dove salvo i documenti di questa pratica? Scegli la cartella di lavoro sul server (es. <b>L:\\260514-esproprio roma\\05-Espropri</b>): dentro verrà creata la cartella <b>ESPROPRI_SISTEM</b> con «00 GENERALE» e una cartella per ogni ditta.</p>`, [{ t: 'Usa la cartella predefinita', v: 'def' }, { t: 'Scegli la cartella…', v: 'sc', p: true }]);
+      if (r === 'sc') { const x = await window.desktop.fsScegliPratica(); if (!x) return false; p.cartella = x.dir; APP.salva(); return true; }
+      return r === 'def';
+    },
     async salva(rel, dati) {
       if (FASC) { const r = await window.desktop.fsScrivi(rel, dati); toast('Salvato nel fascicolo: ' + rel.split('/').slice(1).join(' › ')); return r; }
       APP.scarica(rel.split('/').pop(), dati); return { ok: true };
@@ -141,6 +150,8 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
   function render() {
     nav(); hdr();
     const m = $('#main'), p = APP.pr();
+    // La cartella di lavoro della pratica (anche se scelta su un altro PC) deve essere tra i percorsi ammessi
+    if (FASC && p && p.cartella && APP._amm !== p.cartella) { APP._amm = p.cartella; window.desktop.fsAmmetti(p.cartella); }
     if (!p && vista !== 'normativa') { m.innerHTML = `<div class="card vuoto"><h2>Benvenuto in ESPROPRI_SISTEM</h2><p>Gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001).</p><button class="p" id="hnew">＋ Crea la prima pratica</button></div>`; return; }
     (APP.viste[vista] || APP.viste.pratica)(m, p);
   }
@@ -174,7 +185,10 @@ ${p.campi.map((c, i) => `<label class="f">${E(c.nome)} <span class="mu">{{dati.$
 <div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fase</th><th>Art.</th><th>Data</th><th>Estremi (es. «Delibera G.C. n. 62»)</th><th>Scadenze</th></tr></thead><tbody>
 ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</td><td class="mu">${E(f.art)}</td><td><input type="date" data-f="iter.${f.k}.data"></td><td><input data-f="iter.${f.k}.estremi" style="min-width:220px"></td><td class="mu">${x.data ? f.t.map(t => E(t.nome.split('(')[0]) + ': <b>' + U.dataIt(t.f(x.data)) + '</b>').join('<br>') : ''}</td></tr>`; }).join('')}
 </tbody></table></div></div>
-<div class="card row"><span class="grow mu">Pratica creata il ${U.dataIt(p.creata)}. ${FASC ? 'Fascicolo: <b>' + E(FS.dirPratica(p)) + '</b>' : ''}</span>${FASC ? '<button id="pcart">Cartella dei fascicoli…</button>' : ''}<button class="d" id="pdel">Elimina pratica</button></div>`;
+<div class="card"><h3 style="margin-top:0">📁 Cartella di lavoro della pratica</h3>
+<p class="mu">Scegli la cartella di lavoro sul server (es. <b>L:\\260514-esproprio roma\\05-Espropri</b>): dentro il programma crea <b>ESPROPRI_SISTEM</b> con «00 GENERALE» (file per tutte le ditte, decreti, tavole) e una cartella per ogni ditta («DITTA 1 COGNOME NOME»), dove si salvano man mano i Word, i PDF, le foto e le scansioni.</p>
+<div class="row"><b class="grow" style="word-break:break-all">${FASC ? E(p.cartella ? p.cartella.replace(/[\\/]+$/, '') + '\\ESPROPRI_SISTEM' : 'non scelta – si usa ' + FS.dirPratica(p) + ' nella cartella predefinita') : 'Disponibile nel programma installato sul PC (nel browser i file arrivano come download o ZIP).'}</b>${FASC ? '<button id="pcsel" class="p">Scegli cartella di lavoro…</button>' + (p.cartella ? '<button id="pcopen">Apri</button>' : '') : ''}</div></div>
+<div class="card row"><span class="grow mu">Pratica creata il ${U.dataIt(p.creata)}.</span>${FASC ? '<button id="pcart" title="Cartella usata per le pratiche senza cartella di lavoro">Cartella predefinita…</button>' : ''}<button class="d" id="pdel">Elimina pratica</button></div>`;
     APP.lega(m, p, (el) => { if (/^iter\.|^nome/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#pdel').onclick = async () => { if (!await APP.conferma(`Eliminare definitivamente la pratica «${E(p.nome)}»? I file del fascicolo su disco restano.`, 'Elimina')) return; DB.pratiche = DB.pratiche.filter(x => x !== p); DB.attiva = DB.pratiche[0] ? DB.pratiche[0].id : null; APP.salva(); render(); };
     m.querySelector('#cadd').onclick = async () => {
@@ -186,6 +200,12 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
       p.campi.push({ k, nome }); APP.salva(); APP.render(); toast('Campo aggiunto: {{dati.' + k + '}}');
     };
     m.querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => { const c = p.campi[+b.dataset.cdel]; if (await APP.conferma('Togliere il campo «' + E(c.nome) + '»? Il segnaposto nei modelli resterà vuoto.', 'Togli')) { p.campi.splice(+b.dataset.cdel, 1); delete p.dati[c.k]; APP.salva(); APP.render(); } });
+    const pcs = m.querySelector('#pcsel'); if (pcs) pcs.onclick = async () => {
+      const x = await window.desktop.fsScegliPratica(p.cartella); if (!x) return;
+      if (p.cartella && p.cartella !== x.dir && !await APP.conferma('Cambiare la cartella di lavoro? I documenti già salvati restano nella cartella precedente.', 'Cambia')) return;
+      p.cartella = x.dir; APP.salva(); APP.render(); toast('I documenti si salveranno in ' + x.dir + '\\ESPROPRI_SISTEM');
+    };
+    const pco = m.querySelector('#pcopen'); if (pco) pco.onclick = async () => { await window.desktop.fsAmmetti(p.cartella); FS.apri(FS.dirPratica(p)); };
     const pc = m.querySelector('#pcart'); if (pc) pc.onclick = async () => { const r = await window.desktop.fsScegli(); if (r) toast('Fascicoli in ' + r.dir); };
   };
 

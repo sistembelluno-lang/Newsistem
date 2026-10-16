@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld('desktop', {
   // ESPROPRI_SISTEM: fascicolo su disco e PDF in memoria
   fsBase: () => ipcRenderer.invoke('fs:base'),
   fsScegli: () => ipcRenderer.invoke('fs:scegli'),
+  fsScegliPratica: (attuale) => ipcRenderer.invoke('fs:scegliPratica', attuale),
+  fsAmmetti: (dir) => ipcRenderer.invoke('fs:ammetti', dir),
   fsScrivi: (rel, dati) => ipcRenderer.invoke('fs:scrivi', rel, dati),
   fsLeggi: (rel) => ipcRenderer.invoke('fs:leggi', rel),
   fsElenco: (rel) => ipcRenderer.invoke('fs:elenco', rel),

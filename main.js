@@ -184,9 +184,14 @@ ipcMain.handle('sh:test', () => {
 // Una cartella per pratica e dentro una cartella per ditta («DITTA 1 ROSSI MARIO»): i documenti si salvano lì man mano.
 // La pagina usa solo percorsi relativi alla cartella base; qui si impedisce di uscirne.
 function fascBase() { return readSettings().fascicoli || path.join(app.getPath('documents'), PROG.dir, 'Pratiche'); }
+// Percorsi ammessi: la cartella base dei fascicoli e le cartelle di lavoro scelte dall'operatore per le pratiche
+// (es. «L:\\260514-esproprio roma\\05-Espropri»). Un percorso assoluto deve stare dentro una di queste.
+const norm = (x) => (process.platform === 'win32' ? path.resolve(x).toLowerCase() : path.resolve(x));
+function radici() { return [fascBase()].concat(readSettings().radici || []); }
 function fascPath(rel) {
-  const root = path.resolve(fascBase()), p = path.resolve(root, String(rel || ''));
-  if (p !== root && !p.startsWith(root + path.sep)) throw new Error('Percorso non valido');
+  const base = path.resolve(fascBase()), p = path.resolve(base, String(rel || ''));
+  const ok = radici().some((r) => { const R = norm(r), P = norm(p); return P === R || P.startsWith(R + path.sep); });
+  if (!ok) throw new Error('Percorso non valido: scegli di nuovo la cartella di lavoro della pratica');
   return p;
 }
 ipcMain.handle('fs:base', () => ({ dir: fascBase() }));
@@ -196,6 +201,15 @@ ipcMain.handle('fs:scegli', async () => {
   const s = readSettings(); s.fascicoli = r.filePaths[0]; writeSettings(s);
   return { dir: s.fascicoli };
 });
+// Cartella di lavoro di una pratica, scelta dall'operatore (anche sul server): diventa un percorso ammesso
+ipcMain.handle('fs:scegliPratica', async (e, attuale) => {
+  const r = await dialog.showOpenDialog(win, { title: 'Cartella di lavoro della pratica (dentro verrà creata la cartella ESPROPRI_SISTEM)', defaultPath: attuale || undefined, properties: ['openDirectory', 'createDirectory'] });
+  if (r.canceled || !r.filePaths[0]) return null;
+  const s = readSettings(); s.radici = [...new Set([...(s.radici || []), r.filePaths[0]])]; writeSettings(s);
+  return { dir: r.filePaths[0] };
+});
+// Riammette una cartella di lavoro già associata a una pratica (es. pratica aperta da file su un altro PC)
+ipcMain.handle('fs:ammetti', (e, dir) => { if (!dir || !fs.existsSync(dir)) return false; const s = readSettings(); s.radici = [...new Set([...(s.radici || []), dir])]; writeSettings(s); return true; });
 ipcMain.handle('fs:scrivi', (e, rel, dati) => {
   const p = fascPath(rel);
   fs.mkdirSync(path.dirname(p), { recursive: true });

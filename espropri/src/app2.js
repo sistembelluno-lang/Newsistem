@@ -48,6 +48,13 @@
   // Salva una serie di file del fascicolo: nel programma installato nelle cartelle, nel browser un solo download (ZIP se più file)
   APP.salvaFile = async (p, files, nomeZip) => {
     if (!files.length) return;
+    if (APP.FS.ok && !p.cartella && !(APP._chiesta = APP._chiesta || new Set()).has(p.id)) {
+      APP._chiesta.add(p.id);
+      const prima = APP.FS.dirPratica(p);
+      if (!await APP.FS.pronto(p)) return;
+      // Se ora la pratica ha una cartella di lavoro, i percorsi già calcolati si spostano lì
+      if (p.cartella) { const dopo = APP.FS.dirPratica(p); files.forEach(f => { if (f.rel.startsWith(prima + '/')) f.rel = dopo + f.rel.slice(prima.length); }); }
+    } else if (APP.FS.ok && p.cartella) await window.desktop.fsAmmetti(p.cartella);
     if (APP.FS.ok) {
       for (const f of files) await window.desktop.fsScrivi(f.rel, f.dati);
       APP.toast(files.length === 1 ? 'Salvato: ' + files[0].rel.split('/').slice(1).join(' › ') : files.length + ' file salvati nel fascicolo (generale e cartelle delle ditte)', 5000);
@@ -150,9 +157,16 @@
 <div class="row" style="margin-top:6px">${D.aree.espr ? `<span class="tag t-es">esproprio ${U.mq(D.aree.espr)} mq</span>` : ''}${D.aree.servop + D.aree.serv ? `<span class="tag t-sv">servitù ${U.mq(D.aree.servop + D.aree.serv)} mq</span>` : ''}${D.aree.occ ? `<span class="tag t-oc">occupazione ${U.mq(D.aree.occ)} mq</span>` : ''}<span class="grow"></span><b>${U.eur(D.tot)}</b></div>
 <div class="bar"><i style="width:${Math.round(100 * av.fatti / av.totale)}%"></i></div>${(() => { const n = p.docs.filter(x => x.ditta === d.id).length, ni = d.intest.filter(o => !o.via && !o.pec).length; return (n ? `<span class="tag t-sv">📄 ${n} documenti</span> ` : '') + (ni ? `<span class="tag t-wa">📮 ${ni} indirizzi da inserire</span>` : ''); })()}
 <div class="mu">${av.ultimo ? '✓ ' + E(av.ultimo.nome) : 'Iter non avviato'}${av.prossimo ? ' · prossimo: ' + E(av.prossimo.nome) : ''}${d.procedura ? ' · <b>' + E(S.PROCEDURE[d.procedura].breve) + '</b>' : ''}</div>
-${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu'}" style="font-size:12px;margin-top:3px">⏰ ${U.dataIt(prox.data)} – ${E(prox.cosa)}</div>` : ''}</div>`;
+${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu'}" style="font-size:12px;margin-top:3px">⏰ ${U.dataIt(prox.data)} – ${E(prox.cosa)}</div>` : ''}
+${d.note ? `<div class="dnota">📝 ${E(d.note)}</div>` : ''}<div class="row dc-az"><button class="s" data-dnota="${d.id}">📝 ${d.note ? 'Modifica nota' : 'Aggiungi nota'}</button><button class="s" data-dmod="${d.id}">✏️ Modifica dati</button></div></div>`;
     }).join('') || '<div class="card vuoto">Nessuna ditta: importa l\'elenco ditte.</div>'}</div>`;
-    m.querySelectorAll('[data-d]').forEach(x => x.onclick = () => APP.vai('ditte', x.dataset.d));
+    m.querySelectorAll('[data-d]').forEach(x => x.onclick = e => { if (e.target.closest('button')) return; APP.vai('ditte', x.dataset.d); });
+    m.querySelectorAll('[data-dmod]').forEach(b => b.onclick = () => APP.vai('ditte', b.dataset.dmod));
+    m.querySelectorAll('[data-dnota]').forEach(b => b.onclick = async () => {
+      const d = p.ditte.find(x => x.id === b.dataset.dnota);
+      const r = await APP.dlg('Note – Ditta ' + d.n, `<p class="mu">${E(d.intest.map(o => o.nome).join(', '))}</p><textarea id="dnt" rows="8" style="font-family:inherit;font-size:14px" placeholder="Es. contattato il figlio, preferisce la PEC; in attesa del certificato di successione…">${E(d.note || '')}</textarea>`, [{ t: 'Annulla', v: '' }, { t: 'Salva nota', v: 'ok', p: true }], bb => bb.querySelector('#dnt').focus());
+      if (r === 'ok') { d.note = $('#dnt').value.trim(); APP.salva(); APP.render(); }
+    });
     const filtra = () => { const q = U.norm(m.querySelector('#dq').value), solo = m.querySelector('#dsolo').checked; m.querySelectorAll('[data-d]').forEach(x => { x.hidden = (q && !x.dataset.q.includes(q)) || (solo && x.dataset.ko !== '1'); }); };
     m.querySelector('#dq').oninput = filtra; m.querySelector('#dsolo').onchange = filtra;
   };
@@ -179,14 +193,15 @@ ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu
     };
     m.innerHTML = `<div class="row"><button id="dback">‹ Tutte le ditte</button><h2 style="margin:0" class="grow">Ditta ${E(d.n)} <span class="mu">${E(S.PROCEDURE[proc].nome)}</span></h2>${APP.FS.ok ? '<button id="dfold">📁 Cartella della ditta</button>' : ''}</div>
 <div class="kpi" style="margin-top:10px"><div><small>Esproprio</small><b>${U.mq(D.aree.espr || 0)} mq</b></div><div><small>Servitù</small><b>${U.mq((D.aree.servop || 0) + (D.aree.serv || 0))} mq</b></div><div><small>Occupazione</small><b>${U.mq(D.aree.occ || 0)} mq</b></div><div><small>Indennità</small><b>${U.eur(D.tot)}</b></div>${D.ritenuta ? `<div><small>Ritenuta art. 35 (stima)</small><b>${U.eur(D.ritenuta)}</b></div>` : ''}</div>
+<div class="card"><label class="fl"><b style="color:var(--tx)">📝 Note della ditta</b><textarea data-f="note" rows="3" style="font-family:inherit;font-size:14px" placeholder="Annotazioni sulla ditta: contatti, accordi, documenti in attesa, correzioni da fare…"></textarea></label></div>
 ${docDitta(p, d)}
 ${(() => { const L = C.controlli(d, parts); return L.length ? `<div class="ban ${L.some(x => x.livello === 'errore') ? 'err' : ''}">${L.map(x => (x.livello === 'info' ? 'ℹ ' : '⚠ ') + E(x.msg)).join('<br>')}</div>` : ''; })()}
 <div class="card"><div class="row"><h3 style="margin:0" class="grow">Intestatari e indirizzi di residenza</h3><button id="dind">📮 Tutti gli indirizzi della pratica</button></div><div class="ics">${d.intest.map(intestCard).join('')}</div>
-<div class="row" style="margin-top:8px"><button id="dadd">＋ Intestatario</button><span class="grow"></span><span class="mu">Attenzione: cambiare intestatari o quote cambia la composizione della ditta (stessi nomi e quote = stessa ditta).</span></div>
+<div class="row" style="margin-top:8px"><button id="dadd">＋ Intestatario</button><span class="grow"></span><span class="mu">Nomi, date, C.F., diritti e quote si correggono direttamente qui sopra; le correzioni valgono per tutti i documenti successivi (quelli già prodotti si rigenerano con ⟳).</span></div>
 <div class="g" style="margin-top:10px"><label>N. ditta (piano)<input data-f="n"></label><label>Percorso per questa ditta<select data-f="procedura"><option value="">(quello della pratica)</option>${Object.entries(S.PROCEDURE).map(([k, v]) => `<option value="${k}">${v.nome}</option>`).join('')}</select></label>
 <label class="chk"><input type="checkbox" data-f="cessione"> Indennità condivisa / cessione volontaria</label>
 <label>Conduttore del fondo (fittavolo, mezzadro…)<input data-f="cond.nome"></label>
-<label class="f">Osservazioni pervenute (compaiono negli atti)<input data-f="oss"></label><label class="f">Note interne<input data-f="note"></label></div></div>
+<label class="f">Osservazioni pervenute (compaiono negli atti)<input data-f="oss"></label></div></div>
 <div class="card"><h3 style="margin-top:0">Particelle</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fg.</th><th>Mapp.</th><th>Qualità</th><th class="n">Sup.</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th>Confini</th><th class="n">Indennità</th></tr></thead><tbody>
 ${parts.map(x => { const v = c.perP.get(x.id); return `<tr data-px="${x.id}"><td>${E(x.fg)}</td><td>${E(C.mappale(x))}</td><td>${E([x.qual, x.cls].filter(Boolean).join('/'))}</td><td class="n">${U.mq(x.sup)}</td><td class="n">${v.aree.espr ? U.mq(v.aree.espr) : ''}</td><td class="n">${v.aree.servop + v.aree.serv ? U.mq(v.aree.servop + v.aree.serv) : ''}</td><td class="n">${v.aree.occ ? U.mq(v.aree.occ) : ''}</td><td class="mu" style="white-space:normal;min-width:200px">${E(x.confini || '')}</td><td class="n">${U.eur(v.tot)}</td></tr>`; }).join('')}</tbody></table></div></div>
 <div class="card"><h3 style="margin-top:0">Iter della ditta</h3><p class="mu">Per ogni passo registra date (invio e notifica/ricevimento), protocollo e mezzo; i documenti si generano nella cartella della ditta.</p><div class="passi">
