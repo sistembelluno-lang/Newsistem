@@ -23,7 +23,10 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
    stessi intestatari e le stesse quote** (ROSSI 500/1000 + VERDI 500/1000 è una ditta; ROSSI 100/1000 + VERDI
-   900/1000 è un'altra); il numero di ditta del file diventa il numero di piano.
+   900/1000 è un'altra); il numero di ditta del file diventa il numero di piano. È letto anche il **formato a blocchi
+   del riepilogo visure** usato dallo studio (colonne «N.», «Ditta Catastale», «Comune», «Catasto», «Foglio», «Mappale»,
+   «Qualità/Classe», «Superficie (mq)», «Rd», «Ra»: numero solo sulla prima riga, intestatari su più righe) e i mappali
+   con la barra del catasto di origine austriaca («8611/16»).
 4. **Piano particellare**: tabella per ditta con superfici per tipo (dal disegno, eventualmente ragguagliate alla
    superficie catastale, o inserite a mano), categoria di stima e indennità; esportazione Excel, Excel per stampa
    unione (campi «Nome_e_Cognome1», «Foglio1», «Particella1»…), stampa/PDF.
@@ -31,7 +34,14 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    conduttore, percorso, e i **passi dell'iter** con date di invio e notifica, protocollo, mezzo e termini calcolati.
 6. **Indennità**: valori unitari per categoria e criteri (art. 37, 40, 42, 44, 50, 22-bis, 42-bis, 35), quadro
    riepilogativo e per ditta.
-7. **Documenti**: modelli integrati (lettere art. 11+16, art. 16, art. 17 c.2, avvio art. 49, offerta art. 20,
+7. **Documenti**, organizzati per passi del percorso: per ogni modello «Genera per tutte le ditte» crea il **file
+   generale** con tutte le lettere unite (in `00 GENERALE`) e il **documento di ogni ditta** nella sua cartella (nel
+   browser: un unico ZIP con le stesse cartelle), e può segnare il passo come inviato. Il testo di ogni modello si
+   modifica in una finestra con due livelli: **testo base** (vale per tutte le pratiche) o **solo questa pratica**, con
+   l'elenco dei campi da inserire e l'anteprima; si creano anche modelli nuovi e si esporta/importa la libreria dei
+   modelli. I **dati specifici della pratica** (progetto approvato, premesse, visti, finanziamento, consultazione degli
+   atti, testo aggiuntivo nelle lettere e campi liberi) si scrivono una volta nella scheda Pratica ed entrano in tutti i
+   documenti. Modelli integrati (lettere art. 11+16, art. 16, art. 17 c.2, avvio art. 49, offerta art. 20,
    condivisione, decreto di esproprio art. 22-23 con unità negoziali, decreto 22-bis, avviso di immissione, stato di
    consistenza e verbale, decreto art. 49, restituzione, deposito, pagamento, invito art. 21, estratto BUR, art. 42-bis,
    cessione volontaria, pubblico avviso, elenco ditte) in **Word (.docx)** e PDF, una lettera per ogni intestatario dove

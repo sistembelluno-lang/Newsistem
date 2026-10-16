@@ -15,6 +15,7 @@
     if (!txt) { try { txt = localStorage.getItem('espropri:dati'); } catch (e) { /* storage non disponibile */ } }
     if (txt) { try { Object.assign(DB, JSON.parse(String(txt).replace(/^﻿/, ''))); } catch (e) { toast('File dati illeggibile: ' + e.message); } }
     DB.pratiche.forEach(normalizza);
+    DB.modelliBase = DB.modelliBase || {}; DB.modelliCustom = DB.modelliCustom || []; DB.modelliWord = DB.modelliWord || [];
   }
   let tS = null, salvato = true;
   APP.salva = () => { salvato = false; clearTimeout(tS); tS = setTimeout(scrivi, 500); hdr(); };
@@ -34,7 +35,7 @@
   function normalizza(p) {
     p.impost = Object.assign(U.clone(S.IMPOST), p.impost || {});
     ['particelle', 'ditte', 'valori', 'docs'].forEach(k => { p[k] = p[k] || []; });
-    p.iter = p.iter || {}; p.modelli = p.modelli || {}; p.ente = p.ente || {};
+    p.iter = p.iter || {}; p.modelli = p.modelli || {}; p.ente = p.ente || {}; p.dati = p.dati || {}; p.campi = p.campi || [];
     p.ditte.forEach(d => { d.ev = d.ev || {}; d.intest = d.intest || []; d.foto = d.foto || []; });
     p.particelle.forEach(x => { x.man = x.man || {}; x.nuovo = x.nuovo || {}; });
     return p;
@@ -64,7 +65,8 @@
   });
   APP.scarica = (nome, dati, mime) => {
     const b = dati instanceof Blob ? dati : new Blob([dati], { type: mime || 'application/octet-stream' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nome; document.body.appendChild(a); a.click();
+    // Nei download del browser il nome resta in caratteri semplici (alcuni browser rifiutano gli accenti)
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '_'); document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   };
   // Lega gli input con data-f="percorso" all'oggetto; data-t: num, bool, date
@@ -83,7 +85,7 @@
       if (t === 'pct') el.value = v === '' || v == null ? '' : Math.round(v * 10000) / 100;
     });
   };
-  const san = s => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const san = s => String(s || '').replace(/[\u2010-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\\/:*?"<>|«»\u201c\u201d]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 
   // ---------- Fascicolo su disco ----------
   const FS = APP.FS = {
@@ -164,6 +166,10 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
 <label class="f2">Beneficiario dell'esproprio (se diverso)<input data-f="ente.beneficiario"></label><label>C.F. beneficiario<input data-f="ente.cfBeneficiario"></label><label class="f2">Sede beneficiario<input data-f="ente.sedeBeneficiario"></label>
 <label>Tribunale civile di<input data-f="ente.tribunale"></label><label>T.A.R.<input data-f="ente.tar" placeholder="Veneto"></label><label class="f2">Bollettino per gli estratti<input data-f="ente.bur" placeholder="BUR Veneto"></label>
 <label class="f">Link alla documentazione progettuale<input data-f="ente.link"></label></div></div>
+<div class="card"><h3 style="margin-top:0">Dati specifici per i documenti</h3><p class="mu">Si scrivono una volta e compaiono in tutti i documenti di questa pratica (il testo base dei modelli resta uguale per tutte le pratiche). Nei modelli si richiamano con il segnaposto indicato.</p>
+<div class="g">${ES.modelli.DATI.map(c => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${c.k}}} – ${E(c.aiuto)}</span>${c.righe > 1 ? `<textarea data-f="dati.${c.k}" rows="${c.righe}" style="font-family:inherit;font-size:13px"></textarea>` : `<input data-f="dati.${c.k}">`}</label>`).join('')}
+${p.campi.map((c, i) => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${E(c.k)}}} <button type="button" class="s d" data-cdel="${i}">togli campo</button></span><textarea data-f="dati.${E(c.k)}" rows="2" style="font-family:inherit;font-size:13px"></textarea></label>`).join('')}</div>
+<div class="row" style="margin-top:8px"><button id="cadd">＋ Campo personalizzato</button><span class="mu">Es. «Parere della Soprintendenza», «Estremi del finanziamento regionale»: poi inseriscilo nel testo dei modelli (Documenti › ✏️ Testo).</span></div></div>
 <div class="card"><h3 style="margin-top:0">Atti della procedura</h3><p class="mu">Data ed estremi degli atti: compaiono nelle premesse dei documenti e fanno partire le scadenze.</p>
 <div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fase</th><th>Art.</th><th>Data</th><th>Estremi (es. «Delibera G.C. n. 62»)</th><th>Scadenze</th></tr></thead><tbody>
 ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</td><td class="mu">${E(f.art)}</td><td><input type="date" data-f="iter.${f.k}.data"></td><td><input data-f="iter.${f.k}.estremi" style="min-width:220px"></td><td class="mu">${x.data ? f.t.map(t => E(t.nome.split('(')[0]) + ': <b>' + U.dataIt(t.f(x.data)) + '</b>').join('<br>') : ''}</td></tr>`; }).join('')}
@@ -171,6 +177,15 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
 <div class="card row"><span class="grow mu">Pratica creata il ${U.dataIt(p.creata)}. ${FASC ? 'Fascicolo: <b>' + E(FS.dirPratica(p)) + '</b>' : ''}</span>${FASC ? '<button id="pcart">Cartella dei fascicoli…</button>' : ''}<button class="d" id="pdel">Elimina pratica</button></div>`;
     APP.lega(m, p, (el) => { if (/^iter\.|^nome/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#pdel').onclick = async () => { if (!await APP.conferma(`Eliminare definitivamente la pratica «${E(p.nome)}»? I file del fascicolo su disco restano.`, 'Elimina')) return; DB.pratiche = DB.pratiche.filter(x => x !== p); DB.attiva = DB.pratiche[0] ? DB.pratiche[0].id : null; APP.salva(); render(); };
+    m.querySelector('#cadd').onclick = async () => {
+      const r = await APP.dlg('Nuovo campo', '<label class="fl">Nome del campo<input id="cn" placeholder="es. Parere della Soprintendenza"></label>', [{ t: 'Annulla', v: '' }, { t: 'Aggiungi', v: 'ok', p: true }]);
+      const nome = r === 'ok' && $('#cn').value.trim(); if (!nome) return;
+      let k = U.norm(nome).replace(/ (\w)/g, (x, c) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, '') || 'campo';
+      if (/^\d/.test(k)) k = 'c' + k;
+      while (p.campi.some(c => c.k === k) || ES.modelli.DATI.some(c => c.k === k)) k += '2';
+      p.campi.push({ k, nome }); APP.salva(); APP.render(); toast('Campo aggiunto: {{dati.' + k + '}}');
+    };
+    m.querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => { const c = p.campi[+b.dataset.cdel]; if (await APP.conferma('Togliere il campo «' + E(c.nome) + '»? Il segnaposto nei modelli resterà vuoto.', 'Togli')) { p.campi.splice(+b.dataset.cdel, 1); delete p.dati[c.k]; APP.salva(); APP.render(); } });
     const pc = m.querySelector('#pcart'); if (pc) pc.onclick = async () => { const r = await window.desktop.fsScegli(); if (r) toast('Fascicoli in ' + r.dir); };
   };
 
@@ -183,7 +198,7 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
 <div class="row"><button class="p" id="idxf">Scegli DXF o DWG…</button><span class="mu" id="idxfn">${impDxf ? E(impDxf.nome) : ''}</span></div>
 <div id="ilay"></div></div>
 <div class="card"><h3 style="margin-top:0">2 · Elenco ditte (Excel .xlsx o CSV)</h3>
-<p class="mu">Una riga per particella (foglio, mappale, qualità, superficie, redditi…) con gli intestatari: in colonne separate (nome, nato a, il, C.F., diritto, quota, indirizzo) oppure tutti in una cella come nelle visure («ROSSI MARIO nato a … CF … Proprieta' 1/2; …»). La ditta è formata dalle particelle con <b>gli stessi intestatari e le stesse quote</b>. Il mappale «1706 ex 1367» è letto come particella derivata da frazionamento.</p>
+<p class="mu">Una riga per particella (foglio, mappale, qualità, superficie, redditi…) con gli intestatari: in colonne separate (nome, nato a, il, C.F., diritto, quota, indirizzo) oppure tutti in una cella come nelle visure («ROSSI MARIO nato a … CF … Proprieta' 1/2; …»). Va bene anche il <b>formato a blocchi del riepilogo visure</b> (numero «N.» sulla prima riga della ditta, sotto gli intestatari riga per riga: nome, «CF:…», «Proprieta': 1/1»; particelle nelle colonne a destra). La ditta è formata dalle particelle con <b>gli stessi intestatari e le stesse quote</b>. Il mappale «1706 ex 1367» è letto come particella derivata da frazionamento.</p>
 <div class="row"><button class="p" id="itab">Scegli Excel o CSV…</button><span class="mu" id="itabn">${impTab ? E(impTab.nome) : ''}</span></div>
 <div id="itabv"></div></div>
 <div class="card"><h3 style="margin-top:0">Situazione della pratica</h3>${riepilogoImport(p)}</div>`;

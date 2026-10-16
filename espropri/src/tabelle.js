@@ -59,7 +59,9 @@
   }
   const ent = s => s.replace(/&(lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/gi, (m, x) => ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" }[x.toLowerCase()] ??
     String.fromCodePoint(x[1] === 'x' || x[1] === 'X' ? parseInt(x.slice(2), 16) : parseInt(x.slice(1), 10))));
-  const testoNodi = xml => { let s = ''; xml.replace(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g, (m, t) => { s += ent(t); }); return s; };
+  // Excel scrive i caratteri di controllo come «_x000D_» (es. un a capo nell'intestazione «Superficie_x000d_(mq)»)
+  const ctrl = s => s.replace(/_x([0-9a-fA-F]{4})_/g, (m, h) => String.fromCharCode(parseInt(h, 16)));
+  const testoNodi = xml => { let s = ''; xml.replace(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g, (m, t) => { s += ctrl(ent(t)); }); return s; };
   const colIdx = ref => { const m = /^([A-Z]+)/.exec(ref); let n = 0; for (const c of m[1]) n = n * 26 + c.charCodeAt(0) - 64; return n - 1; };
 
   // Tutti i file di un archivio: {nome: Uint8Array} (per compilare i modelli Word)

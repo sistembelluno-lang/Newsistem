@@ -13,10 +13,12 @@ Trasmessa a mezzo {{dest.mezzo}}
 {{/dest.pec}}
 `;
   const OGGETTO = `**Oggetto: {{pratica.oggetto}}{{#pratica.cup}} – CUP {{pratica.cup}}{{/pratica.cup}}**`;
-  const CHIUSURA = `Ringraziando per l'attenzione e rimanendo a disposizione per qualsiasi chiarimento, si porgono cordiali saluti.
+  const CHIUSURA = `{{#dati.lettere}}{{dati.lettere}}
+{{/dati.lettere}}Ringraziando per l'attenzione e rimanendo a disposizione per qualsiasi chiarimento, si porgono cordiali saluti.
 [[firma {{ente.ruolo}}|{{ente.responsabile}}]]
 Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.`;
-  const PLANIMETRIA = `[[salto]]
+  const PLANIMETRIA = `
+[[salto]]
 ## Planimetria catastale con evidenziata l'area interessata
 [[planimetria scala=1000]]`;
 
@@ -38,7 +40,7 @@ Le aree interessate sono così identificate in catasto:
 Intestatari catastali e quote:
 [[tabella intestatari]]
 Si rende noto che nel termine di 30 giorni dalla presente comunicazione Lei ha facoltà di formulare eventuali osservazioni rispetto all'apposizione del vincolo preordinato all'esproprio e alla dichiarazione di pubblica utilità, trasmettendole all'Autorità espropriante, all'attenzione del responsabile del procedimento, mediante posta ordinaria, posta elettronica o PEC ({{ente.pec}}), con riferimento all'opera in oggetto e con la dicitura «osservazioni ex artt. 11-16 TUES». Le osservazioni saranno valutate dall'Autorità espropriante ai fini delle definitive determinazioni, e dell'esito della valutazione sarà dato conto nel provvedimento di approvazione del progetto.
-Il progetto dell'opera, contenente una relazione sulla natura e sullo scopo degli interventi da eseguire e un allegato con la descrizione delle aree da espropriare e dei relativi intestatari, è depositato presso {{ente.ufficio}} {{ente.nome}}, dove può essere consultato previo appuntamento.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
+Il progetto dell'opera, contenente una relazione sulla natura e sullo scopo degli interventi da eseguire e un allegato con la descrizione delle aree da espropriare e dei relativi intestatari, è depositato presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}, dove può essere consultato previo appuntamento.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
 Il proprietario, nel formulare le proprie osservazioni, può chiedere che l'espropriazione riguardi anche le frazioni residue dei suoi beni qualora per esse risulti una disagevole utilizzazione ovvero siano necessari considerevoli lavori per disporne un'agevole utilizzazione.
 Ai sensi dell'art. 32, comma 2, D.P.R. 327/2001 non saranno considerate nella determinazione dell'indennità le costruzioni, le piantagioni e le migliorie intraprese sui fondi dopo la presente comunicazione allo scopo di conseguire un'indennità maggiore.
 Nel caso in cui la S.V., pur risultando catastalmente intestataria dei beni sopra descritti, non ne fosse più proprietaria, è tenuta ai sensi dell'art. 3, comma 3, D.P.R. 327/2001 a darne comunicazione entro 30 giorni dal ricevimento della presente, indicando, ove ne sia a conoscenza, il nuovo proprietario o fornendo copia degli atti utili a ricostruire le vicende del bene.
@@ -53,7 +55,7 @@ Il responsabile del procedimento è {{ente.rup}}. Si allega planimetria catastal
 {{dest.gentile}}, La informiamo che è in corso il procedimento di approvazione del progetto dell'opera in oggetto, la cui approvazione comporterà la dichiarazione di pubblica utilità dell'opera ai sensi degli artt. 12 e seguenti del D.P.R. 327/2001. Le aree soggette al vincolo preordinato all'esproprio, di cui Lei risulta intestatario/a catastale, sono le seguenti:
 [[tabella particelle colonne=comune,fg,map,haareca,rd,ra,espr,servtot,occ]]
 [[tabella intestatari]]
-Il progetto, con la relazione sulla natura e lo scopo delle opere e l'elenco delle aree da espropriare con i nominativi dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
+Il progetto, con la relazione sulla natura e lo scopo delle opere e l'elenco delle aree da espropriare con i nominativi dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
 Ai sensi dell'art. 16, comma 10, D.P.R. 327/2001, Lei può formulare osservazioni al responsabile del procedimento nel termine perentorio di trenta giorni dal ricevimento della presente. Le osservazioni saranno valutate ai fini delle definitive determinazioni.
 Ai sensi dell'art. 3, comma 3, D.P.R. 327/2001, qualora non fosse più proprietario/a dei beni, è tenuto/a a comunicarlo entro 30 giorni indicando, ove ne sia a conoscenza, il nuovo proprietario.
 Il responsabile del procedimento è {{ente.rup}}.
@@ -65,9 +67,9 @@ Il responsabile del procedimento è {{ente.rup}}.
 **Comunicazione di avvenute apposizione del vincolo preordinato all'esproprio e dichiarazione di pubblica utilità dell'opera e invito a fornire elementi utili per la stima dell'indennità (art. 17, comma 2, D.P.R. 8.6.2001 n. 327)**
 
 {{dest.gentile}}, La avvisiamo che:
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera in oggetto, con effetto di dichiarazione di pubblica utilità;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera in oggetto, con effetto di dichiarazione di pubblica utilità;
 - {{#atti.vincolo.estremi}}con {{atti.vincolo.testo}} {{/atti.vincolo.estremi}}è stato apposto il vincolo preordinato all'esproprio sulle aree interessate dalle opere.
-La documentazione progettuale può essere visionata presso {{ente.ufficio}} {{ente.nome}}{{#ente.link}} o in formato digitale al seguente indirizzo: {{ente.link}}{{/ente.link}}.
+La documentazione progettuale può essere visionata presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}{{#ente.link}} o in formato digitale al seguente indirizzo: {{ente.link}}{{/ente.link}}.
 Con la presente comunicazione viene avviato il procedimento per l'emanazione del decreto di esproprio/asservimento/occupazione delle aree di seguito specificate. Entro il termine di 30 (trenta) giorni dal ricevimento della presente, i proprietari hanno facoltà di produrre eventuali osservazioni e di fornire ogni elemento ritenuto utile per la stima dell'indennità loro spettante.
 Nel caso di aree edificabili, di aree legittimamente edificate e di aree non edificabili, l'indennità di esproprio sarà determinata in misura pari al relativo valore venale.
 L'area interessata dall'intervento, prevista nel piano particellare allegato al progetto approvato, è la seguente:
@@ -93,7 +95,7 @@ si comunica che questo Ente ha avviato il procedimento amministrativo volto all'
 [[tabella particelle colonne=comune,fg,map,sup,qual,rd,ra,occ]]
 [[tabella intestatari]]
 L'occupazione temporanea dell'area sopra descritta si rende necessaria ed indifferibile per consentire la corretta esecuzione dei lavori in oggetto. La durata presunta dell'occupazione è stimata in mesi {{mesiOcc}}, a decorrere dalla data del verbale di immissione in possesso.
-Ai sensi degli artt. 7 e 10 della Legge 241/1990 e s.m.i.: il responsabile del procedimento è {{ente.rup}}{{#ente.telefono}}, tel. {{ente.telefono}}{{/ente.telefono}}{{#ente.email}}, e-mail {{ente.email}}{{/ente.email}}. Gli atti del procedimento sono consultabili presso {{ente.ufficio}} {{ente.nome}}, previo appuntamento{{#ente.link}}, oppure al seguente indirizzo: {{ente.link}}{{/ente.link}}.
+Ai sensi degli artt. 7 e 10 della Legge 241/1990 e s.m.i.: il responsabile del procedimento è {{ente.rup}}{{#ente.telefono}}, tel. {{ente.telefono}}{{/ente.telefono}}{{#ente.email}}, e-mail {{ente.email}}{{/ente.email}}. Gli atti del procedimento sono consultabili presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}, previo appuntamento{{#ente.link}}, oppure al seguente indirizzo: {{ente.link}}{{/ente.link}}.
 Entro il termine di 15 giorni dal ricevimento della presente comunicazione, la S.V. ha facoltà di presentare memorie scritte e documenti, che saranno valutati dall'Amministrazione ai fini dell'adozione del provvedimento finale.
 A seguito dell'immissione in possesso e della redazione del relativo stato di consistenza in contraddittorio, verrà determinata e corrisposta l'indennità spettante per l'occupazione temporanea, calcolata ai sensi dell'art. 50 del D.P.R. 327/2001 per ciascun anno o frazione di anno di occupazione.
 Distinti saluti.
@@ -105,7 +107,7 @@ Distinti saluti.
 **Notifica dell'elenco dei beni da espropriare e indicazione della somma offerta per l'espropriazione (art. 20, comma 1, D.P.R. 8.6.2001 n. 327)**
 
 ## IL RESPONSABILE DEL PROCEDIMENTO
-Premesso che con {{atti.dpu.testo}} è stato approvato e dichiarato di pubblica utilità il progetto dell'opera pubblica in oggetto, il quale prevede espropriazioni per pubblica utilità;
+Premesso che con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato e dichiarato di pubblica utilità il progetto dell'opera pubblica in oggetto, il quale prevede espropriazioni per pubblica utilità;
 richiamata la comunicazione inviata ai sensi dell'art. 17, comma 2, D.P.R. 327/2001;
 visto l'art. 45, comma 1, D.P.R. 327/2001, ai sensi del quale, dalla dichiarazione di pubblica utilità e fino all'esecuzione del decreto di esproprio, il proprietario ha diritto di stipulare con il beneficiario l'atto di cessione del bene o della sua quota;
 ## NOTIFICA
@@ -159,13 +161,16 @@ Decreto n. ______ del ____________  Rep. n. ______
 ## {{ente.ruolo}}
 **PREMESSO che:**
 - con {{atti.avvio16.testo}} è stato comunicato alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento ai sensi dell'art. 16 del D.P.R. 327/2001 (TUES);
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità, che ha durata di anni cinque, e il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a), del TUES;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità, che ha durata di anni cinque, e il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a), del TUES;
 - con {{atti.com17.testo}} è stata data notizia ai proprietari, ai sensi dell'art. 17 TUES, dell'efficacia dell'atto che ha dichiarato la pubblica utilità;
 - trattandosi di espropriazione per causa di pubblica utilità il presente provvedimento è esente dall'imposta di bollo ai sensi dell'art. 22 della Tabella B del D.P.R. 642/1972;
 {{#atti.frazionamento.estremi}}- visti i tipi di frazionamento {{atti.frazionamento.testo}} approvati dall'Agenzia delle Entrate – Ufficio provinciale – Territorio;
 {{/atti.frazionamento.estremi}}- ai sensi dell'art. 22 TUES il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, sussistendo i presupposti di cui al medesimo art. 22, commi 1 e 2, per le seguenti ragioni di urgenza: {{pratica.urgenza}};
 **ATTESO che** sono configurate le condizioni previste dall'art. 8 TUES per procedere al trasferimento del diritto e in particolare: a) è stato apposto il vincolo preordinato all'esproprio ({{atti.vincolo.testo}}); b) è stata dichiarata la pubblica utilità, il cui termine di durata è tuttora in corso; c) viene in questa sede determinata l'indennità di esproprio;
-## DECRETA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA
 {{#haEspr}}
 - l'espropriazione a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, con sede in {{ente.sedeBeneficiario}}, dei beni immobili di seguito individuati, disponendo il passaggio a favore dello stesso del diritto di proprietà, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
 {{#unEspr}}
@@ -219,10 +224,13 @@ ai sensi dell'art. 24, comma 5, del D.P.R. 327/2001, che il presente decreto è 
 **Decreto motivato di occupazione d'urgenza preordinata all'espropriazione e di determinazione in via provvisoria dell'indennità (art. 22-bis D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO che:**
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità;
 - con {{atti.com17.testo}} è stata effettuata la comunicazione di cui all'art. 17, comma 2, D.P.R. 327/2001;
 - l'avvio dei lavori riveste carattere di particolare urgenza, tale da non consentire l'applicazione delle disposizioni dell'art. 20, commi 1 e 2, per le seguenti ragioni: {{pratica.urgenza}};
-## DECRETA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA
 - è disposta l'occupazione anticipata dei beni immobili necessari, come di seguito individuati, a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}};
 - è determinata in via provvisoria l'indennità di espropriazione come segue:
 [[tabella piano colonne=np,fg,map,qual,sup,espr,servtot,occ,ind]]
@@ -256,7 +264,7 @@ Possono partecipare alle operazioni anche i titolari di diritti reali o personal
 ## (artt. 22 e 24 del TUES)
 **PREMESSO:**
 - che con {{atti.avvio16.testo}} è stato comunicato alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento ai sensi dell'art. 16 del D.P.R. 327/2001;
-- che con {{atti.dpu.testo}} è stato approvato il progetto con effetto di dichiarazione di pubblica utilità, di durata quinquennale;
+- che con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto con effetto di dichiarazione di pubblica utilità, di durata quinquennale;
 - che con {{atti.vincolo.testo}} è stato apposto il vincolo preordinato all'esproprio;
 - che con {{atti.com17.testo}} è stata effettuata la comunicazione di cui all'art. 17 del D.P.R. 327/2001;
 {{#ditta.osservazioni}}- che a seguito delle comunicazioni sono pervenute le seguenti osservazioni: {{ditta.osservazioni}};
@@ -268,7 +276,8 @@ con i seguenti intestatari:
 {{/ditta.intestatari}}
 - che con {{atti.decreto.testo}} è stato decretato l'esproprio, la servitù e/o l'occupazione dei beni interessati, con contestuale determinazione in via provvisoria dell'indennità ai sensi dell'art. 22 del TUES;
 - che il decreto è stato notificato al proprietario nelle forme degli atti processuali civili con un avviso contenente l'indicazione del luogo, del giorno e dell'ora dell'esecuzione, almeno sette giorni prima di essa (art. 23, comma 1, lett. g).
-**TUTTO CIÒ PREMESSO**
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}**TUTTO CIÒ PREMESSO**
 il giorno {{ditta.ev.immissione.data}}, alle ore {{ditta.ev.immissione.ora}}, il sottoscritto {{ente.tecnico}}, tecnico incaricato da {{ente.nome}}, munito di documento di identità n. ____________ in corso di validità, si è portato in prossimità dell'accesso delle aree da espropriare/asservire/occupare ed ivi, alla presenza degli intervenuti:
 Sig. ______________________ nato a ______________________ il ____________ in qualità di ______________________
 Sig. ______________________ nato a ______________________ il ____________ in qualità di ______________________
@@ -327,11 +336,14 @@ ______________________________          ______________________________
 **Decreto di occupazione temporanea di aree non soggette ad esproprio e determinazione dell'indennità di occupazione (artt. 49 e 50 D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO che:**
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera in oggetto;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera in oggetto;
 - con {{atti.avvio49.testo}} i proprietari dei terreni interessati sono stati avvisati dell'avvio del procedimento e messi in condizione di presentare osservazioni;
 - per la corretta esecuzione dei lavori occorre disporre l'occupazione temporanea di aree non soggette al procedimento espropriativo ai sensi dell'art. 49 del D.P.R. 327/2001;
 - l'indennità di occupazione è determinata ai sensi dell'art. 50, in misura pari, per ogni anno, a un dodicesimo di quanto sarebbe dovuto in caso di esproprio e, per ogni mese o frazione di mese, a un dodicesimo di quella annua, sulla base di una durata presunta di mesi {{mesiOcc}}, da ricalcolare alla restituzione sulla base della durata effettiva;
-## DECRETA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA
 - l'occupazione temporanea non preordinata all'esproprio, a favore di **{{ente.beneficiario}}**, dei seguenti beni:
 [[tabella piano colonne=np,fg,map,qual,sup,occ,ind]]
 - l'indennità di occupazione è determinata nella misura sopra riportata, per complessivi **{{tot.occ}}** (diconsi euro {{tot.occLettere}});
@@ -359,7 +371,10 @@ L'indennità di occupazione sarà liquidata ai sensi dell'art. 50 del D.P.R. 327
 **Deposito presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato, servizio depositi amministrativi definitivi, delle indennità non condivise (artt. 20, comma 14, e 26 D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO** che con {{atti.decreto.testo}} è stata determinata in via provvisoria l'indennità spettante alle ditte proprietarie dei beni interessati dai lavori in oggetto e che, decorso il termine previsto, le ditte di seguito indicate non hanno comunicato la condivisione dell'indennità ovvero non hanno prodotto la documentazione attestante la piena e libera proprietà dei beni;
-## ORDINA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## ORDINA
 il deposito presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato competente, servizio depositi amministrativi definitivi, delle seguenti somme:
 {{#ditte}}
 - Ditta {{n}} – {{nome}}: **{{tot}}**
@@ -375,7 +390,10 @@ Il presente provvedimento sarà pubblicato per estratto nel {{ente.bur}} ai sens
 **Pagamento diretto delle indennità condivise (artt. 20, comma 8, e 26 D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO** che le ditte di seguito indicate hanno comunicato in modo irrevocabile la condivisione dell'indennità determinata con {{atti.decreto.testo}} e hanno prodotto la documentazione comprovante la piena e libera proprietà dei beni, dichiarando l'assenza di diritti di terzi;
-## ORDINA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## ORDINA
 il pagamento diretto delle seguenti somme agli aventi diritto, al netto dell'eventuale ritenuta del 20% di cui all'art. 35 D.P.R. 327/2001 ove dovuta:
 {{#ditte}}
 - Ditta {{n}} – {{nome}}: **{{tot}}**{{#ritenuta}} (ritenuta art. 35: {{ritenuta}}){{/ritenuta}}
@@ -426,7 +444,10 @@ Il responsabile del procedimento è {{ente.rup}}. Entro 30 giorni dal riceviment
 **PREMESSO** che i beni di seguito indicati sono utilizzati per scopi di interesse pubblico e sono stati modificati in assenza di un valido ed efficace provvedimento di esproprio o dichiarativo della pubblica utilità;
 **DATO ATTO** dell'avvio del procedimento comunicato con {{ditta.ev.avvio42.prot}} del {{ditta.ev.avvio42.data}} e delle memorie eventualmente pervenute;
 **VALUTATE** le attuali ed eccezionali ragioni di interesse pubblico, comparativamente con i contrapposti interessi privati, e l'assenza di ragionevoli alternative all'adozione del presente provvedimento: ______________________________________;
-## DISPONE
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DISPONE
 - l'acquisizione non retroattiva al patrimonio indisponibile di {{ente.beneficiario}} dei seguenti beni:
 [[tabella particelle colonne=comune,fg,map,qual,sup,espr]]
 di proprietà di: {{#ditta.intestatari}}{{anagrafica}} {{diritto}}; {{/ditta.intestatari}}
@@ -451,8 +472,9 @@ L'anno ________, il giorno ______ del mese di ____________, in ______________, p
 di seguito «parte cedente»,
 **E**
 **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, con sede in {{ente.sedeBeneficiario}}, rappresentato da ______________________, di seguito «parte cessionaria»,
-**PREMESSO** che con {{atti.dpu.testo}} è stato approvato il progetto dell'opera in oggetto con effetto di dichiarazione di pubblica utilità e che la parte cedente ha comunicato di condividere l'indennità offerta;
-**SI CONVIENE E SI STIPULA QUANTO SEGUE**
+**PREMESSO** che con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera in oggetto con effetto di dichiarazione di pubblica utilità e che la parte cedente ha comunicato di condividere l'indennità offerta;
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}**SI CONVIENE E SI STIPULA QUANTO SEGUE**
 1. La parte cedente cede alla parte cessionaria, che accetta, i seguenti beni:
 [[tabella particelle colonne=comune,fg,map,qual,sup,espr,servtot]]
 2. Il corrispettivo della cessione, determinato ai sensi dell'art. 45, comma 2, D.P.R. 327/2001, è stabilito in **{{ditta.tot}}** (diconsi euro {{ditta.totLettere}}), che la parte cessionaria corrisponde con le modalità di cui all'art. 26.
@@ -476,7 +498,7 @@ ______________________________ ({{nome}})
 **RENDE NOTO**
 - che è avviato il procedimento per l'apposizione del vincolo preordinato all'esproprio e per la dichiarazione di pubblica utilità dell'opera in oggetto;
 - che, essendo il numero dei destinatari superiore a cinquanta, la comunicazione personale è sostituita dal presente avviso, pubblicato all'Albo Pretorio dei Comuni interessati, su quotidiani a diffusione nazionale e locale e sul sito informatico della Regione;
-- che il progetto, con l'elenco delle aree interessate e dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}, {{ente.indirizzo}}{{#ente.link}}, ed è consultabile all'indirizzo {{ente.link}}{{/ente.link}};
+- che il progetto, con l'elenco delle aree interessate e dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}, {{ente.indirizzo}}{{#ente.link}}, ed è consultabile all'indirizzo {{ente.link}}{{/ente.link}};
 - che entro trenta giorni dalla pubblicazione del presente avviso gli interessati possono presentare osservazioni scritte al responsabile del procedimento, {{ente.rup}}, anche via PEC all'indirizzo {{ente.pec}}.
 Elenco delle ditte catastali interessate:
 [[tabella piano colonne=np,fg,map,espr,servtot,occ]]

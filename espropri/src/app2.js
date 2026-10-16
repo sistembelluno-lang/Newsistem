@@ -4,7 +4,7 @@
   'use strict';
   const U = ES.U, A = ES.analisi, C = ES.cat, S = ES.stima, I = ES.iter, M = ES.modelli, T = ES.tavola;
   const $ = s => document.querySelector(s), E = U.esc, APP = window.APP;
-  const san = s => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const san = s => String(s || '').replace(/[\u2010-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\\/:*?"<>|«»\u201c\u201d]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
   // Byte → base64 a blocchi (gli array grandi non si possono passare tutti insieme a fromCharCode)
   const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
 
@@ -23,12 +23,15 @@
   });
   const svgData = svg => 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 
-  // ---------- Documenti: generazione da modello integrato ----------
-  APP.testoModello = (p, k) => (p.modelli && p.modelli[k]) || (M.INTEGRATI[k] && M.INTEGRATI[k].testo) || '';
-  // Restituisce [{ctx, blocchi}] per ogni documento del modello
-  APP.componi = (p, k, ditteSel) => {
-    const m = M.INTEGRATI[k], calc = S.calcola(p);
-    return M.contesti(p, calc, m.ambito, ditteSel).map(ctx => ({ ctx, blocchi: M.blocchi(M.mustache(APP.testoModello(p, k), ctx), ctx) }));
+  // ---------- Documenti: modelli e generazione ----------
+  // Libreria dei modelli dell'utente (vale per tutte le pratiche): testi base modificati e modelli nuovi
+  APP.lib = () => ({ base: APP.DB.modelliBase || (APP.DB.modelliBase = {}), custom: APP.DB.modelliCustom || (APP.DB.modelliCustom = []) });
+  APP.modello = k => M.catalogo(APP.lib())[k];
+  APP.testoModello = (p, k) => M.testo(k, p, APP.lib());
+  // [{ctx, blocchi}] per ogni documento del modello (testo: per l'anteprima di un testo non ancora salvato)
+  APP.componi = (p, k, ditteSel, testo) => {
+    const m = APP.modello(k), calc = S.calcola(p);
+    return M.contesti(p, calc, m.ambito, ditteSel).map(ctx => ({ ctx, blocchi: M.blocchi(M.mustache(testo ?? APP.testoModello(p, k), ctx), ctx) }));
   };
   async function immaginiBlocchi(p, docs, perWord) {
     const calc = S.calcola(p);
@@ -38,36 +41,90 @@
       else { b.src = svgData(svg); b.mm = 170; }
     }
   }
-  const nomeDoc = (p, k, ctx) => { const m = M.INTEGRATI[k]; return san(m.nome.slice(0, 60)) + (ctx.ditta ? ' - Ditta ' + ctx.ditta.n : '') + (m.ambito === 'intestatario' && ctx.dest ? ' - ' + san(ctx.dest.nome) : ''); };
-  const cartellaDoc = (p, ctx) => { const d = ctx._dittaId && p.ditte.find(x => x.id === ctx._dittaId); return d ? APP.FS.dirDitta(p, d) : APP.FS.dirGenerale(p); };
-  // Word: un file per ditta/intestatario nel fascicolo (o un unico file da scaricare nel browser)
-  APP.generaWord = async (p, k, ditteSel, unico) => {
-    const docs = APP.componi(p, k, ditteSel); await immaginiBlocchi(p, docs, true);
-    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: M.INTEGRATI[k].nome });
-    if (unico || !APP.FS.ok) {
-      const B = []; docs.forEach((d, i) => { if (i) B.push({ t: 'pb' }); B.push(...d.blocchi); });
-      const nome = san(M.INTEGRATI[k].nome.slice(0, 60)) + (docs.length === 1 && docs[0].ctx.ditta ? ' - Ditta ' + docs[0].ctx.ditta.n : '') + '.docx';
-      const rel = (docs.length === 1 ? cartellaDoc(p, docs[0].ctx) : APP.FS.dirGenerale(p)) + '/' + nome;
-      await APP.FS.salva(rel, ES.office.docx(B, optW(docs[0].ctx)));
-    } else {
-      for (const d of docs) await APP.FS.salva(cartellaDoc(p, d.ctx) + '/' + nomeDoc(p, k, d.ctx) + ' (' + U.oggi() + ').docx', ES.office.docx(d.blocchi, optW(d.ctx)));
+  const titoloDoc = m => san(m.nome.slice(0, 70));
+  const unisci = L => { const B = []; L.forEach((d, i) => { if (i) B.push({ t: 'pb' }); B.push(...d.blocchi); }); return B; };
+  const perDitta = docs => { const per = new Map(); docs.forEach(d => { const k = d.ctx._dittaId; (per.get(k) || per.set(k, []).get(k)).push(d); }); return per; };
+  const AMBITI = { intestatario: 'una lettera per ogni intestatario', ditta: 'un documento per ditta', pratica: 'un documento per la pratica' };
+  // Salva una serie di file del fascicolo: nel programma installato nelle cartelle, nel browser un solo download (ZIP se più file)
+  APP.salvaFile = async (p, files, nomeZip) => {
+    if (!files.length) return;
+    if (APP.FS.ok) {
+      for (const f of files) await window.desktop.fsScrivi(f.rel, f.dati);
+      APP.toast(files.length === 1 ? 'Salvato: ' + files[0].rel.split('/').slice(1).join(' › ') : files.length + ' file salvati nel fascicolo (generale e cartelle delle ditte)', 5000);
+      return;
     }
-    p.docs.push({ data: U.oggi(), modello: k, ditte: ditteSel || null, formato: 'docx' }); APP.salva();
+    if (files.length === 1) { APP.scarica(files[0].rel.split('/').pop(), files[0].dati); return; }
+    const base = APP.FS.dirPratica(p) + '/';
+    APP.scarica(san(nomeZip) + '.zip', ES.office.zip(files.map(f => ({ name: f.rel.startsWith(base) ? f.rel.slice(base.length) : f.rel, data: f.dati }))), 'application/zip');
   };
-  // Anteprima / stampa / PDF
-  APP.anteprima = async (p, k, ditteSel) => {
-    const docs = APP.componi(p, k, ditteSel); await immaginiBlocchi(p, docs, false);
+  // Registra la data del passo per le ditte coinvolte (solo dove non c'è già)
+  function registra(p, opt) {
+    if (!opt.registra || !opt.registra.passo) return 0;
+    let n = 0;
+    p.ditte.filter(d => !opt.ditte || opt.ditte.includes(d.id)).forEach(d => { const e = d.ev[opt.registra.passo] = d.ev[opt.registra.passo] || {}; if (!e.data) { e.data = opt.registra.data || U.oggi(); n++; } });
+    return n;
+  }
+  // Genera un modello per tutte le ditte selezionate: file generale (tutte le lettere unite) in «00 GENERALE»
+  // e il documento di ogni ditta nella sua cartella. opt: {ditte, generale, perDitta, registra:{passo, data}}
+  APP.generaTutti = async (p, k, opt = {}) => {
+    if (k.startsWith('w:')) return generaWordUtente(p, APP.DB.modelliWord.find(w => 'w:' + w.id === k), opt);
+    const m = APP.modello(k); if (!m) return;
+    const docs = APP.componi(p, k, opt.ditte); if (!docs.length) { APP.toast('Nessuna ditta selezionata'); return; }
+    APP.toast('Preparazione dei documenti…');
+    await immaginiBlocchi(p, docs, true);
+    const oggi = U.oggi(), files = [], titolo = titoloDoc(m);
+    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: m.nome });
+    if (m.ambito === 'pratica') files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
+    else {
+      if (opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' - TUTTE LE DITTE (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
+      if (opt.perDitta !== false) perDitta(docs).forEach((L, id) => { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(L), optW(L[0].ctx)) }); });
+    }
+    await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - ' + titolo);
+    const n = registra(p, opt);
+    p.docs.push({ data: oggi, modello: k, ditte: opt.ditte || null, file: files.length });
+    APP.salva(); if (n) APP.render();
+  };
+  async function generaWordUtente(p, w, opt) {
+    const buf = Uint8Array.from(atob(w.dati), ch => ch.charCodeAt(0)).buffer, calc = S.calcola(p);
+    const ctxs = M.contesti(p, calc, w.ambito, opt.ditte).map(c => ({ ...c, _unione: M.unione(c) }));
+    if (!ctxs.length) return;
+    const img = { planimetria: async ctx => (p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null) };
+    const oggi = U.oggi(), files = [], titolo = san(w.nome);
+    if (w.ambito === 'pratica' || opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (w.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, ctxs, img) });
+    if (w.ambito !== 'pratica' && opt.perDitta !== false) {
+      const per = new Map(); ctxs.forEach(c => { (per.get(c._dittaId) || per.set(c._dittaId, []).get(c._dittaId)).push(c); });
+      for (const [id, L] of per) { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, L, img) }); }
+    }
+    await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - ' + titolo);
+    if (registra(p, opt)) APP.render();
+    APP.salva();
+  }
+  // Anteprima HTML
+  APP.anteprima = async (p, k, ditteSel, testo) => {
+    const docs = APP.componi(p, k, ditteSel, testo); await immaginiBlocchi(p, docs, false);
     return docs.map(d => `<div class="doc-prev">${M.html(d.blocchi)}</div>`).join('<div style="height:14px"></div>');
   };
-  APP.stampaModello = async (k, ambito, ditteSel, pdfNelFascicolo) => {
-    const p = APP.pr(); const docs = APP.componi(p, k, ditteSel); await immaginiBlocchi(p, docs, false);
-    const html = docs.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
-    $('#print').innerHTML = `<style>@media print{.doc-print{font:10.5pt/1.35 Arial,sans-serif;color:#000;break-after:page}.doc-print:last-child{break-after:auto}.doc-print p{margin:0 0 5pt}.doc-print .doc-pb{break-after:page}.doc-t{border-collapse:collapse;width:100%}.doc-t th,.doc-t td{border:1px solid #777;padding:1.5pt 3pt}.doc-t th{background:#e8edf5;-webkit-print-color-adjust:exact;print-color-adjust:exact}img{max-width:100%}@page{size:A4;margin:18mm 16mm}}</style>${html}`;
-    if (pdfNelFascicolo && window.desktop && window.desktop.pdfDati) {
-      const dati = await window.desktop.pdfDati({}); const ctx = docs[0].ctx;
-      await APP.FS.salva((docs.length === 1 ? cartellaDoc(p, ctx) : APP.FS.dirGenerale(p)) + '/' + (docs.length === 1 ? nomeDoc(p, k, ctx) : san(M.INTEGRATI[k].nome.slice(0, 60))) + ' (' + U.oggi() + ').pdf', dati);
-    } else window.print();
+  const CSS_STAMPA = '<style>@media print{.doc-print{font:10.5pt/1.35 Arial,sans-serif;color:#000;break-after:page}.doc-print:last-child{break-after:auto}.doc-print p{margin:0 0 5pt}.doc-print .doc-pb{break-after:page}.doc-t{border-collapse:collapse;width:100%}.doc-t th,.doc-t td{border:1px solid #777;padding:1.5pt 3pt}.doc-t th{background:#e8edf5;-webkit-print-color-adjust:exact;print-color-adjust:exact}img{max-width:100%}@page{size:A4;margin:18mm 16mm}}</style>';
+  // PDF: generale (stampa o fascicolo) e, nel programma installato, anche uno per ditta
+  APP.pdfTutti = async (p, k, opt = {}) => {
+    const m = APP.modello(k); const docs = APP.componi(p, k, opt.ditte); if (!docs.length) return;
+    await immaginiBlocchi(p, docs, false);
+    const html = L => CSS_STAMPA + L.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
+    const titolo = titoloDoc(m), oggi = U.oggi();
+    if (!(window.desktop && window.desktop.pdfDati && APP.FS.ok)) { $('#print').innerHTML = html(docs); window.print(); return; }
+    const files = [];
+    $('#print').innerHTML = html(docs);
+    files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+    if (m.ambito !== 'pratica' && opt.perDitta !== false) for (const [id, L] of perDitta(docs)) {
+      const d = p.ditte.find(x => x.id === id); $('#print').innerHTML = html(L);
+      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+    }
+    await APP.salvaFile(p, files, titolo);
+    if (registra(p, opt)) APP.render();
+    APP.salva();
   };
+  // Compatibilità: stampa di un modello (es. elenco ditte dal piano particellare)
+  APP.stampaModello = (k, ambito, ditteSel, nelFascicolo) => APP.pdfTutti(APP.pr(), k, { ditte: ditteSel, perDitta: false, _fasc: nelFascicolo });
 
   // ---------- Vista: Ditte ----------
   APP.viste.ditte = (m, p) => {
@@ -108,7 +165,7 @@ ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu
 <div class="card"><h3 style="margin-top:0">Particelle</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fg.</th><th>Mapp.</th><th>Qualità</th><th class="n">Sup.</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th>Confini</th><th class="n">Indennità</th></tr></thead><tbody>
 ${parts.map(x => { const v = c.perP.get(x.id); return `<tr data-px="${x.id}"><td>${E(x.fg)}</td><td>${E(C.mappale(x))}</td><td>${E([x.qual, x.cls].filter(Boolean).join('/'))}</td><td class="n">${U.mq(x.sup)}</td><td class="n">${v.aree.espr ? U.mq(v.aree.espr) : ''}</td><td class="n">${v.aree.servop + v.aree.serv ? U.mq(v.aree.servop + v.aree.serv) : ''}</td><td class="n">${v.aree.occ ? U.mq(v.aree.occ) : ''}</td><td class="mu" style="white-space:normal;min-width:200px">${E(x.confini || '')}</td><td class="n">${U.eur(v.tot)}</td></tr>`; }).join('')}</tbody></table></div></div>
 <div class="card"><h3 style="margin-top:0">Iter della ditta</h3><p class="mu">Per ogni passo registra date (invio e notifica/ricevimento), protocollo e mezzo; i documenti si generano nella cartella della ditta.</p><div class="passi">
-${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${ps.modelli.filter(k => M.INTEGRATI[k]).map(k => `<button class="s" data-gen="${k}" title="${E(M.INTEGRATI[k].nome)}">📄 ${E(M.INTEGRATI[k].nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
+${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${ps.modelli.filter(k => APP.modello(k)).map(k => `<button class="s" data-genp="${k}" title="Anteprima">👁</button><button class="s" data-gen="${k}" title="Crea il Word di questa ditta: ${E(APP.modello(k).nome)}">📄 ${E(APP.modello(k).nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
@@ -124,7 +181,8 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     m.querySelectorAll('[data-odel]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere l\'intestatario?', 'Togli')) { d.intest.splice(+b.dataset.odel, 1); APP.salva(); APP.render(); } });
     m.querySelector('#dadd').onclick = () => { d.intest.push({ id: U.id(), nome: '', titolo: "Proprieta'", quota: '1/1' }); APP.salva(); APP.render(); };
     m.querySelectorAll('[data-px]').forEach(r => r.onclick = () => APP.editParticella(p.particelle.find(x => x.id === r.dataset.px)));
-    m.querySelectorAll('[data-gen]').forEach(b => b.onclick = () => APP.vai('documenti', { modello: b.dataset.gen, ditte: [d.id] }));
+    m.querySelectorAll('[data-gen]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.gen, { ditte: [d.id], generale: false, perDitta: true }); if (APP.FS.ok) elencoFile(m.querySelector('#dfiles'), APP.FS.dirDitta(p, d)); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
+    m.querySelectorAll('[data-genp]').forEach(b => b.onclick = () => APP.vai('documenti', { ditte: [d.id], prev: b.dataset.genp }));
     fotoUI(m, p, d);
     if (APP.FS.ok) elencoFile(m.querySelector('#dfiles'), APP.FS.dirDitta(p, d));
   }
@@ -259,9 +317,9 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     const c = APP.calc(), T0 = c.T, I0 = p.impost;
     m.innerHTML = `<h2>💶 Indennità</h2>
 <div class="ban">Il programma applica le formule del D.P.R. 327/2001 con i valori qui sotto: i valori unitari e le percentuali vanno stabiliti dal tecnico estimatore (relazione di stima). Dopo la sentenza della Corte costituzionale n. 181/2011 anche per le aree non edificabili si usa il valore venale; il VAM resta per le indennità aggiuntive (artt. 40 c.4 e 42).</div>
-<div class="card"><h3 style="margin-top:0">Valori unitari per categoria</h3><p class="mu">La categoria si assegna in automatico dalla qualità catastale (es. «PRATO» → Prato, «BOSCO ARB» → Bosco) oppure a mano nella particella.</p>
-<div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Categoria</th><th>Edificabile</th><th>Valore venale €/mq</th><th>VAM €/ha (aggiuntive)</th><th class="n">Particelle</th><th></th></tr></thead><tbody>
-${p.valori.map((v, i) => `<tr><td><input data-v="${i}" data-c="nome" value="${E(v.nome)}"></td><td><input type="checkbox" data-v="${i}" data-c="edif" ${v.edif ? 'checked' : ''}></td><td><input data-v="${i}" data-c="vu" value="${v.vu || ''}"></td><td><input data-v="${i}" data-c="vam" value="${v.vam || ''}"></td><td class="n">${p.particelle.filter(x => (S.categoria(x, p.valori) || {}).id === v.id).length}</td><td><button class="s d" data-vx="${i}">✕</button></td></tr>`).join('')}
+<div class="card"><h3 style="margin-top:0">Valori unitari per categoria</h3><p class="mu">La categoria si assegna in automatico dalla qualità catastale della visura (es. «PRATO» → Prato, «BOSCHI/6» → Bosco, «ALPI/6» → Pascolo / Alpe) tramite gli inizi di parola della colonna «Riconosce nella qualità», oppure a mano nella particella.</p>
+<div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Categoria</th><th>Riconosce nella qualità</th><th>Edificabile</th><th>Valore venale €/mq</th><th>VAM €/ha (aggiuntive)</th><th class="n">Particelle</th><th></th></tr></thead><tbody>
+${p.valori.map((v, i) => `<tr><td><input data-v="${i}" data-c="nome" value="${E(v.nome)}"></td><td><input data-v="${i}" data-c="chiavi" value="${E(v.chiavi || '')}" placeholder="es. bosc cast" title="Inizi di parola separati da spazio"></td><td><input type="checkbox" data-v="${i}" data-c="edif" ${v.edif ? 'checked' : ''}></td><td><input data-v="${i}" data-c="vu" value="${v.vu || ''}"></td><td><input data-v="${i}" data-c="vam" value="${v.vam || ''}"></td><td class="n">${p.particelle.filter(x => (S.categoria(x, p.valori) || {}).id === v.id).length}</td><td><button class="s d" data-vx="${i}">✕</button></td></tr>`).join('')}
 </tbody></table></div><div class="row" style="margin-top:8px"><button id="vadd">＋ Categoria</button><span class="mu">Particelle senza categoria: ${p.particelle.filter(x => !S.categoria(x, p.valori)).map(x => 'Fg.' + E(x.fg) + ' ' + E(x.map) + (x.qual ? ' (' + E(x.qual) + ')' : '')).join(', ') || 'nessuna'}</span></div></div>
 <div class="card"><h3 style="margin-top:0">Criteri</h3><div class="g">
 <label>Servitù ingombro opere (% del valore)<input data-f="impost.coeffServop" data-t="pct"></label><label>Servitù fascia (% del valore, art. 44)<input data-f="impost.coeffServ" data-t="pct"></label>
@@ -276,49 +334,139 @@ ${Object.entries(S.VOCI).map(([k, n]) => T0[k] ? `<tr><td>${E(n)}</td><td class=
 <div class="card"><h3 style="margin-top:0">Per ditta</h3><div class="tw"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th class="n">Altre voci</th><th class="n">Totale</th><th class="n">Acconto 80%</th></tr></thead><tbody>
 ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.id}"><td><b>${E(d.n)}</b></td><td>${E(d.intest.map(o => o.nome).join(', ').slice(0, 60))}</td><td class="n">${U.eur(D.espr || 0)}</td><td class="n">${U.eur((D.servop || 0) + (D.serv || 0))}</td><td class="n">${U.eur((D.occ || 0) + (D.urg || 0))}</td><td class="n">${U.eur((D.aggCD || 0) + (D.sopr || 0) + (D.depr || 0) + (D.np42 || 0) + (D.ris42 || 0))}</td><td class="n"><b>${U.eur(D.tot || 0)}</b></td><td class="n">${U.eur(D.acconto80 || 0)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
     APP.lega(m, p, () => APP.render());
-    m.querySelectorAll('[data-v]').forEach(el => el.onchange = () => { const v = p.valori[+el.dataset.v]; v[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.dataset.c === 'nome' ? el.value : U.num(el.value); APP.salva(); APP.render(); });
+    m.querySelectorAll('[data-v]').forEach(el => el.onchange = () => { const v = p.valori[+el.dataset.v]; v[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.dataset.c === 'nome' || el.dataset.c === 'chiavi' ? el.value : U.num(el.value); APP.salva(); APP.render(); });
     m.querySelectorAll('[data-vx]').forEach(b => b.onclick = () => { p.valori.splice(+b.dataset.vx, 1); APP.salva(); APP.render(); });
     m.querySelector('#vadd').onclick = () => { p.valori.push({ id: U.id(), nome: 'Nuova categoria', edif: false, vu: 0, vam: 0 }); APP.salva(); APP.render(); };
     m.querySelectorAll('[data-d]').forEach(r => r.onclick = () => APP.vai('ditte', r.dataset.d));
   };
 
   // ---------- Vista: Documenti ----------
+  // Organizzata per passi del percorso: ogni modello si genera per tutte le ditte (file generale + file per ditta).
+  const LIVELLI = { originale: '', base: '<span class="tag t-wa">testo base modificato</span>', pratica: '<span class="tag t-sv">testo di questa pratica</span>', nuovo: '<span class="tag t-ok">modello vostro</span>' };
   APP.viste.documenti = async (m, p) => {
-    const st = APP.docSt = Object.assign(APP.docSt || { modello: 'avvio_11_16', ditte: null }, APP.arg && typeof APP.arg === 'object' ? APP.arg : {}); APP.arg = null;
-    const fasi = {}; Object.entries(M.INTEGRATI).forEach(([k, v]) => { (fasi[v.fase] = fasi[v.fase] || []).push([k, v]); });
-    const mod = M.INTEGRATI[st.modello], wordSel = (APP.DB.modelliWord || []).find(w => w.id === st.word);
+    const st = APP.docSt = Object.assign(APP.docSt || { ditte: null, registra: true, data: U.oggi(), generale: true, perDitta: true, prev: '' }, APP.arg && typeof APP.arg === 'object' ? APP.arg : {}); APP.arg = null;
+    const cat = M.catalogo(APP.lib()), lib = APP.lib(), proc = p.impost.procedura, passi = I.passi(proc);
+    const usati = new Set();
+    const nd = st.ditte ? st.ditte.length : p.ditte.length;
+    const riga = (k, passo) => {
+      const md = cat[k]; if (!md) return '';
+      usati.add(k);
+      const tutti = md.ambito !== 'pratica';
+      return `<div class="mr"><div class="grow" style="min-width:0"><b>${E(md.nome)}</b> ${LIVELLI[M.livello(k, p, lib)]}<div class="mu">${E(md.art || '')} · ${AMBITI[md.ambito]}</div></div>
+<div class="row"><button class="s" data-a="prev" data-k="${k}">👁 Anteprima</button><button class="s" data-a="edit" data-k="${k}">✏️ Testo</button><button class="s" data-a="pdf" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>PDF</button><button class="s p" data-a="word" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>${tutti ? '⬇ Genera per ' + (nd === p.ditte.length ? 'tutte le ditte' : nd + ' ditte') : '⬇ Genera'}</button></div></div>`;
+    };
+    const fatti = ps => p.ditte.filter(d => d.ev[ps.k] && d.ev[ps.k].data).length;
+    const sezPercorso = passi.map((ps, i) => `<div class="mp2"><div class="row"><span class="nr2">${i + 1}</span><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span><span class="tag ${fatti(ps) === p.ditte.length && p.ditte.length ? 't-ok' : ''}">${fatti(ps)}/${p.ditte.length} ditte</span></div>${ps.modelli.filter(k => cat[k]).map(k => riga(k, ps.k)).join('') || '<div class="mu">Nessun modello collegato: usa «Altri modelli».</div>'}</div>`).join('');
+    const generali = Object.keys(cat).filter(k => cat[k].ambito === 'pratica' && !usati.has(k));
+    const sezGen = generali.map(k => riga(k)).join('');
+    const altri = Object.keys(cat).filter(k => !usati.has(k)).map(k => riga(k)).join('');
+    const word = (APP.DB.modelliWord || []).map(w => `<div class="mr"><div class="grow"><b>${E(w.nome)}</b> <span class="tag t-ok">Word</span><div class="mu">${AMBITI[w.ambito]} · ${(w.campi || []).length} campi</div></div><div class="row"><button class="s d" data-a="wdel" data-k="w:${w.id}">✕</button><button class="s p" data-a="word" data-k="w:${w.id}">⬇ Genera</button></div></div>`).join('');
     m.innerHTML = `<h2>📄 Documenti</h2>
 <div class="card"><div class="g">
-<label class="f2">Modello integrato<select id="dm">${Object.entries(fasi).map(([f, L]) => `<optgroup label="${E(f)}">${L.map(([k, v]) => `<option value="${k}" ${k === st.modello && !st.word ? 'selected' : ''}>${E(v.nome)} (${E(v.art)})</option>`).join('')}</optgroup>`).join('')}</select></label>
-<label class="f2">…oppure un vostro modello Word<select id="dw"><option value="">—</option>${(APP.DB.modelliWord || []).map(w => `<option value="${w.id}" ${w.id === st.word ? 'selected' : ''}>${E(w.nome)} (${w.ambito})</option>`).join('')}</select></label>
-<label class="f">Ditte<select id="dd" multiple size="4">${p.ditte.map(d => `<option value="${d.id}" ${!st.ditte || st.ditte.includes(d.id) ? 'selected' : ''}>Ditta ${E(d.n)} – ${E(d.intest.map(o => o.nome).join(', ').slice(0, 80))}</option>`).join('')}</select></label></div>
-<p class="mu">${st.word ? `Modello Word: un documento per ${wordSel ? wordSel.ambito : ''}.` : `${E(mod.art)} · un documento per <b>${{ intestatario: 'ogni intestatario', ditta: 'ogni ditta', pratica: 'l\'intera pratica' }[mod.ambito]}</b>. Nel programma installato ogni documento si salva nella cartella della ditta.`}</p>
-<div class="row"><button class="p" id="gword">Crea Word (.docx)</button>${st.word ? '' : '<button id="gpdf">PDF nel fascicolo / stampa</button><button id="gunico">Word unico</button><button id="gedit">Modifica testo del modello</button>'}<span class="grow"></span><button id="wcar">Carica modello Word…</button>${st.word ? '<button class="d" id="wdel">Togli modello Word</button>' : ''}<button id="wcampi">Campi disponibili</button></div></div>
-<div id="dprev"><div class="vuoto">Anteprima…</div></div>`;
-    m.querySelector('#dm').onchange = e => { st.modello = e.target.value; st.word = ''; APP.render(); };
-    m.querySelector('#dw').onchange = e => { st.word = e.target.value; APP.render(); };
+<label class="f2">Ditte<select id="dd" multiple size="4">${p.ditte.map(d => `<option value="${d.id}" ${!st.ditte || st.ditte.includes(d.id) ? 'selected' : ''}>Ditta ${E(d.n)} – ${E(d.intest.map(o => o.nome).join(', ').slice(0, 80))}</option>`).join('')}</select></label>
+<div class="f2 opz"><span class="mu">File da creare</span><label class="chk"><input type="checkbox" id="ogen" ${st.generale ? 'checked' : ''}> File generale con tutte le ditte (in «00 GENERALE»)</label><label class="chk"><input type="checkbox" id="oper" ${st.perDitta ? 'checked' : ''}> Documento nella cartella di ogni ditta</label>
+<div class="row"><label class="chk"><input type="checkbox" id="oreg" ${st.registra ? 'checked' : ''}> Segna il passo come inviato alle ditte in data</label><input type="date" id="odat" value="${E(st.data)}"></div></div></div>
+<div class="row" style="margin-top:8px"><button id="dtutte">Seleziona tutte</button><span class="mu grow">${APP.FS.ok ? 'I file vanno nel fascicolo: generale in «00 GENERALE», specifici in «DITTA n …».' : 'Nel browser i file arrivano in un unico ZIP con le stesse cartelle del fascicolo.'}</span>
+<button id="mnew">＋ Nuovo modello</button><button id="wcar">Carica modello Word…</button><button id="mexp">Esporta modelli</button><button id="mimp">Importa modelli</button><button id="wcampi">Campi disponibili</button></div></div>
+<div class="card"><h3 style="margin-top:0">Percorso: ${E(S.PROCEDURE[proc].nome)}</h3><p class="mu">Il percorso si cambia nella scheda Pratica (o per singola ditta). I dati del progetto approvato, i visti e le premesse si scrivono una volta in Pratica › «Dati specifici per i documenti».</p>${sezPercorso}</div>
+${sezGen ? `<div class="card"><h3 style="margin-top:0">Atti generali della pratica</h3>${sezGen}</div>` : ''}
+<div class="card"><h3 style="margin-top:0">Altri modelli</h3>${altri || '<div class="mu">—</div>'}</div>
+${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${word}</div>` : ''}
+<div id="dprev"></div>`;
     const sel = () => { const v = [...m.querySelector('#dd').selectedOptions].map(o => o.value); st.ditte = v.length === p.ditte.length ? null : v; return st.ditte; };
-    m.querySelector('#dd').onchange = () => { sel(); prev(); };
-    m.querySelector('#gword').onclick = async () => { try { if (st.word) await wordUtente(p, wordSel, sel()); else await APP.generaWord(p, st.modello, sel()); } catch (e) { APP.toast('Errore: ' + e.message, 6000); console.error(e); } };
-    const gp = m.querySelector('#gpdf'); if (gp) gp.onclick = () => APP.stampaModello(st.modello, mod.ambito, sel(), APP.FS.ok);
-    const gu = m.querySelector('#gunico'); if (gu) gu.onclick = () => APP.generaWord(p, st.modello, sel(), true);
-    const ge = m.querySelector('#gedit'); if (ge) ge.onclick = () => modificaModello(p, st.modello);
+    const opt = passo => ({ ditte: sel(), generale: st.generale, perDitta: st.perDitta, registra: st.registra && passo ? { passo, data: st.data } : null });
+    m.querySelector('#dd').onchange = () => { sel(); APP.render(); };
+    m.querySelector('#dtutte').onclick = () => { st.ditte = null; APP.render(); };
+    m.querySelector('#ogen').onchange = e => { st.generale = e.target.checked; };
+    m.querySelector('#oper').onchange = e => { st.perDitta = e.target.checked; };
+    m.querySelector('#oreg').onchange = e => { st.registra = e.target.checked; };
+    m.querySelector('#odat').onchange = e => { st.data = e.target.value; };
+    m.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+      const k = b.dataset.k, a = b.dataset.a;
+      try {
+        if (a === 'word') await APP.generaTutti(p, k, opt(b.dataset.passo));
+        if (a === 'pdf') await APP.pdfTutti(p, k, opt(b.dataset.passo));
+        if (a === 'edit') await APP.editorModello(p, k);
+        if (a === 'wdel' && await APP.conferma('Togliere questo modello Word?', 'Togli')) { APP.DB.modelliWord = APP.DB.modelliWord.filter(w => 'w:' + w.id !== k); APP.salva(); APP.render(); }
+        if (a === 'prev') {
+          st.prev = k; const box = m.querySelector('#dprev');
+          box.innerHTML = `<div class="card row"><b class="grow">Anteprima: ${E(cat[k].nome)}</b><span class="mu">prime ditte selezionate</span></div>` + await APP.anteprima(p, k, (sel() || p.ditte.map(d => d.id)).slice(0, cat[k].ambito === 'intestatario' ? 2 : 3));
+          box.scrollIntoView({ behavior: 'smooth' });
+        }
+      } catch (e) { APP.toast('Errore: ' + e.message, 6000); console.error(e); }
+    });
+    m.querySelector('#mnew').onclick = () => nuovoModello(p);
     m.querySelector('#wcar').onclick = () => caricaWord();
-    const wd = m.querySelector('#wdel'); if (wd) wd.onclick = () => { APP.DB.modelliWord = APP.DB.modelliWord.filter(w => w.id !== st.word); st.word = ''; APP.salva(); APP.render(); };
     m.querySelector('#wcampi').onclick = () => campiDisponibili();
-    const prev = async () => {
-      const box = m.querySelector('#dprev');
-      if (st.word) { box.innerHTML = `<div class="card"><b>${E(wordSel.nome)}</b><p class="mu">Campi trovati nel modello: ${(wordSel.campi || []).map(x => '<span class="tag">' + E(x) + '</span>').join(' ') || 'nessuno'}</p></div>`; return; }
-      try { box.innerHTML = await APP.anteprima(p, st.modello, sel() ? sel().slice(0, 3) : p.ditte.slice(0, 2).map(d => d.id)); } catch (e) { box.innerHTML = `<div class="ban err">${E(e.message)}</div>`; console.error(e); }
+    m.querySelector('#mexp').onclick = () => APP.scarica('Modelli ESPROPRI_SISTEM (' + U.oggi() + ').json', JSON.stringify({ tipo: 'ESPROPRI_SISTEM-modelli', v: 1, base: APP.lib().base, custom: APP.lib().custom, word: APP.DB.modelliWord || [] }, null, 1), 'application/json');
+    m.querySelector('#mimp').onclick = async () => {
+      const [f] = await APP.scegliFile('.json'); if (!f) return;
+      try {
+        const o = JSON.parse(new TextDecoder().decode(f.buf)); if (o.tipo !== 'ESPROPRI_SISTEM-modelli') throw new Error('non è un file di modelli');
+        Object.assign(APP.lib().base, o.base || {});
+        (o.custom || []).forEach(c => { const L = APP.lib().custom, i = L.findIndex(x => x.k === c.k); if (i >= 0) L[i] = c; else L.push(c); });
+        (o.word || []).forEach(w => { APP.DB.modelliWord = APP.DB.modelliWord || []; if (!APP.DB.modelliWord.some(x => x.id === w.id)) APP.DB.modelliWord.push(w); });
+        APP.salva(); APP.render(); APP.toast('Modelli importati');
+      } catch (e) { APP.toast('File non valido: ' + e.message, 6000); }
     };
-    prev();
+    if (st.prev && cat[st.prev]) { const b = m.querySelector(`[data-a="prev"][data-k="${st.prev}"]`); if (b) b.click(); }
   };
-  async function modificaModello(p, k) {
-    const m = M.INTEGRATI[k];
-    const r = await APP.dlg('Modifica: ' + m.nome, `<p class="mu">Segnaposto: {{ditta.n}}, {{dest.nome}}, {{ente.nome}}, {{atti.dpu.testo}}… (vedi «Campi disponibili»). Righe: # titolo, ## sottotitolo, >> a destra, - elenco, **grassetto**, [[tabella particelle colonne=fg,map,sup,espr]], [[planimetria]], [[firma Ruolo|Nome]], [[salto]]. La modifica vale per questa pratica.</p><textarea id="mt" rows="24">${E(APP.testoModello(p, k))}</textarea>`, [{ t: 'Ripristina originale', v: 'reset', d: true }, { t: 'Annulla', v: '' }, { t: 'Salva', v: 'ok', p: true }]);
-    if (r === 'ok') p.modelli[k] = $('#mt').value;
-    if (r === 'reset') delete p.modelli[k];
+
+  // Editor del testo: livello «base» (tutte le pratiche) o «questa pratica», campi da inserire e anteprima
+  const GRUPPI_CAMPI = p => [
+    ['Destinatario', ['dest.saluto', 'dest.gentile', 'dest.nome', 'dest.anagrafica', 'dest.nascita', 'dest.cf', 'dest.diritto', 'dest.via', 'dest.cittaCap', 'dest.pec', 'dest.mezzo']],
+    ['Ditta', ['ditta.n', 'ditta.np', 'ditta.nome', 'ditta.tot', 'ditta.totLettere', 'ditta.indEspr', 'ditta.indServ', 'ditta.indOcc', 'ditta.supEspr', 'ditta.supServ', 'ditta.supOcc', 'ditta.acconto80', 'ditta.osservazioni', 'ditta.ev.immissione.data', 'ditta.ev.immissione.ora', 'ditta.ev.immissione.luogo']],
+    ['Opera ed ente', ['pratica.oggetto', 'pratica.cup', 'pratica.urgenza', 'ente.nome', 'ente.ufficio', 'ente.indirizzo', 'ente.pec', 'ente.ruolo', 'ente.responsabile', 'ente.rup', 'ente.tecnico', 'ente.beneficiario', 'ente.tar', 'ente.tribunale', 'ente.bur', 'ente.link', 'luogo', 'oggi', 'mesiOcc']],
+    ['Atti (estremi e data)', ES.iter.FASI.map(f => 'atti.' + f.k + '.testo')],
+    ['Dati specifici della pratica', M.DATI.map(c => 'dati.' + c.k).concat(['premesse', 'visti'].map(k => 'dati.' + k + 'Elenco')).concat((p.campi || []).map(c => 'dati.' + c.k))],
+    ['Tabelle e comandi', ['[[tabella particelle colonne=comune,fg,map,haareca,rd,ra,espr,servtot,occ]]', '[[tabella intestatari]]', '[[tabella indennita]]', '[[tabella consistenza]]', '[[tabella piano colonne=np,fg,map,qual,sup,espr,servtot,occ,ind]]', '[[planimetria scala=1000]]', '[[firma {{ente.ruolo}}|{{ente.responsabile}}]]', '[[salto]]', '{{#ditta.intestatari}} … {{/ditta.intestatari}}', '{{#ditta.particelle}} … {{/ditta.particelle}}', '{{#dati.premesse}} … {{/dati.premesse}}']]
+  ];
+  APP.editorModello = async (p, k) => {
+    const lib = APP.lib(), md = APP.modello(k), propria = !!md.propria;
+    const orig = propria ? md.testo : M.INTEGRATI[k].testo;
+    let liv = p.modelli[k] ? 'pratica' : 'base';
+    const testoLiv = l => (l === 'pratica' ? (p.modelli[k] || M.testo(k, null, lib)) : (propria ? md.testo : (lib.base[k] || orig)));
+    const campi = GRUPPI_CAMPI(p).map(([g, L]) => `<details ${g === 'Dati specifici della pratica' ? 'open' : ''}><summary>${E(g)}</summary>${L.map(c => `<button type="button" class="s cmp" data-ins="${E(c.startsWith('[[') || c.startsWith('{{') ? c : '{{' + c + '}}')}">${E(c.replace(/^(dest|ditta|ente|pratica|atti|dati)\./, ''))}</button>`).join('')}</details>`).join('');
+    const html = `${propria ? `<div class="g"><label class="f2">Nome del modello<input id="mnome" value="${E(md.nome)}"></label><label>Articolo<input id="mart" value="${E(md.art || '')}"></label><label>Fase<input id="mfase" value="${E(md.fase || '')}"></label><label>Un documento per<select id="mamb">${Object.entries(AMBITI).map(([a, t]) => `<option value="${a}" ${md.ambito === a ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>` : ''}
+<div class="row" style="margin:6px 0"><label class="fl">Modifica<select id="mliv"><option value="base">${propria ? 'Testo del modello (tutte le pratiche)' : 'Testo base – vale per tutte le pratiche'}</option><option value="pratica">Solo per questa pratica</option></select></label><span class="mu grow" id="mstato"></span></div>
+<div class="ed"><textarea id="mt" rows="26" spellcheck="true"></textarea><div class="ed-side"><div class="mu" style="margin-bottom:4px">Clic per inserire nel punto del cursore</div>${campi}</div></div>
+<p class="mu">Righe: <b># titolo</b>, <b>## sottotitolo</b>, <b>&gt;&gt; testo a destra</b> (indirizzo), <b>- punto elenco</b>, <b>**grassetto**</b>, <b>++sottolineato++</b>. Una riga = un paragrafo. Le sezioni <b>{{#campo}}…{{/campo}}</b> compaiono solo se il campo è compilato.</p>
+<div class="row"><button type="button" id="mprev">Anteprima con la prima ditta</button></div><div id="mpv" style="margin-top:8px"></div>`;
+    const stato = l => ({ base: propria ? 'Modello vostro: il testo vale per tutte le pratiche.' : lib.base[k] ? 'Testo base modificato da voi (vale per tutte le pratiche).' : 'Testo originale del programma.', pratica: p.modelli[k] ? 'Questa pratica usa un testo proprio.' : 'Questa pratica usa il testo base: salvando qui crei una versione solo per questa pratica.' })[l];
+    const r = await APP.dlg('Testo: ' + md.nome, html, [{ t: 'Ripristina', v: 'reset', d: true }].concat(propria ? [{ t: 'Elimina modello', v: 'del', d: true }] : []).concat([{ t: 'Annulla', v: '' }, { t: 'Salva', v: 'ok', p: true }]), b => {
+      const ta = b.querySelector('#mt'), sl = b.querySelector('#mliv');
+      const carica = () => { ta.value = testoLiv(liv); b.querySelector('#mstato').textContent = stato(liv); };
+      sl.value = liv; carica();
+      sl.onchange = () => { liv = sl.value; carica(); };
+      b.querySelectorAll('[data-ins]').forEach(x => x.onclick = () => { const t = x.dataset.ins, i = ta.selectionStart, j = ta.selectionEnd; ta.value = ta.value.slice(0, i) + t + ta.value.slice(j); ta.focus(); ta.selectionStart = ta.selectionEnd = i + t.length; });
+      b.querySelector('#mprev').onclick = async () => { try { b.querySelector('#mpv').innerHTML = await APP.anteprima(p, k, p.ditte.slice(0, 1).map(d => d.id), ta.value); } catch (e) { b.querySelector('#mpv').innerHTML = `<div class="ban err">${E(e.message)}</div>`; } };
+    });
+    const testo = $('#mt').value;
+    if (r === 'ok') {
+      if (propria) { const c = lib.custom.find(x => x.k === k); Object.assign(c, { nome: $('#mnome').value || c.nome, art: $('#mart').value, fase: $('#mfase').value, ambito: $('#mamb').value }); if (liv === 'base') c.testo = testo; }
+      if (liv === 'pratica') p.modelli[k] = testo;
+      else if (!propria) { if (testo === orig) delete lib.base[k]; else lib.base[k] = testo; }
+      APP.toast(liv === 'pratica' ? 'Testo salvato per questa pratica' : 'Testo base salvato: vale per tutte le pratiche');
+    }
+    if (r === 'reset') {
+      if (liv === 'pratica') delete p.modelli[k];
+      else if (!propria && await APP.conferma('Tornare al testo originale del programma per tutte le pratiche?', 'Ripristina')) delete lib.base[k];
+    }
+    if (r === 'del' && await APP.conferma('Eliminare il modello «' + E(md.nome) + '» da tutte le pratiche?', 'Elimina')) { lib.custom.splice(lib.custom.findIndex(x => x.k === k), 1); Object.values(APP.DB.pratiche).forEach(x => { if (x.modelli) delete x.modelli[k]; }); }
     if (r) { APP.salva(); APP.render(); }
+  };
+  async function nuovoModello(p) {
+    const cat = M.catalogo(APP.lib());
+    const r = await APP.dlg('Nuovo modello', `<div class="g"><label class="f">Nome<input id="nn" placeholder="es. Richiesta di nulla osta allo svincolo"></label><label>Articolo<input id="na" placeholder="art. 28"></label><label>Fase<input id="nf" placeholder="Indennità"></label>
+<label>Un documento per<select id="nb">${Object.entries(AMBITI).map(([a, t]) => `<option value="${a}">${t}</option>`).join('')}</select></label>
+<label class="f">Parti dal testo di<select id="nc"><option value="">(foglio bianco con intestazione)</option>${Object.entries(cat).map(([k, v]) => `<option value="${k}">${E(v.nome)}</option>`).join('')}</select></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Crea e modifica', v: 'ok', p: true }]);
+    if (r !== 'ok') return;
+    const da = $('#nc').value, amb = $('#nb').value;
+    const vuoto = amb === 'pratica' ? '# TITOLO\n## {{pratica.oggetto}}\n\nTesto…\n\n{{luogo}}, {{oggi}}\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]'
+      : 'Prot. n. ________\t{{luogo}}, {{oggi}}\n**Ditta {{ditta.n}}**\n>> {{dest.saluto}}\n>> **{{dest.nome}}**\n>> {{dest.via}}\n>> {{dest.cittaCap}}\n\n**Oggetto: {{pratica.oggetto}}**\n\n{{dest.gentile}},\nTesto…\n[[tabella particelle colonne=fg,map,sup,espr,servtot,occ]]\n\nDistinti saluti.\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]';
+    const c = { k: 'u_' + U.id(), nome: $('#nn').value || 'Nuovo modello', art: $('#na').value, fase: $('#nf').value || 'Modelli vostri', ambito: (da && cat[da].ambito) || amb, testo: da ? APP.testoModello(p, da) : vuoto };
+    APP.lib().custom.push(c); APP.salva(); APP.render();
+    return APP.editorModello(p, c.k);
   }
   async function caricaWord() {
     const [f] = await APP.scegliFile('.docx'); if (!f) return;
@@ -327,17 +475,9 @@ ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.i
     const amb = campi.some(x => /^dest\.|Nome_e_Cognome$|^via$/.test(x)) ? 'intestatario' : campi.some(x => /^#?ditte|^#?unEspr/.test(x)) ? 'pratica' : 'ditta';
     const r = await APP.dlg('Nuovo modello Word', `<div class="g"><label class="f">Nome<input id="wn" value="${E(f.nome.replace(/\.docx$/i, ''))}"></label><label>Un documento per<select id="wa"><option value="intestatario">ogni intestatario</option><option value="ditta">ogni ditta</option><option value="pratica">l'intera pratica</option></select></label></div><p class="mu">Campi trovati: ${campi.map(x => '<span class="tag">' + E(x) + '</span>').join(' ') || 'nessuno – inserisci nel Word i segnaposto {{campo}} o usa i campi di stampa unione'}</p>`, [{ t: 'Annulla', v: '' }, { t: 'Aggiungi', v: 'ok', p: true }], b => { b.querySelector('#wa').value = amb; });
     if (r !== 'ok') return;
-    const dati64 = b64(new Uint8Array(f.buf));
     APP.DB.modelliWord = APP.DB.modelliWord || [];
-    const w = { id: U.id(), nome: $('#wn').value || f.nome, ambito: $('#wa').value, campi, dati: dati64 };
-    APP.DB.modelliWord.push(w); APP.docSt.word = w.id; APP.salva(); APP.render();
-  }
-  async function wordUtente(p, w, ditteSel) {
-    const buf = Uint8Array.from(atob(w.dati), ch => ch.charCodeAt(0)).buffer, calc = S.calcola(p);
-    const ctxs = M.contesti(p, calc, w.ambito, ditteSel).map(c => ({ ...c, _unione: M.unione(c) }));
-    const img = { planimetria: async ctx => (p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null) };
-    if (!APP.FS.ok || w.ambito === 'pratica') { await APP.FS.salva(APP.FS.dirGenerale(p) + '/' + san(w.nome) + ' (' + U.oggi() + ').docx', await ES.office.compila(buf, ctxs, img)); return; }
-    for (const c of ctxs) await APP.FS.salva(APP.FS.dirDitta(p, p.ditte.find(d => d.id === c._dittaId)) + '/' + san(w.nome) + (w.ambito === 'intestatario' ? ' - ' + san(c.dest.nome) : '') + ' (' + U.oggi() + ').docx', await ES.office.compila(buf, [c], img));
+    APP.DB.modelliWord.push({ id: U.id(), nome: $('#wn').value || f.nome, ambito: $('#wa').value, campi, dati: b64(new Uint8Array(f.buf)) });
+    APP.salva(); APP.render();
   }
   function campiDisponibili() {
     const R = (a, b) => `<tr><td><code>${E(a)}</code></td><td>${E(b)}</td></tr>`;

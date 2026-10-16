@@ -31,19 +31,27 @@
     nonPatr42bis: 10, interessi42bis: 5, ritenuta: 20, arrotonda: 0.01
   };
 
+  // Categorie predefinite con le qualità catastali più comuni; «chiavi»: inizi di parola riconosciuti nella qualità della visura
   S.VALORI = [
-    { id: 'sem', nome: 'Seminativo', edif: false, vu: 0, vam: 0 },
-    { id: 'pra', nome: 'Prato', edif: false, vu: 0, vam: 0 },
-    { id: 'bos', nome: 'Bosco', edif: false, vu: 0, vam: 0 },
-    { id: 'eu', nome: 'Ente urbano / corte', edif: false, vu: 0, vam: 0 },
-    { id: 'edB', nome: 'Area edificabile (zona B)', edif: true, vu: 0, vam: 0 }
+    { id: 'sem', nome: 'Seminativo', chiavi: 'semin', edif: false, vu: 0, vam: 0 },
+    { id: 'pra', nome: 'Prato', chiavi: 'prat', edif: false, vu: 0, vam: 0 },
+    { id: 'pas', nome: 'Pascolo / Alpe', chiavi: 'pasc alp', edif: false, vu: 0, vam: 0 },
+    { id: 'bos', nome: 'Bosco', chiavi: 'bosc cast', edif: false, vu: 0, vam: 0 },
+    { id: 'col', nome: 'Vigneto / frutteto / orto', chiavi: 'vign frut orto ulive', edif: false, vu: 0, vam: 0 },
+    { id: 'inc', nome: 'Incolto / improduttivo', chiavi: 'incol impro steril rocc', edif: false, vu: 0, vam: 0 },
+    { id: 'eu', nome: 'Ente urbano / corte', chiavi: 'ente fabb corte urb', edif: false, vu: 0, vam: 0 },
+    { id: 'edB', nome: 'Area edificabile (zona B)', chiavi: '', edif: true, vu: 0, vam: 0 }
   ];
 
-  // Categoria di stima: quella scelta, altrimenti la prima il cui nome somiglia alla qualità catastale
+  // Categoria di stima: quella scelta, altrimenti la prima le cui chiavi (o le prime 4 lettere del nome) iniziano una parola della qualità
   S.categoria = (p, valori) => {
     if (p.val) { const v = valori.find(x => x.id === p.val); if (v) return v; }
     const q = U.norm(p.qual); if (!q) return null;
-    return valori.find(v => { const n = U.norm(v.nome); return n && (q.startsWith(n.split(' ')[0].slice(0, 5)) || n.startsWith(q.slice(0, 5))); }) || null;
+    const parole = q.split(' ');
+    return valori.find(v => {
+      const ch = (v.chiavi != null && v.chiavi !== '' ? String(v.chiavi) : v.edif ? '' : U.norm(v.nome).split(' ')[0].slice(0, 4)).split(/[\s,]+/).filter(Boolean).map(U.norm);
+      return ch.some(c => parole.some(w => w.startsWith(c)));
+    }) || null;
   };
   S.zonaRitenuta = z => /^\s*(z\.?\s*t\.?\s*o\.?\s*)?(zona\s*)?[ABCD](\b|\d)/i.test(String(z || ''));
 

@@ -31,7 +31,7 @@
   C.indirizzo = o => [o.via, [o.cap, o.citta, o.prov ? '(' + o.prov + ')' : ''].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
   // ---- Intestatari da testo libero ----
-  const reTit = /(nuda\s+propriet\w*'?|propriet\w*'?\s*superficiaria|propriet\w*'?|usufrutt\w*(?:\s+parziale)?|comproprie\w*|enfiteu\w*|livell\w*|diritto\s+del\s+concedente|diritto\s+di\s+superficie|superficie|uso|abitazione|oneri|servit\w*|concedente)(?:\s+per)?\s*(\d+\s*\/\s*\d+)?/i;
+  const reTit = /(nuda\s+propriet\w*'?|propriet\w*'?\s*superficiaria|propriet\w*'?|usufrutt\w*(?:\s+parziale)?|comproprie\w*|enfiteu\w*|livell\w*|diritto\s+del\s+concedente|diritto\s+di\s+superficie|superficie|uso|abitazione|oneri|servit\w*|concedente)(?:\s*:)?(?:\s+per)?\s*(\d+\s*\/\s*\d+)?/i;
   const inizioRiga = /^(nat[oa]|n\.|c\.?\s?f|cod|con\s+sede|sede|residente|res\.|via\b|propriet|nuda|usufrutt|compropr|enfiteu|livell|diritto|quota|\d+\s*\/\s*\d+)/i;
 
   C.leggiIntestatario = seg => {
@@ -131,12 +131,28 @@
     if (M.map == null && M.intest == null && M.cognome == null) throw new Error('Nella tabella non trovo né la colonna del mappale né quella degli intestatari: controlla le intestazioni');
     const get = (r, k) => (M[k] != null ? r[M[k]] : '');
     const str = v => String(v ?? '').trim();
+    righe = righe.map(r => r.slice());
     // «Ditta» può essere il numero di ditta o il nome degli intestatari: si decide dal contenuto
     if (M.intest != null && M.nditta == null) {
       const vals = righe.slice(mp.riga + 1).map(r => str(r[M.intest])).filter(Boolean);
       if (vals.length && vals.filter(v => /^\d{1,4}$/.test(v)).length / vals.length > 0.8) { M.nditta = M.intest; delete M.intest; }
     }
     const part = new Map(), ditteN = new Map(), ownersOf = new Map();
+    // Formato a blocchi (riepilogo delle visure): il numero di ditta solo sulla prima riga del blocco, gli intestatari
+    // scritti riga per riga sotto («NOME con sede in …», «CF: …», «Proprieta': 1/1») e le particelle nelle stesse righe.
+    // Il numero scende alle righe successive e gli intestatari si leggono tutti insieme per blocco.
+    const testaBlocco = /^\s*(c\.?\s?f\b|cod\w*\s+fisc|propriet|nuda|usufrutt|compropr|enfiteu|livell|diritto|nat[oa]\s)/i;
+    if (M.nditta != null && M.intest != null && righe.slice(mp.riga + 1).some(r => !str(r[M.nditta]) && testaBlocco.test(str(r[M.intest])))) {
+      let cur = '';
+      righe.slice(mp.riga + 1).forEach(r => {
+        const v = str(r[M.nditta]).replace(/^(ditta|np|n\.?)\s*/i, '');
+        if (v) cur = v; else if (cur) r[M.nditta] = cur;
+        const t = str(r[M.intest]);
+        if (t && cur) { const L = ownersOf.get(cur + '\u0000t'); ownersOf.set(cur + '\u0000t', (L ? L + '\n' : '') + t); }
+        r[M.intest] = '';
+      });
+      [...ownersOf.keys()].forEach(k => { ownersOf.set(k.slice(0, -2), C.leggiIntestatari(ownersOf.get(k))); ownersOf.delete(k); });
+    }
     let ultima = null;
     righe.slice(mp.riga + 1).forEach((r, ir) => {
       let mapp = str(get(r, 'map')), ex = str(get(r, 'ex')), nuovo = str(get(r, 'nuovo'));

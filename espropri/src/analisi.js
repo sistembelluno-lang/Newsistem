@@ -30,9 +30,11 @@
   A.etichetta = (t, opt = {}) => {
     const s = String(t || '').trim().replace(/\s+/g, ' ');
     let m;
-    if ((m = /^(?:f(?:g|oglio)?\.?)\s*(\d+)[\s,;\-–\/]*(?:(?:m(?:app(?:ale)?)?|p(?:\.?\s?lla|art(?:icella)?)?|n)\.?\s*)?(\d+)\s*(?:[\/\-_]?\s*([a-z]{1,2}))?(?:\s*sub\.?\s*(\d+))?$/i.exec(s)))
+    if ((m = /^(?:f(?:g|oglio)?\.?)\s*(\d+)[\s,;\-–\/]*(?:(?:m(?:app(?:ale)?)?|p(?:\.?\s?lla|art(?:icella)?)?|n)\.?\s*)?(\.?\d+(?:\/\d+)?)\s*(?:[\/\-_]?\s*([a-z]{1,2}))?(?:\s*sub\.?\s*(\d+))?$/i.exec(s)))
       return { fg: m[1], map: m[2], sub: m[4] || '', fr: m[3] || '' };
     if (opt.fgMap && (m = /^(\d+)\s*[\/\-]\s*(\d+)$/.exec(s))) return { fg: m[1], map: m[2], sub: '', fr: '' };
+    // Catasto di origine austriaca (es. Cortina d'Ampezzo): particelle con la barra «8611/16» o edificiali «.123»
+    if (!opt.fgMap && (m = /^(?:(?:p\.?\s?(?:f|fond|ed|edif|lla)\.?|mapp?\.?|n\.?)\s*)?(\.?\d+\s*\/\s*\d+|\.\d+)$/i.exec(s))) return { fg: '', map: m[1].replace(/\s/g, ''), sub: '', fr: '' };
     if ((m = /^(?:(?:m(?:app(?:ale)?)?|p(?:\.?\s?lla|art(?:icella)?)?|n)\.?\s*)?(\d+)\s*(?:[\/\-_]?\s*([a-z]{1,2}))?(?:\s*sub\.?\s*(\d+))?$/i.exec(s)))
       return { fg: '', map: m[1], sub: m[3] || '', fr: m[2] || '' };
     return null;

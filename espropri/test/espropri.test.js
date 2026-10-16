@@ -177,3 +177,70 @@ test('ditte: stessi intestatari e stesse quote = una ditta; quote diverse = ditt
   assert.notStrictEqual(P[3].ditta, P[4].ditta);
   assert.deepStrictEqual(D.map(d => d.n), ['1', '2', '3', '4']);
 });
+
+test('dati specifici della pratica e livelli del testo dei modelli', () => {
+  const pr = pratica(), calc = ES.stima.calcola(pr), M = ES.modelli;
+  pr.dati = { progetto: 'PFTE redatto dallo Studio Alfa, prot. 99', visti: 'il D.Lgs. 267/2000;\nla L.R. 11/2004;', finanziamento: 'fondi regionali', lettere: 'Si allega informativa privacy.' };
+  pr.campi = [{ k: 'soprintendenza', nome: 'Parere Soprintendenza' }]; pr.dati.soprintendenza = 'parere n. 5';
+  const ctx = M.contesti(pr, calc, 'pratica')[0];
+  assert.strictEqual(ctx.dati.vistiElenco, '- il D.Lgs. 267/2000;\n- la L.R. 11/2004;');
+  assert.ok(ctx.dati.premesseElenco.includes('finanziata con fondi regionali'));
+  const dec = M.mustache(M.INTEGRATI.decreto_esproprio.testo, ctx);
+  assert.ok(dec.includes('**VISTI:**') && dec.includes('- la L.R. 11/2004;'));
+  assert.ok(dec.includes('(PFTE redatto dallo Studio Alfa, prot. 99)'));
+  const lett = M.mustache(M.INTEGRATI.com_17.testo, M.contesti(pr, calc, 'intestatario')[0]);
+  assert.ok(lett.includes('Si allega informativa privacy.'));
+  // senza dati le sezioni spariscono
+  pr.dati = {}; const vuoto = M.mustache(M.INTEGRATI.decreto_esproprio.testo, M.contesti(pr, calc, 'pratica')[0]);
+  assert.ok(!vuoto.includes('VISTI') && !vuoto.includes('()'));
+  // livelli: originale → base (tutte le pratiche) → pratica
+  const lib = { base: {}, custom: [{ k: 'u_1', nome: 'Mio modello', ambito: 'ditta', testo: 'Ditta {{ditta.n}} – {{dati.soprintendenza}}' }] };
+  assert.strictEqual(M.livello('com_17', pr, lib), 'originale');
+  lib.base.com_17 = 'BASE'; assert.strictEqual(M.testo('com_17', pr, lib), 'BASE'); assert.strictEqual(M.livello('com_17', pr, lib), 'base');
+  pr.modelli = { com_17: 'PRATICA' }; assert.strictEqual(M.testo('com_17', pr, lib), 'PRATICA');
+  assert.strictEqual(M.livello('u_1', pr, lib), 'nuovo');
+  assert.strictEqual(M.catalogo(lib).u_1.nome, 'Mio modello');
+  pr.dati = { soprintendenza: 'parere n. 5' };
+  assert.strictEqual(M.mustache(M.testo('u_1', pr, lib), M.contesti(pr, calc, 'ditta')[0]), 'Ditta 1 – parere n. 5');
+});
+
+test('Excel a blocchi tipo riepilogo visure (ditta su più righe, mappali con la barra)', () => {
+  const R = [
+    ['N.', 'Ditta Catastale', 'Comune', 'Catasto', 'Foglio', 'Mappale', 'Qualità/Classe', 'Superficie\r(mq)', 'Rd (€)', 'Ra (€)'],
+    [1, 'ENTE ESEMPIO con sede in ROMA (RM)', 'COMUNE A', 'Terreni', '66', '8611/16', 'IMPRODUTT/', 2860348],
+    ['', 'CF:97000000000', 'COMUNE A', 'Terreni', '66', '8611/9', 'IMPRODUTT/', 1665],
+    ['', "Proprieta': 1/1", 'COMUNE A', 'Terreni', '66', '8611/11', 'IMPRODUTT/', 4020],
+    [2, 'ROSSI MARIO nato a BELLUNO (BL) il 12/03/1960', 'COMUNE A', 'Terreni', '66', '8612/5', 'ALPI/6', 490, 0.08, 0.08],
+    ['', 'CF:RSSMRA60C12A757X', 'COMUNE A', 'Terreni', '66', '8612/4', 'ALPI/6', 850, 0.13, 0.13],
+    ['', "Proprieta': 500/1000"],
+    ['', 'BIANCHI ANNA nata a FELTRE (BL) il 05/07/1962'],
+    ['', 'CF:BNCNNA62L45D530Y'],
+    ['', "Proprieta': 500/1000"],
+    [3, 'REGOLA UNO con sede in COMUNE A (BL)', 'COMUNE A', 'Terreni', '66', '8589/10', 'BOSCHI/6', 90, 0.03, 0.01],
+    ['', 'CF:'],
+    ['', 'REGOLA DUE con sede in COMUNE A (BL)'],
+    ['', 'CF:90000330259']
+  ];
+  const r = ES.cat.importaTabella(R, {});
+  assert.strictEqual(r.ditte.length, 3);
+  assert.strictEqual(r.particelle.length, 6);
+  const d1 = r.ditte.find(d => d.n === '1'), d2 = r.ditte.find(d => d.n === '2'), d3 = r.ditte.find(d => d.n === '3');
+  assert.strictEqual(d1.intest.length, 1); assert.strictEqual(d1.intest[0].cf, '97000000000'); assert.strictEqual(d1.intest[0].quota, '1/1'); assert.strictEqual(d1.intest[0].sede, 'ROMA (RM)');
+  assert.strictEqual(r.particelle.filter(p => p.ditta === d1.id).length, 3);
+  assert.deepStrictEqual(d2.intest.map(o => o.nome + ' ' + o.quota), ['ROSSI MARIO 500/1000', 'BIANCHI ANNA 500/1000']);
+  assert.deepStrictEqual(d3.intest.map(o => o.nome), ['REGOLA UNO', 'REGOLA DUE']);
+  const p = r.particelle.find(x => x.map === '8611/16');
+  assert.strictEqual(p.sup, 2860348); assert.strictEqual(p.qual, 'IMPRODUTT'); assert.strictEqual(p.fg, '66');
+  assert.strictEqual(r.particelle.find(x => x.map === '8612/5').rd, '0.08');
+  assert.strictEqual(ES.analisi.etichetta('8611/16').map, '8611/16');
+  assert.strictEqual(ES.analisi.etichetta('Fg.66 8611/16').map, '8611/16');
+  assert.strictEqual(ES.analisi.etichetta('1/100', { fgMap: true }).fg, '1');
+});
+
+test('categorie di stima riconosciute dalla qualità della visura', () => {
+  const V = ES.stima.VALORI, c = q => (ES.stima.categoria({ qual: q }, V) || {}).id;
+  assert.strictEqual(c('BOSCHI'), 'bos'); assert.strictEqual(c('BOSCO CEDUO'), 'bos'); assert.strictEqual(c('ALPI'), 'pas');
+  assert.strictEqual(c('IMPRODUTT'), 'inc'); assert.strictEqual(c('SEMIN ARBOR'), 'sem'); assert.strictEqual(c('PRATO'), 'pra');
+  assert.strictEqual(c('ENTE URBANO'), 'eu'); assert.strictEqual(c('REL ENTE UR'), 'eu'); assert.strictEqual(c('XYZ'), undefined);
+  assert.strictEqual(ES.stima.categoria({ qual: 'Prato' }, [{ id: 'x', nome: 'Prati stabili' }]).id, 'x');
+});

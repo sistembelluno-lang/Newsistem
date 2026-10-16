@@ -43,6 +43,35 @@
       mezzo: o.pec ? 'PEC' : 'RACCOMANDATA A/R', cd: !!o.cd
     };
   }
+  // Dati specifici della pratica, uguali per tutti i documenti: si scrivono una volta nella scheda Pratica.
+  // Per i campi a righe esiste anche la versione «Elenco» (ogni riga diventa un punto elenco degli atti).
+  M.DATI = [
+    { k: 'progetto', nome: 'Progetto approvato', aiuto: 'Livello, titolo, progettista, data e protocollo del progetto (es. «PFTE redatto dallo studio … in data …, prot. …»)', righe: 2 },
+    { k: 'premesse', nome: 'Premesse aggiuntive negli atti', aiuto: 'Una per riga: compaiono tra le premesse di decreti, ordinanze e verbali', righe: 4 },
+    { k: 'visti', nome: 'Visti amministrativi e normativi', aiuto: 'Uno per riga (es. «il D.Lgs. 267/2000;», «la L.R. Veneto 11/2004;», «il parere …»): sezione VISTI dei decreti', righe: 4 },
+    { k: 'finanziamento', nome: 'Finanziamento dell\'opera', aiuto: 'Es. «fondi PNRR – Missione …» oppure «bilancio comunale, capitolo …»', righe: 1 },
+    { k: 'consultazione', nome: 'Consultazione degli atti', aiuto: 'Dove e quando i proprietari possono vedere il progetto (orari, appuntamento, link)', righe: 1 },
+    { k: 'lettere', nome: 'Testo aggiuntivo nelle lettere', aiuto: 'Paragrafo inserito prima dei saluti in tutte le lettere ai proprietari', righe: 3 }
+  ];
+  M.datiCtx = pr => {
+    const d = pr.dati || {}, o = {};
+    const campi = M.DATI.concat((pr.campi || []).map(c => ({ k: c.k })));
+    campi.forEach(c => { o[c.k] = String(d[c.k] ?? '').trim(); });
+    Object.keys(d).forEach(k => { if (!(k in o)) o[k] = String(d[k] ?? '').trim(); });
+    const elenco = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => '- ' + x.replace(/^[-•]\s*/, '')).join('\n');
+    Object.keys(o).forEach(k => { o[k + 'Elenco'] = elenco(o[k]); });
+    // Il finanziamento entra da solo tra le premesse
+    if (o.finanziamento) { o.premesseElenco = ['- l\'opera è finanziata con ' + o.finanziamento.replace(/[;.]$/, '') + ';', o.premesseElenco].filter(Boolean).join('\n'); o.premesse = o.premesse || o.finanziamento; }
+    return o;
+  };
+
+  // Modelli disponibili: integrati + creati dall'utente. Testo: versione della pratica, altrimenti testo base
+  // modificato dall'utente (vale per tutte le pratiche), altrimenti testo originale del programma.
+  // lib = {base:{k:testo}, custom:[{k,nome,art,ambito,fase,testo}]}
+  M.catalogo = lib => { const o = Object.assign({}, M.INTEGRATI); ((lib && lib.custom) || []).forEach(c => { o[c.k] = Object.assign({ propria: true }, c); }); return o; };
+  M.testo = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k]) || (lib && lib.base && lib.base[k]) || ((M.catalogo(lib)[k] || {}).testo) || '';
+  M.livello = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k] ? 'pratica' : lib && lib.base && lib.base[k] ? 'base' : (M.catalogo(lib)[k] || {}).propria ? 'nuovo' : 'originale');
+
   const atto = x => x && (x.estremi || x.data) ? [x.estremi, x.data ? 'del ' + U.dataIt(x.data) : ''].filter(Boolean).join(' ') : '______________';
   M.base = (pr, calc) => {
     const e = pr.ente || {}, it = pr.iter || {}, I = Object.assign({}, ES.stima.IMPOST, pr.impost || {});
@@ -55,7 +84,7 @@
         beneficiario: e.beneficiario || e.nome || '', cfBeneficiario: e.cfBeneficiario || e.cf || '', sedeBeneficiario: e.sedeBeneficiario || e.indirizzo || '',
         tribunale: e.tribunale || '', tar: e.tar || '', bur: e.bur || 'Bollettino Ufficiale della Regione', link: e.link || '' },
       pratica: { nome: pr.nome || '', oggetto: pr.nome || '', cup: pr.cup || '', codice: pr.codice || '', descrizione: pr.descrizione || '', urgenza: pr.urgenza || '' },
-      atti, mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
+      atti, dati: M.datiCtx(pr), mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
       tot: { tot: U.eur(T.tot), lettere: U.euroLettere(T.tot), espr: U.eur(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), serv: U.eur(T.servop + T.serv), occ: U.eur(T.occ),
         esprLettere: U.euroLettere(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), servLettere: U.euroLettere(T.servop + T.serv), occLettere: U.euroLettere(T.occ) },
       numeroDitte: (pr.ditte || []).length, piuDi50: (pr.ditte || []).reduce((s, d) => s + (d.intest || []).length, 0) > 50

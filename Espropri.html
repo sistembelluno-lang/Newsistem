@@ -68,6 +68,14 @@ dialog::backdrop{background:rgba(0,0,0,.45)}#dlgb{max-height:72vh;overflow:auto}
 .norm h3{margin-top:18px}.norm p,.norm li{line-height:1.5}.norm table{border-collapse:collapse;width:100%;font-size:13px}.norm td,.norm th{border:1px solid var(--bd);padding:5px 7px;text-align:left;vertical-align:top}.norm th{background:var(--hd)}
 .vuoto{padding:30px;text-align:center;color:var(--mu)}
 @media (max-width:820px){.lay{flex-direction:column}.nav{width:auto;height:auto;position:static;display:flex;flex-wrap:wrap;gap:2px;border-right:0;border-bottom:1px solid var(--bd)}.nav button{width:auto}.nav .pr,.nav .sep{display:none}main{padding:12px}}
+.mr{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--bd)}.mr:first-of-type{border-top:0}
+.mp2{border:1px solid var(--bd);border-radius:10px;padding:8px 10px;margin-bottom:8px}.mp2 .mr:first-of-type{border-top:1px dashed var(--bd);margin-top:6px}
+.nr2{width:24px;height:24px;border-radius:99px;background:var(--hd);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px}
+.ed{display:grid;grid-template-columns:1fr 240px;gap:10px}.ed-side{max-height:60vh;overflow:auto;border:1px solid var(--bd);border-radius:8px;padding:6px}
+.ed-side summary{cursor:pointer;font-weight:600;font-size:12.5px;margin:4px 0}.ed-side .cmp{display:block;width:100%;text-align:left;margin:2px 0;overflow:hidden;text-overflow:ellipsis}
+#dlg:has(.ed){width:min(1180px,98vw)}
+@media (max-width:820px){.ed{grid-template-columns:1fr}}
+.opz{display:flex;flex-direction:column;gap:6px;align-self:center}
 
 
 /*REPORT-CSS-INIZIO (da src/report.css)*/
@@ -402,7 +410,9 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   }
   const ent = s => s.replace(/&(lt|gt|amp|quot|apos|#\d+|#x[0-9a-f]+);/gi, (m, x) => ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" }[x.toLowerCase()] ??
     String.fromCodePoint(x[1] === 'x' || x[1] === 'X' ? parseInt(x.slice(2), 16) : parseInt(x.slice(1), 10))));
-  const testoNodi = xml => { let s = ''; xml.replace(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g, (m, t) => { s += ent(t); }); return s; };
+  // Excel scrive i caratteri di controllo come «_x000D_» (es. un a capo nell'intestazione «Superficie_x000d_(mq)»)
+  const ctrl = s => s.replace(/_x([0-9a-fA-F]{4})_/g, (m, h) => String.fromCharCode(parseInt(h, 16)));
+  const testoNodi = xml => { let s = ''; xml.replace(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g, (m, t) => { s += ctrl(ent(t)); }); return s; };
   const colIdx = ref => { const m = /^([A-Z]+)/.exec(ref); let n = 0; for (const c of m[1]) n = n * 26 + c.charCodeAt(0) - 64; return n - 1; };
 
   // Tutti i file di un archivio: {nome: Uint8Array} (per compilare i modelli Word)
@@ -816,9 +826,11 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   A.etichetta = (t, opt = {}) => {
     const s = String(t || '').trim().replace(/\s+/g, ' ');
     let m;
-    if ((m = /^(?:f(?:g|oglio)?\.?)\s*(\d+)[\s,;\-–\/]*(?:(?:m(?:app(?:ale)?)?|p(?:\.?\s?lla|art(?:icella)?)?|n)\.?\s*)?(\d+)\s*(?:[\/\-_]?\s*([a-z]{1,2}))?(?:\s*sub\.?\s*(\d+))?$/i.exec(s)))
+    if ((m = /^(?:f(?:g|oglio)?\.?)\s*(\d+)[\s,;\-–\/]*(?:(?:m(?:app(?:ale)?)?|p(?:\.?\s?lla|art(?:icella)?)?|n)\.?\s*)?(\.?\d+(?:\/\d+)?)\s*(?:[\/\-_]?\s*([a-z]{1,2}))?(?:\s*sub\.?\s*(\d+))?$/i.exec(s)))
       return { fg: m[1], map: m[2], sub: m[4] || '', fr: m[3] || '' };
     if (opt.fgMap && (m = /^(\d+)\s*[\/\-]\s*(\d+)$/.exec(s))) return { fg: m[1], map: m[2], sub: '', fr: '' };
+    // Catasto di origine austriaca (es. Cortina d'Ampezzo): particelle con la barra «8611/16» o edificiali «.123»
+    if (!opt.fgMap && (m = /^(?:(?:p\.?\s?(?:f|fond|ed|edif|lla)\.?|mapp?\.?|n\.?)\s*)?(\.?\d+\s*\/\s*\d+|\.\d+)$/i.exec(s))) return { fg: '', map: m[1].replace(/\s/g, ''), sub: '', fr: '' };
     if ((m = /^(?:(?:m(?:app(?:ale)?)?|p(?:\.?\s?lla|art(?:icella)?)?|n)\.?\s*)?(\d+)\s*(?:[\/\-_]?\s*([a-z]{1,2}))?(?:\s*sub\.?\s*(\d+))?$/i.exec(s)))
       return { fg: '', map: m[1], sub: m[3] || '', fr: m[2] || '' };
     return null;
@@ -1014,7 +1026,7 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   C.indirizzo = o => [o.via, [o.cap, o.citta, o.prov ? '(' + o.prov + ')' : ''].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
   // ---- Intestatari da testo libero ----
-  const reTit = /(nuda\s+propriet\w*'?|propriet\w*'?\s*superficiaria|propriet\w*'?|usufrutt\w*(?:\s+parziale)?|comproprie\w*|enfiteu\w*|livell\w*|diritto\s+del\s+concedente|diritto\s+di\s+superficie|superficie|uso|abitazione|oneri|servit\w*|concedente)(?:\s+per)?\s*(\d+\s*\/\s*\d+)?/i;
+  const reTit = /(nuda\s+propriet\w*'?|propriet\w*'?\s*superficiaria|propriet\w*'?|usufrutt\w*(?:\s+parziale)?|comproprie\w*|enfiteu\w*|livell\w*|diritto\s+del\s+concedente|diritto\s+di\s+superficie|superficie|uso|abitazione|oneri|servit\w*|concedente)(?:\s*:)?(?:\s+per)?\s*(\d+\s*\/\s*\d+)?/i;
   const inizioRiga = /^(nat[oa]|n\.|c\.?\s?f|cod|con\s+sede|sede|residente|res\.|via\b|propriet|nuda|usufrutt|compropr|enfiteu|livell|diritto|quota|\d+\s*\/\s*\d+)/i;
 
   C.leggiIntestatario = seg => {
@@ -1114,12 +1126,28 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     if (M.map == null && M.intest == null && M.cognome == null) throw new Error('Nella tabella non trovo né la colonna del mappale né quella degli intestatari: controlla le intestazioni');
     const get = (r, k) => (M[k] != null ? r[M[k]] : '');
     const str = v => String(v ?? '').trim();
+    righe = righe.map(r => r.slice());
     // «Ditta» può essere il numero di ditta o il nome degli intestatari: si decide dal contenuto
     if (M.intest != null && M.nditta == null) {
       const vals = righe.slice(mp.riga + 1).map(r => str(r[M.intest])).filter(Boolean);
       if (vals.length && vals.filter(v => /^\d{1,4}$/.test(v)).length / vals.length > 0.8) { M.nditta = M.intest; delete M.intest; }
     }
     const part = new Map(), ditteN = new Map(), ownersOf = new Map();
+    // Formato a blocchi (riepilogo delle visure): il numero di ditta solo sulla prima riga del blocco, gli intestatari
+    // scritti riga per riga sotto («NOME con sede in …», «CF: …», «Proprieta': 1/1») e le particelle nelle stesse righe.
+    // Il numero scende alle righe successive e gli intestatari si leggono tutti insieme per blocco.
+    const testaBlocco = /^\s*(c\.?\s?f\b|cod\w*\s+fisc|propriet|nuda|usufrutt|compropr|enfiteu|livell|diritto|nat[oa]\s)/i;
+    if (M.nditta != null && M.intest != null && righe.slice(mp.riga + 1).some(r => !str(r[M.nditta]) && testaBlocco.test(str(r[M.intest])))) {
+      let cur = '';
+      righe.slice(mp.riga + 1).forEach(r => {
+        const v = str(r[M.nditta]).replace(/^(ditta|np|n\.?)\s*/i, '');
+        if (v) cur = v; else if (cur) r[M.nditta] = cur;
+        const t = str(r[M.intest]);
+        if (t && cur) { const L = ownersOf.get(cur + '\u0000t'); ownersOf.set(cur + '\u0000t', (L ? L + '\n' : '') + t); }
+        r[M.intest] = '';
+      });
+      [...ownersOf.keys()].forEach(k => { ownersOf.set(k.slice(0, -2), C.leggiIntestatari(ownersOf.get(k))); ownersOf.delete(k); });
+    }
     let ultima = null;
     righe.slice(mp.riga + 1).forEach((r, ir) => {
       let mapp = str(get(r, 'map')), ex = str(get(r, 'ex')), nuovo = str(get(r, 'nuovo'));
@@ -1275,19 +1303,27 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     nonPatr42bis: 10, interessi42bis: 5, ritenuta: 20, arrotonda: 0.01
   };
 
+  // Categorie predefinite con le qualità catastali più comuni; «chiavi»: inizi di parola riconosciuti nella qualità della visura
   S.VALORI = [
-    { id: 'sem', nome: 'Seminativo', edif: false, vu: 0, vam: 0 },
-    { id: 'pra', nome: 'Prato', edif: false, vu: 0, vam: 0 },
-    { id: 'bos', nome: 'Bosco', edif: false, vu: 0, vam: 0 },
-    { id: 'eu', nome: 'Ente urbano / corte', edif: false, vu: 0, vam: 0 },
-    { id: 'edB', nome: 'Area edificabile (zona B)', edif: true, vu: 0, vam: 0 }
+    { id: 'sem', nome: 'Seminativo', chiavi: 'semin', edif: false, vu: 0, vam: 0 },
+    { id: 'pra', nome: 'Prato', chiavi: 'prat', edif: false, vu: 0, vam: 0 },
+    { id: 'pas', nome: 'Pascolo / Alpe', chiavi: 'pasc alp', edif: false, vu: 0, vam: 0 },
+    { id: 'bos', nome: 'Bosco', chiavi: 'bosc cast', edif: false, vu: 0, vam: 0 },
+    { id: 'col', nome: 'Vigneto / frutteto / orto', chiavi: 'vign frut orto ulive', edif: false, vu: 0, vam: 0 },
+    { id: 'inc', nome: 'Incolto / improduttivo', chiavi: 'incol impro steril rocc', edif: false, vu: 0, vam: 0 },
+    { id: 'eu', nome: 'Ente urbano / corte', chiavi: 'ente fabb corte urb', edif: false, vu: 0, vam: 0 },
+    { id: 'edB', nome: 'Area edificabile (zona B)', chiavi: '', edif: true, vu: 0, vam: 0 }
   ];
 
-  // Categoria di stima: quella scelta, altrimenti la prima il cui nome somiglia alla qualità catastale
+  // Categoria di stima: quella scelta, altrimenti la prima le cui chiavi (o le prime 4 lettere del nome) iniziano una parola della qualità
   S.categoria = (p, valori) => {
     if (p.val) { const v = valori.find(x => x.id === p.val); if (v) return v; }
     const q = U.norm(p.qual); if (!q) return null;
-    return valori.find(v => { const n = U.norm(v.nome); return n && (q.startsWith(n.split(' ')[0].slice(0, 5)) || n.startsWith(q.slice(0, 5))); }) || null;
+    const parole = q.split(' ');
+    return valori.find(v => {
+      const ch = (v.chiavi != null && v.chiavi !== '' ? String(v.chiavi) : v.edif ? '' : U.norm(v.nome).split(' ')[0].slice(0, 4)).split(/[\s,]+/).filter(Boolean).map(U.norm);
+      return ch.some(c => parole.some(w => w.startsWith(c)));
+    }) || null;
   };
   S.zonaRitenuta = z => /^\s*(z\.?\s*t\.?\s*o\.?\s*)?(zona\s*)?[ABCD](\b|\d)/i.test(String(z || ''));
 
@@ -1821,6 +1857,35 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
       mezzo: o.pec ? 'PEC' : 'RACCOMANDATA A/R', cd: !!o.cd
     };
   }
+  // Dati specifici della pratica, uguali per tutti i documenti: si scrivono una volta nella scheda Pratica.
+  // Per i campi a righe esiste anche la versione «Elenco» (ogni riga diventa un punto elenco degli atti).
+  M.DATI = [
+    { k: 'progetto', nome: 'Progetto approvato', aiuto: 'Livello, titolo, progettista, data e protocollo del progetto (es. «PFTE redatto dallo studio … in data …, prot. …»)', righe: 2 },
+    { k: 'premesse', nome: 'Premesse aggiuntive negli atti', aiuto: 'Una per riga: compaiono tra le premesse di decreti, ordinanze e verbali', righe: 4 },
+    { k: 'visti', nome: 'Visti amministrativi e normativi', aiuto: 'Uno per riga (es. «il D.Lgs. 267/2000;», «la L.R. Veneto 11/2004;», «il parere …»): sezione VISTI dei decreti', righe: 4 },
+    { k: 'finanziamento', nome: 'Finanziamento dell\'opera', aiuto: 'Es. «fondi PNRR – Missione …» oppure «bilancio comunale, capitolo …»', righe: 1 },
+    { k: 'consultazione', nome: 'Consultazione degli atti', aiuto: 'Dove e quando i proprietari possono vedere il progetto (orari, appuntamento, link)', righe: 1 },
+    { k: 'lettere', nome: 'Testo aggiuntivo nelle lettere', aiuto: 'Paragrafo inserito prima dei saluti in tutte le lettere ai proprietari', righe: 3 }
+  ];
+  M.datiCtx = pr => {
+    const d = pr.dati || {}, o = {};
+    const campi = M.DATI.concat((pr.campi || []).map(c => ({ k: c.k })));
+    campi.forEach(c => { o[c.k] = String(d[c.k] ?? '').trim(); });
+    Object.keys(d).forEach(k => { if (!(k in o)) o[k] = String(d[k] ?? '').trim(); });
+    const elenco = t => String(t || '').split('\n').map(x => x.trim()).filter(Boolean).map(x => '- ' + x.replace(/^[-•]\s*/, '')).join('\n');
+    Object.keys(o).forEach(k => { o[k + 'Elenco'] = elenco(o[k]); });
+    // Il finanziamento entra da solo tra le premesse
+    if (o.finanziamento) { o.premesseElenco = ['- l\'opera è finanziata con ' + o.finanziamento.replace(/[;.]$/, '') + ';', o.premesseElenco].filter(Boolean).join('\n'); o.premesse = o.premesse || o.finanziamento; }
+    return o;
+  };
+
+  // Modelli disponibili: integrati + creati dall'utente. Testo: versione della pratica, altrimenti testo base
+  // modificato dall'utente (vale per tutte le pratiche), altrimenti testo originale del programma.
+  // lib = {base:{k:testo}, custom:[{k,nome,art,ambito,fase,testo}]}
+  M.catalogo = lib => { const o = Object.assign({}, M.INTEGRATI); ((lib && lib.custom) || []).forEach(c => { o[c.k] = Object.assign({ propria: true }, c); }); return o; };
+  M.testo = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k]) || (lib && lib.base && lib.base[k]) || ((M.catalogo(lib)[k] || {}).testo) || '';
+  M.livello = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k] ? 'pratica' : lib && lib.base && lib.base[k] ? 'base' : (M.catalogo(lib)[k] || {}).propria ? 'nuovo' : 'originale');
+
   const atto = x => x && (x.estremi || x.data) ? [x.estremi, x.data ? 'del ' + U.dataIt(x.data) : ''].filter(Boolean).join(' ') : '______________';
   M.base = (pr, calc) => {
     const e = pr.ente || {}, it = pr.iter || {}, I = Object.assign({}, ES.stima.IMPOST, pr.impost || {});
@@ -1833,7 +1898,7 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
         beneficiario: e.beneficiario || e.nome || '', cfBeneficiario: e.cfBeneficiario || e.cf || '', sedeBeneficiario: e.sedeBeneficiario || e.indirizzo || '',
         tribunale: e.tribunale || '', tar: e.tar || '', bur: e.bur || 'Bollettino Ufficiale della Regione', link: e.link || '' },
       pratica: { nome: pr.nome || '', oggetto: pr.nome || '', cup: pr.cup || '', codice: pr.codice || '', descrizione: pr.descrizione || '', urgenza: pr.urgenza || '' },
-      atti, mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
+      atti, dati: M.datiCtx(pr), mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
       tot: { tot: U.eur(T.tot), lettere: U.euroLettere(T.tot), espr: U.eur(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), serv: U.eur(T.servop + T.serv), occ: U.eur(T.occ),
         esprLettere: U.euroLettere(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), servLettere: U.euroLettere(T.servop + T.serv), occLettere: U.euroLettere(T.occ) },
       numeroDitte: (pr.ditte || []).length, piuDi50: (pr.ditte || []).reduce((s, d) => s + (d.intest || []).length, 0) > 50
@@ -2043,10 +2108,12 @@ Trasmessa a mezzo {{dest.mezzo}}
 {{/dest.pec}}
 `;
   const OGGETTO = `**Oggetto: {{pratica.oggetto}}{{#pratica.cup}} – CUP {{pratica.cup}}{{/pratica.cup}}**`;
-  const CHIUSURA = `Ringraziando per l'attenzione e rimanendo a disposizione per qualsiasi chiarimento, si porgono cordiali saluti.
+  const CHIUSURA = `{{#dati.lettere}}{{dati.lettere}}
+{{/dati.lettere}}Ringraziando per l'attenzione e rimanendo a disposizione per qualsiasi chiarimento, si porgono cordiali saluti.
 [[firma {{ente.ruolo}}|{{ente.responsabile}}]]
 Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.`;
-  const PLANIMETRIA = `[[salto]]
+  const PLANIMETRIA = `
+[[salto]]
 ## Planimetria catastale con evidenziata l'area interessata
 [[planimetria scala=1000]]`;
 
@@ -2068,7 +2135,7 @@ Le aree interessate sono così identificate in catasto:
 Intestatari catastali e quote:
 [[tabella intestatari]]
 Si rende noto che nel termine di 30 giorni dalla presente comunicazione Lei ha facoltà di formulare eventuali osservazioni rispetto all'apposizione del vincolo preordinato all'esproprio e alla dichiarazione di pubblica utilità, trasmettendole all'Autorità espropriante, all'attenzione del responsabile del procedimento, mediante posta ordinaria, posta elettronica o PEC ({{ente.pec}}), con riferimento all'opera in oggetto e con la dicitura «osservazioni ex artt. 11-16 TUES». Le osservazioni saranno valutate dall'Autorità espropriante ai fini delle definitive determinazioni, e dell'esito della valutazione sarà dato conto nel provvedimento di approvazione del progetto.
-Il progetto dell'opera, contenente una relazione sulla natura e sullo scopo degli interventi da eseguire e un allegato con la descrizione delle aree da espropriare e dei relativi intestatari, è depositato presso {{ente.ufficio}} {{ente.nome}}, dove può essere consultato previo appuntamento.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
+Il progetto dell'opera, contenente una relazione sulla natura e sullo scopo degli interventi da eseguire e un allegato con la descrizione delle aree da espropriare e dei relativi intestatari, è depositato presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}, dove può essere consultato previo appuntamento.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
 Il proprietario, nel formulare le proprie osservazioni, può chiedere che l'espropriazione riguardi anche le frazioni residue dei suoi beni qualora per esse risulti una disagevole utilizzazione ovvero siano necessari considerevoli lavori per disporne un'agevole utilizzazione.
 Ai sensi dell'art. 32, comma 2, D.P.R. 327/2001 non saranno considerate nella determinazione dell'indennità le costruzioni, le piantagioni e le migliorie intraprese sui fondi dopo la presente comunicazione allo scopo di conseguire un'indennità maggiore.
 Nel caso in cui la S.V., pur risultando catastalmente intestataria dei beni sopra descritti, non ne fosse più proprietaria, è tenuta ai sensi dell'art. 3, comma 3, D.P.R. 327/2001 a darne comunicazione entro 30 giorni dal ricevimento della presente, indicando, ove ne sia a conoscenza, il nuovo proprietario o fornendo copia degli atti utili a ricostruire le vicende del bene.
@@ -2083,7 +2150,7 @@ Il responsabile del procedimento è {{ente.rup}}. Si allega planimetria catastal
 {{dest.gentile}}, La informiamo che è in corso il procedimento di approvazione del progetto dell'opera in oggetto, la cui approvazione comporterà la dichiarazione di pubblica utilità dell'opera ai sensi degli artt. 12 e seguenti del D.P.R. 327/2001. Le aree soggette al vincolo preordinato all'esproprio, di cui Lei risulta intestatario/a catastale, sono le seguenti:
 [[tabella particelle colonne=comune,fg,map,haareca,rd,ra,espr,servtot,occ]]
 [[tabella intestatari]]
-Il progetto, con la relazione sulla natura e lo scopo delle opere e l'elenco delle aree da espropriare con i nominativi dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
+Il progetto, con la relazione sulla natura e lo scopo delle opere e l'elenco delle aree da espropriare con i nominativi dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}.{{#ente.link}} La documentazione è consultabile anche al seguente indirizzo: {{ente.link}}{{/ente.link}}
 Ai sensi dell'art. 16, comma 10, D.P.R. 327/2001, Lei può formulare osservazioni al responsabile del procedimento nel termine perentorio di trenta giorni dal ricevimento della presente. Le osservazioni saranno valutate ai fini delle definitive determinazioni.
 Ai sensi dell'art. 3, comma 3, D.P.R. 327/2001, qualora non fosse più proprietario/a dei beni, è tenuto/a a comunicarlo entro 30 giorni indicando, ove ne sia a conoscenza, il nuovo proprietario.
 Il responsabile del procedimento è {{ente.rup}}.
@@ -2095,9 +2162,9 @@ Il responsabile del procedimento è {{ente.rup}}.
 **Comunicazione di avvenute apposizione del vincolo preordinato all'esproprio e dichiarazione di pubblica utilità dell'opera e invito a fornire elementi utili per la stima dell'indennità (art. 17, comma 2, D.P.R. 8.6.2001 n. 327)**
 
 {{dest.gentile}}, La avvisiamo che:
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera in oggetto, con effetto di dichiarazione di pubblica utilità;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera in oggetto, con effetto di dichiarazione di pubblica utilità;
 - {{#atti.vincolo.estremi}}con {{atti.vincolo.testo}} {{/atti.vincolo.estremi}}è stato apposto il vincolo preordinato all'esproprio sulle aree interessate dalle opere.
-La documentazione progettuale può essere visionata presso {{ente.ufficio}} {{ente.nome}}{{#ente.link}} o in formato digitale al seguente indirizzo: {{ente.link}}{{/ente.link}}.
+La documentazione progettuale può essere visionata presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}{{#ente.link}} o in formato digitale al seguente indirizzo: {{ente.link}}{{/ente.link}}.
 Con la presente comunicazione viene avviato il procedimento per l'emanazione del decreto di esproprio/asservimento/occupazione delle aree di seguito specificate. Entro il termine di 30 (trenta) giorni dal ricevimento della presente, i proprietari hanno facoltà di produrre eventuali osservazioni e di fornire ogni elemento ritenuto utile per la stima dell'indennità loro spettante.
 Nel caso di aree edificabili, di aree legittimamente edificate e di aree non edificabili, l'indennità di esproprio sarà determinata in misura pari al relativo valore venale.
 L'area interessata dall'intervento, prevista nel piano particellare allegato al progetto approvato, è la seguente:
@@ -2123,7 +2190,7 @@ si comunica che questo Ente ha avviato il procedimento amministrativo volto all'
 [[tabella particelle colonne=comune,fg,map,sup,qual,rd,ra,occ]]
 [[tabella intestatari]]
 L'occupazione temporanea dell'area sopra descritta si rende necessaria ed indifferibile per consentire la corretta esecuzione dei lavori in oggetto. La durata presunta dell'occupazione è stimata in mesi {{mesiOcc}}, a decorrere dalla data del verbale di immissione in possesso.
-Ai sensi degli artt. 7 e 10 della Legge 241/1990 e s.m.i.: il responsabile del procedimento è {{ente.rup}}{{#ente.telefono}}, tel. {{ente.telefono}}{{/ente.telefono}}{{#ente.email}}, e-mail {{ente.email}}{{/ente.email}}. Gli atti del procedimento sono consultabili presso {{ente.ufficio}} {{ente.nome}}, previo appuntamento{{#ente.link}}, oppure al seguente indirizzo: {{ente.link}}{{/ente.link}}.
+Ai sensi degli artt. 7 e 10 della Legge 241/1990 e s.m.i.: il responsabile del procedimento è {{ente.rup}}{{#ente.telefono}}, tel. {{ente.telefono}}{{/ente.telefono}}{{#ente.email}}, e-mail {{ente.email}}{{/ente.email}}. Gli atti del procedimento sono consultabili presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}, previo appuntamento{{#ente.link}}, oppure al seguente indirizzo: {{ente.link}}{{/ente.link}}.
 Entro il termine di 15 giorni dal ricevimento della presente comunicazione, la S.V. ha facoltà di presentare memorie scritte e documenti, che saranno valutati dall'Amministrazione ai fini dell'adozione del provvedimento finale.
 A seguito dell'immissione in possesso e della redazione del relativo stato di consistenza in contraddittorio, verrà determinata e corrisposta l'indennità spettante per l'occupazione temporanea, calcolata ai sensi dell'art. 50 del D.P.R. 327/2001 per ciascun anno o frazione di anno di occupazione.
 Distinti saluti.
@@ -2135,7 +2202,7 @@ Distinti saluti.
 **Notifica dell'elenco dei beni da espropriare e indicazione della somma offerta per l'espropriazione (art. 20, comma 1, D.P.R. 8.6.2001 n. 327)**
 
 ## IL RESPONSABILE DEL PROCEDIMENTO
-Premesso che con {{atti.dpu.testo}} è stato approvato e dichiarato di pubblica utilità il progetto dell'opera pubblica in oggetto, il quale prevede espropriazioni per pubblica utilità;
+Premesso che con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato e dichiarato di pubblica utilità il progetto dell'opera pubblica in oggetto, il quale prevede espropriazioni per pubblica utilità;
 richiamata la comunicazione inviata ai sensi dell'art. 17, comma 2, D.P.R. 327/2001;
 visto l'art. 45, comma 1, D.P.R. 327/2001, ai sensi del quale, dalla dichiarazione di pubblica utilità e fino all'esecuzione del decreto di esproprio, il proprietario ha diritto di stipulare con il beneficiario l'atto di cessione del bene o della sua quota;
 ## NOTIFICA
@@ -2189,13 +2256,16 @@ Decreto n. ______ del ____________  Rep. n. ______
 ## {{ente.ruolo}}
 **PREMESSO che:**
 - con {{atti.avvio16.testo}} è stato comunicato alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento ai sensi dell'art. 16 del D.P.R. 327/2001 (TUES);
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità, che ha durata di anni cinque, e il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a), del TUES;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità, che ha durata di anni cinque, e il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a), del TUES;
 - con {{atti.com17.testo}} è stata data notizia ai proprietari, ai sensi dell'art. 17 TUES, dell'efficacia dell'atto che ha dichiarato la pubblica utilità;
 - trattandosi di espropriazione per causa di pubblica utilità il presente provvedimento è esente dall'imposta di bollo ai sensi dell'art. 22 della Tabella B del D.P.R. 642/1972;
 {{#atti.frazionamento.estremi}}- visti i tipi di frazionamento {{atti.frazionamento.testo}} approvati dall'Agenzia delle Entrate – Ufficio provinciale – Territorio;
 {{/atti.frazionamento.estremi}}- ai sensi dell'art. 22 TUES il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, sussistendo i presupposti di cui al medesimo art. 22, commi 1 e 2, per le seguenti ragioni di urgenza: {{pratica.urgenza}};
 **ATTESO che** sono configurate le condizioni previste dall'art. 8 TUES per procedere al trasferimento del diritto e in particolare: a) è stato apposto il vincolo preordinato all'esproprio ({{atti.vincolo.testo}}); b) è stata dichiarata la pubblica utilità, il cui termine di durata è tuttora in corso; c) viene in questa sede determinata l'indennità di esproprio;
-## DECRETA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA
 {{#haEspr}}
 - l'espropriazione a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, con sede in {{ente.sedeBeneficiario}}, dei beni immobili di seguito individuati, disponendo il passaggio a favore dello stesso del diritto di proprietà, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
 {{#unEspr}}
@@ -2249,10 +2319,13 @@ ai sensi dell'art. 24, comma 5, del D.P.R. 327/2001, che il presente decreto è 
 **Decreto motivato di occupazione d'urgenza preordinata all'espropriazione e di determinazione in via provvisoria dell'indennità (art. 22-bis D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO che:**
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità;
 - con {{atti.com17.testo}} è stata effettuata la comunicazione di cui all'art. 17, comma 2, D.P.R. 327/2001;
 - l'avvio dei lavori riveste carattere di particolare urgenza, tale da non consentire l'applicazione delle disposizioni dell'art. 20, commi 1 e 2, per le seguenti ragioni: {{pratica.urgenza}};
-## DECRETA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA
 - è disposta l'occupazione anticipata dei beni immobili necessari, come di seguito individuati, a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}};
 - è determinata in via provvisoria l'indennità di espropriazione come segue:
 [[tabella piano colonne=np,fg,map,qual,sup,espr,servtot,occ,ind]]
@@ -2286,7 +2359,7 @@ Possono partecipare alle operazioni anche i titolari di diritti reali o personal
 ## (artt. 22 e 24 del TUES)
 **PREMESSO:**
 - che con {{atti.avvio16.testo}} è stato comunicato alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento ai sensi dell'art. 16 del D.P.R. 327/2001;
-- che con {{atti.dpu.testo}} è stato approvato il progetto con effetto di dichiarazione di pubblica utilità, di durata quinquennale;
+- che con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto con effetto di dichiarazione di pubblica utilità, di durata quinquennale;
 - che con {{atti.vincolo.testo}} è stato apposto il vincolo preordinato all'esproprio;
 - che con {{atti.com17.testo}} è stata effettuata la comunicazione di cui all'art. 17 del D.P.R. 327/2001;
 {{#ditta.osservazioni}}- che a seguito delle comunicazioni sono pervenute le seguenti osservazioni: {{ditta.osservazioni}};
@@ -2298,7 +2371,8 @@ con i seguenti intestatari:
 {{/ditta.intestatari}}
 - che con {{atti.decreto.testo}} è stato decretato l'esproprio, la servitù e/o l'occupazione dei beni interessati, con contestuale determinazione in via provvisoria dell'indennità ai sensi dell'art. 22 del TUES;
 - che il decreto è stato notificato al proprietario nelle forme degli atti processuali civili con un avviso contenente l'indicazione del luogo, del giorno e dell'ora dell'esecuzione, almeno sette giorni prima di essa (art. 23, comma 1, lett. g).
-**TUTTO CIÒ PREMESSO**
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}**TUTTO CIÒ PREMESSO**
 il giorno {{ditta.ev.immissione.data}}, alle ore {{ditta.ev.immissione.ora}}, il sottoscritto {{ente.tecnico}}, tecnico incaricato da {{ente.nome}}, munito di documento di identità n. ____________ in corso di validità, si è portato in prossimità dell'accesso delle aree da espropriare/asservire/occupare ed ivi, alla presenza degli intervenuti:
 Sig. ______________________ nato a ______________________ il ____________ in qualità di ______________________
 Sig. ______________________ nato a ______________________ il ____________ in qualità di ______________________
@@ -2357,11 +2431,14 @@ ______________________________          ______________________________
 **Decreto di occupazione temporanea di aree non soggette ad esproprio e determinazione dell'indennità di occupazione (artt. 49 e 50 D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO che:**
-- con {{atti.dpu.testo}} è stato approvato il progetto dell'opera in oggetto;
+- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera in oggetto;
 - con {{atti.avvio49.testo}} i proprietari dei terreni interessati sono stati avvisati dell'avvio del procedimento e messi in condizione di presentare osservazioni;
 - per la corretta esecuzione dei lavori occorre disporre l'occupazione temporanea di aree non soggette al procedimento espropriativo ai sensi dell'art. 49 del D.P.R. 327/2001;
 - l'indennità di occupazione è determinata ai sensi dell'art. 50, in misura pari, per ogni anno, a un dodicesimo di quanto sarebbe dovuto in caso di esproprio e, per ogni mese o frazione di mese, a un dodicesimo di quella annua, sulla base di una durata presunta di mesi {{mesiOcc}}, da ricalcolare alla restituzione sulla base della durata effettiva;
-## DECRETA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA
 - l'occupazione temporanea non preordinata all'esproprio, a favore di **{{ente.beneficiario}}**, dei seguenti beni:
 [[tabella piano colonne=np,fg,map,qual,sup,occ,ind]]
 - l'indennità di occupazione è determinata nella misura sopra riportata, per complessivi **{{tot.occ}}** (diconsi euro {{tot.occLettere}});
@@ -2389,7 +2466,10 @@ L'indennità di occupazione sarà liquidata ai sensi dell'art. 50 del D.P.R. 327
 **Deposito presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato, servizio depositi amministrativi definitivi, delle indennità non condivise (artt. 20, comma 14, e 26 D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO** che con {{atti.decreto.testo}} è stata determinata in via provvisoria l'indennità spettante alle ditte proprietarie dei beni interessati dai lavori in oggetto e che, decorso il termine previsto, le ditte di seguito indicate non hanno comunicato la condivisione dell'indennità ovvero non hanno prodotto la documentazione attestante la piena e libera proprietà dei beni;
-## ORDINA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## ORDINA
 il deposito presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato competente, servizio depositi amministrativi definitivi, delle seguenti somme:
 {{#ditte}}
 - Ditta {{n}} – {{nome}}: **{{tot}}**
@@ -2405,7 +2485,10 @@ Il presente provvedimento sarà pubblicato per estratto nel {{ente.bur}} ai sens
 **Pagamento diretto delle indennità condivise (artt. 20, comma 8, e 26 D.P.R. 8.6.2001 n. 327)**
 ## {{ente.ruolo}}
 **PREMESSO** che le ditte di seguito indicate hanno comunicato in modo irrevocabile la condivisione dell'indennità determinata con {{atti.decreto.testo}} e hanno prodotto la documentazione comprovante la piena e libera proprietà dei beni, dichiarando l'assenza di diritti di terzi;
-## ORDINA
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## ORDINA
 il pagamento diretto delle seguenti somme agli aventi diritto, al netto dell'eventuale ritenuta del 20% di cui all'art. 35 D.P.R. 327/2001 ove dovuta:
 {{#ditte}}
 - Ditta {{n}} – {{nome}}: **{{tot}}**{{#ritenuta}} (ritenuta art. 35: {{ritenuta}}){{/ritenuta}}
@@ -2456,7 +2539,10 @@ Il responsabile del procedimento è {{ente.rup}}. Entro 30 giorni dal riceviment
 **PREMESSO** che i beni di seguito indicati sono utilizzati per scopi di interesse pubblico e sono stati modificati in assenza di un valido ed efficace provvedimento di esproprio o dichiarativo della pubblica utilità;
 **DATO ATTO** dell'avvio del procedimento comunicato con {{ditta.ev.avvio42.prot}} del {{ditta.ev.avvio42.data}} e delle memorie eventualmente pervenute;
 **VALUTATE** le attuali ed eccezionali ragioni di interesse pubblico, comparativamente con i contrapposti interessi privati, e l'assenza di ragionevoli alternative all'adozione del presente provvedimento: ______________________________________;
-## DISPONE
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DISPONE
 - l'acquisizione non retroattiva al patrimonio indisponibile di {{ente.beneficiario}} dei seguenti beni:
 [[tabella particelle colonne=comune,fg,map,qual,sup,espr]]
 di proprietà di: {{#ditta.intestatari}}{{anagrafica}} {{diritto}}; {{/ditta.intestatari}}
@@ -2481,8 +2567,9 @@ L'anno ________, il giorno ______ del mese di ____________, in ______________, p
 di seguito «parte cedente»,
 **E**
 **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, con sede in {{ente.sedeBeneficiario}}, rappresentato da ______________________, di seguito «parte cessionaria»,
-**PREMESSO** che con {{atti.dpu.testo}} è stato approvato il progetto dell'opera in oggetto con effetto di dichiarazione di pubblica utilità e che la parte cedente ha comunicato di condividere l'indennità offerta;
-**SI CONVIENE E SI STIPULA QUANTO SEGUE**
+**PREMESSO** che con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera in oggetto con effetto di dichiarazione di pubblica utilità e che la parte cedente ha comunicato di condividere l'indennità offerta;
+{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}**SI CONVIENE E SI STIPULA QUANTO SEGUE**
 1. La parte cedente cede alla parte cessionaria, che accetta, i seguenti beni:
 [[tabella particelle colonne=comune,fg,map,qual,sup,espr,servtot]]
 2. Il corrispettivo della cessione, determinato ai sensi dell'art. 45, comma 2, D.P.R. 327/2001, è stabilito in **{{ditta.tot}}** (diconsi euro {{ditta.totLettere}}), che la parte cessionaria corrisponde con le modalità di cui all'art. 26.
@@ -2506,7 +2593,7 @@ ______________________________ ({{nome}})
 **RENDE NOTO**
 - che è avviato il procedimento per l'apposizione del vincolo preordinato all'esproprio e per la dichiarazione di pubblica utilità dell'opera in oggetto;
 - che, essendo il numero dei destinatari superiore a cinquanta, la comunicazione personale è sostituita dal presente avviso, pubblicato all'Albo Pretorio dei Comuni interessati, su quotidiani a diffusione nazionale e locale e sul sito informatico della Regione;
-- che il progetto, con l'elenco delle aree interessate e dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}, {{ente.indirizzo}}{{#ente.link}}, ed è consultabile all'indirizzo {{ente.link}}{{/ente.link}};
+- che il progetto, con l'elenco delle aree interessate e dei proprietari catastali, è depositato presso {{ente.ufficio}} {{ente.nome}}{{#dati.consultazione}} ({{dati.consultazione}}){{/dati.consultazione}}, {{ente.indirizzo}}{{#ente.link}}, ed è consultabile all'indirizzo {{ente.link}}{{/ente.link}};
 - che entro trenta giorni dalla pubblicazione del presente avviso gli interessati possono presentare osservazioni scritte al responsabile del procedimento, {{ente.rup}}, anche via PEC all'indirizzo {{ente.pec}}.
 Elenco delle ditte catastali interessate:
 [[tabella piano colonne=np,fg,map,espr,servtot,occ]]
@@ -2800,6 +2887,7 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
     if (!txt) { try { txt = localStorage.getItem('espropri:dati'); } catch (e) { /* storage non disponibile */ } }
     if (txt) { try { Object.assign(DB, JSON.parse(String(txt).replace(/^﻿/, ''))); } catch (e) { toast('File dati illeggibile: ' + e.message); } }
     DB.pratiche.forEach(normalizza);
+    DB.modelliBase = DB.modelliBase || {}; DB.modelliCustom = DB.modelliCustom || []; DB.modelliWord = DB.modelliWord || [];
   }
   let tS = null, salvato = true;
   APP.salva = () => { salvato = false; clearTimeout(tS); tS = setTimeout(scrivi, 500); hdr(); };
@@ -2819,7 +2907,7 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
   function normalizza(p) {
     p.impost = Object.assign(U.clone(S.IMPOST), p.impost || {});
     ['particelle', 'ditte', 'valori', 'docs'].forEach(k => { p[k] = p[k] || []; });
-    p.iter = p.iter || {}; p.modelli = p.modelli || {}; p.ente = p.ente || {};
+    p.iter = p.iter || {}; p.modelli = p.modelli || {}; p.ente = p.ente || {}; p.dati = p.dati || {}; p.campi = p.campi || [];
     p.ditte.forEach(d => { d.ev = d.ev || {}; d.intest = d.intest || []; d.foto = d.foto || []; });
     p.particelle.forEach(x => { x.man = x.man || {}; x.nuovo = x.nuovo || {}; });
     return p;
@@ -2849,7 +2937,8 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
   });
   APP.scarica = (nome, dati, mime) => {
     const b = dati instanceof Blob ? dati : new Blob([dati], { type: mime || 'application/octet-stream' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = nome; document.body.appendChild(a); a.click();
+    // Nei download del browser il nome resta in caratteri semplici (alcuni browser rifiutano gli accenti)
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = String(nome).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '_'); document.body.appendChild(a); a.click();
     setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
   };
   // Lega gli input con data-f="percorso" all'oggetto; data-t: num, bool, date
@@ -2868,7 +2957,7 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
       if (t === 'pct') el.value = v === '' || v == null ? '' : Math.round(v * 10000) / 100;
     });
   };
-  const san = s => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const san = s => String(s || '').replace(/[\u2010-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\\/:*?"<>|«»\u201c\u201d]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
 
   // ---------- Fascicolo su disco ----------
   const FS = APP.FS = {
@@ -2949,6 +3038,10 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
 <label class="f2">Beneficiario dell'esproprio (se diverso)<input data-f="ente.beneficiario"></label><label>C.F. beneficiario<input data-f="ente.cfBeneficiario"></label><label class="f2">Sede beneficiario<input data-f="ente.sedeBeneficiario"></label>
 <label>Tribunale civile di<input data-f="ente.tribunale"></label><label>T.A.R.<input data-f="ente.tar" placeholder="Veneto"></label><label class="f2">Bollettino per gli estratti<input data-f="ente.bur" placeholder="BUR Veneto"></label>
 <label class="f">Link alla documentazione progettuale<input data-f="ente.link"></label></div></div>
+<div class="card"><h3 style="margin-top:0">Dati specifici per i documenti</h3><p class="mu">Si scrivono una volta e compaiono in tutti i documenti di questa pratica (il testo base dei modelli resta uguale per tutte le pratiche). Nei modelli si richiamano con il segnaposto indicato.</p>
+<div class="g">${ES.modelli.DATI.map(c => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${c.k}}} – ${E(c.aiuto)}</span>${c.righe > 1 ? `<textarea data-f="dati.${c.k}" rows="${c.righe}" style="font-family:inherit;font-size:13px"></textarea>` : `<input data-f="dati.${c.k}">`}</label>`).join('')}
+${p.campi.map((c, i) => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${E(c.k)}}} <button type="button" class="s d" data-cdel="${i}">togli campo</button></span><textarea data-f="dati.${E(c.k)}" rows="2" style="font-family:inherit;font-size:13px"></textarea></label>`).join('')}</div>
+<div class="row" style="margin-top:8px"><button id="cadd">＋ Campo personalizzato</button><span class="mu">Es. «Parere della Soprintendenza», «Estremi del finanziamento regionale»: poi inseriscilo nel testo dei modelli (Documenti › ✏️ Testo).</span></div></div>
 <div class="card"><h3 style="margin-top:0">Atti della procedura</h3><p class="mu">Data ed estremi degli atti: compaiono nelle premesse dei documenti e fanno partire le scadenze.</p>
 <div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fase</th><th>Art.</th><th>Data</th><th>Estremi (es. «Delibera G.C. n. 62»)</th><th>Scadenze</th></tr></thead><tbody>
 ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</td><td class="mu">${E(f.art)}</td><td><input type="date" data-f="iter.${f.k}.data"></td><td><input data-f="iter.${f.k}.estremi" style="min-width:220px"></td><td class="mu">${x.data ? f.t.map(t => E(t.nome.split('(')[0]) + ': <b>' + U.dataIt(t.f(x.data)) + '</b>').join('<br>') : ''}</td></tr>`; }).join('')}
@@ -2956,6 +3049,15 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
 <div class="card row"><span class="grow mu">Pratica creata il ${U.dataIt(p.creata)}. ${FASC ? 'Fascicolo: <b>' + E(FS.dirPratica(p)) + '</b>' : ''}</span>${FASC ? '<button id="pcart">Cartella dei fascicoli…</button>' : ''}<button class="d" id="pdel">Elimina pratica</button></div>`;
     APP.lega(m, p, (el) => { if (/^iter\.|^nome/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#pdel').onclick = async () => { if (!await APP.conferma(`Eliminare definitivamente la pratica «${E(p.nome)}»? I file del fascicolo su disco restano.`, 'Elimina')) return; DB.pratiche = DB.pratiche.filter(x => x !== p); DB.attiva = DB.pratiche[0] ? DB.pratiche[0].id : null; APP.salva(); render(); };
+    m.querySelector('#cadd').onclick = async () => {
+      const r = await APP.dlg('Nuovo campo', '<label class="fl">Nome del campo<input id="cn" placeholder="es. Parere della Soprintendenza"></label>', [{ t: 'Annulla', v: '' }, { t: 'Aggiungi', v: 'ok', p: true }]);
+      const nome = r === 'ok' && $('#cn').value.trim(); if (!nome) return;
+      let k = U.norm(nome).replace(/ (\w)/g, (x, c) => c.toUpperCase()).replace(/[^a-zA-Z0-9]/g, '') || 'campo';
+      if (/^\d/.test(k)) k = 'c' + k;
+      while (p.campi.some(c => c.k === k) || ES.modelli.DATI.some(c => c.k === k)) k += '2';
+      p.campi.push({ k, nome }); APP.salva(); APP.render(); toast('Campo aggiunto: {{dati.' + k + '}}');
+    };
+    m.querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => { const c = p.campi[+b.dataset.cdel]; if (await APP.conferma('Togliere il campo «' + E(c.nome) + '»? Il segnaposto nei modelli resterà vuoto.', 'Togli')) { p.campi.splice(+b.dataset.cdel, 1); delete p.dati[c.k]; APP.salva(); APP.render(); } });
     const pc = m.querySelector('#pcart'); if (pc) pc.onclick = async () => { const r = await window.desktop.fsScegli(); if (r) toast('Fascicoli in ' + r.dir); };
   };
 
@@ -2968,7 +3070,7 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
 <div class="row"><button class="p" id="idxf">Scegli DXF o DWG…</button><span class="mu" id="idxfn">${impDxf ? E(impDxf.nome) : ''}</span></div>
 <div id="ilay"></div></div>
 <div class="card"><h3 style="margin-top:0">2 · Elenco ditte (Excel .xlsx o CSV)</h3>
-<p class="mu">Una riga per particella (foglio, mappale, qualità, superficie, redditi…) con gli intestatari: in colonne separate (nome, nato a, il, C.F., diritto, quota, indirizzo) oppure tutti in una cella come nelle visure («ROSSI MARIO nato a … CF … Proprieta' 1/2; …»). La ditta è formata dalle particelle con <b>gli stessi intestatari e le stesse quote</b>. Il mappale «1706 ex 1367» è letto come particella derivata da frazionamento.</p>
+<p class="mu">Una riga per particella (foglio, mappale, qualità, superficie, redditi…) con gli intestatari: in colonne separate (nome, nato a, il, C.F., diritto, quota, indirizzo) oppure tutti in una cella come nelle visure («ROSSI MARIO nato a … CF … Proprieta' 1/2; …»). Va bene anche il <b>formato a blocchi del riepilogo visure</b> (numero «N.» sulla prima riga della ditta, sotto gli intestatari riga per riga: nome, «CF:…», «Proprieta': 1/1»; particelle nelle colonne a destra). La ditta è formata dalle particelle con <b>gli stessi intestatari e le stesse quote</b>. Il mappale «1706 ex 1367» è letto come particella derivata da frazionamento.</p>
 <div class="row"><button class="p" id="itab">Scegli Excel o CSV…</button><span class="mu" id="itabn">${impTab ? E(impTab.nome) : ''}</span></div>
 <div id="itabv"></div></div>
 <div class="card"><h3 style="margin-top:0">Situazione della pratica</h3>${riepilogoImport(p)}</div>`;
@@ -3223,7 +3325,7 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
   'use strict';
   const U = ES.U, A = ES.analisi, C = ES.cat, S = ES.stima, I = ES.iter, M = ES.modelli, T = ES.tavola;
   const $ = s => document.querySelector(s), E = U.esc, APP = window.APP;
-  const san = s => String(s || '').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
+  const san = s => String(s || '').replace(/[\u2010-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\\/:*?"<>|«»\u201c\u201d]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
   // Byte → base64 a blocchi (gli array grandi non si possono passare tutti insieme a fromCharCode)
   const b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
 
@@ -3242,12 +3344,15 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
   });
   const svgData = svg => 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
 
-  // ---------- Documenti: generazione da modello integrato ----------
-  APP.testoModello = (p, k) => (p.modelli && p.modelli[k]) || (M.INTEGRATI[k] && M.INTEGRATI[k].testo) || '';
-  // Restituisce [{ctx, blocchi}] per ogni documento del modello
-  APP.componi = (p, k, ditteSel) => {
-    const m = M.INTEGRATI[k], calc = S.calcola(p);
-    return M.contesti(p, calc, m.ambito, ditteSel).map(ctx => ({ ctx, blocchi: M.blocchi(M.mustache(APP.testoModello(p, k), ctx), ctx) }));
+  // ---------- Documenti: modelli e generazione ----------
+  // Libreria dei modelli dell'utente (vale per tutte le pratiche): testi base modificati e modelli nuovi
+  APP.lib = () => ({ base: APP.DB.modelliBase || (APP.DB.modelliBase = {}), custom: APP.DB.modelliCustom || (APP.DB.modelliCustom = []) });
+  APP.modello = k => M.catalogo(APP.lib())[k];
+  APP.testoModello = (p, k) => M.testo(k, p, APP.lib());
+  // [{ctx, blocchi}] per ogni documento del modello (testo: per l'anteprima di un testo non ancora salvato)
+  APP.componi = (p, k, ditteSel, testo) => {
+    const m = APP.modello(k), calc = S.calcola(p);
+    return M.contesti(p, calc, m.ambito, ditteSel).map(ctx => ({ ctx, blocchi: M.blocchi(M.mustache(testo ?? APP.testoModello(p, k), ctx), ctx) }));
   };
   async function immaginiBlocchi(p, docs, perWord) {
     const calc = S.calcola(p);
@@ -3257,36 +3362,90 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
       else { b.src = svgData(svg); b.mm = 170; }
     }
   }
-  const nomeDoc = (p, k, ctx) => { const m = M.INTEGRATI[k]; return san(m.nome.slice(0, 60)) + (ctx.ditta ? ' - Ditta ' + ctx.ditta.n : '') + (m.ambito === 'intestatario' && ctx.dest ? ' - ' + san(ctx.dest.nome) : ''); };
-  const cartellaDoc = (p, ctx) => { const d = ctx._dittaId && p.ditte.find(x => x.id === ctx._dittaId); return d ? APP.FS.dirDitta(p, d) : APP.FS.dirGenerale(p); };
-  // Word: un file per ditta/intestatario nel fascicolo (o un unico file da scaricare nel browser)
-  APP.generaWord = async (p, k, ditteSel, unico) => {
-    const docs = APP.componi(p, k, ditteSel); await immaginiBlocchi(p, docs, true);
-    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: M.INTEGRATI[k].nome });
-    if (unico || !APP.FS.ok) {
-      const B = []; docs.forEach((d, i) => { if (i) B.push({ t: 'pb' }); B.push(...d.blocchi); });
-      const nome = san(M.INTEGRATI[k].nome.slice(0, 60)) + (docs.length === 1 && docs[0].ctx.ditta ? ' - Ditta ' + docs[0].ctx.ditta.n : '') + '.docx';
-      const rel = (docs.length === 1 ? cartellaDoc(p, docs[0].ctx) : APP.FS.dirGenerale(p)) + '/' + nome;
-      await APP.FS.salva(rel, ES.office.docx(B, optW(docs[0].ctx)));
-    } else {
-      for (const d of docs) await APP.FS.salva(cartellaDoc(p, d.ctx) + '/' + nomeDoc(p, k, d.ctx) + ' (' + U.oggi() + ').docx', ES.office.docx(d.blocchi, optW(d.ctx)));
+  const titoloDoc = m => san(m.nome.slice(0, 70));
+  const unisci = L => { const B = []; L.forEach((d, i) => { if (i) B.push({ t: 'pb' }); B.push(...d.blocchi); }); return B; };
+  const perDitta = docs => { const per = new Map(); docs.forEach(d => { const k = d.ctx._dittaId; (per.get(k) || per.set(k, []).get(k)).push(d); }); return per; };
+  const AMBITI = { intestatario: 'una lettera per ogni intestatario', ditta: 'un documento per ditta', pratica: 'un documento per la pratica' };
+  // Salva una serie di file del fascicolo: nel programma installato nelle cartelle, nel browser un solo download (ZIP se più file)
+  APP.salvaFile = async (p, files, nomeZip) => {
+    if (!files.length) return;
+    if (APP.FS.ok) {
+      for (const f of files) await window.desktop.fsScrivi(f.rel, f.dati);
+      APP.toast(files.length === 1 ? 'Salvato: ' + files[0].rel.split('/').slice(1).join(' › ') : files.length + ' file salvati nel fascicolo (generale e cartelle delle ditte)', 5000);
+      return;
     }
-    p.docs.push({ data: U.oggi(), modello: k, ditte: ditteSel || null, formato: 'docx' }); APP.salva();
+    if (files.length === 1) { APP.scarica(files[0].rel.split('/').pop(), files[0].dati); return; }
+    const base = APP.FS.dirPratica(p) + '/';
+    APP.scarica(san(nomeZip) + '.zip', ES.office.zip(files.map(f => ({ name: f.rel.startsWith(base) ? f.rel.slice(base.length) : f.rel, data: f.dati }))), 'application/zip');
   };
-  // Anteprima / stampa / PDF
-  APP.anteprima = async (p, k, ditteSel) => {
-    const docs = APP.componi(p, k, ditteSel); await immaginiBlocchi(p, docs, false);
+  // Registra la data del passo per le ditte coinvolte (solo dove non c'è già)
+  function registra(p, opt) {
+    if (!opt.registra || !opt.registra.passo) return 0;
+    let n = 0;
+    p.ditte.filter(d => !opt.ditte || opt.ditte.includes(d.id)).forEach(d => { const e = d.ev[opt.registra.passo] = d.ev[opt.registra.passo] || {}; if (!e.data) { e.data = opt.registra.data || U.oggi(); n++; } });
+    return n;
+  }
+  // Genera un modello per tutte le ditte selezionate: file generale (tutte le lettere unite) in «00 GENERALE»
+  // e il documento di ogni ditta nella sua cartella. opt: {ditte, generale, perDitta, registra:{passo, data}}
+  APP.generaTutti = async (p, k, opt = {}) => {
+    if (k.startsWith('w:')) return generaWordUtente(p, APP.DB.modelliWord.find(w => 'w:' + w.id === k), opt);
+    const m = APP.modello(k); if (!m) return;
+    const docs = APP.componi(p, k, opt.ditte); if (!docs.length) { APP.toast('Nessuna ditta selezionata'); return; }
+    APP.toast('Preparazione dei documenti…');
+    await immaginiBlocchi(p, docs, true);
+    const oggi = U.oggi(), files = [], titolo = titoloDoc(m);
+    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: m.nome });
+    if (m.ambito === 'pratica') files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
+    else {
+      if (opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' - TUTTE LE DITTE (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
+      if (opt.perDitta !== false) perDitta(docs).forEach((L, id) => { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(L), optW(L[0].ctx)) }); });
+    }
+    await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - ' + titolo);
+    const n = registra(p, opt);
+    p.docs.push({ data: oggi, modello: k, ditte: opt.ditte || null, file: files.length });
+    APP.salva(); if (n) APP.render();
+  };
+  async function generaWordUtente(p, w, opt) {
+    const buf = Uint8Array.from(atob(w.dati), ch => ch.charCodeAt(0)).buffer, calc = S.calcola(p);
+    const ctxs = M.contesti(p, calc, w.ambito, opt.ditte).map(c => ({ ...c, _unione: M.unione(c) }));
+    if (!ctxs.length) return;
+    const img = { planimetria: async ctx => (p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null) };
+    const oggi = U.oggi(), files = [], titolo = san(w.nome);
+    if (w.ambito === 'pratica' || opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (w.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, ctxs, img) });
+    if (w.ambito !== 'pratica' && opt.perDitta !== false) {
+      const per = new Map(); ctxs.forEach(c => { (per.get(c._dittaId) || per.set(c._dittaId, []).get(c._dittaId)).push(c); });
+      for (const [id, L] of per) { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, L, img) }); }
+    }
+    await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - ' + titolo);
+    if (registra(p, opt)) APP.render();
+    APP.salva();
+  }
+  // Anteprima HTML
+  APP.anteprima = async (p, k, ditteSel, testo) => {
+    const docs = APP.componi(p, k, ditteSel, testo); await immaginiBlocchi(p, docs, false);
     return docs.map(d => `<div class="doc-prev">${M.html(d.blocchi)}</div>`).join('<div style="height:14px"></div>');
   };
-  APP.stampaModello = async (k, ambito, ditteSel, pdfNelFascicolo) => {
-    const p = APP.pr(); const docs = APP.componi(p, k, ditteSel); await immaginiBlocchi(p, docs, false);
-    const html = docs.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
-    $('#print').innerHTML = `<style>@media print{.doc-print{font:10.5pt/1.35 Arial,sans-serif;color:#000;break-after:page}.doc-print:last-child{break-after:auto}.doc-print p{margin:0 0 5pt}.doc-print .doc-pb{break-after:page}.doc-t{border-collapse:collapse;width:100%}.doc-t th,.doc-t td{border:1px solid #777;padding:1.5pt 3pt}.doc-t th{background:#e8edf5;-webkit-print-color-adjust:exact;print-color-adjust:exact}img{max-width:100%}@page{size:A4;margin:18mm 16mm}}</style>${html}`;
-    if (pdfNelFascicolo && window.desktop && window.desktop.pdfDati) {
-      const dati = await window.desktop.pdfDati({}); const ctx = docs[0].ctx;
-      await APP.FS.salva((docs.length === 1 ? cartellaDoc(p, ctx) : APP.FS.dirGenerale(p)) + '/' + (docs.length === 1 ? nomeDoc(p, k, ctx) : san(M.INTEGRATI[k].nome.slice(0, 60))) + ' (' + U.oggi() + ').pdf', dati);
-    } else window.print();
+  const CSS_STAMPA = '<style>@media print{.doc-print{font:10.5pt/1.35 Arial,sans-serif;color:#000;break-after:page}.doc-print:last-child{break-after:auto}.doc-print p{margin:0 0 5pt}.doc-print .doc-pb{break-after:page}.doc-t{border-collapse:collapse;width:100%}.doc-t th,.doc-t td{border:1px solid #777;padding:1.5pt 3pt}.doc-t th{background:#e8edf5;-webkit-print-color-adjust:exact;print-color-adjust:exact}img{max-width:100%}@page{size:A4;margin:18mm 16mm}}</style>';
+  // PDF: generale (stampa o fascicolo) e, nel programma installato, anche uno per ditta
+  APP.pdfTutti = async (p, k, opt = {}) => {
+    const m = APP.modello(k); const docs = APP.componi(p, k, opt.ditte); if (!docs.length) return;
+    await immaginiBlocchi(p, docs, false);
+    const html = L => CSS_STAMPA + L.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
+    const titolo = titoloDoc(m), oggi = U.oggi();
+    if (!(window.desktop && window.desktop.pdfDati && APP.FS.ok)) { $('#print').innerHTML = html(docs); window.print(); return; }
+    const files = [];
+    $('#print').innerHTML = html(docs);
+    files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+    if (m.ambito !== 'pratica' && opt.perDitta !== false) for (const [id, L] of perDitta(docs)) {
+      const d = p.ditte.find(x => x.id === id); $('#print').innerHTML = html(L);
+      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+    }
+    await APP.salvaFile(p, files, titolo);
+    if (registra(p, opt)) APP.render();
+    APP.salva();
   };
+  // Compatibilità: stampa di un modello (es. elenco ditte dal piano particellare)
+  APP.stampaModello = (k, ambito, ditteSel, nelFascicolo) => APP.pdfTutti(APP.pr(), k, { ditte: ditteSel, perDitta: false, _fasc: nelFascicolo });
 
   // ---------- Vista: Ditte ----------
   APP.viste.ditte = (m, p) => {
@@ -3327,7 +3486,7 @@ ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu
 <div class="card"><h3 style="margin-top:0">Particelle</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fg.</th><th>Mapp.</th><th>Qualità</th><th class="n">Sup.</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th>Confini</th><th class="n">Indennità</th></tr></thead><tbody>
 ${parts.map(x => { const v = c.perP.get(x.id); return `<tr data-px="${x.id}"><td>${E(x.fg)}</td><td>${E(C.mappale(x))}</td><td>${E([x.qual, x.cls].filter(Boolean).join('/'))}</td><td class="n">${U.mq(x.sup)}</td><td class="n">${v.aree.espr ? U.mq(v.aree.espr) : ''}</td><td class="n">${v.aree.servop + v.aree.serv ? U.mq(v.aree.servop + v.aree.serv) : ''}</td><td class="n">${v.aree.occ ? U.mq(v.aree.occ) : ''}</td><td class="mu" style="white-space:normal;min-width:200px">${E(x.confini || '')}</td><td class="n">${U.eur(v.tot)}</td></tr>`; }).join('')}</tbody></table></div></div>
 <div class="card"><h3 style="margin-top:0">Iter della ditta</h3><p class="mu">Per ogni passo registra date (invio e notifica/ricevimento), protocollo e mezzo; i documenti si generano nella cartella della ditta.</p><div class="passi">
-${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${ps.modelli.filter(k => M.INTEGRATI[k]).map(k => `<button class="s" data-gen="${k}" title="${E(M.INTEGRATI[k].nome)}">📄 ${E(M.INTEGRATI[k].nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
+${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${ps.modelli.filter(k => APP.modello(k)).map(k => `<button class="s" data-genp="${k}" title="Anteprima">👁</button><button class="s" data-gen="${k}" title="Crea il Word di questa ditta: ${E(APP.modello(k).nome)}">📄 ${E(APP.modello(k).nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
@@ -3343,7 +3502,8 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     m.querySelectorAll('[data-odel]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere l\'intestatario?', 'Togli')) { d.intest.splice(+b.dataset.odel, 1); APP.salva(); APP.render(); } });
     m.querySelector('#dadd').onclick = () => { d.intest.push({ id: U.id(), nome: '', titolo: "Proprieta'", quota: '1/1' }); APP.salva(); APP.render(); };
     m.querySelectorAll('[data-px]').forEach(r => r.onclick = () => APP.editParticella(p.particelle.find(x => x.id === r.dataset.px)));
-    m.querySelectorAll('[data-gen]').forEach(b => b.onclick = () => APP.vai('documenti', { modello: b.dataset.gen, ditte: [d.id] }));
+    m.querySelectorAll('[data-gen]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.gen, { ditte: [d.id], generale: false, perDitta: true }); if (APP.FS.ok) elencoFile(m.querySelector('#dfiles'), APP.FS.dirDitta(p, d)); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
+    m.querySelectorAll('[data-genp]').forEach(b => b.onclick = () => APP.vai('documenti', { ditte: [d.id], prev: b.dataset.genp }));
     fotoUI(m, p, d);
     if (APP.FS.ok) elencoFile(m.querySelector('#dfiles'), APP.FS.dirDitta(p, d));
   }
@@ -3478,9 +3638,9 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     const c = APP.calc(), T0 = c.T, I0 = p.impost;
     m.innerHTML = `<h2>💶 Indennità</h2>
 <div class="ban">Il programma applica le formule del D.P.R. 327/2001 con i valori qui sotto: i valori unitari e le percentuali vanno stabiliti dal tecnico estimatore (relazione di stima). Dopo la sentenza della Corte costituzionale n. 181/2011 anche per le aree non edificabili si usa il valore venale; il VAM resta per le indennità aggiuntive (artt. 40 c.4 e 42).</div>
-<div class="card"><h3 style="margin-top:0">Valori unitari per categoria</h3><p class="mu">La categoria si assegna in automatico dalla qualità catastale (es. «PRATO» → Prato, «BOSCO ARB» → Bosco) oppure a mano nella particella.</p>
-<div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Categoria</th><th>Edificabile</th><th>Valore venale €/mq</th><th>VAM €/ha (aggiuntive)</th><th class="n">Particelle</th><th></th></tr></thead><tbody>
-${p.valori.map((v, i) => `<tr><td><input data-v="${i}" data-c="nome" value="${E(v.nome)}"></td><td><input type="checkbox" data-v="${i}" data-c="edif" ${v.edif ? 'checked' : ''}></td><td><input data-v="${i}" data-c="vu" value="${v.vu || ''}"></td><td><input data-v="${i}" data-c="vam" value="${v.vam || ''}"></td><td class="n">${p.particelle.filter(x => (S.categoria(x, p.valori) || {}).id === v.id).length}</td><td><button class="s d" data-vx="${i}">✕</button></td></tr>`).join('')}
+<div class="card"><h3 style="margin-top:0">Valori unitari per categoria</h3><p class="mu">La categoria si assegna in automatico dalla qualità catastale della visura (es. «PRATO» → Prato, «BOSCHI/6» → Bosco, «ALPI/6» → Pascolo / Alpe) tramite gli inizi di parola della colonna «Riconosce nella qualità», oppure a mano nella particella.</p>
+<div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Categoria</th><th>Riconosce nella qualità</th><th>Edificabile</th><th>Valore venale €/mq</th><th>VAM €/ha (aggiuntive)</th><th class="n">Particelle</th><th></th></tr></thead><tbody>
+${p.valori.map((v, i) => `<tr><td><input data-v="${i}" data-c="nome" value="${E(v.nome)}"></td><td><input data-v="${i}" data-c="chiavi" value="${E(v.chiavi || '')}" placeholder="es. bosc cast" title="Inizi di parola separati da spazio"></td><td><input type="checkbox" data-v="${i}" data-c="edif" ${v.edif ? 'checked' : ''}></td><td><input data-v="${i}" data-c="vu" value="${v.vu || ''}"></td><td><input data-v="${i}" data-c="vam" value="${v.vam || ''}"></td><td class="n">${p.particelle.filter(x => (S.categoria(x, p.valori) || {}).id === v.id).length}</td><td><button class="s d" data-vx="${i}">✕</button></td></tr>`).join('')}
 </tbody></table></div><div class="row" style="margin-top:8px"><button id="vadd">＋ Categoria</button><span class="mu">Particelle senza categoria: ${p.particelle.filter(x => !S.categoria(x, p.valori)).map(x => 'Fg.' + E(x.fg) + ' ' + E(x.map) + (x.qual ? ' (' + E(x.qual) + ')' : '')).join(', ') || 'nessuna'}</span></div></div>
 <div class="card"><h3 style="margin-top:0">Criteri</h3><div class="g">
 <label>Servitù ingombro opere (% del valore)<input data-f="impost.coeffServop" data-t="pct"></label><label>Servitù fascia (% del valore, art. 44)<input data-f="impost.coeffServ" data-t="pct"></label>
@@ -3495,49 +3655,139 @@ ${Object.entries(S.VOCI).map(([k, n]) => T0[k] ? `<tr><td>${E(n)}</td><td class=
 <div class="card"><h3 style="margin-top:0">Per ditta</h3><div class="tw"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th class="n">Altre voci</th><th class="n">Totale</th><th class="n">Acconto 80%</th></tr></thead><tbody>
 ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.id}"><td><b>${E(d.n)}</b></td><td>${E(d.intest.map(o => o.nome).join(', ').slice(0, 60))}</td><td class="n">${U.eur(D.espr || 0)}</td><td class="n">${U.eur((D.servop || 0) + (D.serv || 0))}</td><td class="n">${U.eur((D.occ || 0) + (D.urg || 0))}</td><td class="n">${U.eur((D.aggCD || 0) + (D.sopr || 0) + (D.depr || 0) + (D.np42 || 0) + (D.ris42 || 0))}</td><td class="n"><b>${U.eur(D.tot || 0)}</b></td><td class="n">${U.eur(D.acconto80 || 0)}</td></tr>`; }).join('')}</tbody></table></div></div>`;
     APP.lega(m, p, () => APP.render());
-    m.querySelectorAll('[data-v]').forEach(el => el.onchange = () => { const v = p.valori[+el.dataset.v]; v[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.dataset.c === 'nome' ? el.value : U.num(el.value); APP.salva(); APP.render(); });
+    m.querySelectorAll('[data-v]').forEach(el => el.onchange = () => { const v = p.valori[+el.dataset.v]; v[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.dataset.c === 'nome' || el.dataset.c === 'chiavi' ? el.value : U.num(el.value); APP.salva(); APP.render(); });
     m.querySelectorAll('[data-vx]').forEach(b => b.onclick = () => { p.valori.splice(+b.dataset.vx, 1); APP.salva(); APP.render(); });
     m.querySelector('#vadd').onclick = () => { p.valori.push({ id: U.id(), nome: 'Nuova categoria', edif: false, vu: 0, vam: 0 }); APP.salva(); APP.render(); };
     m.querySelectorAll('[data-d]').forEach(r => r.onclick = () => APP.vai('ditte', r.dataset.d));
   };
 
   // ---------- Vista: Documenti ----------
+  // Organizzata per passi del percorso: ogni modello si genera per tutte le ditte (file generale + file per ditta).
+  const LIVELLI = { originale: '', base: '<span class="tag t-wa">testo base modificato</span>', pratica: '<span class="tag t-sv">testo di questa pratica</span>', nuovo: '<span class="tag t-ok">modello vostro</span>' };
   APP.viste.documenti = async (m, p) => {
-    const st = APP.docSt = Object.assign(APP.docSt || { modello: 'avvio_11_16', ditte: null }, APP.arg && typeof APP.arg === 'object' ? APP.arg : {}); APP.arg = null;
-    const fasi = {}; Object.entries(M.INTEGRATI).forEach(([k, v]) => { (fasi[v.fase] = fasi[v.fase] || []).push([k, v]); });
-    const mod = M.INTEGRATI[st.modello], wordSel = (APP.DB.modelliWord || []).find(w => w.id === st.word);
+    const st = APP.docSt = Object.assign(APP.docSt || { ditte: null, registra: true, data: U.oggi(), generale: true, perDitta: true, prev: '' }, APP.arg && typeof APP.arg === 'object' ? APP.arg : {}); APP.arg = null;
+    const cat = M.catalogo(APP.lib()), lib = APP.lib(), proc = p.impost.procedura, passi = I.passi(proc);
+    const usati = new Set();
+    const nd = st.ditte ? st.ditte.length : p.ditte.length;
+    const riga = (k, passo) => {
+      const md = cat[k]; if (!md) return '';
+      usati.add(k);
+      const tutti = md.ambito !== 'pratica';
+      return `<div class="mr"><div class="grow" style="min-width:0"><b>${E(md.nome)}</b> ${LIVELLI[M.livello(k, p, lib)]}<div class="mu">${E(md.art || '')} · ${AMBITI[md.ambito]}</div></div>
+<div class="row"><button class="s" data-a="prev" data-k="${k}">👁 Anteprima</button><button class="s" data-a="edit" data-k="${k}">✏️ Testo</button><button class="s" data-a="pdf" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>PDF</button><button class="s p" data-a="word" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>${tutti ? '⬇ Genera per ' + (nd === p.ditte.length ? 'tutte le ditte' : nd + ' ditte') : '⬇ Genera'}</button></div></div>`;
+    };
+    const fatti = ps => p.ditte.filter(d => d.ev[ps.k] && d.ev[ps.k].data).length;
+    const sezPercorso = passi.map((ps, i) => `<div class="mp2"><div class="row"><span class="nr2">${i + 1}</span><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span><span class="tag ${fatti(ps) === p.ditte.length && p.ditte.length ? 't-ok' : ''}">${fatti(ps)}/${p.ditte.length} ditte</span></div>${ps.modelli.filter(k => cat[k]).map(k => riga(k, ps.k)).join('') || '<div class="mu">Nessun modello collegato: usa «Altri modelli».</div>'}</div>`).join('');
+    const generali = Object.keys(cat).filter(k => cat[k].ambito === 'pratica' && !usati.has(k));
+    const sezGen = generali.map(k => riga(k)).join('');
+    const altri = Object.keys(cat).filter(k => !usati.has(k)).map(k => riga(k)).join('');
+    const word = (APP.DB.modelliWord || []).map(w => `<div class="mr"><div class="grow"><b>${E(w.nome)}</b> <span class="tag t-ok">Word</span><div class="mu">${AMBITI[w.ambito]} · ${(w.campi || []).length} campi</div></div><div class="row"><button class="s d" data-a="wdel" data-k="w:${w.id}">✕</button><button class="s p" data-a="word" data-k="w:${w.id}">⬇ Genera</button></div></div>`).join('');
     m.innerHTML = `<h2>📄 Documenti</h2>
 <div class="card"><div class="g">
-<label class="f2">Modello integrato<select id="dm">${Object.entries(fasi).map(([f, L]) => `<optgroup label="${E(f)}">${L.map(([k, v]) => `<option value="${k}" ${k === st.modello && !st.word ? 'selected' : ''}>${E(v.nome)} (${E(v.art)})</option>`).join('')}</optgroup>`).join('')}</select></label>
-<label class="f2">…oppure un vostro modello Word<select id="dw"><option value="">—</option>${(APP.DB.modelliWord || []).map(w => `<option value="${w.id}" ${w.id === st.word ? 'selected' : ''}>${E(w.nome)} (${w.ambito})</option>`).join('')}</select></label>
-<label class="f">Ditte<select id="dd" multiple size="4">${p.ditte.map(d => `<option value="${d.id}" ${!st.ditte || st.ditte.includes(d.id) ? 'selected' : ''}>Ditta ${E(d.n)} – ${E(d.intest.map(o => o.nome).join(', ').slice(0, 80))}</option>`).join('')}</select></label></div>
-<p class="mu">${st.word ? `Modello Word: un documento per ${wordSel ? wordSel.ambito : ''}.` : `${E(mod.art)} · un documento per <b>${{ intestatario: 'ogni intestatario', ditta: 'ogni ditta', pratica: 'l\'intera pratica' }[mod.ambito]}</b>. Nel programma installato ogni documento si salva nella cartella della ditta.`}</p>
-<div class="row"><button class="p" id="gword">Crea Word (.docx)</button>${st.word ? '' : '<button id="gpdf">PDF nel fascicolo / stampa</button><button id="gunico">Word unico</button><button id="gedit">Modifica testo del modello</button>'}<span class="grow"></span><button id="wcar">Carica modello Word…</button>${st.word ? '<button class="d" id="wdel">Togli modello Word</button>' : ''}<button id="wcampi">Campi disponibili</button></div></div>
-<div id="dprev"><div class="vuoto">Anteprima…</div></div>`;
-    m.querySelector('#dm').onchange = e => { st.modello = e.target.value; st.word = ''; APP.render(); };
-    m.querySelector('#dw').onchange = e => { st.word = e.target.value; APP.render(); };
+<label class="f2">Ditte<select id="dd" multiple size="4">${p.ditte.map(d => `<option value="${d.id}" ${!st.ditte || st.ditte.includes(d.id) ? 'selected' : ''}>Ditta ${E(d.n)} – ${E(d.intest.map(o => o.nome).join(', ').slice(0, 80))}</option>`).join('')}</select></label>
+<div class="f2 opz"><span class="mu">File da creare</span><label class="chk"><input type="checkbox" id="ogen" ${st.generale ? 'checked' : ''}> File generale con tutte le ditte (in «00 GENERALE»)</label><label class="chk"><input type="checkbox" id="oper" ${st.perDitta ? 'checked' : ''}> Documento nella cartella di ogni ditta</label>
+<div class="row"><label class="chk"><input type="checkbox" id="oreg" ${st.registra ? 'checked' : ''}> Segna il passo come inviato alle ditte in data</label><input type="date" id="odat" value="${E(st.data)}"></div></div></div>
+<div class="row" style="margin-top:8px"><button id="dtutte">Seleziona tutte</button><span class="mu grow">${APP.FS.ok ? 'I file vanno nel fascicolo: generale in «00 GENERALE», specifici in «DITTA n …».' : 'Nel browser i file arrivano in un unico ZIP con le stesse cartelle del fascicolo.'}</span>
+<button id="mnew">＋ Nuovo modello</button><button id="wcar">Carica modello Word…</button><button id="mexp">Esporta modelli</button><button id="mimp">Importa modelli</button><button id="wcampi">Campi disponibili</button></div></div>
+<div class="card"><h3 style="margin-top:0">Percorso: ${E(S.PROCEDURE[proc].nome)}</h3><p class="mu">Il percorso si cambia nella scheda Pratica (o per singola ditta). I dati del progetto approvato, i visti e le premesse si scrivono una volta in Pratica › «Dati specifici per i documenti».</p>${sezPercorso}</div>
+${sezGen ? `<div class="card"><h3 style="margin-top:0">Atti generali della pratica</h3>${sezGen}</div>` : ''}
+<div class="card"><h3 style="margin-top:0">Altri modelli</h3>${altri || '<div class="mu">—</div>'}</div>
+${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${word}</div>` : ''}
+<div id="dprev"></div>`;
     const sel = () => { const v = [...m.querySelector('#dd').selectedOptions].map(o => o.value); st.ditte = v.length === p.ditte.length ? null : v; return st.ditte; };
-    m.querySelector('#dd').onchange = () => { sel(); prev(); };
-    m.querySelector('#gword').onclick = async () => { try { if (st.word) await wordUtente(p, wordSel, sel()); else await APP.generaWord(p, st.modello, sel()); } catch (e) { APP.toast('Errore: ' + e.message, 6000); console.error(e); } };
-    const gp = m.querySelector('#gpdf'); if (gp) gp.onclick = () => APP.stampaModello(st.modello, mod.ambito, sel(), APP.FS.ok);
-    const gu = m.querySelector('#gunico'); if (gu) gu.onclick = () => APP.generaWord(p, st.modello, sel(), true);
-    const ge = m.querySelector('#gedit'); if (ge) ge.onclick = () => modificaModello(p, st.modello);
+    const opt = passo => ({ ditte: sel(), generale: st.generale, perDitta: st.perDitta, registra: st.registra && passo ? { passo, data: st.data } : null });
+    m.querySelector('#dd').onchange = () => { sel(); APP.render(); };
+    m.querySelector('#dtutte').onclick = () => { st.ditte = null; APP.render(); };
+    m.querySelector('#ogen').onchange = e => { st.generale = e.target.checked; };
+    m.querySelector('#oper').onchange = e => { st.perDitta = e.target.checked; };
+    m.querySelector('#oreg').onchange = e => { st.registra = e.target.checked; };
+    m.querySelector('#odat').onchange = e => { st.data = e.target.value; };
+    m.querySelectorAll('[data-a]').forEach(b => b.onclick = async () => {
+      const k = b.dataset.k, a = b.dataset.a;
+      try {
+        if (a === 'word') await APP.generaTutti(p, k, opt(b.dataset.passo));
+        if (a === 'pdf') await APP.pdfTutti(p, k, opt(b.dataset.passo));
+        if (a === 'edit') await APP.editorModello(p, k);
+        if (a === 'wdel' && await APP.conferma('Togliere questo modello Word?', 'Togli')) { APP.DB.modelliWord = APP.DB.modelliWord.filter(w => 'w:' + w.id !== k); APP.salva(); APP.render(); }
+        if (a === 'prev') {
+          st.prev = k; const box = m.querySelector('#dprev');
+          box.innerHTML = `<div class="card row"><b class="grow">Anteprima: ${E(cat[k].nome)}</b><span class="mu">prime ditte selezionate</span></div>` + await APP.anteprima(p, k, (sel() || p.ditte.map(d => d.id)).slice(0, cat[k].ambito === 'intestatario' ? 2 : 3));
+          box.scrollIntoView({ behavior: 'smooth' });
+        }
+      } catch (e) { APP.toast('Errore: ' + e.message, 6000); console.error(e); }
+    });
+    m.querySelector('#mnew').onclick = () => nuovoModello(p);
     m.querySelector('#wcar').onclick = () => caricaWord();
-    const wd = m.querySelector('#wdel'); if (wd) wd.onclick = () => { APP.DB.modelliWord = APP.DB.modelliWord.filter(w => w.id !== st.word); st.word = ''; APP.salva(); APP.render(); };
     m.querySelector('#wcampi').onclick = () => campiDisponibili();
-    const prev = async () => {
-      const box = m.querySelector('#dprev');
-      if (st.word) { box.innerHTML = `<div class="card"><b>${E(wordSel.nome)}</b><p class="mu">Campi trovati nel modello: ${(wordSel.campi || []).map(x => '<span class="tag">' + E(x) + '</span>').join(' ') || 'nessuno'}</p></div>`; return; }
-      try { box.innerHTML = await APP.anteprima(p, st.modello, sel() ? sel().slice(0, 3) : p.ditte.slice(0, 2).map(d => d.id)); } catch (e) { box.innerHTML = `<div class="ban err">${E(e.message)}</div>`; console.error(e); }
+    m.querySelector('#mexp').onclick = () => APP.scarica('Modelli ESPROPRI_SISTEM (' + U.oggi() + ').json', JSON.stringify({ tipo: 'ESPROPRI_SISTEM-modelli', v: 1, base: APP.lib().base, custom: APP.lib().custom, word: APP.DB.modelliWord || [] }, null, 1), 'application/json');
+    m.querySelector('#mimp').onclick = async () => {
+      const [f] = await APP.scegliFile('.json'); if (!f) return;
+      try {
+        const o = JSON.parse(new TextDecoder().decode(f.buf)); if (o.tipo !== 'ESPROPRI_SISTEM-modelli') throw new Error('non è un file di modelli');
+        Object.assign(APP.lib().base, o.base || {});
+        (o.custom || []).forEach(c => { const L = APP.lib().custom, i = L.findIndex(x => x.k === c.k); if (i >= 0) L[i] = c; else L.push(c); });
+        (o.word || []).forEach(w => { APP.DB.modelliWord = APP.DB.modelliWord || []; if (!APP.DB.modelliWord.some(x => x.id === w.id)) APP.DB.modelliWord.push(w); });
+        APP.salva(); APP.render(); APP.toast('Modelli importati');
+      } catch (e) { APP.toast('File non valido: ' + e.message, 6000); }
     };
-    prev();
+    if (st.prev && cat[st.prev]) { const b = m.querySelector(`[data-a="prev"][data-k="${st.prev}"]`); if (b) b.click(); }
   };
-  async function modificaModello(p, k) {
-    const m = M.INTEGRATI[k];
-    const r = await APP.dlg('Modifica: ' + m.nome, `<p class="mu">Segnaposto: {{ditta.n}}, {{dest.nome}}, {{ente.nome}}, {{atti.dpu.testo}}… (vedi «Campi disponibili»). Righe: # titolo, ## sottotitolo, >> a destra, - elenco, **grassetto**, [[tabella particelle colonne=fg,map,sup,espr]], [[planimetria]], [[firma Ruolo|Nome]], [[salto]]. La modifica vale per questa pratica.</p><textarea id="mt" rows="24">${E(APP.testoModello(p, k))}</textarea>`, [{ t: 'Ripristina originale', v: 'reset', d: true }, { t: 'Annulla', v: '' }, { t: 'Salva', v: 'ok', p: true }]);
-    if (r === 'ok') p.modelli[k] = $('#mt').value;
-    if (r === 'reset') delete p.modelli[k];
+
+  // Editor del testo: livello «base» (tutte le pratiche) o «questa pratica», campi da inserire e anteprima
+  const GRUPPI_CAMPI = p => [
+    ['Destinatario', ['dest.saluto', 'dest.gentile', 'dest.nome', 'dest.anagrafica', 'dest.nascita', 'dest.cf', 'dest.diritto', 'dest.via', 'dest.cittaCap', 'dest.pec', 'dest.mezzo']],
+    ['Ditta', ['ditta.n', 'ditta.np', 'ditta.nome', 'ditta.tot', 'ditta.totLettere', 'ditta.indEspr', 'ditta.indServ', 'ditta.indOcc', 'ditta.supEspr', 'ditta.supServ', 'ditta.supOcc', 'ditta.acconto80', 'ditta.osservazioni', 'ditta.ev.immissione.data', 'ditta.ev.immissione.ora', 'ditta.ev.immissione.luogo']],
+    ['Opera ed ente', ['pratica.oggetto', 'pratica.cup', 'pratica.urgenza', 'ente.nome', 'ente.ufficio', 'ente.indirizzo', 'ente.pec', 'ente.ruolo', 'ente.responsabile', 'ente.rup', 'ente.tecnico', 'ente.beneficiario', 'ente.tar', 'ente.tribunale', 'ente.bur', 'ente.link', 'luogo', 'oggi', 'mesiOcc']],
+    ['Atti (estremi e data)', ES.iter.FASI.map(f => 'atti.' + f.k + '.testo')],
+    ['Dati specifici della pratica', M.DATI.map(c => 'dati.' + c.k).concat(['premesse', 'visti'].map(k => 'dati.' + k + 'Elenco')).concat((p.campi || []).map(c => 'dati.' + c.k))],
+    ['Tabelle e comandi', ['[[tabella particelle colonne=comune,fg,map,haareca,rd,ra,espr,servtot,occ]]', '[[tabella intestatari]]', '[[tabella indennita]]', '[[tabella consistenza]]', '[[tabella piano colonne=np,fg,map,qual,sup,espr,servtot,occ,ind]]', '[[planimetria scala=1000]]', '[[firma {{ente.ruolo}}|{{ente.responsabile}}]]', '[[salto]]', '{{#ditta.intestatari}} … {{/ditta.intestatari}}', '{{#ditta.particelle}} … {{/ditta.particelle}}', '{{#dati.premesse}} … {{/dati.premesse}}']]
+  ];
+  APP.editorModello = async (p, k) => {
+    const lib = APP.lib(), md = APP.modello(k), propria = !!md.propria;
+    const orig = propria ? md.testo : M.INTEGRATI[k].testo;
+    let liv = p.modelli[k] ? 'pratica' : 'base';
+    const testoLiv = l => (l === 'pratica' ? (p.modelli[k] || M.testo(k, null, lib)) : (propria ? md.testo : (lib.base[k] || orig)));
+    const campi = GRUPPI_CAMPI(p).map(([g, L]) => `<details ${g === 'Dati specifici della pratica' ? 'open' : ''}><summary>${E(g)}</summary>${L.map(c => `<button type="button" class="s cmp" data-ins="${E(c.startsWith('[[') || c.startsWith('{{') ? c : '{{' + c + '}}')}">${E(c.replace(/^(dest|ditta|ente|pratica|atti|dati)\./, ''))}</button>`).join('')}</details>`).join('');
+    const html = `${propria ? `<div class="g"><label class="f2">Nome del modello<input id="mnome" value="${E(md.nome)}"></label><label>Articolo<input id="mart" value="${E(md.art || '')}"></label><label>Fase<input id="mfase" value="${E(md.fase || '')}"></label><label>Un documento per<select id="mamb">${Object.entries(AMBITI).map(([a, t]) => `<option value="${a}" ${md.ambito === a ? 'selected' : ''}>${t}</option>`).join('')}</select></label></div>` : ''}
+<div class="row" style="margin:6px 0"><label class="fl">Modifica<select id="mliv"><option value="base">${propria ? 'Testo del modello (tutte le pratiche)' : 'Testo base – vale per tutte le pratiche'}</option><option value="pratica">Solo per questa pratica</option></select></label><span class="mu grow" id="mstato"></span></div>
+<div class="ed"><textarea id="mt" rows="26" spellcheck="true"></textarea><div class="ed-side"><div class="mu" style="margin-bottom:4px">Clic per inserire nel punto del cursore</div>${campi}</div></div>
+<p class="mu">Righe: <b># titolo</b>, <b>## sottotitolo</b>, <b>&gt;&gt; testo a destra</b> (indirizzo), <b>- punto elenco</b>, <b>**grassetto**</b>, <b>++sottolineato++</b>. Una riga = un paragrafo. Le sezioni <b>{{#campo}}…{{/campo}}</b> compaiono solo se il campo è compilato.</p>
+<div class="row"><button type="button" id="mprev">Anteprima con la prima ditta</button></div><div id="mpv" style="margin-top:8px"></div>`;
+    const stato = l => ({ base: propria ? 'Modello vostro: il testo vale per tutte le pratiche.' : lib.base[k] ? 'Testo base modificato da voi (vale per tutte le pratiche).' : 'Testo originale del programma.', pratica: p.modelli[k] ? 'Questa pratica usa un testo proprio.' : 'Questa pratica usa il testo base: salvando qui crei una versione solo per questa pratica.' })[l];
+    const r = await APP.dlg('Testo: ' + md.nome, html, [{ t: 'Ripristina', v: 'reset', d: true }].concat(propria ? [{ t: 'Elimina modello', v: 'del', d: true }] : []).concat([{ t: 'Annulla', v: '' }, { t: 'Salva', v: 'ok', p: true }]), b => {
+      const ta = b.querySelector('#mt'), sl = b.querySelector('#mliv');
+      const carica = () => { ta.value = testoLiv(liv); b.querySelector('#mstato').textContent = stato(liv); };
+      sl.value = liv; carica();
+      sl.onchange = () => { liv = sl.value; carica(); };
+      b.querySelectorAll('[data-ins]').forEach(x => x.onclick = () => { const t = x.dataset.ins, i = ta.selectionStart, j = ta.selectionEnd; ta.value = ta.value.slice(0, i) + t + ta.value.slice(j); ta.focus(); ta.selectionStart = ta.selectionEnd = i + t.length; });
+      b.querySelector('#mprev').onclick = async () => { try { b.querySelector('#mpv').innerHTML = await APP.anteprima(p, k, p.ditte.slice(0, 1).map(d => d.id), ta.value); } catch (e) { b.querySelector('#mpv').innerHTML = `<div class="ban err">${E(e.message)}</div>`; } };
+    });
+    const testo = $('#mt').value;
+    if (r === 'ok') {
+      if (propria) { const c = lib.custom.find(x => x.k === k); Object.assign(c, { nome: $('#mnome').value || c.nome, art: $('#mart').value, fase: $('#mfase').value, ambito: $('#mamb').value }); if (liv === 'base') c.testo = testo; }
+      if (liv === 'pratica') p.modelli[k] = testo;
+      else if (!propria) { if (testo === orig) delete lib.base[k]; else lib.base[k] = testo; }
+      APP.toast(liv === 'pratica' ? 'Testo salvato per questa pratica' : 'Testo base salvato: vale per tutte le pratiche');
+    }
+    if (r === 'reset') {
+      if (liv === 'pratica') delete p.modelli[k];
+      else if (!propria && await APP.conferma('Tornare al testo originale del programma per tutte le pratiche?', 'Ripristina')) delete lib.base[k];
+    }
+    if (r === 'del' && await APP.conferma('Eliminare il modello «' + E(md.nome) + '» da tutte le pratiche?', 'Elimina')) { lib.custom.splice(lib.custom.findIndex(x => x.k === k), 1); Object.values(APP.DB.pratiche).forEach(x => { if (x.modelli) delete x.modelli[k]; }); }
     if (r) { APP.salva(); APP.render(); }
+  };
+  async function nuovoModello(p) {
+    const cat = M.catalogo(APP.lib());
+    const r = await APP.dlg('Nuovo modello', `<div class="g"><label class="f">Nome<input id="nn" placeholder="es. Richiesta di nulla osta allo svincolo"></label><label>Articolo<input id="na" placeholder="art. 28"></label><label>Fase<input id="nf" placeholder="Indennità"></label>
+<label>Un documento per<select id="nb">${Object.entries(AMBITI).map(([a, t]) => `<option value="${a}">${t}</option>`).join('')}</select></label>
+<label class="f">Parti dal testo di<select id="nc"><option value="">(foglio bianco con intestazione)</option>${Object.entries(cat).map(([k, v]) => `<option value="${k}">${E(v.nome)}</option>`).join('')}</select></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Crea e modifica', v: 'ok', p: true }]);
+    if (r !== 'ok') return;
+    const da = $('#nc').value, amb = $('#nb').value;
+    const vuoto = amb === 'pratica' ? '# TITOLO\n## {{pratica.oggetto}}\n\nTesto…\n\n{{luogo}}, {{oggi}}\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]'
+      : 'Prot. n. ________\t{{luogo}}, {{oggi}}\n**Ditta {{ditta.n}}**\n>> {{dest.saluto}}\n>> **{{dest.nome}}**\n>> {{dest.via}}\n>> {{dest.cittaCap}}\n\n**Oggetto: {{pratica.oggetto}}**\n\n{{dest.gentile}},\nTesto…\n[[tabella particelle colonne=fg,map,sup,espr,servtot,occ]]\n\nDistinti saluti.\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]';
+    const c = { k: 'u_' + U.id(), nome: $('#nn').value || 'Nuovo modello', art: $('#na').value, fase: $('#nf').value || 'Modelli vostri', ambito: (da && cat[da].ambito) || amb, testo: da ? APP.testoModello(p, da) : vuoto };
+    APP.lib().custom.push(c); APP.salva(); APP.render();
+    return APP.editorModello(p, c.k);
   }
   async function caricaWord() {
     const [f] = await APP.scegliFile('.docx'); if (!f) return;
@@ -3546,17 +3796,9 @@ ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.i
     const amb = campi.some(x => /^dest\.|Nome_e_Cognome$|^via$/.test(x)) ? 'intestatario' : campi.some(x => /^#?ditte|^#?unEspr/.test(x)) ? 'pratica' : 'ditta';
     const r = await APP.dlg('Nuovo modello Word', `<div class="g"><label class="f">Nome<input id="wn" value="${E(f.nome.replace(/\.docx$/i, ''))}"></label><label>Un documento per<select id="wa"><option value="intestatario">ogni intestatario</option><option value="ditta">ogni ditta</option><option value="pratica">l'intera pratica</option></select></label></div><p class="mu">Campi trovati: ${campi.map(x => '<span class="tag">' + E(x) + '</span>').join(' ') || 'nessuno – inserisci nel Word i segnaposto {{campo}} o usa i campi di stampa unione'}</p>`, [{ t: 'Annulla', v: '' }, { t: 'Aggiungi', v: 'ok', p: true }], b => { b.querySelector('#wa').value = amb; });
     if (r !== 'ok') return;
-    const dati64 = b64(new Uint8Array(f.buf));
     APP.DB.modelliWord = APP.DB.modelliWord || [];
-    const w = { id: U.id(), nome: $('#wn').value || f.nome, ambito: $('#wa').value, campi, dati: dati64 };
-    APP.DB.modelliWord.push(w); APP.docSt.word = w.id; APP.salva(); APP.render();
-  }
-  async function wordUtente(p, w, ditteSel) {
-    const buf = Uint8Array.from(atob(w.dati), ch => ch.charCodeAt(0)).buffer, calc = S.calcola(p);
-    const ctxs = M.contesti(p, calc, w.ambito, ditteSel).map(c => ({ ...c, _unione: M.unione(c) }));
-    const img = { planimetria: async ctx => (p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null) };
-    if (!APP.FS.ok || w.ambito === 'pratica') { await APP.FS.salva(APP.FS.dirGenerale(p) + '/' + san(w.nome) + ' (' + U.oggi() + ').docx', await ES.office.compila(buf, ctxs, img)); return; }
-    for (const c of ctxs) await APP.FS.salva(APP.FS.dirDitta(p, p.ditte.find(d => d.id === c._dittaId)) + '/' + san(w.nome) + (w.ambito === 'intestatario' ? ' - ' + san(c.dest.nome) : '') + ' (' + U.oggi() + ').docx', await ES.office.compila(buf, [c], img));
+    APP.DB.modelliWord.push({ id: U.id(), nome: $('#wn').value || f.nome, ambito: $('#wa').value, campi, dati: b64(new Uint8Array(f.buf)) });
+    APP.salva(); APP.render();
   }
   function campiDisponibili() {
     const R = (a, b) => `<tr><td><code>${E(a)}</code></td><td>${E(b)}</td></tr>`;
