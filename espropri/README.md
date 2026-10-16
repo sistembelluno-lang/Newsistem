@@ -52,9 +52,10 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    serve, con l'**estratto di mappa** della ditta. Si possono caricare **i vostri modelli Word**: segnaposto
    `{{campo}}`, righe ripetute `{{#ditta.particelle}}…{{/ditta.particelle}}`, estratto `{{%planimetria}}`; i campi di
    stampa unione già presenti nei vostri documenti vengono riconosciuti.
-8. **Fascicolo**: nel programma installato ogni documento si salva in
-   `Documenti\ESPROPRI_SISTEM\Pratiche\<pratica>\DITTA 1 ROSSI MARIO\…` (cartella base modificabile), gli atti
-   generali in `00 GENERALE`.
+8. **Fascicolo**: per ogni pratica l'operatore sceglie la **cartella di lavoro** sul server (es.
+   `L:\260514-esproprio roma\05-Espropri`): dentro il programma crea `ESPROPRI_SISTEM` con `00 GENERALE` (file per
+   tutte le ditte, decreti, tavole) e una cartella per ogni ditta (`DITTA 1 COGNOME NOME`), dove si salvano Word, PDF,
+   foto e scansioni. Senza cartella di lavoro si usa `Documenti\ESPROPRI_SISTEM\Pratiche\<pratica>`.
 9. **Stato di consistenza**: si genera il verbale, si stampa e si fa firmare in sito; poi si caricano le foto (con
    didascalia e particella) e la scansione PDF firmata: il programma crea il **PDF finale** con verbale firmato e pagine
    di documentazione fotografica («Figura 1_Fg. 9 Mapp.859»).
