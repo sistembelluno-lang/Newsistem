@@ -89,31 +89,49 @@ ul([
 
 const md = L.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
 
-// Markdown → HTML (solo quello che usa la guida: titoli, paragrafi, elenchi, tabelle, grassetto, codice)
+// Markdown → HTML (quello che usano le guide: titoli, paragrafi su più righe, elenchi puntati e numerati con righe
+// di continuazione, tabelle, grassetto, corsivo, codice)
 const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
-let html = '', righe = md.split('\n');
-for (let i = 0; i < righe.length; i++) {
-  const r = righe[i];
-  if (!r.trim()) continue;
-  let m;
-  if ((m = /^(#{1,3}) (.*)$/.exec(r))) { html += `<h${m[1].length}>${inl(m[2])}</h${m[1].length}>\n`; continue; }
-  if (r.startsWith('- ')) { html += '<ul>'; while (i < righe.length && righe[i].startsWith('- ')) html += `<li>${inl(righe[i++].slice(2))}</li>`; i--; html += '</ul>\n'; continue; }
-  if (r.startsWith('|')) {
-    const cel = x => x.slice(1, -1).split(' | ').map(c => c.trim());
-    html += '<table><thead><tr>' + cel(righe[i]).map(c => `<th>${inl(c)}</th>`).join('') + '</tr></thead><tbody>'; i += 2;
-    while (i < righe.length && righe[i].startsWith('|')) html += '<tr>' + cel(righe[i++]).map(c => `<td>${inl(c)}</td>`).join('') + '</tr>'; i--;
-    html += '</tbody></table>\n'; continue;
+const inl = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/(^|[\s(])\*([^*\s][^*]*?)\*(?=[\s.,;:)]|$)/g, '$1<i>$2</i>').replace(/`([^`]+)`/g, '<code>$1</code>');
+const mdHtml = testo => {
+  const R = testo.split('\n'); let out = '', i = 0;
+  const vuota = r => !r.trim(), titolo = r => /^#{1,4} /.test(r), voce = r => /^(- |\d+\. )/.test(r), tabella = r => r.startsWith('|');
+  while (i < R.length) {
+    const r = R[i];
+    if (vuota(r)) { i++; continue; }
+    let m;
+    if ((m = /^(#{1,4}) (.*)$/.exec(r))) { out += `<h${m[1].length}>${inl(m[2])}</h${m[1].length}>\n`; i++; continue; }
+    if (tabella(r)) {
+      const cel = x => x.trim().replace(/^\||\|$/g, '').split('|').map(c => c.trim());
+      out += '<table><thead><tr>' + cel(r).map(c => `<th>${inl(c)}</th>`).join('') + '</tr></thead><tbody>'; i += 2;
+      while (i < R.length && tabella(R[i])) out += '<tr>' + cel(R[i++]).map(c => `<td>${inl(c)}</td>`).join('') + '</tr>';
+      out += '</tbody></table>\n'; continue;
+    }
+    if (voce(r)) {
+      const num = /^\d+\. /.test(r), tag = num ? 'ol' : 'ul'; out += `<${tag}>`;
+      while (i < R.length && voce(R[i]) && /^\d+\. /.test(R[i]) === num) {
+        let t = R[i++].replace(/^(- |\d+\. )/, '');
+        while (i < R.length && /^\s+\S/.test(R[i]) && !voce(R[i].trim())) t += ' ' + R[i++].trim();
+        out += `<li>${inl(t)}</li>`;
+      }
+      out += `</${tag}>\n`; continue;
+    }
+    let t = r; i++;
+    while (i < R.length && !vuota(R[i]) && !titolo(R[i]) && !voce(R[i]) && !tabella(R[i])) t += ' ' + R[i++].trim();
+    out += `<p>${inl(t)}</p>\n`;
   }
-  html += `<p>${inl(r)}</p>\n`;
-}
-const pagina = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ESPROPRI_SISTEM – Guida dei processi</title>
-<style>body{font:15px/1.5 Segoe UI,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1d2433;background:#fff}h1{color:#1e3a8a}h2{color:#1e3a8a;border-bottom:2px solid #c7d2fe;padding-bottom:4px;margin-top:32px}
-table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:13.5px}th,td{border:1px solid #cbd5e1;padding:5px 8px;vertical-align:top;text-align:left}th{background:#eef2ff}code{background:#f1f5f9;padding:1px 4px;border-radius:3px}
-@media print{body{margin:0;max-width:none}h2{break-after:avoid}tr{break-inside:avoid}}</style></head><body>
-${html}</body></html>
+  return out;
+};
+const pagina = (titolo, corpo) => `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(titolo)}</title>
+<style>body{font:15px/1.5 Segoe UI,Arial,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1d2433;background:#fff}h1{color:#1e3a8a}h2{color:#1e3a8a;border-bottom:2px solid #c7d2fe;padding-bottom:4px;margin-top:32px}h3{margin-top:22px}
+table{border-collapse:collapse;width:100%;margin:8px 0 16px;font-size:13.5px}th,td{border:1px solid #cbd5e1;padding:5px 8px;vertical-align:top;text-align:left}th{background:#eef2ff}code{background:#f1f5f9;padding:1px 4px;border-radius:3px}li{margin:3px 0}
+@page{size:A4;margin:16mm 14mm}@media print{body{margin:0;max-width:none;font-size:11pt}h2,h3{break-after:avoid}tr,li{break-inside:avoid}thead{display:table-header-group}th{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>
+${corpo}</body></html>
 `;
 const dir = path.join(root, 'guida');
 fs.writeFileSync(path.join(dir, 'Guida_Processi_Espropri.md'), md);
-fs.writeFileSync(path.join(dir, 'Guida_Processi_Espropri.html'), pagina);
-console.log('scritta la guida dei processi', versione);
+fs.writeFileSync(path.join(dir, 'Guida_Processi_Espropri.html'), pagina('ESPROPRI_SISTEM – Guida dei processi', mdHtml(md)));
+// La guida della normativa (scritta a mano) esce anche in HTML
+const norm = fs.readFileSync(path.join(dir, 'Normativa_Espropri.md'), 'utf8');
+fs.writeFileSync(path.join(dir, 'Normativa_Espropri.html'), pagina('ESPROPRI_SISTEM – Normativa', mdHtml(norm)));
+console.log('scritte le guide (processi e normativa)', versione);

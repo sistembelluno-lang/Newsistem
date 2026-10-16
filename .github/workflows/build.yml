@@ -70,6 +70,13 @@ jobs:
           path: out
           pattern: Programmi-Windows*
           merge-multiple: true
+      # Guide in PDF dalle pagine HTML (Chrome è già installato sul runner)
+      - name: Guide in PDF
+        run: |
+          for f in Guida_Processi_Espropri Normativa_Espropri; do
+            google-chrome --headless=new --no-sandbox --disable-gpu --no-pdf-header-footer --print-to-pdf="$PWD/guida/$f.pdf" "file://$PWD/guida/$f.html"
+            test -s "guida/$f.pdf"
+          done
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: espropri-v${{ steps.v.outputs.version }}
@@ -78,9 +85,10 @@ jobs:
           make_latest: false
           files: |
             out/ESPROPRI_SISTEM-*.exe
-            guida/Normativa_Espropri.md
+            guida/Guida_Processi_Espropri.pdf
             guida/Guida_Processi_Espropri.html
-            guida/Guida_Processi_Espropri.md
+            guida/Normativa_Espropri.pdf
+            guida/Normativa_Espropri.html
           body: |
             **ESPROPRI_SISTEM** – gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001).
 
@@ -92,5 +100,5 @@ jobs:
             Al primo avvio Windows può mostrare un avviso: «Ulteriori informazioni» → «Esegui comunque».
             I dati si salvano in `Documenti\ESPROPRI_SISTEM`; i fascicoli delle pratiche in `Documenti\ESPROPRI_SISTEM\Pratiche` (cartella modificabile).
             Per leggere i DWG installare il convertitore gratuito «ODA File Converter»; in alternativa salvare il disegno come DXF.
-            **Guida dei processi** di questa versione (percorsi art. 20, 22, 22-bis, 42-bis, 49 e cessione, passi, termini, documenti): `Guida_Processi_Espropri.html` (si apre con il browser e si stampa) o `Guida_Processi_Espropri.md`.
-            Studio della normativa: `Normativa_Espropri.md`.
+            **Guida dei processi** di questa versione (percorsi art. 20, 22, 22-bis, 42-bis, 49 e cessione, passi, termini, documenti): `Guida_Processi_Espropri.pdf` o `.html`.
+            **Studio della normativa**: `Normativa_Espropri.pdf` o `.html`.
