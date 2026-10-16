@@ -30,7 +30,11 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
 4. **Piano particellare**: tabella per ditta con superfici per tipo (dal disegno, eventualmente ragguagliate alla
    superficie catastale, o inserite a mano), categoria di stima e indennità; esportazione Excel, Excel per stampa
    unione (campi «Nome_e_Cognome1», «Foglio1», «Particella1»…), stampa/PDF.
-5. **Ditte e iter**: per ogni ditta intestatari (saluto e «nato/nata» ricavati dal codice fiscale; società «Spett.le»),
+5. **Ditte e iter**: cliccando una ditta si vedono in alto **i documenti prodotti per quella ditta** (apri, anteprima,
+   rigenera); ogni intestatario ha il riquadro dell'**indirizzo di residenza per le comunicazioni** (via, CAP, comune,
+   provincia, PEC, mezzo di invio) con l'anteprima dell'intestazione della lettera; la scheda **Indirizzi** raccoglie
+   tutti gli intestatari della pratica (una riga per persona, anche se è in più ditte) con import/export Excel.
+   Per ogni ditta intestatari (saluto e «nato/nata» ricavati dal codice fiscale; società «Spett.le»),
    conduttore, percorso, e i **passi dell'iter** con date di invio e notifica, protocollo, mezzo e termini calcolati.
 6. **Indennità**: valori unitari per categoria e criteri (art. 37, 40, 42, 44, 50, 22-bis, 42-bis, 35), quadro
    riepilogativo e per ditta.

@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('desktop', {
   fsElenco: (rel) => ipcRenderer.invoke('fs:elenco', rel),
   fsApri: (rel) => ipcRenderer.invoke('fs:apri', rel),
   fsMostra: (rel) => ipcRenderer.invoke('fs:mostra', rel),
+  fsApriFile: (rel) => ipcRenderer.invoke('fs:apriFile', rel),
   pdfDati: (opt) => ipcRenderer.invoke('pdf:dati', opt),
   dwg: (nome, dati) => ipcRenderer.invoke('dwg:converti', nome, dati),
 });

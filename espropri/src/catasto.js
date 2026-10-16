@@ -61,9 +61,11 @@
       if (!o.titolo && !o.quota) L.push({ livello: 'info', msg: `Manca il diritto e la quota di ${nome}` });
     });
     // Le quote dello stesso diritto devono sommare a 1 (proprietà; nuda proprietà e usufrutto si contano a parte)
-    const gruppi = {};
+    const gruppi = {}, senzaQuota = new Set();
+    // Intestatari con diritto ma senza quota in visura (es. «Comproprietario:», «Usufruttuario parziale:»): quota da completare
+    I.forEach(o => { if (!o.quota && o.titolo) { const t = /nuda/i.test(o.titolo) ? 'nuda proprietà' : /usufr/i.test(o.titolo) ? 'usufrutto' : /propr/i.test(o.titolo) ? 'proprietà' : null; if (t) senzaQuota.add(t); L.push({ livello: 'manca', msg: `Quota non indicata per ${o.nome || '(senza nome)'} (${o.titolo}): da completare`, campo: 'quota', o }); } });
     I.forEach(o => { if (!o.quota) return; const t = /nuda/i.test(o.titolo) ? 'nuda proprietà' : /usufr/i.test(o.titolo) ? 'usufrutto' : /propr/i.test(o.titolo) || !o.titolo ? 'proprietà' : null; if (t) gruppi[t] = (gruppi[t] || 0) + U.quota(o.quota); });
-    Object.entries(gruppi).forEach(([t, q]) => { if (Math.abs(q - 1) > 1e-6) L.push({ livello: 'errore', msg: `Le quote di ${t} sommano a ${Math.round(q * 1e4) / 1e4} invece di 1` }); });
+    Object.entries(gruppi).forEach(([t, q]) => { if (!senzaQuota.has(t) && Math.abs(q - 1) > 1e-6) L.push({ livello: 'errore', msg: `Le quote di ${t} sommano a ${Math.round(q * 1e4) / 1e4} invece di 1` }); });
     if (parts && !parts.length) L.push({ livello: 'errore', msg: 'Ditta senza particelle' });
     return L;
   };
@@ -279,7 +281,7 @@
     P.forEach(p => {
       const key = (p.intest || []).length ? 'f:' + C.firma(p.intest) : 'n:' + (p.nd || p.id);
       let d = per.get(key);
-      if (!d) { d = { id: U.id(), n: '', nFile: new Set(), intest: U.clone(p.intest || []), stato: '', procedura: '', cessione: false, cond: null, ev: {}, note: '' }; per.set(key, d); }
+      if (!d) { d = { id: U.id(), n: '', nFile: new Set(), intest: U.clone(p.intest || []), stato: '', procedura: '', cessione: false, cond: null, ev: {}, foto: [], note: '' }; per.set(key, d); }
       if (p.nd) d.nFile.add(String(p.nd));
       p.ditta = d.id;
     });

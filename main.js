@@ -210,6 +210,8 @@ ipcMain.handle('fs:elenco', (e, rel) => {
   } catch (err) { return []; }
 });
 ipcMain.handle('fs:apri', (e, rel) => { const p = fascPath(rel); if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true }); return shell.openPath(p); });
+// Apre un documento del fascicolo con il programma predefinito (Word, lettore PDF), solo se esiste
+ipcMain.handle('fs:apriFile', async (e, rel) => { const p = fascPath(rel); if (!fs.existsSync(p)) return { ok: false }; const err = await shell.openPath(p); return { ok: !err, error: err }; });
 ipcMain.handle('fs:mostra', (e, rel) => { shell.showItemInFolder(fascPath(rel)); return true; });
 // PDF della stampa corrente restituito alla pagina (per salvarlo nel fascicolo senza chiedere dove)
 ipcMain.handle('pdf:dati', async (e, opt) => {

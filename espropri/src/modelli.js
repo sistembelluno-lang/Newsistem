@@ -52,7 +52,7 @@
       via: o.via || '', cap: o.cap || '', citta: o.citta || '', prov: o.prov || '', pec: o.pec || '', indirizzo: C.indirizzo(o),
       cittaCap: [o.cap, o.citta, o.prov ? '(' + o.prov + ')' : ''].filter(Boolean).join(' '),
       saluto: C.saluto(o), gentile: C.gentile(o), giuridica: C.giuridica(o), femmina: C.sesso(o) === 'F',
-      mezzo: o.pec ? 'PEC' : 'RACCOMANDATA A/R', cd: !!o.cd
+      mezzo: (o.mezzo || (o.pec ? 'PEC' : 'Raccomandata A/R')).toUpperCase(), cd: !!o.cd
     };
   }
   // Dati specifici della pratica, uguali per tutti i documenti: si scrivono una volta nella scheda Pratica.

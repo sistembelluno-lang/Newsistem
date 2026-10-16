@@ -104,7 +104,7 @@
 
   // ---------- Navigazione ----------
   const VISTE = [
-    ['pratica', '🗂️', 'Pratica'], ['importa', '📥', 'Importa DXF / Excel'], ['piano', '📋', 'Piano particellare'], ['ditte', '👥', 'Ditte e iter'],
+    ['pratica', '🗂️', 'Pratica'], ['importa', '📥', 'Importa DXF / Excel'], ['piano', '📋', 'Piano particellare'], ['ditte', '👥', 'Ditte e iter'], ['indirizzi', '📮', 'Indirizzi'],
     ['tavola', '🗺️', 'Tavola grafica'], ['stima', '💶', 'Indennità'], ['documenti', '📄', 'Documenti'], ['scadenze', '⏰', 'Scadenze'], ['normativa', '⚖️', 'Normativa']
   ];
   let vista = 'pratica';
@@ -112,7 +112,7 @@
   function nav() {
     const p = APP.pr();
     $('#nav').innerHTML = (p ? `<div class="pr"><b>${E(p.nome)}</b><br>${p.ditte.length} ditte · ${p.particelle.length} particelle</div>` : '') +
-      VISTE.map(([k, ic, t], i) => (i === 4 || i === 7 ? '<div class="sep"></div>' : '') + `<button data-v="${k}" class="${k === vista ? 'on' : ''}" ${!p && k !== 'pratica' && k !== 'normativa' ? 'disabled' : ''}>${ic} ${t}</button>`).join('');
+      VISTE.map(([k, ic, t], i) => (i === 5 || i === 8 ? '<div class="sep"></div>' : '') + `<button data-v="${k}" class="${k === vista ? 'on' : ''}" ${!p && k !== 'pratica' && k !== 'normativa' ? 'disabled' : ''}>${ic} ${t}</button>`).join('');
   }
   function hdr() {
     const p = APP.pr();
@@ -253,7 +253,7 @@ ${senza.length ? tabSenza(senza) : ''}`;
     const P = [...nuovi.values()];
     P.forEach(x => { const d = { id: U.id(), n: '', intest: [{ id: U.id(), nome: 'DA COMPLETARE (Fg.' + x.fg + ' mapp.' + x.map + ')' }], ev: {}, foto: [] }; x.ditta = d.id; p.ditte.push(d); delete x.intest; p.particelle.push(x); });
     let n = Math.max(0, ...p.ditte.map(d => +d.n || 0)); p.ditte.filter(d => !d.n).forEach(d => { d.n = String(++n); });
-    APP.salva(); toast(P.length + ' particelle aggiunte: completa gli intestatari nella scheda Ditte'); APP.render();
+    normalizza(p); APP.salva(); toast(P.length + ' particelle aggiunte: completa gli intestatari nella scheda Ditte'); APP.render();
   });
 
   function vistaLayer(el, p) {
@@ -332,7 +332,7 @@ ${(() => { const L = res.ditte.flatMap(d => d.intest.filter(o => !o.cf || !C.cfV
         p.particelle.forEach(x => { delete x.intest; });
       }
       p.particelle.forEach(x => { if (!x.confini && p.geo) x.confini = A.confini(p.geo, A.chiave(x.fg, x.map, x.sub)); });
-      impTab = null; APP.salva(); toast('Elenco ditte importato'); APP.render();
+      normalizza(p); impTab = null; APP.salva(); toast('Elenco ditte importato'); APP.render();
     };
   }
 

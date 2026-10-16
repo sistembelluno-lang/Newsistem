@@ -92,7 +92,7 @@
         const r = [];
         rx.replace(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g, (mm, at, inner) => {
           const ref = /r="([A-Z]+\d+)"/.exec(at), t = (/t="(\w+)"/.exec(at) || [])[1];
-          const vv = inner && /<v>([\s\S]*?)<\/v>/.exec(inner);
+          const vv = inner && /<v(?:\s[^>]*)?>([\s\S]*?)<\/v>/.exec(inner);
           let val = '';
           if (t === 's') val = vv ? ss[+vv[1]] ?? '' : '';
           else if (t === 'inlineStr') val = inner ? testoNodi(inner) : '';

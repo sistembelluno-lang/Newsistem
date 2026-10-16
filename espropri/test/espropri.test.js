@@ -284,3 +284,28 @@ test('controlli della ditta: codice fiscale mancante o errato, quote', () => {
   const r = C.importaTabella([['Foglio', 'Mappale', 'Intestatari'], ['1', '5', "ROSSI MARIO Usufrutto 1/2; ROSSI MARIO Nuda proprieta' 1/2; BIANCHI ANNA Proprieta' 1/2"]]);
   assert.strictEqual(r.ditte[0].intest.length, 3);
 });
+
+test('Excel con celle «xml:space=preserve» (nomi delle persone) e quote mancanti in visura', async () => {
+  const sheet = '<?xml version="1.0"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>'
+    + '<row r="1"><c r="A1" t="str"><v>N.</v></c><c r="B1" t="str"><v>Ditta Catastale</v></c><c r="C1" t="str"><v>Foglio</v></c><c r="D1" t="str"><v>Mappale</v></c></row>'
+    + '<row r="2"><c r="A2"><v>1</v></c><c r="B2" t="str"><v xml:space="preserve">ROSSI MARIO  </v></c><c r="C2" t="str"><v>28</v></c><c r="D2" t="str"><v>136</v></c></row>'
+    + '<row r="3"><c r="B3" t="str"><v>nato a AGORDO (BL) il 30/05/1965</v></c></row>'
+    + '<row r="4"><c r="B4" t="str"><v>CF:RSSMRA80A01H501U</v></c></row>'
+    + '<row r="5"><c r="B5" t="str"><v>Proprieta&apos;: 1/2</v></c></row>'
+    + '<row r="6"><c r="B6" t="str"><v xml:space="preserve">BIANCHI ANNA  </v></c></row>'
+    + '<row r="7"><c r="B7" t="str"><v>CF:BNCNNA62L45D530F</v></c></row>'
+    + '<row r="8"><c r="B8" t="str"><v>Comproprietario: </v></c></row>'
+    + '</sheetData></worksheet>';
+  const z = ES.office.zip([
+    { name: '[Content_Types].xml', data: '<?xml version="1.0"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>' },
+    { name: 'xl/workbook.xml', data: '<?xml version="1.0"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Test" sheetId="1" r:id="rId1"/></sheets></workbook>' },
+    { name: 'xl/_rels/workbook.xml.rels', data: '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>' },
+    { name: 'xl/worksheets/sheet1.xml', data: sheet }]);
+  const t = await ES.tab.xlsx(z.buffer);
+  assert.strictEqual(t.fogli[0].righe[1][1], 'ROSSI MARIO  ');
+  const r = ES.cat.importaTabella(t.fogli[0].righe);
+  assert.deepStrictEqual(r.ditte[0].intest.map(o => o.nome), ['ROSSI MARIO', 'BIANCHI ANNA']);
+  const L = ES.cat.controlli(r.ditte[0], [{}]);
+  assert.ok(L.some(x => /Quota non indicata per BIANCHI ANNA \(Comproprietario\)/.test(x.msg)));
+  assert.ok(!L.some(x => /sommano/.test(x.msg)));
+});

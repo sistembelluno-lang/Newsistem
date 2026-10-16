@@ -57,6 +57,11 @@
     const base = APP.FS.dirPratica(p) + '/';
     APP.scarica(san(nomeZip) + '.zip', ES.office.zip(files.map(f => ({ name: f.rel.startsWith(base) ? f.rel.slice(base.length) : f.rel, data: f.dati }))), 'application/zip');
   };
+  // Registro dei documenti prodotti: per ogni file la ditta a cui appartiene (null = file generale o della pratica)
+  function logDoc(p, files, k, nome, opt) {
+    const ora = new Date().toISOString();
+    files.forEach(f => p.docs.push({ id: U.id(), data: U.oggi(), ora, modello: k, nome, rel: f.rel, file: f.rel.split('/').pop(), ditta: f.ditta || null, ditte: f.ditta ? null : (opt.ditte || null), formato: f.rel.split('.').pop() }));
+  }
   // Registra la data del passo per le ditte coinvolte (solo dove non c'è già)
   function registra(p, opt) {
     if (!opt.registra || !opt.registra.passo) return 0;
@@ -77,11 +82,11 @@
     if (m.ambito === 'pratica') files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
     else {
       if (opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' - TUTTE LE DITTE (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
-      if (opt.perDitta !== false) perDitta(docs).forEach((L, id) => { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(L), optW(L[0].ctx)) }); });
+      if (opt.perDitta !== false) perDitta(docs).forEach((L, id) => { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(L), optW(L[0].ctx)), ditta: id }); });
     }
     await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - ' + titolo);
     const n = registra(p, opt);
-    p.docs.push({ data: oggi, modello: k, ditte: opt.ditte || null, file: files.length });
+    logDoc(p, files, k, m.nome, opt);
     APP.salva(); if (n) APP.render();
   };
   async function generaWordUtente(p, w, opt) {
@@ -93,9 +98,10 @@
     if (w.ambito === 'pratica' || opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (w.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, ctxs, img) });
     if (w.ambito !== 'pratica' && opt.perDitta !== false) {
       const per = new Map(); ctxs.forEach(c => { (per.get(c._dittaId) || per.set(c._dittaId, []).get(c._dittaId)).push(c); });
-      for (const [id, L] of per) { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, L, img) }); }
+      for (const [id, L] of per) { const d = p.ditte.find(x => x.id === id); files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, L, img), ditta: id }); }
     }
     await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - ' + titolo);
+    logDoc(p, files, 'w:' + w.id, w.nome, opt);
     if (registra(p, opt)) APP.render();
     APP.salva();
   }
@@ -117,9 +123,10 @@
     files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
     if (m.ambito !== 'pratica' && opt.perDitta !== false) for (const [id, L] of perDitta(docs)) {
       const d = p.ditte.find(x => x.id === id); $('#print').innerHTML = html(L);
-      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}), ditta: id });
     }
     await APP.salvaFile(p, files, titolo);
+    logDoc(p, files, k, m.nome, opt);
     if (registra(p, opt)) APP.render();
     APP.salva();
   };
@@ -141,7 +148,7 @@
       return `<div class="dc" data-d="${d.id}" data-ko="${ctrl.get(d.id).length ? 1 : 0}" data-q="${E(U.norm(d.intest.map(o => o.nome + ' ' + o.cf).join(' ') + ' ' + parts.map(x => x.fg + ' ' + x.map).join(' ')))}"><h4><span class="np">${E(d.n)}</span>${E(d.intest.map(o => o.nome).join(', ').slice(0, 90) || '(senza intestatari)')}</h4>
 <div class="mu" style="margin-top:6px">${parts.map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(' · ')}</div>${ctrl.get(d.id).length ? `<div style="margin-top:6px">${ctrl.get(d.id).map(x => `<span class="tag ${x.livello === 'errore' ? 't-ko' : 't-wa'}">⚠ ${E(x.msg)}</span>`).join(' ')}</div>` : ''}
 <div class="row" style="margin-top:6px">${D.aree.espr ? `<span class="tag t-es">esproprio ${U.mq(D.aree.espr)} mq</span>` : ''}${D.aree.servop + D.aree.serv ? `<span class="tag t-sv">servitù ${U.mq(D.aree.servop + D.aree.serv)} mq</span>` : ''}${D.aree.occ ? `<span class="tag t-oc">occupazione ${U.mq(D.aree.occ)} mq</span>` : ''}<span class="grow"></span><b>${U.eur(D.tot)}</b></div>
-<div class="bar"><i style="width:${Math.round(100 * av.fatti / av.totale)}%"></i></div>
+<div class="bar"><i style="width:${Math.round(100 * av.fatti / av.totale)}%"></i></div>${(() => { const n = p.docs.filter(x => x.ditta === d.id).length, ni = d.intest.filter(o => !o.via && !o.pec).length; return (n ? `<span class="tag t-sv">📄 ${n} documenti</span> ` : '') + (ni ? `<span class="tag t-wa">📮 ${ni} indirizzi da inserire</span>` : ''); })()}
 <div class="mu">${av.ultimo ? '✓ ' + E(av.ultimo.nome) : 'Iter non avviato'}${av.prossimo ? ' · prossimo: ' + E(av.prossimo.nome) : ''}${d.procedura ? ' · <b>' + E(S.PROCEDURE[d.procedura].breve) + '</b>' : ''}</div>
 ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu'}" style="font-size:12px;margin-top:3px">⏰ ${U.dataIt(prox.data)} – ${E(prox.cosa)}</div>` : ''}</div>`;
     }).join('') || '<div class="card vuoto">Nessuna ditta: importa l\'elenco ditte.</div>'}</div>`;
@@ -152,15 +159,29 @@ ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu
 
   function dettaglioDitta(m, p, d) {
     if (!d) { APP.vai('ditte'); return; }
+    d.ev = d.ev || {}; d.foto = d.foto || []; d.intest = d.intest || [];
     const c = APP.calc(), D = c.perD.get(d.id) || { tot: 0, aree: {} }, proc = d.procedura || p.impost.procedura;
     const parts = p.particelle.filter(x => x.ditta === d.id);
     const passi = I.passi(proc);
     const scad = I.scadenze(p).filter(s => s.ditta === d);
-    const intestRow = (o, i) => `<tr><td><input data-o="${i}" data-c="nome" value="${E(o.nome)}" style="min-width:200px"></td><td><input data-o="${i}" data-c="natoA" value="${E(o.natoA || o.sede || '')}"></td><td><input type="date" data-o="${i}" data-c="natoIl" value="${E(o.natoIl || '')}"></td><td><input data-o="${i}" data-c="cf" value="${E(o.cf)}" style="min-width:150px;${!o.cf || !C.cfValido(o.cf) ? 'border-color:var(--ko);background:rgba(192,57,43,.08)' : ''}" placeholder="da inserire" title="${!o.cf ? 'Codice fiscale mancante: inseriscilo a mano' : !C.cfValido(o.cf) ? 'Codice fiscale o P.IVA non valido' : ''}"></td><td><input data-o="${i}" data-c="titolo" value="${E(o.titolo)}"></td><td><input data-o="${i}" data-c="quota" value="${E(o.quota)}" style="min-width:70px"></td><td><input data-o="${i}" data-c="via" value="${E(o.via)}" style="min-width:160px"></td><td><input data-o="${i}" data-c="cap" value="${E(o.cap)}" style="min-width:60px"></td><td><input data-o="${i}" data-c="citta" value="${E(o.citta)}"></td><td><input data-o="${i}" data-c="pec" value="${E(o.pec)}"></td><td style="text-align:center"><input type="checkbox" data-o="${i}" data-c="cd" ${o.cd ? 'checked' : ''} title="Coltivatore diretto / IAP"></td><td><button class="s d" data-odel="${i}">✕</button></td></tr>`;
+    const MEZZI = ['Raccomandata A/R', 'PEC', 'Notifica (messo / ufficiale giudiziario)', 'A mano'];
+    const intestCard = (o, i) => {
+      const cfKo = !o.cf || !C.cfValido(o.cf), giur = C.giuridica(o);
+      const v = (c, ph, st) => `<input data-o="${i}" data-c="${c}" value="${E(c === 'natoA' ? (o.natoA || o.sede || '') : o[c] || '')}"${ph ? ` placeholder="${E(ph)}"` : ''}${st ? ` style="${st}"` : ''}>`;
+      const dest = [C.saluto(o), o.nome, o.via, [o.cap, o.citta, o.prov ? '(' + o.prov + ')' : ''].filter(Boolean).join(' '), o.pec ? 'PEC: ' + o.pec : ''].filter(Boolean);
+      return `<div class="ic"><div class="row"><b class="grow">${E(o.nome || 'Nuovo intestatario')}</b><span class="tag">${E(C.diritto(o) || 'diritto da indicare')}</span><button class="s d" data-odel="${i}" title="Togli intestatario">✕</button></div>
+<div class="g ic-g"><label class="f2">Cognome e nome / denominazione${v('nome')}</label><label>${giur ? 'Sede' : 'Nato/a a'}${v('natoA')}</label>${giur ? '' : `<label>il<input type="date" data-o="${i}" data-c="natoIl" value="${E(o.natoIl || '')}"></label>`}
+<label class="f2">Codice fiscale / P.IVA${v('cf', 'da inserire', cfKo ? 'border-color:var(--ko);background:rgba(192,57,43,.08)' : '')}</label><label>Diritto${v('titolo', "Proprieta'")}</label><label>Quota${v('quota', '1/1')}</label>
+<label class="chk"><input type="checkbox" data-o="${i}" data-c="cd" ${o.cd ? 'checked' : ''}> Coltivatore diretto / IAP</label></div>
+<div class="res"><div class="mu">📮 <b>Indirizzo di residenza per le comunicazioni</b></div><div class="g ic-g"><label class="f2">Via e numero civico${v('via', 'Via Roma, 1')}</label><label>CAP${v('cap')}</label><label>Comune${v('citta')}</label><label>Prov.${v('prov', 'BL')}</label>
+<label class="f2">PEC / e-mail${v('pec')}</label><label>Invio con<select data-o="${i}" data-c="mezzo"><option value="">${o.pec ? 'PEC (automatico)' : 'Raccomandata A/R (automatico)'}</option>${MEZZI.map(x => `<option ${o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
+<div class="dest-prev" title="Come compare nelle lettere">${dest.map(E).join('<br>')}${o.via ? '' : '<br><span class="ko">indirizzo mancante</span>'}</div></div></div>`;
+    };
     m.innerHTML = `<div class="row"><button id="dback">‹ Tutte le ditte</button><h2 style="margin:0" class="grow">Ditta ${E(d.n)} <span class="mu">${E(S.PROCEDURE[proc].nome)}</span></h2>${APP.FS.ok ? '<button id="dfold">📁 Cartella della ditta</button>' : ''}</div>
 <div class="kpi" style="margin-top:10px"><div><small>Esproprio</small><b>${U.mq(D.aree.espr || 0)} mq</b></div><div><small>Servitù</small><b>${U.mq((D.aree.servop || 0) + (D.aree.serv || 0))} mq</b></div><div><small>Occupazione</small><b>${U.mq(D.aree.occ || 0)} mq</b></div><div><small>Indennità</small><b>${U.eur(D.tot)}</b></div>${D.ritenuta ? `<div><small>Ritenuta art. 35 (stima)</small><b>${U.eur(D.ritenuta)}</b></div>` : ''}</div>
+${docDitta(p, d)}
 ${(() => { const L = C.controlli(d, parts); return L.length ? `<div class="ban ${L.some(x => x.livello === 'errore') ? 'err' : ''}">${L.map(x => (x.livello === 'info' ? 'ℹ ' : '⚠ ') + E(x.msg)).join('<br>')}</div>` : ''; })()}
-<div class="card"><h3 style="margin-top:0">Intestatari</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Nome / denominazione</th><th>Nato a / sede</th><th>Nato il</th><th>C.F.</th><th>Diritto</th><th>Quota</th><th>Indirizzo</th><th>CAP</th><th>Città (prov.)</th><th>PEC</th><th>CD/IAP</th><th></th></tr></thead><tbody>${d.intest.map(intestRow).join('')}</tbody></table></div>
+<div class="card"><div class="row"><h3 style="margin:0" class="grow">Intestatari e indirizzi di residenza</h3><button id="dind">📮 Tutti gli indirizzi della pratica</button></div><div class="ics">${d.intest.map(intestCard).join('')}</div>
 <div class="row" style="margin-top:8px"><button id="dadd">＋ Intestatario</button><span class="grow"></span><span class="mu">Attenzione: cambiare intestatari o quote cambia la composizione della ditta (stessi nomi e quote = stessa ditta).</span></div>
 <div class="g" style="margin-top:10px"><label>N. ditta (piano)<input data-f="n"></label><label>Percorso per questa ditta<select data-f="procedura"><option value="">(quello della pratica)</option>${Object.entries(S.PROCEDURE).map(([k, v]) => `<option value="${k}">${v.nome}</option>`).join('')}</select></label>
 <label class="chk"><input type="checkbox" data-f="cessione"> Indennità condivisa / cessione volontaria</label>
@@ -181,15 +202,83 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
     const fo = m.querySelector('#dfold'); if (fo) fo.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
-    m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => { const o = d.intest[+el.dataset.o]; o[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.dataset.c === 'cf' ? el.value.trim().toUpperCase() : el.value.trim(); if (el.dataset.c === 'natoA' && C.giuridica(o)) { o.sede = o.natoA; } APP.salva(); if (['cf', 'quota', 'titolo', 'nome', 'via'].includes(el.dataset.c)) APP.render(); });
+    m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => {
+      const o = d.intest[+el.dataset.o], c = el.dataset.c;
+      o[c] = el.type === 'checkbox' ? el.checked : c === 'cf' ? el.value.trim().toUpperCase() : c === 'prov' ? el.value.trim().toUpperCase() : el.value.trim();
+      if (c === 'natoA' && C.giuridica(o)) o.sede = o.natoA;
+      if (INDIRIZZO.includes(c)) { const n = APP.propagaIndirizzo(p, o); if (n) APP.toast('Indirizzo aggiornato anche in ' + n + (n === 1 ? ' altra ditta' : ' altre ditte') + ' (stessa persona)'); }
+      APP.salva(); if (['cf', 'quota', 'titolo', 'nome', 'via', 'cap', 'citta', 'prov', 'pec'].includes(c)) APP.render();
+    });
+    const di = m.querySelector('#dind'); if (di) di.onclick = () => APP.vai('indirizzi');
+    attivaDocDitta(m, p, d);
     m.querySelectorAll('[data-odel]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere l\'intestatario?', 'Togli')) { d.intest.splice(+b.dataset.odel, 1); APP.salva(); APP.render(); } });
     m.querySelector('#dadd').onclick = () => { d.intest.push({ id: U.id(), nome: '', titolo: "Proprieta'", quota: '1/1' }); APP.salva(); APP.render(); };
     m.querySelectorAll('[data-px]').forEach(r => r.onclick = () => APP.editParticella(p.particelle.find(x => x.id === r.dataset.px)));
-    m.querySelectorAll('[data-gen]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.gen, { ditte: [d.id], generale: false, perDitta: true }); if (APP.FS.ok) elencoFile(m.querySelector('#dfiles'), APP.FS.dirDitta(p, d)); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
+    m.querySelectorAll('[data-gen]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.gen, { ditte: [d.id], generale: false, perDitta: true }); APP.render(); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
     m.querySelectorAll('[data-genp]').forEach(b => b.onclick = () => APP.vai('documenti', { ditte: [d.id], prev: b.dataset.genp }));
     fotoUI(m, p, d);
     if (APP.FS.ok) elencoFile(m.querySelector('#dfiles'), APP.FS.dirDitta(p, d));
   }
+  const INDIRIZZO = ['via', 'cap', 'citta', 'prov', 'pec', 'mezzo'];
+  // Stessa persona (stesso C.F.) in più ditte: l'indirizzo si scrive una volta sola
+  APP.propagaIndirizzo = (p, o) => {
+    if (!o.cf) return 0; let n = 0;
+    p.ditte.forEach(d => d.intest.forEach(x => { if (x !== o && x.cf && x.cf.toUpperCase() === o.cf.toUpperCase()) { INDIRIZZO.forEach(k => { x[k] = o[k]; }); n++; } }));
+    return n;
+  };
+  // Documenti prodotti per la ditta (registro), con apertura, anteprima e nuova generazione
+  function docDitta(p, d) {
+    const cat = M.catalogo(APP.lib());
+    const propri = p.docs.filter(x => x.ditta === d.id).slice().reverse();
+    const gen = p.docs.filter(x => !x.ditta && (!x.ditte || x.ditte.includes(d.id))).slice().reverse();
+    const nomeM = x => x.nome || (cat[x.modello] || {}).nome || x.modello;
+    const riga = (x, generale) => `<tr><td>${U.dataIt(x.data)}</td><td style="white-space:normal"><b>${E(nomeM(x))}</b>${generale ? ' <span class="tag">file generale</span>' : ''}<div class="mu">${E(x.file || '')}</div></td><td class="n" style="white-space:nowrap">${APP.FS.ok && x.rel ? `<button class="s" data-dapri="${x.id}">Apri</button>` : ''}${cat[x.modello] ? `<button class="s" data-dprev="${E(x.modello)}">👁 Anteprima</button><button class="s" data-drig="${E(x.modello)}">⟳ Rigenera</button>` : ''}</td></tr>`;
+    return `<div class="card"><div class="row"><h3 style="margin:0" class="grow">📄 Documenti della ditta</h3>${APP.FS.ok ? '<button id="dfold2">📁 Apri la cartella</button>' : ''}</div>
+${propri.length || gen.length ? `<div class="tw" style="max-height:40vh;margin-top:8px"><table class="t"><thead><tr><th>Data</th><th>Documento</th><th></th></tr></thead><tbody>${propri.map(x => riga(x)).join('')}${gen.map(x => riga(x, true)).join('')}</tbody></table></div>` : '<p class="mu">Nessun documento ancora: si creano dai passi dell\'iter qui sotto o da Documenti › «Genera per tutte le ditte».</p>'}</div>`;
+  }
+  function attivaDocDitta(m, p, d) {
+    const f2 = m.querySelector('#dfold2'); if (f2) f2.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
+    m.querySelectorAll('[data-dapri]').forEach(b => b.onclick = async () => { const x = p.docs.find(y => y.id === b.dataset.dapri); const r = await window.desktop.fsApriFile(x.rel); if (r && r.ok === false) APP.toast('File non trovato nel fascicolo: forse è stato spostato o rinominato', 6000); });
+    m.querySelectorAll('[data-dprev]').forEach(b => b.onclick = async () => { const k = b.dataset.dprev; APP.dlg('Anteprima: ' + APP.modello(k).nome + ' – Ditta ' + d.n, await APP.anteprima(p, k, [d.id])); });
+    m.querySelectorAll('[data-drig]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.drig, { ditte: [d.id], generale: false, perDitta: true }); APP.render(); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
+  }
+
+  // ---------- Vista: Indirizzi di residenza (tutti gli intestatari della pratica) ----------
+  APP.viste.indirizzi = (m, p) => {
+    // Una riga per persona: stessa persona (C.F., o nome se manca) in più ditte = una riga sola
+    const per = new Map();
+    p.ditte.forEach(d => d.intest.forEach(o => { const k = o.cf ? 'cf:' + o.cf.toUpperCase() : 'n:' + U.norm(o.nome) + ':' + d.id; const g = per.get(k) || per.set(k, { o, tutti: [], ditte: [] }).get(k); g.tutti.push(o); if (!g.ditte.includes(d.n)) g.ditte.push(d.n); }));
+    const R = [...per.values()].sort((a, b) => U.cmp(a.ditte[0], b.ditte[0]) || U.cmp(a.o.nome, b.o.nome));
+    const manc = R.filter(r => !r.o.via && !r.o.pec).length;
+    m.innerHTML = `<div class="row"><button id="iback">‹ Ditte</button><h2 style="margin:0" class="grow">📮 Indirizzi di residenza</h2><button id="iexp">Esporta Excel da completare</button><button id="iimp">Importa indirizzi da Excel…</button></div>
+<p class="mu">Indirizzo a cui inviare le comunicazioni per ogni intestatario. La stessa persona presente in più ditte compare una volta sola. ${manc ? `<b class="wa">${manc} indirizzi da inserire.</b>` : '<b class="ok">Tutti gli indirizzi sono inseriti.</b>'}</p>
+<div class="row" style="margin-bottom:8px"><label class="chk"><input type="checkbox" id="isolo" ${APP._isolo ? 'checked' : ''}> Solo quelli da completare</label></div>
+<div class="tw"><table class="t"><thead><tr><th>Ditta</th><th>Intestatario</th><th>C.F.</th><th>Via e civico</th><th>CAP</th><th>Comune</th><th>Prov.</th><th>PEC</th><th>Invio con</th></tr></thead><tbody>
+${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte.map(E).join(', ')}</td><td>${E(r.o.nome)}<div class="mu">${E(C.diritto(r.o))}</div></td><td class="${!r.o.cf || !C.cfValido(r.o.cf) ? 'ko' : ''}">${E(r.o.cf || 'manca')}</td>${['via', 'cap', 'citta', 'prov', 'pec'].map(c => `<td><input data-ir="${i}" data-c="${c}" value="${E(r.o[c] || '')}" style="min-width:${c === 'via' ? 200 : c === 'cap' || c === 'prov' ? 60 : 130}px"></td>`).join('')}<td><select data-ir="${i}" data-c="mezzo"><option value="">automatico</option>${['Raccomandata A/R', 'PEC', 'Notifica (messo / ufficiale giudiziario)', 'A mano'].map(x => `<option ${r.o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;
+    m.querySelector('#iback').onclick = () => APP.vai('ditte');
+    m.querySelector('#isolo').onchange = e => { APP._isolo = e.target.checked; APP.render(); };
+    m.querySelectorAll('[data-ir]').forEach(el => el.onchange = () => { const r = R[+el.dataset.ir], c = el.dataset.c, v = c === 'prov' ? el.value.trim().toUpperCase() : el.value.trim(); r.tutti.forEach(o => { o[c] = v; }); APP.salva(); });
+    m.querySelector('#iexp').onclick = () => APP.scarica(san(p.nome) + ' - indirizzi.xlsx', ES.office.xlsx([{ nome: 'Indirizzi', righe: [['Ditte', 'Intestatario', 'Codice fiscale', 'Indirizzo', 'CAP', 'Comune', 'Provincia', 'PEC']].concat(R.map(r => [r.ditte.join(', '), r.o.nome, r.o.cf || '', r.o.via || '', r.o.cap || '', r.o.citta || '', r.o.prov || '', r.o.pec || ''])), larghezze: [8, 34, 18, 34, 8, 22, 9, 28] }]));
+    m.querySelector('#iimp').onclick = async () => {
+      const [f] = await APP.scegliFile('.xlsx,.csv'); if (!f) return;
+      try {
+        const t = await ES.tab.leggi(f.nome, f.buf), righe = t.fogli[0].righe;
+        const mp = ES.tab.mappa(righe, { cf: C.CAMPI.cf, nome: C.CAMPI.intest.concat(['intestatario', 'nominativo']), via: C.CAMPI.via, cap: C.CAMPI.cap, citta: C.CAMPI.citta, prov: C.CAMPI.prov, pec: C.CAMPI.pec });
+        if (mp.map.via == null || (mp.map.cf == null && mp.map.nome == null)) throw new Error('servono le colonne del codice fiscale (o del nome) e dell\'indirizzo');
+        let n = 0, nt = 0;
+        righe.slice(mp.riga + 1).forEach(rr => {
+          const g = k => (mp.map[k] != null ? String(rr[mp.map[k]] ?? '').trim() : '');
+          const cf = g('cf').toUpperCase(), nome = U.norm(g('nome'));
+          const r = R.find(x => (cf && x.o.cf && x.o.cf.toUpperCase() === cf) || (!cf && nome && U.norm(x.o.nome) === nome));
+          if (!r) { if (cf || nome) nt++; return; }
+          ['via', 'cap', 'citta', 'prov', 'pec'].forEach(k => { const v = g(k); if (v) r.tutti.forEach(o => { o[k] = k === 'prov' ? v.toUpperCase() : v; }); });
+          n++;
+        });
+        APP.salva(); APP.render(); APP.toast(n + ' indirizzi importati' + (nt ? ', ' + nt + ' righe senza corrispondenza' : ''), 6000);
+      } catch (e) { APP.toast('Importazione non riuscita: ' + e.message, 6000); }
+    };
+  };
+
   async function elencoFile(el, rel) {
     const giro = async (r, liv) => { const L = await APP.FS.elenco(r); let o = ''; for (const f of L.sort((a, b) => U.cmp(a.nome, b.nome))) { o += `<div style="padding-left:${liv * 16}px">${f.dir ? '📁 ' + E(f.nome) : `<a data-open="${E(r + '/' + f.nome)}">📄 ${E(f.nome)}</a> <span class="mu">${new Date(f.mtime).toLocaleDateString('it-IT')}</span>`}</div>`; if (f.dir && liv < 2) o += await giro(r + '/' + f.nome, liv + 1); } return o; };
     el.innerHTML = (await giro(rel, 0)) || 'Nessun documento ancora.';
