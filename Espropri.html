@@ -1025,6 +1025,44 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   C.diritto = o => [o.titolo || '', o.quota || ''].filter(Boolean).join(' ').trim();
   C.indirizzo = o => [o.via, [o.cap, o.citta, o.prov ? '(' + o.prov + ')' : ''].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
+  // Controllo formale: carattere di controllo del codice fiscale (16 caratteri) o della partita IVA (11 cifre)
+  C.cfValido = cf => {
+    cf = String(cf || '').toUpperCase().replace(/\s/g, '');
+    if (/^\d{11}$/.test(cf)) {
+      let s = 0; for (let i = 0; i < 10; i++) { let n = +cf[i]; if (i % 2) { n *= 2; if (n > 9) n -= 9; } s += n; }
+      return (10 - s % 10) % 10 === +cf[10];
+    }
+    if (!/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-EHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/.test(cf)) return false;
+    const DISP = [1, 0, 5, 7, 9, 13, 15, 17, 19, 21, 2, 4, 18, 20, 11, 3, 6, 8, 12, 14, 16, 10, 22, 25, 24, 23];
+    let s = 0;
+    for (let i = 0; i < 15; i++) {
+      const c = cf[i], v = /\d/.test(c) ? +c : c.charCodeAt(0) - 65;
+      s += i % 2 ? v : DISP[v];
+    }
+    return String.fromCharCode(65 + s % 26) === cf[15];
+  };
+
+  // Controlli di una ditta: dati mancanti o incoerenti da completare a mano.
+  // livello: 'errore' (da correggere), 'manca' (da completare), 'info'
+  C.controlli = (d, parts) => {
+    const L = [], I = d.intest || [];
+    if (!I.length) L.push({ livello: 'errore', msg: 'Nessun intestatario' });
+    I.forEach(o => {
+      const nome = o.nome || '(senza nome)';
+      if (!o.nome) L.push({ livello: 'errore', msg: 'Intestatario senza nome' });
+      if (!o.cf) L.push({ livello: 'manca', msg: `Manca il codice fiscale di ${nome}`, campo: 'cf', o });
+      else if (!C.cfValido(o.cf)) L.push({ livello: 'errore', msg: `Codice fiscale non valido per ${nome}: ${o.cf}`, campo: 'cf', o });
+      if (!o.via && !o.pec) L.push({ livello: 'info', msg: `Manca l'indirizzo di ${nome} (serve per le lettere)`, campo: 'via', o });
+      if (!o.titolo && !o.quota) L.push({ livello: 'info', msg: `Manca il diritto e la quota di ${nome}` });
+    });
+    // Le quote dello stesso diritto devono sommare a 1 (proprietà; nuda proprietà e usufrutto si contano a parte)
+    const gruppi = {};
+    I.forEach(o => { if (!o.quota) return; const t = /nuda/i.test(o.titolo) ? 'nuda proprietà' : /usufr/i.test(o.titolo) ? 'usufrutto' : /propr/i.test(o.titolo) || !o.titolo ? 'proprietà' : null; if (t) gruppi[t] = (gruppi[t] || 0) + U.quota(o.quota); });
+    Object.entries(gruppi).forEach(([t, q]) => { if (Math.abs(q - 1) > 1e-6) L.push({ livello: 'errore', msg: `Le quote di ${t} sommano a ${Math.round(q * 1e4) / 1e4} invece di 1` }); });
+    if (parts && !parts.length) L.push({ livello: 'errore', msg: 'Ditta senza particelle' });
+    return L;
+  };
+
   // ---- Intestatari da testo libero ----
   const reTit = /(nuda\s+propriet\w*'?|propriet\w*'?\s*superficiaria|propriet\w*'?|usufrutt\w*(?:\s+parziale)?|comproprie\w*|enfiteu\w*|livell\w*|diritto\s+del\s+concedente|diritto\s+di\s+superficie|superficie|uso|abitazione|oneri|servit\w*|concedente)(?:\s*:)?(?:\s+per)?\s*(\d+\s*\/\s*\d+)?/i;
   const inizioRiga = /^(nat[oa]|n\.|c\.?\s?f|cod|con\s+sede|sede|residente|res\.|via\b|propriet|nuda|usufrutt|compropr|enfiteu|livell|diritto|quota|\d+\s*\/\s*\d+)/i;
@@ -1203,8 +1241,10 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
       const dest = p ? p.intest : (nd ? (ownersOf.get(nd) || ownersOf.set(nd, []).get(nd)) : null);
       if (!dest) { avvisi.push(`Riga ${mp.riga + ir + 2}: intestatario senza particella né numero di ditta, ignorato`); return; }
       L.forEach(o => {
-        const k = (o.cf || U.norm(o.nome));
-        const g = dest.find(x => (x.cf || U.norm(x.nome)) === k);
+        // Stessa persona con diritti o quote diversi (es. usufrutto 1/2 e nuda proprietà 1/2) resta su due righe
+        const chiave = x => (x.cf || U.norm(x.nome)) + '~' + U.norm(x.titolo) + '~' + String(x.quota || '').replace(/\s/g, '');
+        const k = chiave(o);
+        const g = dest.find(x => chiave(x) === k);
         if (g) Object.keys(o).forEach(f => { if (o[f] && !g[f]) g[f] = o[f]; }); else dest.push(o);
       });
       if (p && nd) ditteN.set(nd, true);
@@ -1478,15 +1518,15 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     art20: [...comuni,
       P('offerta', 'Notifica elenco beni e somma offerta', 'art. 20 c.1', ['offerta_20'], [{ nome: 'Osservazioni e documenti (30 giorni dalla notifica)', f: gg(30), da: 'notifica' }]),
       P('det_provv', 'Determinazione e notifica dell\'indennità provvisoria', 'art. 20 c.3-4', ['offerta_20'], [{ nome: 'Condivisione dell\'indennità (30 giorni dalla notifica)', f: gg(30), da: 'notifica' }]),
-      ...pagamento.slice(0, 3), P('decreto', 'Decreto di esproprio', 'art. 23', ['decreto_esproprio'], []), ...esecuzione, pagamento[3]],
-    art22: [...comuni, P('decreto', 'Decreto di esproprio con determinazione urgente dell\'indennità', 'artt. 22, 23', ['decreto_esproprio'], []), ...esecuzione,
+      ...pagamento.slice(0, 3), P('decreto', 'Decreto di esproprio', 'artt. 20, 23', ['decreto_23', 'estratto_bur'], []), ...esecuzione, pagamento[3]],
+    art22: [...comuni, P('decreto', 'Decreto di esproprio con determinazione urgente dell\'indennità', 'artt. 22, 23', ['decreto_esproprio', 'estratto_bur'], []), ...esecuzione,
       P('condivisione', 'Condivisione dell\'indennità (entro 30 giorni dall\'immissione)', 'art. 22 c.3', ['condivisione'], [{ nome: 'Termine per la condivisione', f: gg(30), da: 'immissione' }]),
       ...pagamento.slice(1)],
     art22bis: [...comuni, P('decreto_occ', 'Decreto di occupazione d\'urgenza e indennità provvisoria', 'art. 22-bis', ['decreto_22bis'], []),
       P('avviso_imm', 'Avviso di esecuzione del decreto di occupazione', 'artt. 22-bis c.4, 24', ['avviso_immissione'], [{ nome: 'Immissione non prima di 7 giorni dalla notifica', f: gg(7), da: 'notifica', min: true }]),
       P('immissione', 'Stato di consistenza e verbale di immissione in possesso', 'artt. 22-bis c.4, 24', ['verbale_consistenza'], []),
       P('condivisione', 'Condivisione dell\'indennità (entro 30 giorni dall\'immissione) – acconto 80%', 'art. 22-bis c.3', ['condivisione'], [{ nome: 'Termine per la condivisione', f: gg(30), da: 'immissione' }]),
-      ...pagamento.slice(1, 3), P('decreto', 'Decreto di esproprio (entro il termine della DPU)', 'art. 23', ['decreto_esproprio'], []), pagamento[3]],
+      ...pagamento.slice(1, 3), P('decreto', 'Decreto di esproprio (entro il termine della DPU)', 'artt. 22-bis, 23', ['decreto_23', 'estratto_bur'], []), pagamento[3]],
     cessione: [...comuni, P('offerta', 'Offerta dell\'indennità', 'art. 20 c.1', ['offerta_20'], [{ nome: 'Osservazioni (30 giorni)', f: gg(30), da: 'notifica' }]),
       P('condivisione', 'Istanza di cessione volontaria', 'art. 45', ['condivisione'], []), P('cessione', 'Atto di cessione volontaria', 'art. 45', ['cessione'], []), pagamento[1]],
     art42bis: [P('avvio42', 'Avvio del procedimento di acquisizione', 'art. 42-bis – art. 7 L. 241/1990', ['avvio_42bis'], [{ nome: 'Memorie e documenti (giorni indicati nell\'avviso)', f: gg(30), da: 'notifica' }]),
@@ -1831,10 +1871,22 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   function partCtx(p, v, pr) {
     const a = v.aree, voci = v.voci;
     return {
-      id: p.id, ct: p.ct || 'T', catasto: p.ct === 'F' ? 'C.F.' : 'C.T.', comune: p.comune || (pr.ente && pr.ente.comune) || '', sez: p.sez || '', fg: p.fg, map: p.map, sub: p.sub || '',
+      id: p.id, ct: p.ct || 'T', catasto: p.ct === 'F' ? 'C.F.' : 'C.T.', comune: p.comune || (pr.ente && pr.ente.comune) || '', comuneU: String(p.comune || (pr.ente && pr.ente.comune) || '').toUpperCase(), sez: p.sez || '', fg: p.fg, map: p.map, sub: p.sub || '',
       mappale: C.mappale(p), mappaleEspr: C.mappale(p, 'espr'), mappaleOcc: C.mappale(p, 'occ'), mappaleServ: C.mappale(p, p.nuovo && p.nuovo.servop ? 'servop' : 'serv'),
       ex: p.nuovo && Object.values(p.nuovo).find(Boolean) ? p.map : '',
       qual: p.qual || '', cls: p.cls || '', qualcls: [p.qual, p.cls].filter(Boolean).join('/'),
+      // Particella derivata dal frazionamento per tipo d'intervento: superficie e redditi della nuova particella
+      // (se non inseriti: per l'esproprio la superficie espropriata, per gli altri tipi quella originaria)
+      ...(() => {
+        const o = {}, fr = p.fraz || {}, nv = p.nuovo || {};
+        [['E', 'espr'], ['S', p.nuovo && p.nuovo.servop ? 'servop' : 'serv'], ['O', 'occ']].forEach(([L, t]) => {
+          const f = fr[t] || {}, deriv = !!nv[t];
+          const sup = f.sup ? U.num(f.sup) : deriv && t === 'espr' ? a.espr : deriv ? Math.max(0, (p.sup || 0) - (nv.espr ? a.espr : 0)) : p.sup || 0;
+          o['sup' + L] = U.mq(sup); o['rd' + L] = f.rd || (deriv ? '–' : p.rd || '–'); o['ra' + L] = f.ra || (deriv ? '–' : p.ra || '–');
+          o['qual' + L] = f.qual || [p.qual, p.cls].filter(Boolean).join('/');
+        });
+        return o;
+      })(),
       sup: U.mq(p.sup), supN: p.sup || 0, haareca: U.haAreCa(p.sup), rd: p.rd || '', ra: p.ra || '', zona: p.zona || '', confini: p.confini || '',
       espr: a.espr ? U.mq(a.espr) : '', servop: a.servop ? U.mq(a.servop) : '', serv: a.serv ? U.mq(a.serv) : '', occ: a.occ ? U.mq(a.occ) : '',
       esprN: a.espr, servopN: a.servop, servN: a.serv, occN: a.occ, servTot: a.servop + a.serv ? U.mq(a.servop + a.serv) : '',
@@ -1865,6 +1917,7 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     { k: 'visti', nome: 'Visti amministrativi e normativi', aiuto: 'Uno per riga (es. «il D.Lgs. 267/2000;», «la L.R. Veneto 11/2004;», «il parere …»): sezione VISTI dei decreti', righe: 4 },
     { k: 'finanziamento', nome: 'Finanziamento dell\'opera', aiuto: 'Es. «fondi PNRR – Missione …» oppure «bilancio comunale, capitolo …»', righe: 1 },
     { k: 'consultazione', nome: 'Consultazione degli atti', aiuto: 'Dove e quando i proprietari possono vedere il progetto (orari, appuntamento, link)', righe: 1 },
+    { k: 'servitu', nome: 'Tipo di servitù', aiuto: 'Compare nel decreto: «la costituzione di una servitù … » (es. «di condotta», «di elettrodotto», «di passaggio»)', righe: 1 },
     { k: 'lettere', nome: 'Testo aggiuntivo nelle lettere', aiuto: 'Paragrafo inserito prima dei saluti in tutte le lettere ai proprietari', righe: 3 }
   ];
   M.datiCtx = pr => {
@@ -1886,6 +1939,14 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   M.testo = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k]) || (lib && lib.base && lib.base[k]) || ((M.catalogo(lib)[k] || {}).testo) || '';
   M.livello = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k] ? 'pratica' : lib && lib.base && lib.base[k] ? 'base' : (M.catalogo(lib)[k] || {}).propria ? 'nuovo' : 'originale');
 
+  // «in data 11/04/2024 con Nota n° 8997, in data 17/04/2024 con Note n° 9443, 9446» dalle date e dai protocolli dei passi delle ditte
+  M.note = (ditte, passo) => {
+    const per = new Map();
+    (ditte || []).forEach(d => { const e = d.ev && d.ev[passo]; if (!e || !e.data) return; const L = per.get(e.data) || per.set(e.data, []).get(e.data); String(e.prot || '').split(/[,;]\s*/).map(x => x.trim()).filter(Boolean).forEach(x => { if (!L.includes(x)) L.push(x); }); });
+    const parti = [...per.keys()].sort().map(dt => { const L = per.get(dt); return 'in data ' + U.dataIt(dt) + (L.length ? ' con ' + (L.length > 1 ? 'Note n° ' : 'Nota n° ') + L.join(', ') : ''); });
+    return parti.length > 1 ? parti.slice(0, -1).join(', ') + ' e ' + parti[parti.length - 1] : parti[0] || '';
+  };
+
   const atto = x => x && (x.estremi || x.data) ? [x.estremi, x.data ? 'del ' + U.dataIt(x.data) : ''].filter(Boolean).join(' ') : '______________';
   M.base = (pr, calc) => {
     const e = pr.ente || {}, it = pr.iter || {}, I = Object.assign({}, ES.stima.IMPOST, pr.impost || {});
@@ -1894,11 +1955,17 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     return {
       oggi: U.dataIt(U.oggi()), oggiLungo: U.dataLunga(U.oggi()), luogo: e.luogo || e.comune || '', anno: new Date().getFullYear(),
       ente: { nome: e.nome || '', comune: e.comune || '', provincia: e.provincia || '', indirizzo: e.indirizzo || '', cf: e.cf || '', pec: e.pec || '', email: e.email || '', telefono: e.telefono || '',
-        ufficio: e.ufficio || '', responsabile: e.responsabile || '', ruolo: e.ruolo || 'Il Responsabile del procedimento', rup: e.rup || '', tecnico: e.tecnico || '', studio: e.studio || '',
+        ufficio: e.ufficio || '', responsabile: e.responsabile || '', ruolo: e.ruolo || 'Il Responsabile del procedimento',
+        // «Il Responsabile dell'Area Tecnica» → «del Responsabile dell'Area Tecnica» / «IL RESPONSABILE DELL'AREA TECNICA»
+        ruoloDel: (e.ruolo || 'Il Responsabile del procedimento').replace(/^il\s+/i, 'del ').replace(/^la\s+/i, 'della ').replace(/^l'/i, "dell'"), ruoloMaiuscolo: (e.ruolo || 'Il Responsabile del procedimento').toUpperCase(), rup: e.rup || '', tecnico: e.tecnico || '', studio: e.studio || '',
         beneficiario: e.beneficiario || e.nome || '', cfBeneficiario: e.cfBeneficiario || e.cf || '', sedeBeneficiario: e.sedeBeneficiario || e.indirizzo || '',
-        tribunale: e.tribunale || '', tar: e.tar || '', bur: e.bur || 'Bollettino Ufficiale della Regione', link: e.link || '' },
-      pratica: { nome: pr.nome || '', oggetto: pr.nome || '', cup: pr.cup || '', codice: pr.codice || '', descrizione: pr.descrizione || '', urgenza: pr.urgenza || '' },
-      atti, dati: M.datiCtx(pr), mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
+        sedeStudio: e.sedeStudio || '', tribunale: e.tribunale || '', tar: e.tar || '', bur: e.bur || 'Bollettino Ufficiale della Regione', link: e.link || '' },
+      pratica: { oggettoMaiuscolo: String(pr.nome || '').toUpperCase(), nome: pr.nome || '', oggetto: pr.nome || '', cup: pr.cup || '', codice: pr.codice || '', descrizione: pr.descrizione || '', urgenza: pr.urgenza || '' },
+      atti, dati: M.datiCtx(pr),
+      comunicazioni: { avvio: M.note(pr.ditte, 'avvio'), com17: M.note(pr.ditte, 'com17'), offerta: M.note(pr.ditte, 'offerta'), decreto: M.note(pr.ditte, 'avviso_imm') },
+      osservazioni: (pr.ditte || []).filter(d => d.oss).map(d => ({ n: d.n, testo: d.oss })),
+      // Data di immissione comune a tutte le ditte (per l'attestazione del decreto), altrimenti vuota
+      dataImmissione: (() => { const L = [...new Set((pr.ditte || []).map(d => d.ev && d.ev.immissione && d.ev.immissione.data).filter(Boolean))]; return L.length === 1 ? U.dataIt(L[0]) : ''; })(), mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
       tot: { tot: U.eur(T.tot), lettere: U.euroLettere(T.tot), espr: U.eur(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), serv: U.eur(T.servop + T.serv), occ: U.eur(T.occ),
         esprLettere: U.euroLettere(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), servLettere: U.euroLettere(T.servop + T.serv), occLettere: U.euroLettere(T.occ) },
       numeroDitte: (pr.ditte || []).length, piuDi50: (pr.ditte || []).reduce((s, d) => s + (d.intest || []).length, 0) > 50
@@ -1919,6 +1986,7 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
       indEspr: U.eur(esprN), indEsprLettere: U.euroLettere(esprN), indServ: U.eur(D.servop + D.serv), indServLettere: U.euroLettere(D.servop + D.serv),
       indOcc: U.eur(D.occ), indOccLettere: U.euroLettere(D.occ), ritenuta: D.ritenuta ? U.eur(D.ritenuta) : '',
       supEspr: U.mq(D.aree.espr || 0), supServ: U.mq((D.aree.servop || 0) + (D.aree.serv || 0)), supOcc: U.mq(D.aree.occ || 0),
+      statoInd: ev.pagamento && ev.pagamento.data ? 'corrisposta' : ev.deposito && ev.deposito.data ? 'depositata presso il Ministero dell\'Economia e delle Finanze – Ragioneria Territoriale dello Stato' : ev.condivisione && ev.condivisione.data ? 'condivisa' : '',
       conduttore: d.cond && d.cond.nome ? d.cond : null, ev: evf, note: d.note || '', osservazioni: d.oss || ''
     };
   };
@@ -2117,6 +2185,86 @@ Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del 
 ## Planimetria catastale con evidenziata l'area interessata
 [[planimetria scala=1000]]`;
 
+
+  // Decreto di esproprio sul modello dello studio (es. decreto n. 1/2026 del Comune di Sedico).
+  // urgente = true: art. 22 (indennità determinata in via d'urgenza nel decreto); false: dopo art. 20 / 22-bis (indennità già determinata, pagata o depositata).
+  function decreto(urgente) {
+    const unita = (tipo, cosa, sup, map, s) => `{{#un${tipo}}}
+**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comuneU}} - Fg {{fg}} Mapp {{${map}}}, {{qual${s}}} di mq {{sup${s}}}, R.D. {{rd${s}}} – R.A. {{ra${s}}} con superficie di ${cosa} pari a mq {{${sup}}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}{{^_ultimo}}; {{/_ultimo}}{{/intestatari}} e per una indennità di ${tipo === 'Espr' ? 'esproprio' : tipo === 'Serv' ? 'asservimento' : 'occupazione'} complessiva di {{ind${tipo}}} (diconsì euro {{ind${tipo}Lettere}})${urgente ? '' : '{{#statoInd}}, {{statoInd}}{{/statoInd}}'};
+{{/un${tipo}}}`;
+    return `## {{ente.nome}}{{#ente.provincia}} – Provincia di {{ente.provincia}}{{/ente.provincia}}
+# DECRETO {{ente.ruoloDel}}
+Numero Registro Generale ________	Data ____________
+**OGGETTO: DECRETO DI ESPROPRIO RELATIVO AI LAVORI DI {{pratica.oggettoMaiuscolo}}{{#pratica.cup}}. CUP {{pratica.cup}}{{/pratica.cup}}.**
+Rep. n. ________
+
+## {{ente.ruoloMaiuscolo}}
+**PREMESSO che:**
+- {{#comunicazioni.avvio}}{{comunicazioni.avvio}}{{/comunicazioni.avvio}}{{^comunicazioni.avvio}}con {{atti.avvio16.testo}}{{/comunicazioni.avvio}} {{ente.nome}} ha provveduto a notificare alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento previsto dal D.P.R. 327/2001 preordinato alle procedure espropriative delle aree interessate dai lavori indicati all'oggetto, con avviso ex art. 16 del D.P.R. 327/2001 e ss.mm.ii.;
+**DATO ATTO che:**
+- la dichiarazione di pubblica utilità dei lavori ha durata di anni cinque dall'approvazione del progetto avvenuta con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} e che pertanto il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a) del D.P.R. 327/2001;
+- {{#comunicazioni.com17}}{{comunicazioni.com17}}{{/comunicazioni.com17}}{{^comunicazioni.com17}}con {{atti.com17.testo}}{{/comunicazioni.com17}} {{ente.nome}} ha provveduto a notificare alle ditte proprietarie risultanti dagli atti catastali l'avviso ex art. 17 del D.P.R. 327/2001 e ss.mm.ii.;
+- trattandosi di espropriazione per causa di pubblica utilità il presente provvedimento è esente dall'imposta di bollo ai sensi dell'art. 22 Tab. B del D.P.R. 642/1972;
+{{#atti.frazionamento.estremi}}- visti i tipi di frazionamento delle aree interessate {{atti.frazionamento.testo}} regolarmente approvati dall'Agenzia delle Entrate – Ufficio provinciale – Territorio;
+{{/atti.frazionamento.estremi}}{{#osservazioni.0}}- a seguito delle comunicazioni sono state accolte le osservazioni riguardanti:
+{{/osservazioni.0}}{{#osservazioni}}Ditta {{n}} – {{testo}};
+{{/osservazioni}}{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}` + (urgente ? `- ai sensi dell'art. 22 TUES, il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, sussistendo i presupposti di cui al medesimo art. 22 commi 1 e 2;
+- nel caso di specie sussiste il presupposto per il ricorso alla procedura di urgenza di cui al citato art. 22 comma 1, rivestendo l'avvio dei lavori carattere di urgenza tale da non consentire l'applicazione delle disposizioni dell'art. 20, per cui il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, per le ragioni di urgenza costituite da {{pratica.urgenza}};
+` : `- l'indennità di espropriazione è stata determinata in via provvisoria e notificata alle ditte proprietarie ai sensi degli artt. 20 e 22-bis del D.P.R. 327/2001{{#atti.decreto22bis.estremi}} (decreto di occupazione d'urgenza {{atti.decreto22bis.testo}}){{/atti.decreto22bis.estremi}} e, per ciascuna ditta, è stata condivisa e corrisposta ovvero depositata presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato, come indicato nel dispositivo, ai sensi degli artt. 20 e 26 del medesimo D.P.R.;
+`) + `**ATTESO che:**
+- sono configurate le condizioni previste dal TUES per procedere alla conclusione – mediante il trasferimento del diritto – della vicenda ablatoria relativa all'opera e in ordine alle ditte in oggetto, e in particolare che riguardo i beni oggetto del presente provvedimento, ai sensi dell'art. 8 TUES:
+a) {{#atti.vincolo.estremi}}con {{atti.vincolo.testo}} {{/atti.vincolo.estremi}}è stato apposto il vincolo preordinato all'esproprio di durata quinquennale, ai sensi dell'art. 9 del D.P.R. 327/2001, sulle aree interessate;
+b) è stata dichiarata la pubblica utilità, il cui termine di durata è tuttora in corso;
+c) ${urgente ? 'viene in questa sede determinata l\'indennità di esproprio;' : 'è stata determinata l\'indennità di esproprio, corrisposta o depositata come sotto indicato;'}
+{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA:
+{{#haEspr}}- l'espropriazione a favore di **{{ente.beneficiario}}** con sede in {{ente.sedeBeneficiario}} - C.F. {{ente.cfBeneficiario}} dei beni immobili come dettagliatamente individuati nel presente decreto e quindi è disposto il passaggio a favore dello stesso del diritto di proprietà 1/1, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
+Elenco unità negoziali:
+${unita('Espr', 'esproprio', 'espr', 'mappaleEspr', 'E')}{{/haEspr}}{{#haServ}}- la costituzione di una servitù{{#dati.servitu}} {{dati.servitu}}{{/dati.servitu}} a favore di **{{ente.beneficiario}}** con sede in {{ente.sedeBeneficiario}} - C.F. {{ente.cfBeneficiario}} dei beni immobili come dettagliatamente individuati nel presente decreto, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
+${unita('Serv', 'servitù', 'servTot', 'mappaleServ', 'S')}{{/haServ}}{{#haOcc}}- l'occupazione temporanea a favore di **{{ente.beneficiario}}** con sede in {{ente.sedeBeneficiario}} - C.F. {{ente.cfBeneficiario}} dei beni immobili come dettagliatamente individuati nel presente decreto, per la durata presunta di mesi {{mesiOcc}}, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
+${unita('Occ', 'occupazione temporanea', 'occ', 'mappaleOcc', 'O')}{{/haOcc}}- si dà atto che l'indennità da corrispondere agli aventi diritto ${urgente ? 'a titolo provvisorio è stabilita in via d\'urgenza, ai sensi dell\'art. 22 del D.P.R. 327/2001,' : 'è stata determinata ai sensi degli artt. 20 e 22-bis del D.P.R. 327/2001 ed è'} {{#haEspr}}per l'esproprio dei beni immobili complessivamente pari ad euro {{tot.espr}}{{/haEspr}}{{#haServ}}, per la servitù dei beni immobili complessivamente pari ad euro {{tot.serv}}{{/haServ}}{{#haOcc}} e per l'occupazione temporanea dei beni immobili complessivamente pari ad euro {{tot.occ}}{{/haOcc}}, quindi per un totale pari ad euro **{{tot.tot}}** (diconsì euro {{tot.lettere}});
+- il presente atto è registrato presso il competente ufficio dell'Agenzia delle Entrate e trascritto presso la Conservatoria dei Registri Immobiliari a cura e spese di {{ente.beneficiario}} e sarà trasmesso entro cinque giorni dalla sua emanazione per la pubblicazione sul {{ente.bur}} ai sensi dell'art. 23 del D.P.R. 327/2001;
+- il presente provvedimento è altresì pubblicato all'Albo Pretorio di {{ente.nome}}.
+## AUTORIZZA
+i tecnici{{#ente.studio}} dello studio {{ente.studio}}{{#ente.sedeStudio}} con sede in {{ente.sedeStudio}}{{/ente.sedeStudio}} incaricato da {{ente.nome}}{{/ente.studio}}, muniti di valido documento di riconoscimento ed assieme al personale ausiliario che le operazioni comportano, ad occupare in modo congiunto o disgiunto le aree espropriate, asservite ed occupate sopra individuate, in esecuzione del presente decreto.
+` + (urgente ? `## INVITA
+gli espropriati, nei 30 (trenta) giorni successivi all'immissione in possesso, a comunicare a questo Ufficio, a mezzo di dichiarazione irrevocabile (mediante il modulo allegato), se condividono la determinazione dell'indennità provvisoria di espropriazione, rendendola definitiva;
+## AVVISA:
+- non sono accettate comunicazioni di condivisione dell'indennità parziali, condizionate o revocabili; in caso di comproprietari di beni indivisi sono accettate comunicazioni di condivisione pro quota;
+- ricevuta dall'espropriato la comunicazione di condivisione e la documentazione comprovante la piena e libera disponibilità del bene, sarà disposto il pagamento dell'indennità di espropriazione nel termine di sessanta giorni; se, invece, non sarà prodotta tempestiva comunicazione di condivisione dell'indennità ovvero, pur producendola, non sarà dichiarata l'assenza di diritti di terzi sul bene ovvero non sarà prodotta la documentazione attestante la piena e libera proprietà del bene, il corrispettivo verrà depositato presso il Ministero dell'Economia e delle Finanze, Ragioneria Territoriale dello Stato, servizio depositi amministrativi definitivi; in presenza di diritti od opposizioni di terzi, l'effettivo pagamento della somma depositata avrà luogo in conformità della pronuncia dell'autorità giudiziaria adita su domanda di chi vi abbia interesse; ai sensi dell'art. 26.3 TUES qualora il bene sia gravato da ipoteca, al fine di ottenere il pagamento, potrà essere presentata una dichiarazione del titolare di tale diritto, con firma autentica, che autorizza la riscossione della somma; nel caso in cui il bene risulti gravato da altri diritti reali, ovvero siano presentate opposizioni al pagamento delle indennità, il pagamento potrà comunque essere effettuato in presenza di un accordo sulle modalità di riscossione tra tutti gli aventi diritto;
+- i provvedimenti di pagamento o di deposito dell'indennità saranno assoggettati alle modalità, ai tempi e alle forme pubblicitarie previsti dall'art. 26 TUES;
+- in caso di mancata condivisione dell'indennità provvisoria contenuta nel presente provvedimento sarà effettuata una nuova determinazione dell'indennità ai sensi dell'art. 21 TUES da parte della competente Commissione Provinciale Espropri, senza oneri per l'espropriato, ovvero da parte di un collegio di tecnici composto da un tecnico designato dal proprietario, uno individuato dal beneficiario dell'esproprio ed uno nominato, su istanza di chi vi abbia interesse, dal Presidente del Tribunale Civile di {{ente.tribunale}}; le spese del collegio saranno poste a carico del proprietario se l'indennità determinata dallo stesso sarà inferiore alla somma determinata con il presente provvedimento, divise per metà tra il beneficiario dell'esproprio e l'espropriato se la differenza non supererà in aumento il decimo e, negli altri casi, poste a carico del beneficiario dell'esproprio; i tecnici incaricati comunicheranno agli interessati mediante lettera raccomandata con avviso di ricevimento (o con mezzo telematico) il luogo, la data e ora delle operazioni, almeno 7 gg. prima della data stabilita; la S.V. potrà assistere alle operazioni di stima, anche mediante persona di fiducia, formulare osservazioni e presentare memorie scritte;
+- se l'espropriato non condivide la determinazione dell'indennità di espropriazione contenuta nel presente provvedimento, entro il termine previsto per l'accettazione può chiedere la costituzione del collegio dei tecnici di cui al punto precedente indicando il nominativo del proprio tecnico; in assenza di tale istanza, la scrivente autorità espropriante provvederà a richiedere la determinazione dell'indennità alla Commissione Provinciale Espropri, che provvederà entro il termine di trenta giorni, e sarà data comunicazione della medesima determinazione all'espropriato, con avviso notificato con le forme degli atti processuali civili;
+` : `## AVVISA:
+- per le ditte la cui indennità è stata depositata, il pagamento della somma depositata avrà luogo con le modalità dell'art. 28 TUES; in presenza di diritti od opposizioni di terzi l'effettivo pagamento avrà luogo in conformità della pronuncia dell'autorità giudiziaria adita su domanda di chi vi abbia interesse;
+- i provvedimenti di pagamento o di deposito dell'indennità sono assoggettati alle modalità, ai tempi e alle forme pubblicitarie previsti dall'art. 26 TUES;
+`) + `- ai sensi dell'art. 23.4 TUES le operazioni di trascrizione e di voltura nel catasto e nei libri censuari del presente provvedimento avranno luogo senza indugio a cura e a spese del beneficiario dell'esproprio e, ai sensi dell'art. 25.3 TUES, una volta trascritto il presente decreto, tutti i diritti di terzi relativi agli immobili espropriati potranno essere fatti valere esclusivamente sull'indennità;
+- ai sensi degli articoli 23.1 lett. h) e 24 TUES il presente decreto sarà eseguito mediante immissione in possesso delle aree interessate entro il termine perentorio di due anni; in calce al presente provvedimento sarà indicata la data dell'avvenuta immissione in possesso e verrà trasmessa copia del relativo verbale all'Ufficio per i Registri Immobiliari, per l'annotazione; dell'avvenuta immissione in possesso sarà inoltre data comunicazione all'ufficio competente alla tenuta degli atti delle procedure espropriative ai sensi degli articoli 24.6 e 14 del TUES;
+- ai sensi dell'art. 23.1 lett. g) TUES il presente decreto sarà notificato ai proprietari nelle forme degli atti processuali civili, con un avviso contenente l'indicazione del luogo, del giorno e dell'ora in cui è prevista la sua esecuzione mediante immissione in possesso, almeno sette giorni prima di essa;
+## INFORMA che
+- sarà proponibile l'opposizione del terzo entro i trenta giorni successivi alla pubblicazione dell'estratto del presente provvedimento nella Gazzetta Ufficiale della Repubblica o nel Bollettino Ufficiale della Regione nel cui territorio si trova il bene e, decorso tale termine in assenza di impugnazioni, anche per il terzo l'indennità resterà fissata nella somma depositata;
+- la proposizione di eventuali ricorsi da parte dei possessori dei diritti reali sui beni oggetto di esproprio potrà avvenire entro il termine di 30 gg. decorrenti dalla pubblicazione del decreto;
+- avverso il presente decreto di esproprio la ditta espropriata potrà presentare ricorso al T.A.R. {{ente.tar}} entro 60 giorni dalla notifica dello stesso oppure ricorso straordinario al Capo dello Stato entro 120 giorni dalla medesima notifica;
+- ai sensi dell'art. 35 TUES, sull'indennità relativa ad aree ricadenti nelle zone omogenee A, B, C e D sarà operata, nei confronti dei soggetti che non esercitano un'impresa commerciale, la ritenuta del 20% a titolo d'imposta, con facoltà di opzione per la tassazione ordinaria;
+- ai sensi del Regolamento UE 2016/679 (GDPR) si informa la ditta proprietaria che il trattamento dei dati personali forniti o comunque acquisiti è finalizzato alla redazione del presente atto, alla sua registrazione, trascrizione e voltura, ed avverrà presso {{ente.nome}} e l'Agenzia delle Entrate, con l'utilizzo di procedure anche informatiche, nei modi e nei limiti necessari per perseguire le predette finalità; il conferimento dei dati è obbligatorio; agli interessati sono riconosciuti i diritti di accesso, rettifica, aggiornamento e cancellazione dei dati e di opposizione al trattamento per motivi legittimi; il titolare del trattamento è {{ente.nome}}{{#ente.responsabile}} e il responsabile cui rivolgersi per l'esercizio dei diritti è {{ente.responsabile}}{{/ente.responsabile}}.
+## RICHIEDE
+la registrazione del presente provvedimento con l'applicazione delle imposte di registro, ipotecaria e catastale, ai sensi delle vigenti disposizioni di legge.
+## ATTESTA
+ai sensi e per gli effetti di cui all'art. 24.5 del D.P.R. n. 327 dell'08.06.2001, che il presente decreto di espropriazione sarà eseguito, previa sua notificazione, ai sensi dell'art. 23.1 lett. h) TUES, in data {{#dataImmissione}}{{dataImmissione}}{{/dataImmissione}}{{^dataImmissione}}________________{{/dataImmissione}} mediante immissione nel possesso, con la redazione del verbale di cui all'art. 24 del medesimo Testo Unico.
+{{luogo}}, {{oggi}}
+[[firma {{ente.ruolo}}|{{ente.responsabile}}]]
+Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.
+[[salto]]
+## {{ente.nome}}{{#ente.provincia}} – Provincia di {{ente.provincia}}{{/ente.provincia}}
+# CERTIFICATO DI PUBBLICAZIONE
+Atto di DECRETO {{ente.ruoloDel}} n. ______ del ____________, avente ad oggetto DECRETO DI ESPROPRIO RELATIVO AI LAVORI DI {{pratica.oggettoMaiuscolo}}{{#pratica.cup}}. CUP {{pratica.cup}}{{/pratica.cup}}., pubblicato all'Albo Pretorio di questo Ente dal ____________ per giorni 15 consecutivi ai sensi dell'art. 124 comma 1 D.Lgs. 267/2000 e dell'art. 32 comma 1 L. 69/2009.
+{{luogo}}, ____________
+[[firma L'addetto alla pubblicazione|]]
+Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.`;
+  }
+
   ES.modelli.INTEGRATI = {
     avvio_11_16: {
       nome: 'Avviso di avvio del procedimento – vincolo e dichiarazione di pubblica utilità', art: 'artt. 11 e 16', ambito: 'intestatario', fase: 'Avvio',
@@ -2247,71 +2395,8 @@ Si allega copia del documento d'identità in corso di validità.
 [[firma {{nome}}|]]
 {{/ditta.intestatari}}`
     },
-    decreto_esproprio: {
-      nome: 'Decreto di esproprio, asservimento e occupazione (procedura accelerata)', art: 'artt. 22 e 23', ambito: 'pratica', fase: 'Decreto',
-      testo: `# DECRETO DI ESPROPRIO
-## {{pratica.oggetto}}{{#pratica.cup}} – CUP {{pratica.cup}}{{/pratica.cup}}
-Decreto n. ______ del ____________  Rep. n. ______
-
-## {{ente.ruolo}}
-**PREMESSO che:**
-- con {{atti.avvio16.testo}} è stato comunicato alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento ai sensi dell'art. 16 del D.P.R. 327/2001 (TUES);
-- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità, che ha durata di anni cinque, e il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a), del TUES;
-- con {{atti.com17.testo}} è stata data notizia ai proprietari, ai sensi dell'art. 17 TUES, dell'efficacia dell'atto che ha dichiarato la pubblica utilità;
-- trattandosi di espropriazione per causa di pubblica utilità il presente provvedimento è esente dall'imposta di bollo ai sensi dell'art. 22 della Tabella B del D.P.R. 642/1972;
-{{#atti.frazionamento.estremi}}- visti i tipi di frazionamento {{atti.frazionamento.testo}} approvati dall'Agenzia delle Entrate – Ufficio provinciale – Territorio;
-{{/atti.frazionamento.estremi}}- ai sensi dell'art. 22 TUES il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, sussistendo i presupposti di cui al medesimo art. 22, commi 1 e 2, per le seguenti ragioni di urgenza: {{pratica.urgenza}};
-**ATTESO che** sono configurate le condizioni previste dall'art. 8 TUES per procedere al trasferimento del diritto e in particolare: a) è stato apposto il vincolo preordinato all'esproprio ({{atti.vincolo.testo}}); b) è stata dichiarata la pubblica utilità, il cui termine di durata è tuttora in corso; c) viene in questa sede determinata l'indennità di esproprio;
-{{#dati.premesse}}{{dati.premesseElenco}}
-{{/dati.premesse}}{{#dati.visti}}**VISTI:**
-{{dati.vistiElenco}}
-{{/dati.visti}}## DECRETA
-{{#haEspr}}
-- l'espropriazione a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, con sede in {{ente.sedeBeneficiario}}, dei beni immobili di seguito individuati, disponendo il passaggio a favore dello stesso del diritto di proprietà, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
-{{#unEspr}}
-**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comune}} – Fg. {{fg}} Mapp. {{mappaleEspr}}, {{qualcls}} di mq {{sup}}, R.D. {{rd}} – R.A. {{ra}}, con superficie di esproprio pari a mq {{espr}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}; {{/intestatari}}per un'indennità di esproprio complessiva di **{{indEspr}}** (diconsi euro {{indEsprLettere}});
-{{/unEspr}}
-{{/haEspr}}
-{{#haServ}}
-- la costituzione di una servitù a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, sui beni immobili di seguito individuati, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
-{{#unServ}}
-**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comune}} – Fg. {{fg}} Mapp. {{mappaleServ}}, {{qualcls}} di mq {{sup}}, R.D. {{rd}} – R.A. {{ra}}, con superficie di servitù pari a mq {{servTot}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}; {{/intestatari}}per un'indennità di asservimento complessiva di **{{indServ}}** (diconsi euro {{indServLettere}});
-{{/unServ}}
-{{/haServ}}
-{{#haOcc}}
-- l'occupazione temporanea a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, dei beni immobili di seguito individuati per la durata presunta di mesi {{mesiOcc}}, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
-{{#unOcc}}
-**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comune}} – Fg. {{fg}} Mapp. {{mappaleOcc}}, {{qualcls}} di mq {{sup}}, R.D. {{rd}} – R.A. {{ra}}, con superficie di occupazione temporanea pari a mq {{occ}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}; {{/intestatari}}per un'indennità di occupazione complessiva di **{{indOcc}}** (diconsi euro {{indOccLettere}});
-{{/unOcc}}
-{{/haOcc}}
-- si dà atto che l'indennità da corrispondere a titolo provvisorio agli aventi diritto è stabilita in via d'urgenza ai sensi dell'art. 22 del D.P.R. 327/2001: per l'esproprio complessivamente {{tot.espr}}, per la servitù complessivamente {{tot.serv}}, per l'occupazione temporanea complessivamente {{tot.occ}}, per un totale di **{{tot.tot}}** (diconsi euro {{tot.lettere}});
-- il presente atto è registrato presso il competente ufficio dell'Agenzia delle Entrate e trascritto presso il Servizio di Pubblicità Immobiliare a cura e spese del beneficiario e sarà trasmesso entro cinque giorni dalla sua emanazione per la pubblicazione per estratto sul {{ente.bur}} ai sensi dell'art. 23, comma 5, del D.P.R. 327/2001; il presente provvedimento è altresì pubblicato all'Albo Pretorio.
-## AUTORIZZA
-i tecnici incaricati{{#ente.studio}} dello studio {{ente.studio}}{{/ente.studio}}, muniti di valido documento di riconoscimento e assieme al personale ausiliario che le operazioni comportano, ad occupare in modo congiunto o disgiunto le aree espropriate, asservite ed occupate sopra individuate, in esecuzione del presente decreto.
-## INVITA
-gli espropriati, nei 30 (trenta) giorni successivi all'immissione in possesso, a comunicare a questo Ufficio, a mezzo di dichiarazione irrevocabile (mediante il modulo allegato), se condividono la determinazione dell'indennità provvisoria, rendendola definitiva.
-## AVVISA
-- non sono accettate comunicazioni di condivisione dell'indennità parziali, condizionate o revocabili; in caso di comproprietari di beni indivisi sono accettate comunicazioni di condivisione pro quota; in caso di condivisione, se trattasi di area edificabile, spetta la maggiorazione prevista dall'art. 37, comma 2;
-- ricevuta la comunicazione di condivisione e la documentazione comprovante la piena e libera disponibilità del bene, sarà disposto il pagamento dell'indennità nel termine di sessanta giorni; in mancanza, ovvero se non sarà dichiarata l'assenza di diritti di terzi o non sarà prodotta la documentazione attestante la piena e libera proprietà, l'indennità verrà depositata presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato, servizio depositi amministrativi definitivi; in presenza di diritti od opposizioni di terzi il pagamento della somma depositata avrà luogo in conformità alla pronuncia dell'autorità giudiziaria; ai sensi dell'art. 26, comma 3, TUES, qualora il bene sia gravato da ipoteca, potrà essere presentata una dichiarazione del titolare di tale diritto, con firma autenticata, che autorizza la riscossione della somma;
-- i provvedimenti di pagamento o di deposito saranno assoggettati alle modalità, ai tempi e alle forme pubblicitarie previsti dall'art. 26 TUES;
-- in caso di mancata condivisione sarà effettuata una nuova determinazione dell'indennità ai sensi dell'art. 21 TUES da parte della Commissione Provinciale Espropri, senza oneri per l'espropriato, ovvero da parte di un collegio di tecnici composto da un tecnico designato dal proprietario, uno individuato dal beneficiario ed uno nominato dal Presidente del Tribunale Civile di {{ente.tribunale}}; le spese del collegio saranno poste a carico del proprietario se l'indennità determinata sarà inferiore a quella del presente provvedimento, divise per metà se la differenza non supererà in aumento il decimo e, negli altri casi, a carico del beneficiario;
-- se l'espropriato non condivide l'indennità, entro il termine previsto per l'accettazione può chiedere la costituzione del collegio dei tecnici indicando il nominativo del proprio tecnico; in assenza di tale istanza, l'Autorità espropriante richiederà la determinazione alla Commissione Provinciale Espropri;
-- ai sensi dell'art. 23, comma 4, TUES le operazioni di trascrizione e di voltura avranno luogo senza indugio a cura e a spese del beneficiario e, ai sensi dell'art. 25, comma 3, una volta trascritto il decreto, tutti i diritti di terzi relativi agli immobili potranno essere fatti valere esclusivamente sull'indennità;
-- ai sensi degli artt. 23, comma 1, lett. h) e 24 TUES il presente decreto sarà eseguito mediante immissione in possesso entro il termine perentorio di due anni; dell'avvenuta immissione sarà data comunicazione ai sensi degli artt. 24, comma 6, e 14 TUES;
-- ai sensi dell'art. 23, comma 1, lett. g) TUES il presente decreto sarà notificato ai proprietari nelle forme degli atti processuali civili, con un avviso contenente l'indicazione del luogo, del giorno e dell'ora in cui è prevista la sua esecuzione, almeno sette giorni prima di essa.
-## INFORMA che
-- sarà proponibile l'opposizione del terzo entro i trenta giorni successivi alla pubblicazione dell'estratto del presente provvedimento; decorso tale termine in assenza di impugnazioni, anche per il terzo l'indennità resterà fissata nella somma depositata;
-- ai sensi dell'art. 35 TUES, sull'indennità relativa ad aree ricadenti nelle zone omogenee A, B, C e D sarà operata, nei confronti dei soggetti che non esercitano un'impresa commerciale, la ritenuta del 20% a titolo d'imposta, con facoltà di opzione per la tassazione ordinaria;
-- avverso il presente decreto può essere proposto ricorso al T.A.R. {{ente.tar}} entro 60 giorni dalla notifica oppure ricorso straordinario al Capo dello Stato entro 120 giorni, ferma la giurisdizione del giudice ordinario per le controversie sulla determinazione e corresponsione delle indennità;
-- il trattamento dei dati personali avviene ai sensi del Regolamento UE 2016/679 per le sole finalità del presente procedimento; titolare del trattamento è {{ente.nome}}.
-## RICHIEDE
-la registrazione del presente provvedimento con l'applicazione delle imposte di registro, ipotecaria e catastale ai sensi delle vigenti disposizioni di legge.
-{{luogo}}, {{oggi}}
-[[firma {{ente.ruolo}}|{{ente.responsabile}}]]
-## ATTESTA
-ai sensi dell'art. 24, comma 5, del D.P.R. 327/2001, che il presente decreto è stato eseguito, previa notificazione, in data ________________ mediante immissione nel possesso, con la redazione del verbale di cui all'art. 24 del medesimo Testo Unico.
-[[firma {{ente.ruolo}}|{{ente.responsabile}}]]`
-    },
+    decreto_esproprio: { nome: 'Decreto di esproprio con determinazione urgente dell\'indennità (art. 22)', art: 'artt. 22 e 23', ambito: 'pratica', fase: 'Decreto', testo: decreto(true) },
+    decreto_23: { nome: 'Decreto di esproprio dopo pagamento o deposito dell\'indennità (artt. 20, 22-bis, 23)', art: 'artt. 20, 22-bis, 23, 26', ambito: 'pratica', fase: 'Decreto', testo: decreto(false) },
     decreto_22bis: {
       nome: 'Decreto di occupazione d\'urgenza preordinata all\'esproprio', art: 'art. 22-bis', ambito: 'pratica', fase: 'Decreto',
       testo: `# DECRETO DI OCCUPAZIONE D'URGENZA
@@ -3034,7 +3119,7 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
 <label class="f2">Indirizzo<input data-f="ente.indirizzo"></label><label>C.F. / P.IVA<input data-f="ente.cf"></label><label>PEC<input data-f="ente.pec"></label>
 <label>E-mail<input data-f="ente.email"></label><label>Telefono<input data-f="ente.telefono"></label><label>Ufficio<input data-f="ente.ufficio"></label>
 <label class="f2">Firmatario (nome)<input data-f="ente.responsabile" placeholder="ing. Mario Bianchi"></label><label class="f2">Qualifica del firmatario<input data-f="ente.ruolo" placeholder="Il Responsabile dell'Area Tecnica"></label>
-<label class="f2">Responsabile del procedimento (RUP)<input data-f="ente.rup"></label><label class="f2">Tecnico incaricato (stati di consistenza)<input data-f="ente.tecnico" placeholder="geom. …"></label><label>Studio incaricato<input data-f="ente.studio"></label>
+<label class="f2">Responsabile del procedimento (RUP)<input data-f="ente.rup"></label><label class="f2">Tecnico incaricato (stati di consistenza)<input data-f="ente.tecnico" placeholder="geom. …"></label><label>Studio incaricato<input data-f="ente.studio"></label><label>Sede dello studio<input data-f="ente.sedeStudio" placeholder="Belluno (BL)"></label>
 <label class="f2">Beneficiario dell'esproprio (se diverso)<input data-f="ente.beneficiario"></label><label>C.F. beneficiario<input data-f="ente.cfBeneficiario"></label><label class="f2">Sede beneficiario<input data-f="ente.sedeBeneficiario"></label>
 <label>Tribunale civile di<input data-f="ente.tribunale"></label><label>T.A.R.<input data-f="ente.tar" placeholder="Veneto"></label><label class="f2">Bollettino per gli estratti<input data-f="ente.bur" placeholder="BUR Veneto"></label>
 <label class="f">Link alla documentazione progettuale<input data-f="ente.link"></label></div></div>
@@ -3180,7 +3265,8 @@ ${err ? `<div class="ban err">${E(err)}</div>` : `
 <p class="mu">Colonne riconosciute: ${Object.entries(res.colonne).map(([k, i]) => `<span class="tag">${E(head[i])} → ${nomiCampi[k] || k}</span>`).join(' ')}</p>
 ${res.avvisi.slice(0, 15).map(a => `<div class="ban">${E(a)}</div>`).join('')}${res.avvisi.length > 15 ? `<p class="mu">… e altri ${res.avvisi.length - 15} avvisi</p>` : ''}
 <div class="kpi"><div><small>Particelle</small><b>${res.particelle.length}</b></div><div><small>Ditte</small><b>${res.ditte.length}</b></div><div><small>Intestatari</small><b>${res.ditte.reduce((s, d) => s + d.intest.length, 0)}</b></div></div>
-<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th>Particelle</th></tr></thead><tbody>${res.ditte.map(d => `<tr><td><b>${E(d.n)}</b></td><td>${d.intest.map(o => E(o.nome) + ' <span class="mu">' + E(C.diritto(o)) + '</span>').join('<br>')}</td><td>${res.particelle.filter(x => x.ditta === d.id).map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(', ')}</td></tr>`).join('')}</tbody></table></div>
+${(() => { const L = res.ditte.flatMap(d => d.intest.filter(o => !o.cf || !C.cfValido(o.cf)).map(o => ({ d, o }))); return L.length ? `<div class="ban">⚠ ${L.length} intestatari senza codice fiscale o con codice da verificare: le ditte vengono create lo stesso, il codice va inserito a mano nella scheda della ditta.<br><span class="mu">${L.slice(0, 20).map(x => 'Ditta ' + E(x.d.n) + ': ' + E(x.o.nome) + (x.o.cf ? ' (' + E(x.o.cf) + ')' : '')).join(' · ')}${L.length > 20 ? ' …' : ''}</span></div>` : ''; })()}
+<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th>Particelle</th></tr></thead><tbody>${res.ditte.map(d => `<tr><td><b>${E(d.n)}</b></td><td>${d.intest.map(o => E(o.nome) + ' <span class="mu">' + E(C.diritto(o)) + '</span>' + (!o.cf ? ' <span class="tag t-wa">C.F. mancante</span>' : !C.cfValido(o.cf) ? ' <span class="tag t-ko">C.F. da verificare</span>' : '')).join('<br>')}</td><td>${res.particelle.filter(x => x.ditta === d.id).map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(', ')}</td></tr>`).join('')}</tbody></table></div>
 <div class="g" style="margin-top:10px"><label>Foglio per le righe senza foglio<input id="itfg" value="${E(impTab.fg || '')}"></label>
 <label class="chk"><input type="checkbox" id="itsost" ${p.particelle.length ? '' : 'checked'}> Sostituisci elenco e ditte esistenti</label></div>
 <div class="row" style="margin-top:10px"><button class="p" id="itapp">Importa nel piano particellare</button></div>`}`;
@@ -3247,9 +3333,9 @@ ${res.avvisi.slice(0, 15).map(a => `<div class="ban">${E(a)}</div>`).join('')}${
 <label>Qualità<input data-f="qual"></label><label>Classe<input data-f="cls"></label><label>Superficie catastale (mq)<input data-f="sup" data-t="num"></label>
 <label>Reddito dominicale €<input data-f="rd"></label><label>Reddito agrario €<input data-f="ra"></label><label>Destinazione urbanistica (zona)<input data-f="zona" placeholder="es. E2, B1…"></label>
 <label class="f">Confini (N-E-S-O) <input data-f="confini"></label></div>
-<h3>Superfici d'intervento (mq)</h3><p class="mu">Vuoto = dal disegno${v.aree.disegno ? ' (superficie grafica della particella ' + U.fmt(v.aree.graf, 1) + ' mq)' : ''}. Il mappale derivato è quello del frazionamento (es. 1706 ex ${E(x.map)}).</p>
-<div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Tipo</th><th class="n">Dal disegno</th><th>Valore manuale</th><th>Mappale derivato</th></tr></thead><tbody>
-${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></td><td class="n">${v.aree.disegno ? U.mq(Math.round((A.superfici(p.geo)[A.chiave(x.fg, x.map, x.sub)] || {})[t] || 0)) : '—'}</td><td><input data-f="man.${t}" data-t="num"></td><td><input data-f="nuovo.${t}"></td></tr>`).join('')}</tbody></table></div>
+<h3>Superfici d'intervento (mq)</h3><p class="mu">Vuoto = dal disegno${v.aree.disegno ? ' (superficie grafica della particella ' + U.fmt(v.aree.graf, 1) + ' mq)' : ''}. Il mappale derivato è quello del frazionamento (es. 1706 ex ${E(x.map)}); superficie e redditi della particella derivata compaiono nel decreto (se vuoti: superficie espropriata e «–»).</p>
+<div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Tipo</th><th class="n">Dal disegno</th><th>Valore manuale</th><th>Mappale derivato</th><th>Sup. particella derivata</th><th>R.D. derivata</th><th>R.A. derivata</th></tr></thead><tbody>
+${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></td><td class="n">${v.aree.disegno ? U.mq(Math.round((A.superfici(p.geo)[A.chiave(x.fg, x.map, x.sub)] || {})[t] || 0)) : '—'}</td><td><input data-f="man.${t}" data-t="num"></td><td><input data-f="nuovo.${t}"></td><td><input data-f="fraz.${t}.sup" placeholder="mq"></td><td><input data-f="fraz.${t}.rd"></td><td><input data-f="fraz.${t}.ra"></td></tr>`).join('')}</tbody></table></div>
 <h3>Stima</h3><div class="g"><label>Categoria di stima<select data-f="val"><option value="">(automatica dalla qualità)</option>${cat}</select></label><label>Valore €/mq (se diverso)<input data-f="vu" data-t="num"></label>
 <label>Area edificabile<select data-f="edif"><option value="">(dalla categoria)</option><option value="1">Sì</option><option value="">No</option></select></label>
 <label>Mesi di occupazione (se diversi)<input data-f="mesiOcc" data-t="num"></label><label>Coeff. servitù fascia (se diverso)<input data-f="coeffServ" data-t="num" placeholder="es. 0,25"></label>
@@ -3452,20 +3538,23 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
     if (APP.arg) return dettaglioDitta(m, p, p.ditte.find(d => d.id === APP.arg));
     const c = APP.calc(), proc0 = p.impost.procedura, oggi = U.oggi();
     const sc = I.scadenze(p).filter(s => s.ditta && !s.fatto && !s.min);
-    m.innerHTML = `<h2>👥 Ditte e iter</h2><div class="row" style="margin-bottom:10px"><input id="dq" placeholder="Cerca per nome, C.F., mappale…" style="min-width:280px"><span class="grow"></span><span class="mu">Percorso principale: <b>${E(S.PROCEDURE[proc0].nome)}</b></span></div>
+    const ctrl = new Map(p.ditte.map(d => [d.id, C.controlli(d, p.particelle.filter(x => x.ditta === d.id)).filter(x => x.livello !== 'info')]));
+    const daCompl = p.ditte.filter(d => ctrl.get(d.id).length);
+    m.innerHTML = `<h2>👥 Ditte e iter</h2>${daCompl.length ? `<div class="ban">⚠ ${daCompl.length} ditte da completare: ${[...new Set(daCompl.flatMap(d => ctrl.get(d.id).map(x => x.campo === 'cf' ? (x.livello === 'manca' ? 'codici fiscali mancanti' : 'codici fiscali da verificare') : 'quote o intestatari da verificare')))].join(', ')}. Apri la ditta per inserirli a mano.</div>` : ''}<div class="row" style="margin-bottom:10px"><input id="dq" placeholder="Cerca per nome, C.F., mappale…" style="min-width:280px"><label class="chk"><input type="checkbox" id="dsolo"> Solo ditte da completare</label><span class="grow"></span><span class="mu">Percorso principale: <b>${E(S.PROCEDURE[proc0].nome)}</b></span></div>
 <div class="ditte">${p.ditte.map(d => {
       const D = c.perD.get(d.id) || { tot: 0, aree: {} }, av = I.avanzamento(d, proc0), parts = p.particelle.filter(x => x.ditta === d.id);
       const prox = sc.filter(s => s.ditta === d).sort((a, b) => (a.data < b.data ? -1 : 1))[0];
       const st = prox ? I.statoScad(prox, oggi) : '';
-      return `<div class="dc" data-d="${d.id}" data-q="${E(U.norm(d.intest.map(o => o.nome + ' ' + o.cf).join(' ') + ' ' + parts.map(x => x.fg + ' ' + x.map).join(' ')))}"><h4><span class="np">${E(d.n)}</span>${E(d.intest.map(o => o.nome).join(', ').slice(0, 90) || '(senza intestatari)')}</h4>
-<div class="mu" style="margin-top:6px">${parts.map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(' · ')}</div>
+      return `<div class="dc" data-d="${d.id}" data-ko="${ctrl.get(d.id).length ? 1 : 0}" data-q="${E(U.norm(d.intest.map(o => o.nome + ' ' + o.cf).join(' ') + ' ' + parts.map(x => x.fg + ' ' + x.map).join(' ')))}"><h4><span class="np">${E(d.n)}</span>${E(d.intest.map(o => o.nome).join(', ').slice(0, 90) || '(senza intestatari)')}</h4>
+<div class="mu" style="margin-top:6px">${parts.map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(' · ')}</div>${ctrl.get(d.id).length ? `<div style="margin-top:6px">${ctrl.get(d.id).map(x => `<span class="tag ${x.livello === 'errore' ? 't-ko' : 't-wa'}">⚠ ${E(x.msg)}</span>`).join(' ')}</div>` : ''}
 <div class="row" style="margin-top:6px">${D.aree.espr ? `<span class="tag t-es">esproprio ${U.mq(D.aree.espr)} mq</span>` : ''}${D.aree.servop + D.aree.serv ? `<span class="tag t-sv">servitù ${U.mq(D.aree.servop + D.aree.serv)} mq</span>` : ''}${D.aree.occ ? `<span class="tag t-oc">occupazione ${U.mq(D.aree.occ)} mq</span>` : ''}<span class="grow"></span><b>${U.eur(D.tot)}</b></div>
 <div class="bar"><i style="width:${Math.round(100 * av.fatti / av.totale)}%"></i></div>
 <div class="mu">${av.ultimo ? '✓ ' + E(av.ultimo.nome) : 'Iter non avviato'}${av.prossimo ? ' · prossimo: ' + E(av.prossimo.nome) : ''}${d.procedura ? ' · <b>' + E(S.PROCEDURE[d.procedura].breve) + '</b>' : ''}</div>
 ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu'}" style="font-size:12px;margin-top:3px">⏰ ${U.dataIt(prox.data)} – ${E(prox.cosa)}</div>` : ''}</div>`;
     }).join('') || '<div class="card vuoto">Nessuna ditta: importa l\'elenco ditte.</div>'}</div>`;
     m.querySelectorAll('[data-d]').forEach(x => x.onclick = () => APP.vai('ditte', x.dataset.d));
-    m.querySelector('#dq').oninput = e => { const q = U.norm(e.target.value); m.querySelectorAll('[data-d]').forEach(x => { x.hidden = q && !x.dataset.q.includes(q); }); };
+    const filtra = () => { const q = U.norm(m.querySelector('#dq').value), solo = m.querySelector('#dsolo').checked; m.querySelectorAll('[data-d]').forEach(x => { x.hidden = (q && !x.dataset.q.includes(q)) || (solo && x.dataset.ko !== '1'); }); };
+    m.querySelector('#dq').oninput = filtra; m.querySelector('#dsolo').onchange = filtra;
   };
 
   function dettaglioDitta(m, p, d) {
@@ -3474,9 +3563,10 @@ ${prox ? `<div class="${st === 'scaduta' ? 'ko' : st === 'prossima' ? 'wa' : 'mu
     const parts = p.particelle.filter(x => x.ditta === d.id);
     const passi = I.passi(proc);
     const scad = I.scadenze(p).filter(s => s.ditta === d);
-    const intestRow = (o, i) => `<tr><td><input data-o="${i}" data-c="nome" value="${E(o.nome)}" style="min-width:200px"></td><td><input data-o="${i}" data-c="natoA" value="${E(o.natoA || o.sede || '')}"></td><td><input type="date" data-o="${i}" data-c="natoIl" value="${E(o.natoIl || '')}"></td><td><input data-o="${i}" data-c="cf" value="${E(o.cf)}" style="min-width:150px"></td><td><input data-o="${i}" data-c="titolo" value="${E(o.titolo)}"></td><td><input data-o="${i}" data-c="quota" value="${E(o.quota)}" style="min-width:70px"></td><td><input data-o="${i}" data-c="via" value="${E(o.via)}" style="min-width:160px"></td><td><input data-o="${i}" data-c="cap" value="${E(o.cap)}" style="min-width:60px"></td><td><input data-o="${i}" data-c="citta" value="${E(o.citta)}"></td><td><input data-o="${i}" data-c="pec" value="${E(o.pec)}"></td><td style="text-align:center"><input type="checkbox" data-o="${i}" data-c="cd" ${o.cd ? 'checked' : ''} title="Coltivatore diretto / IAP"></td><td><button class="s d" data-odel="${i}">✕</button></td></tr>`;
+    const intestRow = (o, i) => `<tr><td><input data-o="${i}" data-c="nome" value="${E(o.nome)}" style="min-width:200px"></td><td><input data-o="${i}" data-c="natoA" value="${E(o.natoA || o.sede || '')}"></td><td><input type="date" data-o="${i}" data-c="natoIl" value="${E(o.natoIl || '')}"></td><td><input data-o="${i}" data-c="cf" value="${E(o.cf)}" style="min-width:150px;${!o.cf || !C.cfValido(o.cf) ? 'border-color:var(--ko);background:rgba(192,57,43,.08)' : ''}" placeholder="da inserire" title="${!o.cf ? 'Codice fiscale mancante: inseriscilo a mano' : !C.cfValido(o.cf) ? 'Codice fiscale o P.IVA non valido' : ''}"></td><td><input data-o="${i}" data-c="titolo" value="${E(o.titolo)}"></td><td><input data-o="${i}" data-c="quota" value="${E(o.quota)}" style="min-width:70px"></td><td><input data-o="${i}" data-c="via" value="${E(o.via)}" style="min-width:160px"></td><td><input data-o="${i}" data-c="cap" value="${E(o.cap)}" style="min-width:60px"></td><td><input data-o="${i}" data-c="citta" value="${E(o.citta)}"></td><td><input data-o="${i}" data-c="pec" value="${E(o.pec)}"></td><td style="text-align:center"><input type="checkbox" data-o="${i}" data-c="cd" ${o.cd ? 'checked' : ''} title="Coltivatore diretto / IAP"></td><td><button class="s d" data-odel="${i}">✕</button></td></tr>`;
     m.innerHTML = `<div class="row"><button id="dback">‹ Tutte le ditte</button><h2 style="margin:0" class="grow">Ditta ${E(d.n)} <span class="mu">${E(S.PROCEDURE[proc].nome)}</span></h2>${APP.FS.ok ? '<button id="dfold">📁 Cartella della ditta</button>' : ''}</div>
 <div class="kpi" style="margin-top:10px"><div><small>Esproprio</small><b>${U.mq(D.aree.espr || 0)} mq</b></div><div><small>Servitù</small><b>${U.mq((D.aree.servop || 0) + (D.aree.serv || 0))} mq</b></div><div><small>Occupazione</small><b>${U.mq(D.aree.occ || 0)} mq</b></div><div><small>Indennità</small><b>${U.eur(D.tot)}</b></div>${D.ritenuta ? `<div><small>Ritenuta art. 35 (stima)</small><b>${U.eur(D.ritenuta)}</b></div>` : ''}</div>
+${(() => { const L = C.controlli(d, parts); return L.length ? `<div class="ban ${L.some(x => x.livello === 'errore') ? 'err' : ''}">${L.map(x => (x.livello === 'info' ? 'ℹ ' : '⚠ ') + E(x.msg)).join('<br>')}</div>` : ''; })()}
 <div class="card"><h3 style="margin-top:0">Intestatari</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Nome / denominazione</th><th>Nato a / sede</th><th>Nato il</th><th>C.F.</th><th>Diritto</th><th>Quota</th><th>Indirizzo</th><th>CAP</th><th>Città (prov.)</th><th>PEC</th><th>CD/IAP</th><th></th></tr></thead><tbody>${d.intest.map(intestRow).join('')}</tbody></table></div>
 <div class="row" style="margin-top:8px"><button id="dadd">＋ Intestatario</button><span class="grow"></span><span class="mu">Attenzione: cambiare intestatari o quote cambia la composizione della ditta (stessi nomi e quote = stessa ditta).</span></div>
 <div class="g" style="margin-top:10px"><label>N. ditta (piano)<input data-f="n"></label><label>Percorso per questa ditta<select data-f="procedura"><option value="">(quello della pratica)</option>${Object.entries(S.PROCEDURE).map(([k, v]) => `<option value="${k}">${v.nome}</option>`).join('')}</select></label>
@@ -3498,7 +3588,7 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
     const fo = m.querySelector('#dfold'); if (fo) fo.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
-    m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => { const o = d.intest[+el.dataset.o]; o[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.value.trim(); if (el.dataset.c === 'natoA' && C.giuridica(o)) { o.sede = o.natoA; } APP.salva(); });
+    m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => { const o = d.intest[+el.dataset.o]; o[el.dataset.c] = el.type === 'checkbox' ? el.checked : el.dataset.c === 'cf' ? el.value.trim().toUpperCase() : el.value.trim(); if (el.dataset.c === 'natoA' && C.giuridica(o)) { o.sede = o.natoA; } APP.salva(); if (['cf', 'quota', 'titolo', 'nome', 'via'].includes(el.dataset.c)) APP.render(); });
     m.querySelectorAll('[data-odel]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere l\'intestatario?', 'Togli')) { d.intest.splice(+b.dataset.odel, 1); APP.salva(); APP.render(); } });
     m.querySelector('#dadd').onclick = () => { d.intest.push({ id: U.id(), nome: '', titolo: "Proprieta'", quota: '1/1' }); APP.salva(); APP.render(); };
     m.querySelectorAll('[data-px]').forEach(r => r.onclick = () => APP.editParticella(p.particelle.find(x => x.id === r.dataset.px)));

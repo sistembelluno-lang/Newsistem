@@ -17,16 +17,16 @@ test('numeri, date e importi in lettere', () => {
 });
 
 test('intestatari da testo tipo visura', () => {
-  const L = ES.cat.leggiIntestatari("ROSSI MARIO nato a BELLUNO (BL) il 12/03/1960 - CF: RSSMRA60C12A757X Proprieta' 1/2; ACME S.R.L. con sede in FELTRE (BL) - CF: 01234567890 Nuda proprieta' 1/1");
+  const L = ES.cat.leggiIntestatari("ROSSI MARIO nato a BELLUNO (BL) il 12/03/1960 - CF: RSSMRA60C12A757T Proprieta' 1/2; ACME S.R.L. con sede in FELTRE (BL) - CF: 01234567897 Nuda proprieta' 1/1");
   assert.strictEqual(L.length, 2);
   assert.strictEqual(L[0].nome, 'ROSSI MARIO');
   assert.strictEqual(L[0].natoIl, '1960-03-12');
   assert.strictEqual(L[0].quota, '1/2');
   assert.strictEqual(L[1].sede, 'FELTRE (BL)');
   assert.strictEqual(ES.cat.saluto(L[1]), 'Spett.le');
-  const R = ES.cat.leggiIntestatari('BIANCHI ANNA\nnata a FELTRE (BL) il 05/07/1962\nCF: BNCNNA62L45D530Y\nProprieta\' 1/3\nVERDI LUIGI\nnato a SEDICO (BL) il 01/01/1950\nCF: VRDLGU50A01I563Z\nUsufrutto 1/1');
+  const R = ES.cat.leggiIntestatari('BIANCHI ANNA\nnata a FELTRE (BL) il 05/07/1962\nCF: BNCNNA62L45D530F\nProprieta\' 1/3\nVERDI LUIGI\nnato a SEDICO (BL) il 01/01/1950\nCF: VRDLGU50A01I563Y\nUsufrutto 1/1');
   assert.deepStrictEqual(R.map(o => o.nome), ['BIANCHI ANNA', 'VERDI LUIGI']);
-  assert.strictEqual(ES.cat.sessoCF('BNCNNA62L45D530Y'), 'F');
+  assert.strictEqual(ES.cat.sessoCF('BNCNNA62L45D530F'), 'F');
 });
 
 test('etichette di particella', () => {
@@ -121,7 +121,7 @@ test('documenti: modello integrato → blocchi → Word', () => {
   assert.strictEqual(docx[0], 0x50); assert.strictEqual(docx[1], 0x4b);
   const testo = M.mustache(M.INTEGRATI.decreto_esproprio.testo, ctx);
   assert.ok(/Unità negoziale n° 1 – NP1/.test(testo));
-  assert.ok(/diconsi euro/.test(testo));
+  assert.ok(/dicons[iì] euro/.test(testo));
 });
 
 test('compilazione di un modello Word con segnaposto e campi di stampa unione', async () => {
@@ -208,13 +208,13 @@ test('Excel a blocchi tipo riepilogo visure (ditta su più righe, mappali con la
   const R = [
     ['N.', 'Ditta Catastale', 'Comune', 'Catasto', 'Foglio', 'Mappale', 'Qualità/Classe', 'Superficie\r(mq)', 'Rd (€)', 'Ra (€)'],
     [1, 'ENTE ESEMPIO con sede in ROMA (RM)', 'COMUNE A', 'Terreni', '66', '8611/16', 'IMPRODUTT/', 2860348],
-    ['', 'CF:97000000000', 'COMUNE A', 'Terreni', '66', '8611/9', 'IMPRODUTT/', 1665],
+    ['', 'CF:97000000006', 'COMUNE A', 'Terreni', '66', '8611/9', 'IMPRODUTT/', 1665],
     ['', "Proprieta': 1/1", 'COMUNE A', 'Terreni', '66', '8611/11', 'IMPRODUTT/', 4020],
     [2, 'ROSSI MARIO nato a BELLUNO (BL) il 12/03/1960', 'COMUNE A', 'Terreni', '66', '8612/5', 'ALPI/6', 490, 0.08, 0.08],
-    ['', 'CF:RSSMRA60C12A757X', 'COMUNE A', 'Terreni', '66', '8612/4', 'ALPI/6', 850, 0.13, 0.13],
+    ['', 'CF:RSSMRA60C12A757T', 'COMUNE A', 'Terreni', '66', '8612/4', 'ALPI/6', 850, 0.13, 0.13],
     ['', "Proprieta': 500/1000"],
     ['', 'BIANCHI ANNA nata a FELTRE (BL) il 05/07/1962'],
-    ['', 'CF:BNCNNA62L45D530Y'],
+    ['', 'CF:BNCNNA62L45D530F'],
     ['', "Proprieta': 500/1000"],
     [3, 'REGOLA UNO con sede in COMUNE A (BL)', 'COMUNE A', 'Terreni', '66', '8589/10', 'BOSCHI/6', 90, 0.03, 0.01],
     ['', 'CF:'],
@@ -225,7 +225,7 @@ test('Excel a blocchi tipo riepilogo visure (ditta su più righe, mappali con la
   assert.strictEqual(r.ditte.length, 3);
   assert.strictEqual(r.particelle.length, 6);
   const d1 = r.ditte.find(d => d.n === '1'), d2 = r.ditte.find(d => d.n === '2'), d3 = r.ditte.find(d => d.n === '3');
-  assert.strictEqual(d1.intest.length, 1); assert.strictEqual(d1.intest[0].cf, '97000000000'); assert.strictEqual(d1.intest[0].quota, '1/1'); assert.strictEqual(d1.intest[0].sede, 'ROMA (RM)');
+  assert.strictEqual(d1.intest.length, 1); assert.strictEqual(d1.intest[0].cf, '97000000006'); assert.strictEqual(d1.intest[0].quota, '1/1'); assert.strictEqual(d1.intest[0].sede, 'ROMA (RM)');
   assert.strictEqual(r.particelle.filter(p => p.ditta === d1.id).length, 3);
   assert.deepStrictEqual(d2.intest.map(o => o.nome + ' ' + o.quota), ['ROSSI MARIO 500/1000', 'BIANCHI ANNA 500/1000']);
   assert.deepStrictEqual(d3.intest.map(o => o.nome), ['REGOLA UNO', 'REGOLA DUE']);
@@ -243,4 +243,44 @@ test('categorie di stima riconosciute dalla qualità della visura', () => {
   assert.strictEqual(c('IMPRODUTT'), 'inc'); assert.strictEqual(c('SEMIN ARBOR'), 'sem'); assert.strictEqual(c('PRATO'), 'pra');
   assert.strictEqual(c('ENTE URBANO'), 'eu'); assert.strictEqual(c('REL ENTE UR'), 'eu'); assert.strictEqual(c('XYZ'), undefined);
   assert.strictEqual(ES.stima.categoria({ qual: 'Prato' }, [{ id: 'x', nome: 'Prati stabili' }]).id, 'x');
+});
+
+test('decreto di esproprio sul modello dello studio: note, osservazioni, frazionamento, certificato', () => {
+  const pr = pratica(), M = ES.modelli;
+  pr.ente = { nome: 'Comune di Prova', provincia: 'Belluno', ruolo: "Il Responsabile dell'Area Tecnica", responsabile: 'ing. Esempio', beneficiario: 'Comune di Prova', cfBeneficiario: '00000000000', sedeBeneficiario: 'piazza 1', studio: 'SISTEM srl stp', sedeStudio: 'Belluno (BL)', tar: 'Veneto', tribunale: 'Belluno', bur: 'BUR Veneto' };
+  pr.urgenza = 'necessità di aggiudicare i lavori';
+  pr.dati = { servitu: 'di condotta' };
+  pr.ditte[0].ev = { avvio: { data: '2024-04-11', prot: '8997' }, immissione: { data: '2026-03-10' } };
+  pr.ditte[1].ev = { avvio: { data: '2024-04-17', prot: '9443' }, immissione: { data: '2026-03-10' } };
+  pr.ditte[2].ev = { avvio: { data: '2024-04-17', prot: '9446' } };
+  pr.ditte[1].oss = 'acquisizione del mappale 102 nella sua totalità';
+  const p100 = pr.particelle.find(x => x.map === '100'); p100.nuovo = { espr: '1706' }; p100.fraz = { espr: { rd: '4.01', ra: '2.19' } };
+  const calc = ES.stima.calcola(pr), ctx = M.contesti(pr, calc, 'pratica')[0];
+  assert.strictEqual(ctx.comunicazioni.avvio, 'in data 11/04/2024 con Nota n° 8997 e in data 17/04/2024 con Note n° 9443, 9446');
+  const t = M.mustache(M.INTEGRATI.decreto_esproprio.testo, ctx);
+  assert.ok(t.includes("DECRETO del Responsabile dell'Area Tecnica"));
+  assert.ok(t.includes("IL RESPONSABILE DELL'AREA TECNICA"));
+  assert.ok(t.includes('in data 11/04/2024 con Nota n° 8997 e in data 17/04/2024 con Note n° 9443, 9446 Comune di Prova ha provveduto'));
+  assert.ok(t.includes('Ditta 2 – acquisizione del mappale 102 nella sua totalità;'));
+  assert.ok(/Unità negoziale n° 1 – NP1:\*\* C\.T\. Comune di COMUNE DI PROVA - Fg 1 Mapp 1706 ex 100, Seminativo\/2 di mq 200, R\.D\. 4\.01 – R\.A\. 2\.19 con superficie di esproprio pari a mq 200;/.test(t), 'unità negoziale con mappale derivato');
+  assert.ok(t.includes('e per una indennità di esproprio complessiva di'));
+  assert.ok(t.includes('la costituzione di una servitù di condotta'));
+  assert.ok(t.includes('studio SISTEM srl stp con sede in Belluno (BL)'));
+  assert.ok(t.includes('CERTIFICATO DI PUBBLICAZIONE'));
+  assert.ok(!t.includes('{{'));
+  const v = M.mustache(M.INTEGRATI.decreto_23.testo, ctx);
+  assert.ok(!v.includes('## INVITA') && v.includes('è stata determinata l\'indennità di esproprio'));
+});
+
+test('controlli della ditta: codice fiscale mancante o errato, quote', () => {
+  const C = ES.cat;
+  assert.ok(C.cfValido('RSSMRA80A01H501U')); assert.ok(!C.cfValido('RSSMRA80A01H501X')); assert.ok(C.cfValido('00176800258'));
+  const L = C.controlli({ intest: [{ nome: 'ROSSI MARIO', titolo: "Proprieta'", quota: '500/1000' }, { nome: 'VERDI ELENA', cf: 'RSSMRA80A01H501X', titolo: "Proprieta'", quota: '400/1000' }] }, [{}]);
+  assert.ok(L.some(x => x.livello === 'manca' && /codice fiscale di ROSSI MARIO/.test(x.msg)));
+  assert.ok(L.some(x => x.livello === 'errore' && /non valido per VERDI ELENA/.test(x.msg)));
+  assert.ok(L.some(x => /quote di proprietà sommano a 0.9/.test(x.msg)));
+  assert.ok(!C.controlli({ intest: [{ nome: 'A', cf: 'RSSMRA80A01H501U', via: 'x', titolo: 'Usufrutto', quota: '1/1' }, { nome: 'B', cf: '00176800258', via: 'y', titolo: 'Nuda proprieta', quota: '1/1' }] }, [{}]).length);
+  // stessa persona con due diritti diversi nella stessa particella: due righe, non una
+  const r = C.importaTabella([['Foglio', 'Mappale', 'Intestatari'], ['1', '5', "ROSSI MARIO Usufrutto 1/2; ROSSI MARIO Nuda proprieta' 1/2; BIANCHI ANNA Proprieta' 1/2"]]);
+  assert.strictEqual(r.ditte[0].intest.length, 3);
 });

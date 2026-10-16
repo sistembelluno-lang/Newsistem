@@ -17,10 +17,22 @@
   function partCtx(p, v, pr) {
     const a = v.aree, voci = v.voci;
     return {
-      id: p.id, ct: p.ct || 'T', catasto: p.ct === 'F' ? 'C.F.' : 'C.T.', comune: p.comune || (pr.ente && pr.ente.comune) || '', sez: p.sez || '', fg: p.fg, map: p.map, sub: p.sub || '',
+      id: p.id, ct: p.ct || 'T', catasto: p.ct === 'F' ? 'C.F.' : 'C.T.', comune: p.comune || (pr.ente && pr.ente.comune) || '', comuneU: String(p.comune || (pr.ente && pr.ente.comune) || '').toUpperCase(), sez: p.sez || '', fg: p.fg, map: p.map, sub: p.sub || '',
       mappale: C.mappale(p), mappaleEspr: C.mappale(p, 'espr'), mappaleOcc: C.mappale(p, 'occ'), mappaleServ: C.mappale(p, p.nuovo && p.nuovo.servop ? 'servop' : 'serv'),
       ex: p.nuovo && Object.values(p.nuovo).find(Boolean) ? p.map : '',
       qual: p.qual || '', cls: p.cls || '', qualcls: [p.qual, p.cls].filter(Boolean).join('/'),
+      // Particella derivata dal frazionamento per tipo d'intervento: superficie e redditi della nuova particella
+      // (se non inseriti: per l'esproprio la superficie espropriata, per gli altri tipi quella originaria)
+      ...(() => {
+        const o = {}, fr = p.fraz || {}, nv = p.nuovo || {};
+        [['E', 'espr'], ['S', p.nuovo && p.nuovo.servop ? 'servop' : 'serv'], ['O', 'occ']].forEach(([L, t]) => {
+          const f = fr[t] || {}, deriv = !!nv[t];
+          const sup = f.sup ? U.num(f.sup) : deriv && t === 'espr' ? a.espr : deriv ? Math.max(0, (p.sup || 0) - (nv.espr ? a.espr : 0)) : p.sup || 0;
+          o['sup' + L] = U.mq(sup); o['rd' + L] = f.rd || (deriv ? '–' : p.rd || '–'); o['ra' + L] = f.ra || (deriv ? '–' : p.ra || '–');
+          o['qual' + L] = f.qual || [p.qual, p.cls].filter(Boolean).join('/');
+        });
+        return o;
+      })(),
       sup: U.mq(p.sup), supN: p.sup || 0, haareca: U.haAreCa(p.sup), rd: p.rd || '', ra: p.ra || '', zona: p.zona || '', confini: p.confini || '',
       espr: a.espr ? U.mq(a.espr) : '', servop: a.servop ? U.mq(a.servop) : '', serv: a.serv ? U.mq(a.serv) : '', occ: a.occ ? U.mq(a.occ) : '',
       esprN: a.espr, servopN: a.servop, servN: a.serv, occN: a.occ, servTot: a.servop + a.serv ? U.mq(a.servop + a.serv) : '',
@@ -51,6 +63,7 @@
     { k: 'visti', nome: 'Visti amministrativi e normativi', aiuto: 'Uno per riga (es. «il D.Lgs. 267/2000;», «la L.R. Veneto 11/2004;», «il parere …»): sezione VISTI dei decreti', righe: 4 },
     { k: 'finanziamento', nome: 'Finanziamento dell\'opera', aiuto: 'Es. «fondi PNRR – Missione …» oppure «bilancio comunale, capitolo …»', righe: 1 },
     { k: 'consultazione', nome: 'Consultazione degli atti', aiuto: 'Dove e quando i proprietari possono vedere il progetto (orari, appuntamento, link)', righe: 1 },
+    { k: 'servitu', nome: 'Tipo di servitù', aiuto: 'Compare nel decreto: «la costituzione di una servitù … » (es. «di condotta», «di elettrodotto», «di passaggio»)', righe: 1 },
     { k: 'lettere', nome: 'Testo aggiuntivo nelle lettere', aiuto: 'Paragrafo inserito prima dei saluti in tutte le lettere ai proprietari', righe: 3 }
   ];
   M.datiCtx = pr => {
@@ -72,6 +85,14 @@
   M.testo = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k]) || (lib && lib.base && lib.base[k]) || ((M.catalogo(lib)[k] || {}).testo) || '';
   M.livello = (k, pr, lib) => (pr && pr.modelli && pr.modelli[k] ? 'pratica' : lib && lib.base && lib.base[k] ? 'base' : (M.catalogo(lib)[k] || {}).propria ? 'nuovo' : 'originale');
 
+  // «in data 11/04/2024 con Nota n° 8997, in data 17/04/2024 con Note n° 9443, 9446» dalle date e dai protocolli dei passi delle ditte
+  M.note = (ditte, passo) => {
+    const per = new Map();
+    (ditte || []).forEach(d => { const e = d.ev && d.ev[passo]; if (!e || !e.data) return; const L = per.get(e.data) || per.set(e.data, []).get(e.data); String(e.prot || '').split(/[,;]\s*/).map(x => x.trim()).filter(Boolean).forEach(x => { if (!L.includes(x)) L.push(x); }); });
+    const parti = [...per.keys()].sort().map(dt => { const L = per.get(dt); return 'in data ' + U.dataIt(dt) + (L.length ? ' con ' + (L.length > 1 ? 'Note n° ' : 'Nota n° ') + L.join(', ') : ''); });
+    return parti.length > 1 ? parti.slice(0, -1).join(', ') + ' e ' + parti[parti.length - 1] : parti[0] || '';
+  };
+
   const atto = x => x && (x.estremi || x.data) ? [x.estremi, x.data ? 'del ' + U.dataIt(x.data) : ''].filter(Boolean).join(' ') : '______________';
   M.base = (pr, calc) => {
     const e = pr.ente || {}, it = pr.iter || {}, I = Object.assign({}, ES.stima.IMPOST, pr.impost || {});
@@ -80,11 +101,17 @@
     return {
       oggi: U.dataIt(U.oggi()), oggiLungo: U.dataLunga(U.oggi()), luogo: e.luogo || e.comune || '', anno: new Date().getFullYear(),
       ente: { nome: e.nome || '', comune: e.comune || '', provincia: e.provincia || '', indirizzo: e.indirizzo || '', cf: e.cf || '', pec: e.pec || '', email: e.email || '', telefono: e.telefono || '',
-        ufficio: e.ufficio || '', responsabile: e.responsabile || '', ruolo: e.ruolo || 'Il Responsabile del procedimento', rup: e.rup || '', tecnico: e.tecnico || '', studio: e.studio || '',
+        ufficio: e.ufficio || '', responsabile: e.responsabile || '', ruolo: e.ruolo || 'Il Responsabile del procedimento',
+        // «Il Responsabile dell'Area Tecnica» → «del Responsabile dell'Area Tecnica» / «IL RESPONSABILE DELL'AREA TECNICA»
+        ruoloDel: (e.ruolo || 'Il Responsabile del procedimento').replace(/^il\s+/i, 'del ').replace(/^la\s+/i, 'della ').replace(/^l'/i, "dell'"), ruoloMaiuscolo: (e.ruolo || 'Il Responsabile del procedimento').toUpperCase(), rup: e.rup || '', tecnico: e.tecnico || '', studio: e.studio || '',
         beneficiario: e.beneficiario || e.nome || '', cfBeneficiario: e.cfBeneficiario || e.cf || '', sedeBeneficiario: e.sedeBeneficiario || e.indirizzo || '',
-        tribunale: e.tribunale || '', tar: e.tar || '', bur: e.bur || 'Bollettino Ufficiale della Regione', link: e.link || '' },
-      pratica: { nome: pr.nome || '', oggetto: pr.nome || '', cup: pr.cup || '', codice: pr.codice || '', descrizione: pr.descrizione || '', urgenza: pr.urgenza || '' },
-      atti, dati: M.datiCtx(pr), mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
+        sedeStudio: e.sedeStudio || '', tribunale: e.tribunale || '', tar: e.tar || '', bur: e.bur || 'Bollettino Ufficiale della Regione', link: e.link || '' },
+      pratica: { oggettoMaiuscolo: String(pr.nome || '').toUpperCase(), nome: pr.nome || '', oggetto: pr.nome || '', cup: pr.cup || '', codice: pr.codice || '', descrizione: pr.descrizione || '', urgenza: pr.urgenza || '' },
+      atti, dati: M.datiCtx(pr),
+      comunicazioni: { avvio: M.note(pr.ditte, 'avvio'), com17: M.note(pr.ditte, 'com17'), offerta: M.note(pr.ditte, 'offerta'), decreto: M.note(pr.ditte, 'avviso_imm') },
+      osservazioni: (pr.ditte || []).filter(d => d.oss).map(d => ({ n: d.n, testo: d.oss })),
+      // Data di immissione comune a tutte le ditte (per l'attestazione del decreto), altrimenti vuota
+      dataImmissione: (() => { const L = [...new Set((pr.ditte || []).map(d => d.ev && d.ev.immissione && d.ev.immissione.data).filter(Boolean))]; return L.length === 1 ? U.dataIt(L[0]) : ''; })(), mesiOcc: I.mesiOcc, coeffServ: Math.round(I.coeffServ * 100) + '%',
       tot: { tot: U.eur(T.tot), lettere: U.euroLettere(T.tot), espr: U.eur(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), serv: U.eur(T.servop + T.serv), occ: U.eur(T.occ),
         esprLettere: U.euroLettere(T.espr + T.aggCD + T.sopr + T.depr + T.urg + T.np42 + T.ris42), servLettere: U.euroLettere(T.servop + T.serv), occLettere: U.euroLettere(T.occ) },
       numeroDitte: (pr.ditte || []).length, piuDi50: (pr.ditte || []).reduce((s, d) => s + (d.intest || []).length, 0) > 50
@@ -105,6 +132,7 @@
       indEspr: U.eur(esprN), indEsprLettere: U.euroLettere(esprN), indServ: U.eur(D.servop + D.serv), indServLettere: U.euroLettere(D.servop + D.serv),
       indOcc: U.eur(D.occ), indOccLettere: U.euroLettere(D.occ), ritenuta: D.ritenuta ? U.eur(D.ritenuta) : '',
       supEspr: U.mq(D.aree.espr || 0), supServ: U.mq((D.aree.servop || 0) + (D.aree.serv || 0)), supOcc: U.mq(D.aree.occ || 0),
+      statoInd: ev.pagamento && ev.pagamento.data ? 'corrisposta' : ev.deposito && ev.deposito.data ? 'depositata presso il Ministero dell\'Economia e delle Finanze – Ragioneria Territoriale dello Stato' : ev.condivisione && ev.condivisione.data ? 'condivisa' : '',
       conduttore: d.cond && d.cond.nome ? d.cond : null, ev: evf, note: d.note || '', osservazioni: d.oss || ''
     };
   };

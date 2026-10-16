@@ -22,6 +22,86 @@ Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del 
 ## Planimetria catastale con evidenziata l'area interessata
 [[planimetria scala=1000]]`;
 
+
+  // Decreto di esproprio sul modello dello studio (es. decreto n. 1/2026 del Comune di Sedico).
+  // urgente = true: art. 22 (indennità determinata in via d'urgenza nel decreto); false: dopo art. 20 / 22-bis (indennità già determinata, pagata o depositata).
+  function decreto(urgente) {
+    const unita = (tipo, cosa, sup, map, s) => `{{#un${tipo}}}
+**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comuneU}} - Fg {{fg}} Mapp {{${map}}}, {{qual${s}}} di mq {{sup${s}}}, R.D. {{rd${s}}} – R.A. {{ra${s}}} con superficie di ${cosa} pari a mq {{${sup}}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}{{^_ultimo}}; {{/_ultimo}}{{/intestatari}} e per una indennità di ${tipo === 'Espr' ? 'esproprio' : tipo === 'Serv' ? 'asservimento' : 'occupazione'} complessiva di {{ind${tipo}}} (diconsì euro {{ind${tipo}Lettere}})${urgente ? '' : '{{#statoInd}}, {{statoInd}}{{/statoInd}}'};
+{{/un${tipo}}}`;
+    return `## {{ente.nome}}{{#ente.provincia}} – Provincia di {{ente.provincia}}{{/ente.provincia}}
+# DECRETO {{ente.ruoloDel}}
+Numero Registro Generale ________	Data ____________
+**OGGETTO: DECRETO DI ESPROPRIO RELATIVO AI LAVORI DI {{pratica.oggettoMaiuscolo}}{{#pratica.cup}}. CUP {{pratica.cup}}{{/pratica.cup}}.**
+Rep. n. ________
+
+## {{ente.ruoloMaiuscolo}}
+**PREMESSO che:**
+- {{#comunicazioni.avvio}}{{comunicazioni.avvio}}{{/comunicazioni.avvio}}{{^comunicazioni.avvio}}con {{atti.avvio16.testo}}{{/comunicazioni.avvio}} {{ente.nome}} ha provveduto a notificare alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento previsto dal D.P.R. 327/2001 preordinato alle procedure espropriative delle aree interessate dai lavori indicati all'oggetto, con avviso ex art. 16 del D.P.R. 327/2001 e ss.mm.ii.;
+**DATO ATTO che:**
+- la dichiarazione di pubblica utilità dei lavori ha durata di anni cinque dall'approvazione del progetto avvenuta con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} e che pertanto il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a) del D.P.R. 327/2001;
+- {{#comunicazioni.com17}}{{comunicazioni.com17}}{{/comunicazioni.com17}}{{^comunicazioni.com17}}con {{atti.com17.testo}}{{/comunicazioni.com17}} {{ente.nome}} ha provveduto a notificare alle ditte proprietarie risultanti dagli atti catastali l'avviso ex art. 17 del D.P.R. 327/2001 e ss.mm.ii.;
+- trattandosi di espropriazione per causa di pubblica utilità il presente provvedimento è esente dall'imposta di bollo ai sensi dell'art. 22 Tab. B del D.P.R. 642/1972;
+{{#atti.frazionamento.estremi}}- visti i tipi di frazionamento delle aree interessate {{atti.frazionamento.testo}} regolarmente approvati dall'Agenzia delle Entrate – Ufficio provinciale – Territorio;
+{{/atti.frazionamento.estremi}}{{#osservazioni.0}}- a seguito delle comunicazioni sono state accolte le osservazioni riguardanti:
+{{/osservazioni.0}}{{#osservazioni}}Ditta {{n}} – {{testo}};
+{{/osservazioni}}{{#dati.premesse}}{{dati.premesseElenco}}
+{{/dati.premesse}}` + (urgente ? `- ai sensi dell'art. 22 TUES, il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, sussistendo i presupposti di cui al medesimo art. 22 commi 1 e 2;
+- nel caso di specie sussiste il presupposto per il ricorso alla procedura di urgenza di cui al citato art. 22 comma 1, rivestendo l'avvio dei lavori carattere di urgenza tale da non consentire l'applicazione delle disposizioni dell'art. 20, per cui il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, per le ragioni di urgenza costituite da {{pratica.urgenza}};
+` : `- l'indennità di espropriazione è stata determinata in via provvisoria e notificata alle ditte proprietarie ai sensi degli artt. 20 e 22-bis del D.P.R. 327/2001{{#atti.decreto22bis.estremi}} (decreto di occupazione d'urgenza {{atti.decreto22bis.testo}}){{/atti.decreto22bis.estremi}} e, per ciascuna ditta, è stata condivisa e corrisposta ovvero depositata presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato, come indicato nel dispositivo, ai sensi degli artt. 20 e 26 del medesimo D.P.R.;
+`) + `**ATTESO che:**
+- sono configurate le condizioni previste dal TUES per procedere alla conclusione – mediante il trasferimento del diritto – della vicenda ablatoria relativa all'opera e in ordine alle ditte in oggetto, e in particolare che riguardo i beni oggetto del presente provvedimento, ai sensi dell'art. 8 TUES:
+a) {{#atti.vincolo.estremi}}con {{atti.vincolo.testo}} {{/atti.vincolo.estremi}}è stato apposto il vincolo preordinato all'esproprio di durata quinquennale, ai sensi dell'art. 9 del D.P.R. 327/2001, sulle aree interessate;
+b) è stata dichiarata la pubblica utilità, il cui termine di durata è tuttora in corso;
+c) ${urgente ? 'viene in questa sede determinata l\'indennità di esproprio;' : 'è stata determinata l\'indennità di esproprio, corrisposta o depositata come sotto indicato;'}
+{{#dati.visti}}**VISTI:**
+{{dati.vistiElenco}}
+{{/dati.visti}}## DECRETA:
+{{#haEspr}}- l'espropriazione a favore di **{{ente.beneficiario}}** con sede in {{ente.sedeBeneficiario}} - C.F. {{ente.cfBeneficiario}} dei beni immobili come dettagliatamente individuati nel presente decreto e quindi è disposto il passaggio a favore dello stesso del diritto di proprietà 1/1, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
+Elenco unità negoziali:
+${unita('Espr', 'esproprio', 'espr', 'mappaleEspr', 'E')}{{/haEspr}}{{#haServ}}- la costituzione di una servitù{{#dati.servitu}} {{dati.servitu}}{{/dati.servitu}} a favore di **{{ente.beneficiario}}** con sede in {{ente.sedeBeneficiario}} - C.F. {{ente.cfBeneficiario}} dei beni immobili come dettagliatamente individuati nel presente decreto, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
+${unita('Serv', 'servitù', 'servTot', 'mappaleServ', 'S')}{{/haServ}}{{#haOcc}}- l'occupazione temporanea a favore di **{{ente.beneficiario}}** con sede in {{ente.sedeBeneficiario}} - C.F. {{ente.cfBeneficiario}} dei beni immobili come dettagliatamente individuati nel presente decreto, per la durata presunta di mesi {{mesiOcc}}, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
+${unita('Occ', 'occupazione temporanea', 'occ', 'mappaleOcc', 'O')}{{/haOcc}}- si dà atto che l'indennità da corrispondere agli aventi diritto ${urgente ? 'a titolo provvisorio è stabilita in via d\'urgenza, ai sensi dell\'art. 22 del D.P.R. 327/2001,' : 'è stata determinata ai sensi degli artt. 20 e 22-bis del D.P.R. 327/2001 ed è'} {{#haEspr}}per l'esproprio dei beni immobili complessivamente pari ad euro {{tot.espr}}{{/haEspr}}{{#haServ}}, per la servitù dei beni immobili complessivamente pari ad euro {{tot.serv}}{{/haServ}}{{#haOcc}} e per l'occupazione temporanea dei beni immobili complessivamente pari ad euro {{tot.occ}}{{/haOcc}}, quindi per un totale pari ad euro **{{tot.tot}}** (diconsì euro {{tot.lettere}});
+- il presente atto è registrato presso il competente ufficio dell'Agenzia delle Entrate e trascritto presso la Conservatoria dei Registri Immobiliari a cura e spese di {{ente.beneficiario}} e sarà trasmesso entro cinque giorni dalla sua emanazione per la pubblicazione sul {{ente.bur}} ai sensi dell'art. 23 del D.P.R. 327/2001;
+- il presente provvedimento è altresì pubblicato all'Albo Pretorio di {{ente.nome}}.
+## AUTORIZZA
+i tecnici{{#ente.studio}} dello studio {{ente.studio}}{{#ente.sedeStudio}} con sede in {{ente.sedeStudio}}{{/ente.sedeStudio}} incaricato da {{ente.nome}}{{/ente.studio}}, muniti di valido documento di riconoscimento ed assieme al personale ausiliario che le operazioni comportano, ad occupare in modo congiunto o disgiunto le aree espropriate, asservite ed occupate sopra individuate, in esecuzione del presente decreto.
+` + (urgente ? `## INVITA
+gli espropriati, nei 30 (trenta) giorni successivi all'immissione in possesso, a comunicare a questo Ufficio, a mezzo di dichiarazione irrevocabile (mediante il modulo allegato), se condividono la determinazione dell'indennità provvisoria di espropriazione, rendendola definitiva;
+## AVVISA:
+- non sono accettate comunicazioni di condivisione dell'indennità parziali, condizionate o revocabili; in caso di comproprietari di beni indivisi sono accettate comunicazioni di condivisione pro quota;
+- ricevuta dall'espropriato la comunicazione di condivisione e la documentazione comprovante la piena e libera disponibilità del bene, sarà disposto il pagamento dell'indennità di espropriazione nel termine di sessanta giorni; se, invece, non sarà prodotta tempestiva comunicazione di condivisione dell'indennità ovvero, pur producendola, non sarà dichiarata l'assenza di diritti di terzi sul bene ovvero non sarà prodotta la documentazione attestante la piena e libera proprietà del bene, il corrispettivo verrà depositato presso il Ministero dell'Economia e delle Finanze, Ragioneria Territoriale dello Stato, servizio depositi amministrativi definitivi; in presenza di diritti od opposizioni di terzi, l'effettivo pagamento della somma depositata avrà luogo in conformità della pronuncia dell'autorità giudiziaria adita su domanda di chi vi abbia interesse; ai sensi dell'art. 26.3 TUES qualora il bene sia gravato da ipoteca, al fine di ottenere il pagamento, potrà essere presentata una dichiarazione del titolare di tale diritto, con firma autentica, che autorizza la riscossione della somma; nel caso in cui il bene risulti gravato da altri diritti reali, ovvero siano presentate opposizioni al pagamento delle indennità, il pagamento potrà comunque essere effettuato in presenza di un accordo sulle modalità di riscossione tra tutti gli aventi diritto;
+- i provvedimenti di pagamento o di deposito dell'indennità saranno assoggettati alle modalità, ai tempi e alle forme pubblicitarie previsti dall'art. 26 TUES;
+- in caso di mancata condivisione dell'indennità provvisoria contenuta nel presente provvedimento sarà effettuata una nuova determinazione dell'indennità ai sensi dell'art. 21 TUES da parte della competente Commissione Provinciale Espropri, senza oneri per l'espropriato, ovvero da parte di un collegio di tecnici composto da un tecnico designato dal proprietario, uno individuato dal beneficiario dell'esproprio ed uno nominato, su istanza di chi vi abbia interesse, dal Presidente del Tribunale Civile di {{ente.tribunale}}; le spese del collegio saranno poste a carico del proprietario se l'indennità determinata dallo stesso sarà inferiore alla somma determinata con il presente provvedimento, divise per metà tra il beneficiario dell'esproprio e l'espropriato se la differenza non supererà in aumento il decimo e, negli altri casi, poste a carico del beneficiario dell'esproprio; i tecnici incaricati comunicheranno agli interessati mediante lettera raccomandata con avviso di ricevimento (o con mezzo telematico) il luogo, la data e ora delle operazioni, almeno 7 gg. prima della data stabilita; la S.V. potrà assistere alle operazioni di stima, anche mediante persona di fiducia, formulare osservazioni e presentare memorie scritte;
+- se l'espropriato non condivide la determinazione dell'indennità di espropriazione contenuta nel presente provvedimento, entro il termine previsto per l'accettazione può chiedere la costituzione del collegio dei tecnici di cui al punto precedente indicando il nominativo del proprio tecnico; in assenza di tale istanza, la scrivente autorità espropriante provvederà a richiedere la determinazione dell'indennità alla Commissione Provinciale Espropri, che provvederà entro il termine di trenta giorni, e sarà data comunicazione della medesima determinazione all'espropriato, con avviso notificato con le forme degli atti processuali civili;
+` : `## AVVISA:
+- per le ditte la cui indennità è stata depositata, il pagamento della somma depositata avrà luogo con le modalità dell'art. 28 TUES; in presenza di diritti od opposizioni di terzi l'effettivo pagamento avrà luogo in conformità della pronuncia dell'autorità giudiziaria adita su domanda di chi vi abbia interesse;
+- i provvedimenti di pagamento o di deposito dell'indennità sono assoggettati alle modalità, ai tempi e alle forme pubblicitarie previsti dall'art. 26 TUES;
+`) + `- ai sensi dell'art. 23.4 TUES le operazioni di trascrizione e di voltura nel catasto e nei libri censuari del presente provvedimento avranno luogo senza indugio a cura e a spese del beneficiario dell'esproprio e, ai sensi dell'art. 25.3 TUES, una volta trascritto il presente decreto, tutti i diritti di terzi relativi agli immobili espropriati potranno essere fatti valere esclusivamente sull'indennità;
+- ai sensi degli articoli 23.1 lett. h) e 24 TUES il presente decreto sarà eseguito mediante immissione in possesso delle aree interessate entro il termine perentorio di due anni; in calce al presente provvedimento sarà indicata la data dell'avvenuta immissione in possesso e verrà trasmessa copia del relativo verbale all'Ufficio per i Registri Immobiliari, per l'annotazione; dell'avvenuta immissione in possesso sarà inoltre data comunicazione all'ufficio competente alla tenuta degli atti delle procedure espropriative ai sensi degli articoli 24.6 e 14 del TUES;
+- ai sensi dell'art. 23.1 lett. g) TUES il presente decreto sarà notificato ai proprietari nelle forme degli atti processuali civili, con un avviso contenente l'indicazione del luogo, del giorno e dell'ora in cui è prevista la sua esecuzione mediante immissione in possesso, almeno sette giorni prima di essa;
+## INFORMA che
+- sarà proponibile l'opposizione del terzo entro i trenta giorni successivi alla pubblicazione dell'estratto del presente provvedimento nella Gazzetta Ufficiale della Repubblica o nel Bollettino Ufficiale della Regione nel cui territorio si trova il bene e, decorso tale termine in assenza di impugnazioni, anche per il terzo l'indennità resterà fissata nella somma depositata;
+- la proposizione di eventuali ricorsi da parte dei possessori dei diritti reali sui beni oggetto di esproprio potrà avvenire entro il termine di 30 gg. decorrenti dalla pubblicazione del decreto;
+- avverso il presente decreto di esproprio la ditta espropriata potrà presentare ricorso al T.A.R. {{ente.tar}} entro 60 giorni dalla notifica dello stesso oppure ricorso straordinario al Capo dello Stato entro 120 giorni dalla medesima notifica;
+- ai sensi dell'art. 35 TUES, sull'indennità relativa ad aree ricadenti nelle zone omogenee A, B, C e D sarà operata, nei confronti dei soggetti che non esercitano un'impresa commerciale, la ritenuta del 20% a titolo d'imposta, con facoltà di opzione per la tassazione ordinaria;
+- ai sensi del Regolamento UE 2016/679 (GDPR) si informa la ditta proprietaria che il trattamento dei dati personali forniti o comunque acquisiti è finalizzato alla redazione del presente atto, alla sua registrazione, trascrizione e voltura, ed avverrà presso {{ente.nome}} e l'Agenzia delle Entrate, con l'utilizzo di procedure anche informatiche, nei modi e nei limiti necessari per perseguire le predette finalità; il conferimento dei dati è obbligatorio; agli interessati sono riconosciuti i diritti di accesso, rettifica, aggiornamento e cancellazione dei dati e di opposizione al trattamento per motivi legittimi; il titolare del trattamento è {{ente.nome}}{{#ente.responsabile}} e il responsabile cui rivolgersi per l'esercizio dei diritti è {{ente.responsabile}}{{/ente.responsabile}}.
+## RICHIEDE
+la registrazione del presente provvedimento con l'applicazione delle imposte di registro, ipotecaria e catastale, ai sensi delle vigenti disposizioni di legge.
+## ATTESTA
+ai sensi e per gli effetti di cui all'art. 24.5 del D.P.R. n. 327 dell'08.06.2001, che il presente decreto di espropriazione sarà eseguito, previa sua notificazione, ai sensi dell'art. 23.1 lett. h) TUES, in data {{#dataImmissione}}{{dataImmissione}}{{/dataImmissione}}{{^dataImmissione}}________________{{/dataImmissione}} mediante immissione nel possesso, con la redazione del verbale di cui all'art. 24 del medesimo Testo Unico.
+{{luogo}}, {{oggi}}
+[[firma {{ente.ruolo}}|{{ente.responsabile}}]]
+Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.
+[[salto]]
+## {{ente.nome}}{{#ente.provincia}} – Provincia di {{ente.provincia}}{{/ente.provincia}}
+# CERTIFICATO DI PUBBLICAZIONE
+Atto di DECRETO {{ente.ruoloDel}} n. ______ del ____________, avente ad oggetto DECRETO DI ESPROPRIO RELATIVO AI LAVORI DI {{pratica.oggettoMaiuscolo}}{{#pratica.cup}}. CUP {{pratica.cup}}{{/pratica.cup}}., pubblicato all'Albo Pretorio di questo Ente dal ____________ per giorni 15 consecutivi ai sensi dell'art. 124 comma 1 D.Lgs. 267/2000 e dell'art. 32 comma 1 L. 69/2009.
+{{luogo}}, ____________
+[[firma L'addetto alla pubblicazione|]]
+Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.`;
+  }
+
   ES.modelli.INTEGRATI = {
     avvio_11_16: {
       nome: 'Avviso di avvio del procedimento – vincolo e dichiarazione di pubblica utilità', art: 'artt. 11 e 16', ambito: 'intestatario', fase: 'Avvio',
@@ -152,71 +232,8 @@ Si allega copia del documento d'identità in corso di validità.
 [[firma {{nome}}|]]
 {{/ditta.intestatari}}`
     },
-    decreto_esproprio: {
-      nome: 'Decreto di esproprio, asservimento e occupazione (procedura accelerata)', art: 'artt. 22 e 23', ambito: 'pratica', fase: 'Decreto',
-      testo: `# DECRETO DI ESPROPRIO
-## {{pratica.oggetto}}{{#pratica.cup}} – CUP {{pratica.cup}}{{/pratica.cup}}
-Decreto n. ______ del ____________  Rep. n. ______
-
-## {{ente.ruolo}}
-**PREMESSO che:**
-- con {{atti.avvio16.testo}} è stato comunicato alle ditte proprietarie risultanti dagli atti catastali l'avvio del procedimento ai sensi dell'art. 16 del D.P.R. 327/2001 (TUES);
-- con {{atti.dpu.testo}}{{#dati.progetto}} ({{dati.progetto}}){{/dati.progetto}} è stato approvato il progetto dell'opera con effetto di dichiarazione di pubblica utilità, che ha durata di anni cinque, e il presente decreto è emanato tempestivamente ai sensi dell'art. 23, comma 1, lettera a), del TUES;
-- con {{atti.com17.testo}} è stata data notizia ai proprietari, ai sensi dell'art. 17 TUES, dell'efficacia dell'atto che ha dichiarato la pubblica utilità;
-- trattandosi di espropriazione per causa di pubblica utilità il presente provvedimento è esente dall'imposta di bollo ai sensi dell'art. 22 della Tabella B del D.P.R. 642/1972;
-{{#atti.frazionamento.estremi}}- visti i tipi di frazionamento {{atti.frazionamento.testo}} approvati dall'Agenzia delle Entrate – Ufficio provinciale – Territorio;
-{{/atti.frazionamento.estremi}}- ai sensi dell'art. 22 TUES il decreto di esproprio può essere emanato ed eseguito in base alla determinazione urgente dell'indennità di espropriazione, senza particolari indagini o formalità, sussistendo i presupposti di cui al medesimo art. 22, commi 1 e 2, per le seguenti ragioni di urgenza: {{pratica.urgenza}};
-**ATTESO che** sono configurate le condizioni previste dall'art. 8 TUES per procedere al trasferimento del diritto e in particolare: a) è stato apposto il vincolo preordinato all'esproprio ({{atti.vincolo.testo}}); b) è stata dichiarata la pubblica utilità, il cui termine di durata è tuttora in corso; c) viene in questa sede determinata l'indennità di esproprio;
-{{#dati.premesse}}{{dati.premesseElenco}}
-{{/dati.premesse}}{{#dati.visti}}**VISTI:**
-{{dati.vistiElenco}}
-{{/dati.visti}}## DECRETA
-{{#haEspr}}
-- l'espropriazione a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, con sede in {{ente.sedeBeneficiario}}, dei beni immobili di seguito individuati, disponendo il passaggio a favore dello stesso del diritto di proprietà, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
-{{#unEspr}}
-**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comune}} – Fg. {{fg}} Mapp. {{mappaleEspr}}, {{qualcls}} di mq {{sup}}, R.D. {{rd}} – R.A. {{ra}}, con superficie di esproprio pari a mq {{espr}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}; {{/intestatari}}per un'indennità di esproprio complessiva di **{{indEspr}}** (diconsi euro {{indEsprLettere}});
-{{/unEspr}}
-{{/haEspr}}
-{{#haServ}}
-- la costituzione di una servitù a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, sui beni immobili di seguito individuati, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
-{{#unServ}}
-**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comune}} – Fg. {{fg}} Mapp. {{mappaleServ}}, {{qualcls}} di mq {{sup}}, R.D. {{rd}} – R.A. {{ra}}, con superficie di servitù pari a mq {{servTot}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}; {{/intestatari}}per un'indennità di asservimento complessiva di **{{indServ}}** (diconsi euro {{indServLettere}});
-{{/unServ}}
-{{/haServ}}
-{{#haOcc}}
-- l'occupazione temporanea a favore di **{{ente.beneficiario}}**, C.F. {{ente.cfBeneficiario}}, dei beni immobili di seguito individuati per la durata presunta di mesi {{mesiOcc}}, sotto la condizione sospensiva che il presente decreto sia successivamente notificato ed eseguito mediante l'immissione in possesso:
-{{#unOcc}}
-**Unità negoziale n° {{un}} – {{np}}:** {{#parts}}{{catasto}} Comune di {{comune}} – Fg. {{fg}} Mapp. {{mappaleOcc}}, {{qualcls}} di mq {{sup}}, R.D. {{rd}} – R.A. {{ra}}, con superficie di occupazione temporanea pari a mq {{occ}}; {{/parts}}di proprietà della ditta {{#intestatari}}{{anagrafica}} {{diritto}}; {{/intestatari}}per un'indennità di occupazione complessiva di **{{indOcc}}** (diconsi euro {{indOccLettere}});
-{{/unOcc}}
-{{/haOcc}}
-- si dà atto che l'indennità da corrispondere a titolo provvisorio agli aventi diritto è stabilita in via d'urgenza ai sensi dell'art. 22 del D.P.R. 327/2001: per l'esproprio complessivamente {{tot.espr}}, per la servitù complessivamente {{tot.serv}}, per l'occupazione temporanea complessivamente {{tot.occ}}, per un totale di **{{tot.tot}}** (diconsi euro {{tot.lettere}});
-- il presente atto è registrato presso il competente ufficio dell'Agenzia delle Entrate e trascritto presso il Servizio di Pubblicità Immobiliare a cura e spese del beneficiario e sarà trasmesso entro cinque giorni dalla sua emanazione per la pubblicazione per estratto sul {{ente.bur}} ai sensi dell'art. 23, comma 5, del D.P.R. 327/2001; il presente provvedimento è altresì pubblicato all'Albo Pretorio.
-## AUTORIZZA
-i tecnici incaricati{{#ente.studio}} dello studio {{ente.studio}}{{/ente.studio}}, muniti di valido documento di riconoscimento e assieme al personale ausiliario che le operazioni comportano, ad occupare in modo congiunto o disgiunto le aree espropriate, asservite ed occupate sopra individuate, in esecuzione del presente decreto.
-## INVITA
-gli espropriati, nei 30 (trenta) giorni successivi all'immissione in possesso, a comunicare a questo Ufficio, a mezzo di dichiarazione irrevocabile (mediante il modulo allegato), se condividono la determinazione dell'indennità provvisoria, rendendola definitiva.
-## AVVISA
-- non sono accettate comunicazioni di condivisione dell'indennità parziali, condizionate o revocabili; in caso di comproprietari di beni indivisi sono accettate comunicazioni di condivisione pro quota; in caso di condivisione, se trattasi di area edificabile, spetta la maggiorazione prevista dall'art. 37, comma 2;
-- ricevuta la comunicazione di condivisione e la documentazione comprovante la piena e libera disponibilità del bene, sarà disposto il pagamento dell'indennità nel termine di sessanta giorni; in mancanza, ovvero se non sarà dichiarata l'assenza di diritti di terzi o non sarà prodotta la documentazione attestante la piena e libera proprietà, l'indennità verrà depositata presso il Ministero dell'Economia e delle Finanze – Ragioneria Territoriale dello Stato, servizio depositi amministrativi definitivi; in presenza di diritti od opposizioni di terzi il pagamento della somma depositata avrà luogo in conformità alla pronuncia dell'autorità giudiziaria; ai sensi dell'art. 26, comma 3, TUES, qualora il bene sia gravato da ipoteca, potrà essere presentata una dichiarazione del titolare di tale diritto, con firma autenticata, che autorizza la riscossione della somma;
-- i provvedimenti di pagamento o di deposito saranno assoggettati alle modalità, ai tempi e alle forme pubblicitarie previsti dall'art. 26 TUES;
-- in caso di mancata condivisione sarà effettuata una nuova determinazione dell'indennità ai sensi dell'art. 21 TUES da parte della Commissione Provinciale Espropri, senza oneri per l'espropriato, ovvero da parte di un collegio di tecnici composto da un tecnico designato dal proprietario, uno individuato dal beneficiario ed uno nominato dal Presidente del Tribunale Civile di {{ente.tribunale}}; le spese del collegio saranno poste a carico del proprietario se l'indennità determinata sarà inferiore a quella del presente provvedimento, divise per metà se la differenza non supererà in aumento il decimo e, negli altri casi, a carico del beneficiario;
-- se l'espropriato non condivide l'indennità, entro il termine previsto per l'accettazione può chiedere la costituzione del collegio dei tecnici indicando il nominativo del proprio tecnico; in assenza di tale istanza, l'Autorità espropriante richiederà la determinazione alla Commissione Provinciale Espropri;
-- ai sensi dell'art. 23, comma 4, TUES le operazioni di trascrizione e di voltura avranno luogo senza indugio a cura e a spese del beneficiario e, ai sensi dell'art. 25, comma 3, una volta trascritto il decreto, tutti i diritti di terzi relativi agli immobili potranno essere fatti valere esclusivamente sull'indennità;
-- ai sensi degli artt. 23, comma 1, lett. h) e 24 TUES il presente decreto sarà eseguito mediante immissione in possesso entro il termine perentorio di due anni; dell'avvenuta immissione sarà data comunicazione ai sensi degli artt. 24, comma 6, e 14 TUES;
-- ai sensi dell'art. 23, comma 1, lett. g) TUES il presente decreto sarà notificato ai proprietari nelle forme degli atti processuali civili, con un avviso contenente l'indicazione del luogo, del giorno e dell'ora in cui è prevista la sua esecuzione, almeno sette giorni prima di essa.
-## INFORMA che
-- sarà proponibile l'opposizione del terzo entro i trenta giorni successivi alla pubblicazione dell'estratto del presente provvedimento; decorso tale termine in assenza di impugnazioni, anche per il terzo l'indennità resterà fissata nella somma depositata;
-- ai sensi dell'art. 35 TUES, sull'indennità relativa ad aree ricadenti nelle zone omogenee A, B, C e D sarà operata, nei confronti dei soggetti che non esercitano un'impresa commerciale, la ritenuta del 20% a titolo d'imposta, con facoltà di opzione per la tassazione ordinaria;
-- avverso il presente decreto può essere proposto ricorso al T.A.R. {{ente.tar}} entro 60 giorni dalla notifica oppure ricorso straordinario al Capo dello Stato entro 120 giorni, ferma la giurisdizione del giudice ordinario per le controversie sulla determinazione e corresponsione delle indennità;
-- il trattamento dei dati personali avviene ai sensi del Regolamento UE 2016/679 per le sole finalità del presente procedimento; titolare del trattamento è {{ente.nome}}.
-## RICHIEDE
-la registrazione del presente provvedimento con l'applicazione delle imposte di registro, ipotecaria e catastale ai sensi delle vigenti disposizioni di legge.
-{{luogo}}, {{oggi}}
-[[firma {{ente.ruolo}}|{{ente.responsabile}}]]
-## ATTESTA
-ai sensi dell'art. 24, comma 5, del D.P.R. 327/2001, che il presente decreto è stato eseguito, previa notificazione, in data ________________ mediante immissione nel possesso, con la redazione del verbale di cui all'art. 24 del medesimo Testo Unico.
-[[firma {{ente.ruolo}}|{{ente.responsabile}}]]`
-    },
+    decreto_esproprio: { nome: 'Decreto di esproprio con determinazione urgente dell\'indennità (art. 22)', art: 'artt. 22 e 23', ambito: 'pratica', fase: 'Decreto', testo: decreto(true) },
+    decreto_23: { nome: 'Decreto di esproprio dopo pagamento o deposito dell\'indennità (artt. 20, 22-bis, 23)', art: 'artt. 20, 22-bis, 23, 26', ambito: 'pratica', fase: 'Decreto', testo: decreto(false) },
     decreto_22bis: {
       nome: 'Decreto di occupazione d\'urgenza preordinata all\'esproprio', art: 'art. 22-bis', ambito: 'pratica', fase: 'Decreto',
       testo: `# DECRETO DI OCCUPAZIONE D'URGENZA

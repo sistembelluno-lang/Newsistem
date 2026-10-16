@@ -30,6 +30,44 @@
   C.diritto = o => [o.titolo || '', o.quota || ''].filter(Boolean).join(' ').trim();
   C.indirizzo = o => [o.via, [o.cap, o.citta, o.prov ? '(' + o.prov + ')' : ''].filter(Boolean).join(' ')].filter(Boolean).join(', ');
 
+  // Controllo formale: carattere di controllo del codice fiscale (16 caratteri) o della partita IVA (11 cifre)
+  C.cfValido = cf => {
+    cf = String(cf || '').toUpperCase().replace(/\s/g, '');
+    if (/^\d{11}$/.test(cf)) {
+      let s = 0; for (let i = 0; i < 10; i++) { let n = +cf[i]; if (i % 2) { n *= 2; if (n > 9) n -= 9; } s += n; }
+      return (10 - s % 10) % 10 === +cf[10];
+    }
+    if (!/^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-EHLMPRST][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/.test(cf)) return false;
+    const DISP = [1, 0, 5, 7, 9, 13, 15, 17, 19, 21, 2, 4, 18, 20, 11, 3, 6, 8, 12, 14, 16, 10, 22, 25, 24, 23];
+    let s = 0;
+    for (let i = 0; i < 15; i++) {
+      const c = cf[i], v = /\d/.test(c) ? +c : c.charCodeAt(0) - 65;
+      s += i % 2 ? v : DISP[v];
+    }
+    return String.fromCharCode(65 + s % 26) === cf[15];
+  };
+
+  // Controlli di una ditta: dati mancanti o incoerenti da completare a mano.
+  // livello: 'errore' (da correggere), 'manca' (da completare), 'info'
+  C.controlli = (d, parts) => {
+    const L = [], I = d.intest || [];
+    if (!I.length) L.push({ livello: 'errore', msg: 'Nessun intestatario' });
+    I.forEach(o => {
+      const nome = o.nome || '(senza nome)';
+      if (!o.nome) L.push({ livello: 'errore', msg: 'Intestatario senza nome' });
+      if (!o.cf) L.push({ livello: 'manca', msg: `Manca il codice fiscale di ${nome}`, campo: 'cf', o });
+      else if (!C.cfValido(o.cf)) L.push({ livello: 'errore', msg: `Codice fiscale non valido per ${nome}: ${o.cf}`, campo: 'cf', o });
+      if (!o.via && !o.pec) L.push({ livello: 'info', msg: `Manca l'indirizzo di ${nome} (serve per le lettere)`, campo: 'via', o });
+      if (!o.titolo && !o.quota) L.push({ livello: 'info', msg: `Manca il diritto e la quota di ${nome}` });
+    });
+    // Le quote dello stesso diritto devono sommare a 1 (proprietà; nuda proprietà e usufrutto si contano a parte)
+    const gruppi = {};
+    I.forEach(o => { if (!o.quota) return; const t = /nuda/i.test(o.titolo) ? 'nuda proprietà' : /usufr/i.test(o.titolo) ? 'usufrutto' : /propr/i.test(o.titolo) || !o.titolo ? 'proprietà' : null; if (t) gruppi[t] = (gruppi[t] || 0) + U.quota(o.quota); });
+    Object.entries(gruppi).forEach(([t, q]) => { if (Math.abs(q - 1) > 1e-6) L.push({ livello: 'errore', msg: `Le quote di ${t} sommano a ${Math.round(q * 1e4) / 1e4} invece di 1` }); });
+    if (parts && !parts.length) L.push({ livello: 'errore', msg: 'Ditta senza particelle' });
+    return L;
+  };
+
   // ---- Intestatari da testo libero ----
   const reTit = /(nuda\s+propriet\w*'?|propriet\w*'?\s*superficiaria|propriet\w*'?|usufrutt\w*(?:\s+parziale)?|comproprie\w*|enfiteu\w*|livell\w*|diritto\s+del\s+concedente|diritto\s+di\s+superficie|superficie|uso|abitazione|oneri|servit\w*|concedente)(?:\s*:)?(?:\s+per)?\s*(\d+\s*\/\s*\d+)?/i;
   const inizioRiga = /^(nat[oa]|n\.|c\.?\s?f|cod|con\s+sede|sede|residente|res\.|via\b|propriet|nuda|usufrutt|compropr|enfiteu|livell|diritto|quota|\d+\s*\/\s*\d+)/i;
@@ -208,8 +246,10 @@
       const dest = p ? p.intest : (nd ? (ownersOf.get(nd) || ownersOf.set(nd, []).get(nd)) : null);
       if (!dest) { avvisi.push(`Riga ${mp.riga + ir + 2}: intestatario senza particella né numero di ditta, ignorato`); return; }
       L.forEach(o => {
-        const k = (o.cf || U.norm(o.nome));
-        const g = dest.find(x => (x.cf || U.norm(x.nome)) === k);
+        // Stessa persona con diritti o quote diversi (es. usufrutto 1/2 e nuda proprietà 1/2) resta su due righe
+        const chiave = x => (x.cf || U.norm(x.nome)) + '~' + U.norm(x.titolo) + '~' + String(x.quota || '').replace(/\s/g, '');
+        const k = chiave(o);
+        const g = dest.find(x => chiave(x) === k);
         if (g) Object.keys(o).forEach(f => { if (o[f] && !g[f]) g[f] = o[f]; }); else dest.push(o);
       });
       if (p && nd) ditteN.set(nd, true);
