@@ -180,6 +180,21 @@
     return { comune: geo.comune || nuovo.comune || '', origine: geo.origine || nuovo.origine, scala: geo.scala || nuovo.scala, part: geo.part.concat(nuovo.part), pezzi: geo.pezzi.concat(nuovo.pezzi), sfondo: geo.sfondo.concat(nuovo.sfondo), etich: geo.etich.concat(nuovo.etich), bbox, avvisi: nuovo.avvisi };
   };
 
+  // Fogli dal piano particellare: un'area o particella del disegno con un mappale che nel piano c'è una sola volta,
+  // ma su un altro foglio (foglio non scritto nel disegno, o dedotto dalla scritta più vicina), prende quel foglio.
+  A.fogliDalPiano = (geo, particelle) => {
+    if (!geo || !(particelle || []).length) return 0;
+    const chiavi = new Set(particelle.map(x => A.chiave(x.fg, x.map, x.sub))), perMap = new Map();
+    particelle.forEach(x => { const m = nk(x.map) + '|' + nk(x.sub); perMap.set(m, perMap.has(m) && perMap.get(m) !== x.fg ? null : x.fg); });
+    let n = 0;
+    (geo.part || []).concat(geo.pezzi || []).forEach(z => {
+      if (!z.map || chiavi.has(z.k)) return;
+      const fg = perMap.get(nk(z.map) + '|' + nk(z.sub));
+      if (fg && fg !== z.fg) { z.fg = fg; z.k = A.chiave(fg, z.map, z.sub); n++; }
+    });
+    return n;
+  };
+
   // Cambia la scala del disegno (scala del PDF sbagliata, DXF in millimetri o centimetri, taratura su una misura):
   // tutte le coordinate × f, le superfici × f². Le superfici inserite a mano nelle particelle non cambiano.
   A.scalaGeo = (geo, f) => {
@@ -214,6 +229,21 @@
       o[t] = m != null && m !== '' ? U.num(m) : s ? Math.round(s[t] * f) : 0;
     });
     o.graf = s ? s.graf : 0; o.fatt = f; o.disegno = !!s;
+    // Aree d'intervento più grandi della superficie catastale (errori della mappa): decide l'operatore.
+    // p.limite = 'catasto' → le superfici dal disegno si riducono in proporzione fino alla superficie catastale;
+    // p.limite = 'disegno' → si tiene la misura (nessuna segnalazione); vuoto → segnalato tra i problemi.
+    const tot = A.TIPI.reduce((x, t) => x + o[t], 0), sup = U.num(p.sup);
+    o.eccede = sup > 0 && tot > sup + 0.5 ? tot - sup : 0;
+    if (o.eccede && p.limite === 'catasto') {
+      const auto = A.TIPI.filter(t => !(p.man && p.man[t] != null && p.man[t] !== '') && o[t] > 0), sa = auto.reduce((x, t) => x + o[t], 0);
+      if (sa > 0) {
+        const fisso = tot - sa, k = Math.max(0, sup - fisso) / sa;
+        auto.forEach(t => { o[t] = Math.round(o[t] * k); });
+        const diff = Math.max(0, sup - fisso) - auto.reduce((x, t) => x + o[t], 0), big = auto.slice().sort((a, b) => o[b] - o[a])[0];
+        if (big) o[big] += Math.round(diff);
+        o.ridotto = tot;
+      }
+    }
     return o;
   };
 

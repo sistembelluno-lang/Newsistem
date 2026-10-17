@@ -1,7 +1,7 @@
 {
   "name": "controllo-lavori",
   "productName": "CONTROLLO_SISTEM",
-  "version": "1.14.0",
+  "version": "1.15.0",
   "description": "CONTROLLO_SISTEM: gestionale lavori",
   "main": "main.js",
   "author": "sistembelluno",
@@ -59,9 +59,11 @@
     }
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "electron": "^44.5.1",
     "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^3.11.174",
     "polygon-clipping": "^0.15.7",

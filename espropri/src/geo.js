@@ -36,9 +36,13 @@
 
   // Operazioni booleane robuste; con geometrie vuote non si chiama la libreria
   const vuoto = M => !M || !M.length;
-  G.unione = list => { list = list.filter(m => !vuoto(m)); if (!list.length) return []; if (list.length === 1) return list[0]; return PC().union(...list); };
-  G.intersezione = (a, b) => (vuoto(a) || vuoto(b) ? [] : PC().intersection(a, b));
-  G.differenza = (a, ...b) => { b = b.filter(m => !vuoto(m)); if (vuoto(a)) return []; if (!b.length) return a; return PC().difference(a, ...b); };
+  // Le operazioni della libreria possono fallire su geometrie degeneri (PDF con migliaia di pezzetti): si riprova con le
+  // coordinate arrotondate al millimetro; se fallisce ancora si restituisce un risultato prudente invece di bloccarsi.
+  const arr = M => M.map(P => P.map(r => r.map(q => [Math.round(q[0] * 1000) / 1000, Math.round(q[1] * 1000) / 1000])));
+  const sicuro = (f, args, ripiego) => { try { return f(...args); } catch (e) { try { return f(...args.map(arr)); } catch (e2) { return ripiego(); } } };
+  G.unione = list => { list = list.filter(m => !vuoto(m)); if (!list.length) return []; if (list.length === 1) return list[0]; return sicuro((...L) => PC().union(...L), list, () => [].concat(...list)); };
+  G.intersezione = (a, b) => (vuoto(a) || vuoto(b) ? [] : sicuro((x, y) => PC().intersection(x, y), [a, b], () => []));
+  G.differenza = (a, ...b) => { b = b.filter(m => !vuoto(m)); if (vuoto(a)) return []; if (!b.length) return a; return sicuro((x, ...y) => PC().difference(x, ...y), [a, ...b], () => a); };
 
   // Punto interno dove scrivere l'etichetta: il baricentro se cade dentro, altrimenti il centro del tratto interno più largo
   G.puntoEtichetta = P => {

@@ -189,7 +189,7 @@
     const T = pagina.testi, poli = pagina.poli.map(p => ({ p, b: bbox(p.pts) }));
     const ancora = T.find(t => /^\s*legend[ae]?\s*:?\s*$/i.test(t.t));
     const vicino = t => !ancora || (t.y <= ancora.y + ancora.h * 2 && ancora.y - t.y < pagina.h * 0.75 && Math.abs(t.x - ancora.x) < pagina.w * 0.25);
-    let cand = T.filter(t => t.t.length >= 3 && /[a-z]{3}/i.test(t.t) && vicino(t));
+    let cand = T.filter(t => t.t.length >= 3 && /[a-z]{3}/i.test(t.t) && vicino(t) && Math.abs(t.rot || 0) < 3);
     if (!ancora) {
       // senza la scritta LEGENDA: le righe con una parola chiave e quelle allineate subito sopra o sotto;
       // se non ce ne sono (es. legenda con i nomi delle ditte) si provano tutte le righe con un simbolo a sinistra
@@ -213,6 +213,11 @@
       const piu = L => { const c = {}; L.forEach(o => { c[o.p.colore] = (c[o.p.colore] || 0) + 1; }); return Object.keys(c).sort((x, y) => c[y] - c[x])[0]; };
       const tratt = sT.length >= 3 ? piu(sT) : null;
       if (!fill && !tratt) return;
+      // un simbolo di legenda è un riquadro pieno, non un pezzo di linea del disegno che passa vicino alla scritta
+      if (fill && !tratt) {
+        const pz = vic.filter(o => o.p.area && o.p.colore === fill), aTot = pz.reduce((s2, o) => s2 + Math.abs(ES.geo.areaAnello(o.p.pts)), 0), w = fb[2] - fb[0], hh = fb[3] - fb[1];
+        if (w < h * 1.2 || hh < h * 0.5 || aTot < w * hh * 0.55) return;
+      }
       const oc = (fill ? vic.find(o => o.p.area && o.p.colore === fill) : sT.find(o => o.p.colore === tratt)).p.oc;
       const simbolo = fill ? { tipo: 'area', colore: fill, tratt, oc } : { tipo: 'tratteggio', colore: tratt, tratt: null, oc };
       const sb = fb || sT.reduce((z, o) => [Math.min(z[0], o.b[0]), Math.min(z[1], o.b[1]), Math.max(z[2], o.b[2]), Math.max(z[3], o.b[3])], [Infinity, Infinity, -Infinity, -Infinity]);
@@ -237,6 +242,7 @@
     voci.forEach(v => { v.testo = v.righe.sort((a, b) => b[0] - a[0]).map(r => r[1]).join(' ').replace(/\s+/g, ' ').trim(); v.ruolo = P.ruoloTesto(v.testo); delete v.righe; });
     // I simboli di una legenda stanno in colonna: si scartano le «voci» lontane dalla colonna (scritte del disegno sopra un'area colorata)
     const xs = (voci.some(v => v.ruolo) ? voci.filter(v => v.ruolo) : voci).map(v => v.sb[0]).sort((a, b) => a - b);
+    if (!voci.some(v => v.ruolo) && (voci.length < 2 || new Set(voci.map(v => v.testo)).size < voci.length)) voci.length = 0; // scritte del disegno, non una legenda
     if (xs.length >= 2) { const xm = xs[Math.floor(xs.length / 2)], hm = Math.max(...voci.map(v => v.sb[3] - v.sb[1])); for (let i = voci.length - 1; i >= 0; i--) if (Math.abs(voci[i].sb[0] - xm) > Math.max(hm, 4)) voci.splice(i, 1); }
     // Zona occupata dalla legenda (da escludere quando si cercano le aree nel disegno)
     const zl = voci.length ? voci.reduce((z, v) => [Math.min(z[0], v.zona[0]), Math.min(z[1], v.zona[1]), Math.max(z[2], v.zona[2]), Math.max(z[3], v.zona[3])], [Infinity, Infinity, -Infinity, -Infinity]) : null;
@@ -263,11 +269,20 @@
       const ruota = (x, y) => [x * c - y * sn, x * sn + y * c];
       // ogni linea vale una striscia larga un passo: nei tratteggi CAD la prima e l'ultima linea cadono in media
       // a mezzo passo dal contorno, quindi le strisce ricompongono la figura senza errore sistematico
-      const strisce = R.map(r => [[ruota(r.x1, r.y - passo / 2), ruota(r.x2, r.y - passo / 2), ruota(r.x2, r.y + passo / 2), ruota(r.x1, r.y + passo / 2)]]);
+      const mz = passo * 0.52; // un filo più di mezzo passo: le strisce vicine si sovrappongono e non lasciano fessure
+      const strisce = R.map(r => [[ruota(r.x1, r.y - mz), ruota(r.x2, r.y - mz), ruota(r.x2, r.y + mz), ruota(r.x1, r.y + mz)]]);
       // unione a blocchi per non appesantire la libreria
+      // (coordinate arrotondate e, se la libreria non regge una geometria degenere, unione a gruppi più piccoli)
+      const r3 = v => Math.round(v * 1000) / 1000;
+      const S2 = strisce.map(P2 => P2.map(r => r.map(q => [r3(q[0]), r3(q[1])])));
       let acc = [];
-      for (let i = 0; i < strisce.length; i += 150) acc = G.unione([acc, ...strisce.slice(i, i + 150).map(p => [p])].filter(x => x.length));
-      acc.forEach(P2 => out.push({ poly: P2, passo }));
+      const unisciA = (L, n) => { let a = acc; for (let i = 0; i < L.length; i += n) a = G.unione([a, ...L.slice(i, i + n).map(p => [p])].filter(x => x.length)); return a; };
+      try { acc = unisciA(S2, 150); } catch (e) {
+        acc = [];
+        for (let i = 0; i < S2.length; i += 20) { const blocco = S2.slice(i, i + 20); try { acc = G.unione([acc, ...blocco.map(p => [p])].filter(x => x.length)); } catch (e2) { blocco.forEach(p => { try { acc = G.unione([acc, [p]].filter(x => x.length)); } catch (e3) { /* striscia scartata */ } }); } }
+      }
+      // fessure tra le strisce (buchi minuscoli): fanno parte dell'area
+      acc.forEach(P2 => out.push({ poly: [P2[0], ...P2.slice(1).filter(h => Math.abs(G.areaAnello(h)) > passo * passo * 3)], passo }));
     });
     return out;
   };
@@ -424,7 +439,9 @@
     const G = ES.geo, k = PT_MM * (scala || 1000) / 1000;
     const leg = P.legenda(pagina), avvisi = [];
     // opt.colori: {colore: ruolo} per le aree colorate che la legenda non spiega (scelte dall'utente)
-    const voci = (opt.voci || leg.voci).concat(Object.keys(opt.colori || {}).filter(c => opt.colori[c]).map(c => ({ testo: 'Aree ' + P.nomeColore(c) + ' ' + c, ruolo: opt.colori[c], simbolo: { tipo: 'area', colore: c, tratt: null } })));
+    const voci = (opt.voci || leg.voci).concat(Object.keys(opt.colori || {}).filter(c => opt.colori[c]).map(c => /^t:/.test(c)
+      ? { testo: 'Tratteggio ' + P.nomeColore(c.slice(2)) + ' ' + c.slice(2), ruolo: opt.colori[c], simbolo: { tipo: 'tratteggio', colore: c.slice(2), tratt: null } }
+      : { testo: 'Aree ' + P.nomeColore(c) + ' ' + c, ruolo: opt.colori[c], simbolo: { tipo: 'area', colore: c, tratt: null } }));
     const fuoriLegenda = p => !leg.zona || !dentro(bbox(p.pts), [leg.zona[0] - 2, leg.zona[1] - 2, leg.zona[2] + 2, leg.zona[3] + 2]);
     // Vista del disegno: la finestra di ritaglio più grande che non sia la pagina intera
     const fin = P.vista(pagina);
@@ -495,7 +512,6 @@
         const n = numeri.find(nn => G.inAnello(nn.x, nn.y, reg.pts)); if (n) parti.push({ pts: reg.pts, t: n.t, a: Math.abs(G.areaAnello(reg.pts)) });
       });
       parti.forEach(q => metti('Particelle: ricostruite dalla mappa', q.pts, true));
-      ocr.forEach(n => out.testi.push({ layer: 'numeri letti (OCR)', t: n.t, x: n.x * k, y: n.y * k, h: (n.h || 2) * k, rot: 0 }));
       avvisi.push(parti.length ? `Mappa catastale a immagine: ${parti.length} particelle ricostruite seguendo le linee della mappa da ogni numero${ocr.length ? ' (' + ocr.length + ' numeri letti con l\'OCR, da verificare)' : ''}`
         : 'Mappa catastale a immagine: i numeri delle particelle non sono testo. Usa «Leggi i numeri dalla mappa (OCR)» per farli riconoscere');
     } else if (perLivello.length) perLivello.forEach(p => metti('Particelle: ' + p.oc, p.pts, p.chiusa));
@@ -514,6 +530,8 @@
         avvisi.push('Il PDF non ha i livelli CAD: i confini delle particelle sono ricavati dalle linee scure del disegno');
       }
     }
+    // numeri letti con l'OCR: testi come gli altri (danno il numero alle particelle, ricostruite o dalle linee)
+    ocr.forEach(n => out.testi.push({ layer: 'numeri letti (OCR)', t: n.t, x: n.x * k, y: n.y * k, h: (n.h || 2) * k, rot: 0 }));
     // Le particelle tagliate dal bordo della vista si chiudono con la cornice della vista
     if (fin && out.poli.some(p => /^Particelle: /.test(p.layer))) {
       // I confini spesso si fermano poco prima della cornice: si prolungano i capi liberi fino al bordo
@@ -583,11 +601,14 @@
     // Foglio della scritta più vicina (solo se le scritte ci sono)
     const fgDa = fogli.length ? (x, y) => (f => f.fg + (f.sez ? ' sez. ' + f.sez : ''))(fogli.reduce((b, f) => { const d = Math.hypot(f.x - x, f.y - y); return !b || d < b.d ? { d, f } : b; }, null).f) : null;
     // Aree colorate del disegno che la legenda non spiega (es. colore per ditta): l'utente può dire cosa sono
-    const spiegati = new Set(voci.map(v => v.simbolo.colore));
-    const sconosciuti = {};
-    pagina.poli.forEach(p => { if (p.area && !scuro(p.colore) && !/^#(f{6}|fafafa)$/.test(p.colore) && !spiegati.has(p.colore) && nelDisegno(p)) { const b = bbox(p.pts); sconosciuti[p.colore] = (sconosciuti[p.colore] || 0) + (b[2] - b[0]) * (b[3] - b[1]); } });
-    const altri = Object.keys(sconosciuti).filter(c => sconosciuti[c] * k * k > 1).sort((a, b) => sconosciuti[b] - sconosciuti[a]);
-    return { dxf: out, ruoli, legenda: leg, avvisi, nomi: NOMI, fogli, fgDa, altri };
+    // Riempimenti e tratteggi colorati che la legenda non spiega: l'utente dice cosa sono (proposta dal nome del livello CAD)
+    const spiegati = new Set(voci.map(v => (v.simbolo.tipo === 'tratteggio' ? 't:' : '') + v.simbolo.colore));
+    const sconosciuti = {}, livello = {};
+    pagina.poli.forEach(p => { if (p.area && !scuro(p.colore) && !/^#(f{6}|fafafa)$/.test(p.colore) && !spiegati.has(p.colore) && nelDisegno(p)) { const b = bbox(p.pts); sconosciuti[p.colore] = (sconosciuti[p.colore] || 0) + (b[2] - b[0]) * (b[3] - b[1]); livello[p.colore] = p.oc; } });
+    const trConta = {}; seg2.forEach((p, i) => { if (trSet.has(i) && !scuro(p.colore)) { const c = 't:' + p.colore; if (!spiegati.has(c)) { trConta[c] = (trConta[c] || 0) + 1; livello[c] = p.oc; } } });
+    const altri = Object.keys(sconosciuti).filter(c => sconosciuti[c] * k * k > 1).sort((a, b) => sconosciuti[b] - sconosciuti[a]).concat(Object.keys(trConta).filter(c => trConta[c] >= 12));
+    const proposte = {}; altri.forEach(c => { const l = livello[c] || ''; const r = l && l !== '0' ? P.ruoloTesto(l.replace(/[_\-]+/g, ' ')) : null; if (r) proposte[c] = r; });
+    return { dxf: out, ruoli, legenda: leg, avvisi, nomi: NOMI, fogli, fgDa, altri, livelli: livello, proposte };
   };
 
   // Scala dalle superfici: confronta l'area grafica delle particelle lette a scala 1:1000 con la superficie catastale

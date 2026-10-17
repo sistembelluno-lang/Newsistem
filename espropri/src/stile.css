@@ -74,3 +74,5 @@ dialog::backdrop{background:rgba(0,0,0,.45)}#dlgb{max-height:72vh;overflow:auto}
 @media (max-width:820px){.ics{grid-template-columns:1fr}}
 .dnota{margin-top:6px;font-size:12.5px;background:rgba(168,107,0,.08);border-left:3px solid var(--wa);padding:4px 8px;border-radius:6px;white-space:pre-wrap}
 .dc-az{margin-top:8px;gap:6px}
+tr.clic{cursor:pointer}tr.clic:hover td{background:rgba(80,110,230,.07)}
+.ric-r h3{margin:14px 0 6px}.ric-r p{margin:6px 0;line-height:1.5}.ric-r sup a{text-decoration:none}.ric-f li{margin:6px 0}.ric-f blockquote{margin:4px 0 4px 12px;padding-left:8px;border-left:3px solid var(--bd);color:var(--mu,#667);font-size:.92em}

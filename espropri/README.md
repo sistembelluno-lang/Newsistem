@@ -39,6 +39,11 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    **Tavola grafica** in scala vera con cerchietti delle ditte e richiami alle particelle, quote e superfici, elenco
    ditte; **tagli mappale per mappale** allegati a convocazioni e stati di consistenza ([[tagli]]); «🗺️ Mostra aree»
    nella scheda della ditta.
+   **Novità 1.15**: schermata **⚠️ Problemi da risolvere** con il collegamento alla schermata dove si corregge (ed
+   export Excel); scelta per particella tra superficie catastale e misura quando le aree la superano (es. 210 su 200);
+   pagina **🔎 Ricerca sul web** (norme e sentenze con risposta di sintesi e fonti, tramite l'API di Claude con chiave
+   dell'ufficio); OCR dei numeri anche ruotati e solo delle scritte nere; colori e tratteggi senza legenda proposti dal
+   nome del livello CAD; foglio corretto dall'elenco ditte; aree della tavola PDF assegnabili con un clic.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
@@ -110,13 +115,14 @@ node scripts/build-espropri.js --demo prova.html   # versione di prova con dati 
 | `pdfvett.js` | lettura delle tavole PDF: legenda, simboli, aree, confini, scala, fogli |
 | `normativa.js` | scheda di sintesi della normativa |
 | `app.js`, `app2.js` | interfaccia |
+| `ricerca.js` | pagina «Ricerca sul web» (API di Claude con ricerca web) |
 
 Guida dei processi (percorsi, passi, termini, documenti) in `guida/Guida_Processi_Espropri.md` e `.html`: si genera dai
 dati del programma con `npm run build:espropri` (che produce anche `Normativa_Espropri.html`). A ogni release le due
 guide sono allegate in **PDF** e **HTML** (il PDF si stampa dalla pagina HTML durante la pubblicazione).
 
 Librerie incluse nella pagina: polygon-clipping 0.15.7 e pdf-lib 1.17.1 (licenza MIT), pdf.js 3.11.174 (Mozilla,
-licenza Apache-2.0) per leggere le tavole PDF, tesseract.js 6.0.1 (Apache-2.0) per l'OCR dei numeri delle mappe. Dati d'esempio fittizi in
+licenza Apache-2.0) per leggere le tavole PDF, tesseract.js 6.0.1 (Apache-2.0) per l'OCR dei numeri delle mappe, SDK Anthropic (MIT) per la ricerca sul web. Dati d'esempio fittizi in
 `espropri/esempi/` (`genera_esempio.py`).
 
 ## Libreria dei modelli (da convertire nelle prossime versioni)

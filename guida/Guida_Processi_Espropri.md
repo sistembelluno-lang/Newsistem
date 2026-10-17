@@ -1,6 +1,6 @@
 # ESPROPRI_SISTEM – Guida dei processi
 
-Versione 1.14.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
+Versione 1.15.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
 
 ## 1. Il lavoro in breve
 
@@ -190,8 +190,14 @@ Per ogni documento il programma produce il file generale (tutte le ditte) in `00
 - Si caricano le foto (con didascalia e particella) e la scansione PDF firmata: il programma crea il PDF finale con verbale firmato e pagine delle foto nella cartella della ditta.
 - La data del verbale di immissione fa partire i termini «dall'immissione» (condivisione dell'indennità negli artt. 22 e 22-bis).
 
+## 6-bis. Ricerca sul web
+
+- Per i casi difficili: una domanda in italiano (es. «cosa succede se la particella da espropriare è edificabile?»); il programma cerca in rete norme, sentenze e prassi e dà una risposta di sintesi con l'elenco delle fonti da aprire e verificare. Usa il servizio Claude di Anthropic con una chiave API dell'ufficio; non si inviano dati personali delle ditte. Non sostituisce il parere legale.
+
 ## 7. Controlli prima dell'invio
 
+- **⚠️ Problemi da risolvere**: tutto quello che il programma non ha capito o che manca (dati dell'ente, aree senza particella, particelle senza superfici o senza categoria di stima, codici fiscali, quote, indirizzi, termini scaduti), con il collegamento alla schermata dove si corregge; l'elenco si esporta in Excel.
+- **Area d'intervento più grande della superficie catastale** (es. 210 mq su una particella di 200 mq, per gli errori della mappa): il programma lo segnala e l'operatore sceglie, d'accordo con la committenza, se usare la superficie catastale (le superfici dal disegno si riducono in proporzione) o tenere la misura.
 - Banner dei controlli sulle ditte: codice fiscale mancante o errato, quote che non tornano o non indicate, indirizzo mancante.
 - Particelle del disegno non presenti nell'elenco ditte e particelle dell'elenco senza superfici: segnalate nella scheda Importa.
 - Scadenze: in rosso i termini scaduti, in arancio quelli entro 15 giorni.

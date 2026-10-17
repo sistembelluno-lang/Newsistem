@@ -113,15 +113,15 @@
 
   // ---------- Navigazione ----------
   const VISTE = [
-    ['pratica', '🗂️', 'Pratica'], ['importa', '📥', 'Importa DXF / Excel'], ['piano', '📋', 'Piano particellare'], ['ditte', '👥', 'Ditte e iter'], ['indirizzi', '📮', 'Indirizzi'],
-    ['tavola', '🗺️', 'Tavola grafica'], ['stima', '💶', 'Indennità'], ['documenti', '📄', 'Documenti'], ['scadenze', '⏰', 'Scadenze'], ['normativa', '⚖️', 'Normativa']
+    ['pratica', '🗂️', 'Pratica'], ['problemi', '⚠️', 'Problemi da risolvere'], ['importa', '📥', 'Importa DXF / Excel'], ['piano', '📋', 'Piano particellare'], ['ditte', '👥', 'Ditte e iter'], ['indirizzi', '📮', 'Indirizzi'],
+    ['tavola', '🗺️', 'Tavola grafica'], ['stima', '💶', 'Indennità'], ['documenti', '📄', 'Documenti'], ['scadenze', '⏰', 'Scadenze'], ['normativa', '⚖️', 'Normativa'], ['ricerca', '🔎', 'Ricerca sul web']
   ];
   let vista = 'pratica';
   APP.vai = (v, arg) => { vista = v; APP.arg = arg; render(); window.scrollTo(0, 0); };
   function nav() {
     const p = APP.pr();
     $('#nav').innerHTML = (p ? `<div class="pr"><b>${E(p.nome)}</b><br>${p.ditte.length} ditte · ${p.particelle.length} particelle</div>` : '') +
-      VISTE.map(([k, ic, t], i) => (i === 5 || i === 8 ? '<div class="sep"></div>' : '') + `<button data-v="${k}" class="${k === vista ? 'on' : ''}" ${!p && k !== 'pratica' && k !== 'normativa' ? 'disabled' : ''}>${ic} ${t}</button>`).join('');
+      VISTE.map(([k, ic, t]) => (k === 'tavola' || k === 'scadenze' ? '<div class="sep"></div>' : '') + `<button data-v="${k}" class="${k === vista ? 'on' : ''}" ${!p && k !== 'pratica' && k !== 'normativa' && k !== 'ricerca' ? 'disabled' : ''}>${ic} ${t}${k === 'problemi' && p ? (n => n ? ` <span class="tag t-wa">${n}</span>` : '')(APP.problemi(p).filter(x => x.livello !== 'info').length) : ''}</button>`).join('');
   }
   function hdr() {
     const p = APP.pr();
@@ -152,7 +152,7 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
     const m = $('#main'), p = APP.pr();
     // La cartella di lavoro della pratica (anche se scelta su un altro PC) deve essere tra i percorsi ammessi
     if (FASC && p && p.cartella && APP._amm !== p.cartella) { APP._amm = p.cartella; window.desktop.fsAmmetti(p.cartella); }
-    if (!p && vista !== 'normativa') { m.innerHTML = `<div class="card vuoto"><h2>Benvenuto in ESPROPRI_SISTEM</h2><p>Gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001).</p><button class="p" id="hnew">＋ Crea la prima pratica</button></div>`; return; }
+    if (!p && vista !== 'normativa' && vista !== 'ricerca') { m.innerHTML = `<div class="card vuoto"><h2>Benvenuto in ESPROPRI_SISTEM</h2><p>Gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001).</p><button class="p" id="hnew">＋ Crea la prima pratica</button></div>`; return; }
     (APP.viste[vista] || APP.viste.pratica)(m, p);
   }
   APP.render = render;
@@ -301,15 +301,25 @@ ${senza.length ? tabSenza(senza) : ''}`;
     return (APP._ocr = w);
   };
   // Numeri in un'immagine (canvas), a riquadri; aPagina(x, y) converte i pixel in punti PDF. avanzamento(0..1)
-  APP.ocrNumeri = async (cv, aPagina, avanzamento) => {
+  // rot: 0, 90 (scritte ruotate in senso orario) o -90: la lettura si fa sull'immagine girata e si riporta indietro
+  APP.ocrNumeri = async (src, aPagina, avanzamento, rot = 0) => {
+    let cv = src, inv = (x, y) => [x, y];
+    if (rot) {
+      cv = document.createElement('canvas'); cv.width = src.height; cv.height = src.width;
+      const g = cv.getContext('2d');
+      if (rot === 90) { g.translate(src.height, 0); g.rotate(Math.PI / 2); inv = (x, y) => [y, src.height - x]; }
+      else { g.translate(0, src.width); g.rotate(-Math.PI / 2); inv = (x, y) => [src.width - y, x]; }
+      g.drawImage(src, 0, 0);
+    }
     const w = await APP.ocr(), S = 1000, O = 150, out = [];
     const passi = Math.ceil(cv.height / (S - O)) * Math.ceil(cv.width / (S - O)); let n = 0;
     for (let y = 0; y < cv.height; y += S - O) for (let x = 0; x < cv.width; x += S - O) {
       const r = await w.recognize(cv, { rectangle: { left: x, top: y, width: Math.min(S, cv.width - x), height: Math.min(S, cv.height - y) } }, { blocks: true });
       (r.data.blocks || []).forEach(b => b.paragraphs.forEach(pp => pp.lines.forEach(l => l.words.forEach(q => {
         const t = q.text.trim(); if (q.confidence < 70 || !/^\d{1,5}(\/\d{1,5})?$/.test(t)) return;
-        const a = aPagina(q.bbox.x0, q.bbox.y1), b2 = aPagina(q.bbox.x1, q.bbox.y0);
-        out.push({ t, c: Math.round(q.confidence), x: (a[0] + b2[0]) / 2, y: (a[1] + b2[1]) / 2, w: Math.abs(b2[0] - a[0]), h: Math.abs(b2[1] - a[1]) });
+        const v = [[q.bbox.x0, q.bbox.y0], [q.bbox.x1, q.bbox.y0], [q.bbox.x1, q.bbox.y1], [q.bbox.x0, q.bbox.y1]].map(([x, y]) => aPagina(...inv(x, y)));
+        const xs = v.map(z => z[0]), ys = v.map(z => z[1]), lw = Math.max(...xs) - Math.min(...xs), lh = Math.max(...ys) - Math.min(...ys);
+        out.push({ t, c: Math.round(q.confidence), x: (Math.max(...xs) + Math.min(...xs)) / 2, y: (Math.max(...ys) + Math.min(...ys)) / 2, w: lw, h: lh, rot });
       }))));
       if (avanzamento) avanzamento(++n / passi);
     }
@@ -338,16 +348,21 @@ ${senza.length ? tabSenza(senza) : ''}`;
       const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
       stato('Disegno della pagina per la lettura…');
       await pg.render({ canvasContext: cx, viewport: pg.getViewport({ scale: sc }) }).promise;
-      if (!mr) {
-        // mappa come immagine sotto il disegno: le linee scure della pagina disegnata fanno da confini
-        const d = cx.getImageData(0, 0, cv.width, cv.height).data, W = cv.width, H = cv.height, mask = new Uint8Array(W * H);
-        for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const o = (r * W + c) * 4, R = d[o], G2 = d[o + 1], B = d[o + 2]; if (R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45) mask[(H - 1 - r) * W + c] = 1; }
-        pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
-      }
-      tutti = tutti.concat(await APP.ocrNumeri(cv, (x, y) => [z[0] + x / sc, z[3] - y / sc], f => stato('Lettura dei numeri dalla tavola… ' + Math.round(f * 100) + '%')));
+      // solo i segni scuri (nero e grigio scuro): i numeri di particella; via colori, retini e numeri di piano colorati
+      const W = cv.width, H = cv.height, im = cx.getImageData(0, 0, W, H), d = im.data, mask = new Uint8Array(W * H);
+      for (let i = 0, j = 0; i < d.length; i += 4, j++) { const R = d[i], G2 = d[i + 1], B = d[i + 2], scuro = R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45; d[i] = d[i + 1] = d[i + 2] = scuro ? 0 : 255; d[i + 3] = 255; if (scuro) mask[(H - (j / W | 0) - 1) * W + (j % W)] = 1; }
+      const bn = document.createElement('canvas'); bn.width = W; bn.height = H; bn.getContext('2d').putImageData(im, 0, 0);
+      // confini dalla pagina disegnata solo se il PDF non ha già le linee vettoriali delle particelle
+      const lineeVett = pagina.poli.filter(q => !q.area && /nero|grigio/.test(P.nomeColore(q.colore)) && q.pts.some((v2, i) => i && Math.abs(v2[0] - q.pts[i - 1][0]) > 0.5 && Math.abs(v2[1] - q.pts[i - 1][1]) > 0.5)).length;
+      if (!mr && lineeVett < 300) pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
+      const aP = (x, y) => [z[0] + x / sc, z[3] - y / sc];
+      for (const [rot, nome] of [[0, 'diritti'], [90, 'ruotati'], [-90, 'ruotati']]) tutti = tutti.concat(await APP.ocrNumeri(bn, aP, f => stato(`Lettura dei numeri ${nome} dalla tavola… ` + Math.round(f * 100) + '%'), rot));
       const testo = pagina.testi;
+      // con l'elenco ditte già importato, i numeri che non sono mappali del piano si tengono solo se letti con sicurezza
+      const p = APP.pr(), attesi = new Set((p && p.particelle || []).map(x => String(x.map).replace(/^0+/, '')));
       const u = [];
       tutti.sort((a, b) => b.c - a.c).forEach(o => {
+        if (attesi.size && !attesi.has(o.t.replace(/^0+/, '')) && o.c < 90) return;
         if (u.some(q => q.t === o.t && Math.hypot(q.x - o.x, q.y - o.y) < Math.max(o.h, 3) * 2)) return;
         if (testo.some(t => Math.abs(t.x - o.x) < Math.max(o.w, (t.w || 0)) / 2 + 2 && Math.abs(t.y - o.y) < Math.max(o.h, t.h) / 2 + 2)) return;
         u.push(o);
@@ -379,12 +394,12 @@ ${senza.length ? tabSenza(senza) : ''}`;
     if (impPdf.mappaImg === undefined) {
       // mappa catastale come immagine (righe di pixel nel PDF, o immagine sotto il disegno con pochi numeri scritti)
       const numTesti = pg.testi.filter(t => ES.analisi.etichetta(t.t)).length;
-      impPdf.mappaImg = !!(pg._mr === undefined ? (pg._mr = P.mappaRaster(pg)) : pg._mr) || ((pg.immagini || []).some(im => (im.b[2] - im.b[0]) * (im.b[3] - im.b[1]) > pg.w * pg.h * 0.2) && numTesti < 15);
+      impPdf.mappaImg = !!(pg._mr === undefined ? (pg._mr = P.mappaRaster(pg)) : pg._mr) || numTesti < 15;
     }
     if (!impPdf.leg) {
       impPdf.leg = P.legenda(pg); impPdf.voci = impPdf.leg.voci.map(v => ({ ...v }));
       const I0 = P.interpreta(pg, impPdf.scala || 1000);
-      impPdf.altri = I0.altri; impPdf.fogli = [...new Set(I0.fogli.map(f => f.fg + (f.sez ? ' sez. ' + f.sez : '')))];
+      impPdf.altri = I0.altri; impPdf.livelliAltri = I0.livelli || {}; Object.entries(I0.proposte || {}).forEach(([c, r]) => { if (impPdf.colori[c] === undefined) impPdf.colori[c] = r; }); impPdf.fogli = [...new Set(I0.fogli.map(f => f.fg + (f.sez ? ' sez. ' + f.sez : '')))];
     }
     const opt = impPdf.opt = impPdf.opt || { fg: '', comune: p.ente.comune || '', fgMap: false, sottrai: true, scheggia: 0.5, sostituisci: !p.geo };
     const pagine = impPdf.r.pagine;
@@ -400,11 +415,12 @@ ${p.particelle.some(x => U.num(x.sup) > 0) ? ' <button class="s" id="pstima">Sti
 ${impPdf.voci.length ? `<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Simbolo</th><th>Voce di legenda</th><th>Nel programma</th></tr></thead><tbody>
 ${impPdf.voci.map((v, i) => `<tr><td>${campione(v.simbolo)}</td><td>${E(v.testo)}</td><td>${selRuolo(`data-pv="${i}"`, v.ruolo)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="ban">Nessuna legenda trovata nel PDF: indica qui sotto cosa rappresentano i colori del disegno.</div>'}
 ${impPdf.altri.length ? `<h3>Altri colori nel disegno</h3><p class="mu">Aree colorate che la legenda non spiega (per esempio un colore per ogni ditta): indica se sono aree d'intervento.</p>
-<div class="tw"><table class="t"><thead><tr><th>Colore</th><th>Nel programma</th></tr></thead><tbody>${impPdf.altri.map(c => `<tr><td>${campione({ tipo: 'area', colore: c })} <span class="mu">${E(P.nomeColore(c))} ${c}</span></td><td>${selRuolo(`data-pc="${c}"`, impPdf.colori[c] || '')}</td></tr>`).join('')}</tbody></table></div>` : ''}
+<p class="mu">Attenzione: una campitura che copre tutta la particella spesso indica solo che la particella è interessata, e l'area vera è la fascia (tratteggiata, a puntini…) che ci passa dentro.</p>
+<div class="tw"><table class="t"><thead><tr><th>Colore</th><th>Livello CAD</th><th>Nel programma</th></tr></thead><tbody>${impPdf.altri.map(c => { const t = /^t:/.test(c), col = t ? c.slice(2) : c; return `<tr><td>${campione(t ? { tipo: 'tratteggio', colore: col } : { tipo: 'area', colore: col })} <span class="mu">${t ? 'tratteggio' : 'campitura'} ${E(P.nomeColore(col))} ${col}</span></td><td class="mu">${E((impPdf.livelliAltri || {})[c] || '')}</td><td>${selRuolo(`data-pc="${c}"`, impPdf.colori[c] || '')}</td></tr>`; }).join('')}</tbody></table></div>` : ''}
 <div class="g" style="margin-top:10px"><label>Scarta schegge sotto (mq)<input id="psch" value="${opt.scheggia}"></label>
 <label class="chk"><input type="checkbox" id="psot" ${opt.sottrai ? 'checked' : ''}> Togli le sovrapposizioni tra tipi</label>
 <label class="chk"><input type="checkbox" id="psost" ${opt.sostituisci ? 'checked' : ''}> Sostituisci il disegno già importato</label></div>
-${impPdf.mappaImg ? `<div class="ban" style="margin-top:10px">🔎 <b>Mappa catastale a immagine</b>: i numeri delle particelle sono disegnati, non scritti. Il programma li legge «a occhio» (riconoscimento dei caratteri) e da ogni numero ricostruisce la particella seguendo le linee della mappa, anche sotto le aree colorate. <span id="pocrst">${impPdf.ocrFatto ? (impPdf.numeri || []).length + ' numeri letti.' : 'Lettura in corso…'}</span> <button class="s" id="pocr">Rileggi i numeri</button></div>` : ''}
+${impPdf.mappaImg ? `<div class="ban" style="margin-top:10px">🔎 <b>Numeri delle particelle non scritti come testo</b> (mappa a immagine o scritte trasformate in disegno). Il programma li legge «a occhio» (riconoscimento dei caratteri) e da ogni numero ricostruisce la particella seguendo le linee della mappa, anche sotto le aree colorate. <span id="pocrst">${impPdf.ocrFatto ? (impPdf.numeri || []).length + ' numeri letti.' : 'Lettura in corso…'}</span> <button class="s" id="pocr">Rileggi i numeri</button></div>` : ''}
 <div class="row" style="margin-top:10px"><button class="p" id="pleggi">Leggi la tavola</button></div><div id="ires"></div>`;
     const pp = el.querySelector('#ppag'); if (pp) pp.onchange = () => { impPdf.pag = +pp.value; impPdf.leg = null; impGeo = null; impPdf.numeri = null; impPdf.ocrFatto = false; impPdf.mappaImg = undefined; APP.render(); };
     const po = el.querySelector('#pocr'); if (po) po.onclick = () => { impPdf.ocrFatto = false; impPdf.ocrCorso = ocrPdf(el); };
@@ -433,6 +449,7 @@ ${impPdf.mappaImg ? `<div class="ban" style="margin-top:10px">🔎 <b>Mappa cata
         impDxf = { nome: impPdf.nome, dxf: I.dxf, ruoli: I.ruoli, opt: { ...opt }, pdf: true };
         impGeo = A.importaDxf(I.dxf, { ...opt, ruoli: I.ruoli, fgDa: I.fgDa });
         impGeo.origine = 'pdf'; impGeo.scala = impPdf.scala;
+        const nf = A.fogliDalPiano(impGeo, p.particelle); if (nf) impGeo.avvisi.unshift(`${nf} aree o particelle hanno preso il foglio dall'elenco ditte (mappale presente una sola volta, su un altro foglio)`);
         impPdf.avvisi = [`Scala usata: 1:${impPdf.scala}${impPdf.r.scala && impPdf.r.scala !== impPdf.scala ? ' (nel cartiglio è scritto 1:' + impPdf.r.scala + ')' : impPdf.r.scala ? ' (letta nel cartiglio)' : ' (indicata a mano)'}. Se le superfici non tornano correggi la scala qui sopra e rileggi; dopo l'importazione si corregge anche dalla Tavola grafica.`].concat(I.avvisi);
       } catch (err) { toast('Lettura non riuscita: ' + err.message, 6000); console.error(err); return; }
       risultatoDxf(el.querySelector('#ires'), p);
@@ -456,11 +473,20 @@ ${impPdf.mappaImg ? `<div class="ban" style="margin-top:10px">🔎 <b>Mappa cata
     const X = x => (x / k - z[0]) * sc, Y = y => (z[3] - y / k) * sc, col = { espr: '#d62828', servop: '#7b2cbf', serv: '#1d70b8', occ: '#e07a00' };
     const path = M => M.map(P => P.map(r => 'M' + r.map(q => X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1)).join('L') + 'Z').join('')).join('');
     let s = `<svg viewBox="0 0 ${cv.width} ${cv.height}" style="position:absolute;inset:0;width:100%;height:100%">`;
-    g.pezzi.forEach(p => { s += `<path d="${path(p.mp)}" fill="${col[p.tipo]}" fill-opacity=".12" stroke="${col[p.tipo]}" stroke-width="${Math.max(1.5, cv.width / 900)}"><title>${E(A.RUOLI[p.tipo])} ${U.fmt(p.a, 1)} mq${p.map ? ' – mapp. ' + E(p.map) : ' – senza particella'}</title></path>`; });
+    g.pezzi.forEach(p => { s += `<path data-opz="${p.id}" style="cursor:pointer" d="${path(p.mp)}" fill="${p.k ? col[p.tipo] : '#ff0000'}" fill-opacity="${p.k ? .12 : .3}" stroke="${col[p.tipo]}" stroke-width="${Math.max(1.5, cv.width / 900)}"><title>${E(A.RUOLI[p.tipo])} ${U.fmt(p.a, 1)} mq${p.map ? ' – mapp. ' + E(p.map) : ' – senza particella'}</title></path>`; });
     g.pezzi.forEach(p => { const lp = ES.geo.puntoEtichettaMP(p.mp); if (!lp) return; const t = (p.map || '?') + ' · ' + U.fmt(p.a, 0); s += `<text x="${X(lp[0]).toFixed(1)}" y="${Y(lp[1]).toFixed(1)}" font-size="${Math.max(12, cv.width / 110)}" text-anchor="middle" font-family="Arial" font-weight="700" fill="${col[p.tipo]}" stroke="#fff" stroke-width="3" paint-order="stroke">${E(t)}</text>`; });
     s += '</svg>';
     cv.style.cssText = 'width:100%;height:auto;display:block';
     el.innerHTML = ''; el.appendChild(cv); el.insertAdjacentHTML('beforeend', s);
+    // clic su un'area: foglio e mappale a mano (le aree senza particella sono in rosso pieno)
+    el.querySelectorAll('[data-opz]').forEach(q => q.addEventListener('click', async () => {
+      const z = g.pezzi.find(x => x.id === q.dataset.opz); if (!z) return;
+      const r = await APP.dlg('Area ' + A.RUOLI[z.tipo] + ' – ' + U.fmt(z.a, 1) + ' mq', `<p class="mu">Indica la particella su cui cade quest'area (come la leggi sulla tavola).</p><div class="g"><label>Foglio<input id="ozfg" value="${E(z.fg || '')}"></label><label>Mappale<input id="ozmap" value="${E(z.map || '')}"></label><label>Sub<input id="ozsub" value="${E(z.sub || '')}"></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Assegna', v: 'ok', p: true }]);
+      if (r !== 'ok') return;
+      const fg = $('#ozfg').value.trim(), map = $('#ozmap').value.trim(), sub = $('#ozsub').value.trim();
+      Object.assign(z, { fg, map, sub, k: map ? A.chiave(fg, map, sub) : null, da: 'a mano' });
+      const ir = document.querySelector('#ires'); if (ir) risultatoDxf(ir, APP.pr());
+    }));
   }
   // Anteprima della lettura: solo la zona delle aree d'intervento
   function anteprimaPdf(g, p) {
@@ -492,6 +518,7 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
         // DXF in millimetri o centimetri: le coordinate si portano in metri prima dell'analisi (tolleranze in metri)
         const dxf = opt.unita !== 1 ? { ...impDxf.dxf, poli: impDxf.dxf.poli.map(q => ({ ...q, pts: q.pts.map(v => [v[0] * opt.unita, v[1] * opt.unita]) })), testi: impDxf.dxf.testi.map(t => ({ ...t, x: t.x * opt.unita, y: t.y * opt.unita, h: (t.h || 0) * opt.unita })) } : impDxf.dxf;
         impGeo = A.importaDxf(dxf, { ...opt, ruoli: impDxf.ruoli }); impGeo.origine = 'dxf';
+        const nf = A.fogliDalPiano(impGeo, p.particelle); if (nf) impGeo.avvisi.unshift(`${nf} aree o particelle hanno preso il foglio dall'elenco ditte (mappale presente una sola volta, su un altro foglio)`);
       } catch (err) { toast('Analisi non riuscita: ' + err.message, 6000); console.error(err); return; }
       risultatoDxf(el.querySelector('#ires'), p);
     };
@@ -505,7 +532,7 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
     el.innerHTML = `<h3>Risultato</h3>${avv.length > 4 ? avv.slice(0, 2).join('') + `<details><summary class="mu">Altri ${avv.length - 2} avvisi</summary>${avv.slice(2).join('')}</details>` : avv.join('')}
 <div class="kpi"><div><small>Particelle catastali lette</small><b>${g.part.length}</b></div><div><small>Aree d'intervento</small><b>${g.pezzi.length}</b></div><div><small>Particelle interessate</small><b>${R.filter(r => r.map).length}</b></div></div>
 <div class="tw" style="max-height:45vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th class="n">Esproprio</th><th class="n">Servitù ingombro</th><th class="n">Servitù fascia</th><th class="n">Occupazione</th><th>Origine</th></tr></thead><tbody>
-${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
+${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : x === 'a mano' ? 'assegnata a mano' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
 ${impPdf ? '<h3>Confronto con il PDF originale</h3><p class="mu">Sotto c\'è la tavola PDF, sopra i contorni delle aree riconosciute (rosso esproprio, viola servitù opere, blu servitù, arancio occupazione) con il mappale assegnato: dove non coincidono, correggi la legenda o la scala e rileggi.</p><div id="povl" style="position:relative;max-width:1100px;border:1px solid #ccd;background:#fff;min-height:60px"><span class="mu" style="padding:8px;display:block">Disegno della pagina in corso…</span></div>' + anteprimaPdf(g, p) : ''}
 ${g.pezzi.some(z => !z.k) ? '<h3>Aree senza particella</h3>' + tabSenza(g.pezzi.filter(z => !z.k)) : ''}
 <div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
@@ -600,7 +627,8 @@ ${(() => { const L = res.ditte.flatMap(d => d.intest.filter(o => !o.cf || !C.cfV
 <label>Foglio<input data-f="fg"></label><label>Mappale (originario)<input data-f="map"></label><label>Sub<input data-f="sub"></label>
 <label>Qualità<input data-f="qual"></label><label>Classe<input data-f="cls"></label><label>Superficie catastale (mq)<input data-f="sup" data-t="num"></label>
 <label>Reddito dominicale €<input data-f="rd"></label><label>Reddito agrario €<input data-f="ra"></label><label>Destinazione urbanistica (zona)<input data-f="zona" placeholder="es. E2, B1…"></label>
-<label class="f">Confini (N-E-S-O) <input data-f="confini"></label></div>
+<label class="f">Confini (N-E-S-O) <input data-f="confini"></label>
+${v && v.aree.eccede || x.limite ? `<label class="f">Le aree d'intervento (${U.fmt((v.aree.ridotto || 0) || A.TIPI.reduce((s2, t) => s2 + v.aree[t], 0), 0)} mq) superano la superficie catastale (${U.fmt(x.sup, 0)} mq): <select data-f="limite"><option value="">da decidere</option><option value="catasto">usa la superficie catastale (riduci in proporzione)</option><option value="disegno">tieni la misura del disegno</option></select></label>` : ''}</div>
 <h3>Superfici d'intervento (mq)</h3><p class="mu">Vuoto = dal disegno${v.aree.disegno ? ' (superficie grafica della particella ' + U.fmt(v.aree.graf, 1) + ' mq)' : ''}. Il mappale derivato è quello del frazionamento (es. 1706 ex ${E(x.map)}); superficie e redditi della particella derivata compaiono nel decreto (se vuoti: superficie espropriata e «–»).</p>
 <div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Tipo</th><th class="n">Dal disegno</th><th>Valore manuale</th><th>Mappale derivato</th><th>Sup. particella derivata</th><th>R.D. derivata</th><th>R.A. derivata</th></tr></thead><tbody>
 ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></td><td class="n">${v.aree.disegno ? U.mq(Math.round((A.superfici(p.geo)[A.chiave(x.fg, x.map, x.sub)] || {})[t] || 0)) : '—'}</td><td><input data-f="man.${t}" data-t="num"></td><td><input data-f="nuovo.${t}"></td><td><input data-f="fraz.${t}.sup" placeholder="mq"></td><td><input data-f="fraz.${t}.rd"></td><td><input data-f="fraz.${t}.ra"></td></tr>`).join('')}</tbody></table></div>

@@ -706,6 +706,62 @@ ${R('{{ente.nome}} {{ente.ruolo}} {{ente.responsabile}} {{ente.rup}} {{ente.pec}
   }
 
   // ---------- Vista: Scadenze ----------
+  // ---------- Vista: Problemi da risolvere ----------
+  // Tutto quello che il programma non ha capito o che manca, con il collegamento alla schermata dove si corregge.
+  // {livello: 'errore'|'manca'|'info', gruppo, msg, vai: [vista, argomento] | particella: id, azioni: [[etichetta, fn]]}
+  APP.problemi = p => {
+    const L = [], c = S.calcola(p), geo = p.geo, chiavi = new Set(p.particelle.map(x => A.chiave(x.fg, x.map, x.sub)));
+    const nomeP = x => 'Fg. ' + (x.fg || '?') + ' mapp. ' + (x.map || '?') + (x.sub ? ' sub ' + x.sub : '');
+    // dati della pratica
+    if (!p.ente.nome) L.push({ livello: 'manca', gruppo: 'Pratica', msg: 'Manca il nome dell\'ente / autorità espropriante (serve in tutti i documenti)', vai: ['pratica'] });
+    if (!p.ente.responsabile) L.push({ livello: 'manca', gruppo: 'Pratica', msg: 'Manca il responsabile del procedimento (firma dei documenti)', vai: ['pratica'] });
+    // disegno
+    if (!geo) L.push({ livello: 'info', gruppo: 'Disegno', msg: 'Nessun disegno importato: le superfici vanno inserite a mano o importate da DXF/DWG/PDF', vai: ['importa'] });
+    else {
+      const senza = (geo.pezzi || []).filter(z => !z.k);
+      if (senza.length) L.push({ livello: 'errore', gruppo: 'Disegno', msg: `${senza.length} aree d'intervento del disegno senza particella (${U.fmt(senza.reduce((x, z) => x + z.a, 0), 0)} mq): assegna foglio e mappale`, vai: ['importa'] });
+      const orf = [...new Set((geo.pezzi || []).filter(z => z.k && !chiavi.has(z.k) && !chiavi.has(z.k.split('|').slice(0, 2).join('|'))).map(z => 'Fg. ' + (z.fg || '?') + ' mapp. ' + z.map))];
+      if (orf.length) L.push({ livello: 'errore', gruppo: 'Disegno', msg: `Aree su particelle che non sono nell'elenco ditte: ${orf.slice(0, 15).join(', ')}${orf.length > 15 ? '…' : ''}`, vai: ['importa'] });
+      const pdf = (geo.pezzi || []).filter(z => z.stima === 'pdf').length;
+      if (pdf) L.push({ livello: 'info', gruppo: 'Disegno', msg: `${pdf} superfici lette dalla tavola PDF: da verificare con le misure dell'ufficio (si correggono nella particella)`, vai: ['piano'] });
+    }
+    // particelle
+    p.particelle.forEach(x => {
+      const v = c.perP.get(x.id); if (!v) return;
+      const a = v.aree, tot = A.TIPI.reduce((s2, t) => s2 + (a[t] || 0), 0);
+      if (a.eccede && !x.limite) L.push({
+        livello: 'manca', gruppo: 'Superfici', particella: x.id,
+        msg: `${nomeP(x)}: le aree d'intervento (${U.fmt(tot, 0)} mq) superano la superficie catastale (${U.fmt(x.sup, 0)} mq) di ${U.fmt(a.eccede, 0)} mq. Scegli quale valore usare (d'accordo con la committenza)`,
+        azioni: [[`Usa ${U.fmt(x.sup, 0)} mq (catastale)`, () => { x.limite = 'catasto'; }], [`Tieni ${U.fmt(tot, 0)} mq (misura)`, () => { x.limite = 'disegno'; }]]
+      });
+      if (!tot && !(x.man && Object.values(x.man).some(z => z !== '' && z != null))) L.push({ livello: 'manca', gruppo: 'Superfici', particella: x.id, msg: `${nomeP(x)}: nessuna superficie d'intervento (né dal disegno né inserita a mano)` });
+      if (!(U.num(x.sup) > 0)) L.push({ livello: 'info', gruppo: 'Particelle', particella: x.id, msg: `${nomeP(x)}: manca la superficie catastale` });
+      if (!x.fg || !x.map) L.push({ livello: 'errore', gruppo: 'Particelle', particella: x.id, msg: `Particella senza foglio o mappale (${nomeP(x)})` });
+      if (tot && !S.categoria(x, p.valori)) L.push({ livello: 'manca', gruppo: 'Indennità', msg: `${nomeP(x)}${x.qual ? ' (' + x.qual + ')' : ''}: nessuna categoria di stima, indennità non calcolata`, vai: ['stima'] });
+    });
+    // ditte
+    p.ditte.forEach(d => C.controlli(d, p.particelle.filter(x => x.ditta === d.id)).forEach(k => L.push({ livello: k.livello, gruppo: 'Ditte', msg: `Ditta ${d.n}: ${k.msg}`, vai: ['ditte', d.id] })));
+    // scadenze
+    I.scadenze(p).filter(x => I.statoScad(x) === 'scaduta').forEach(x => L.push({ livello: 'errore', gruppo: 'Scadenze', msg: `Termine scaduto il ${U.dataIt(x.data)}: ${x.cosa}${x.ditta ? ' (ditta ' + x.ditta.n + ')' : ''}`, vai: ['scadenze'] }));
+    return L;
+  };
+  APP.viste.problemi = (m, p) => {
+    const L = APP.problemi(p), ord = { errore: 0, manca: 1, info: 2 }, ic = { errore: '⛔', manca: '⚠️', info: 'ℹ️' };
+    const filtro = APP.probFiltro || 'tutti';
+    const V = L.filter(x => filtro === 'tutti' || (filtro === 'gravi' ? x.livello !== 'info' : x.gruppo === filtro)).sort((a, b) => ord[a.livello] - ord[b.livello]);
+    const gruppi = [...new Set(L.map(x => x.gruppo))];
+    m.innerHTML = `<h2>⚠️ Problemi da risolvere</h2>
+<p class="mu">Quello che il programma non è riuscito a capire o che manca per i documenti. Clicca una riga per andare alla schermata dove si corregge; alcune decisioni si prendono direttamente qui.</p>
+<div class="kpi"><div><small>Errori</small><b>${L.filter(x => x.livello === 'errore').length}</b></div><div><small>Dati da completare o decidere</small><b>${L.filter(x => x.livello === 'manca').length}</b></div><div><small>Avvisi</small><b>${L.filter(x => x.livello === 'info').length}</b></div></div>
+<div class="row" style="margin:10px 0"><label class="fl" style="max-width:320px">Mostra<select id="pbf"><option value="tutti">Tutti</option><option value="gravi" ${filtro === 'gravi' ? 'selected' : ''}>Solo errori e dati da completare</option>${gruppi.map(g => `<option ${filtro === g ? 'selected' : ''}>${E(g)}</option>`).join('')}</select></label>
+<button id="pbx">Esporta l'elenco in Excel</button></div>
+${V.length ? `<div class="tw" style="max-height:none"><table class="t"><thead><tr><th></th><th>Ambito</th><th>Problema</th><th></th></tr></thead><tbody>${V.map((x, i) => `<tr class="${x.vai || x.particella ? 'clic' : ''}" data-pb="${L.indexOf(x)}"><td>${ic[x.livello]}</td><td class="mu">${E(x.gruppo)}</td><td>${E(x.msg)}${x.azioni ? `<div class="row" style="margin-top:6px">${x.azioni.map((az, j) => `<button class="s" data-pa="${L.indexOf(x)}_${j}">${E(az[0])}</button>`).join('')}</div>` : ''}</td><td>${x.vai || x.particella ? '<span class="mu">Correggi ›</span>' : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card vuoto">Nessun problema: la pratica è completa per quanto il programma può verificare.</div>'}`;
+    m.querySelector('#pbf').onchange = e => { APP.probFiltro = e.target.value; APP.render(); };
+    m.querySelectorAll('[data-pa]').forEach(b => b.onclick = e => { e.stopPropagation(); const [i, j] = b.dataset.pa.split('_').map(Number); L[i].azioni[j][1](); APP.salva(); APP.render(); });
+    m.querySelectorAll('[data-pb]').forEach(r => r.onclick = () => { const x = L[+r.dataset.pb]; if (x.particella) APP.editParticella(p.particelle.find(q => q.id === x.particella)); else if (x.vai) APP.vai(x.vai[0], x.vai[1]); });
+    m.querySelector('#pbx').onclick = () => APP.scarica(san(p.nome) + ' - problemi.xlsx', ES.office.xlsx([{ nome: 'Problemi', righe: [['Livello', 'Ambito', 'Problema']].concat(L.map(x => [x.livello, x.gruppo, x.msg])) }]), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  };
+
   APP.viste.scadenze = (m, p) => {
     const L = I.scadenze(p), oggi = U.oggi();
     const cls = { scaduta: 't-ko', prossima: 't-wa', futura: '', fatto: 't-ok', attesa: '', ok: 't-ok' }, nomi = { scaduta: 'scaduta', prossima: 'entro 15 giorni', futura: 'in corso', fatto: 'superata', attesa: 'non prima del', ok: 'termine minimo rispettato' };

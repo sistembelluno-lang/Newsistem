@@ -18,17 +18,23 @@ put('/*TEMA-INIZIO (da src/tema.css)*/', '/*TEMA-FINE*/', leggi(path.join(root, 
 // Il tema rende la barra alta 62 px: la colonna di sinistra resta sotto la barra
 put('/*STILE-DOPO*/', null, '.nav{top:62px}');
 const lib = f => leggi(path.join(root, 'node_modules', f));
+// SDK Anthropic impacchettato per la pagina (window.AnthropicSDK)
+function sdkAnthropic() {
+  const r = require('esbuild').buildSync({ stdin: { contents: "import Anthropic from '@anthropic-ai/sdk'; window.AnthropicSDK = Anthropic;", resolveDir: root, loader: 'js' }, bundle: true, minify: true, format: 'iife', platform: 'browser', target: 'chrome108', write: false, legalComments: 'none' });
+  return r.outputFiles[0].text;
+}
 const librerie = ['/* polygon-clipping 0.15.7 – MIT – Mike Fogel */', lib('polygon-clipping/dist/polygon-clipping.umd.min.js'),
   '/* pdf-lib 1.17.1 – MIT – Andrew Dillon */', lib('pdf-lib/dist/pdf-lib.min.js'),
   '/* pdf.js 3.11.174 (legacy) – Apache-2.0 – Mozilla */', lib('pdfjs-dist/legacy/build/pdf.min.js'),
-  '/* tesseract.js 6.0.1 – Apache-2.0 – riconoscimento dei caratteri (numeri delle mappe a immagine) */', lib('tesseract.js/dist/tesseract.min.js')].join('\n');
+  '/* tesseract.js 6.0.1 – Apache-2.0 – riconoscimento dei caratteri (numeri delle mappe a immagine) */', lib('tesseract.js/dist/tesseract.min.js'),
+  '/* @anthropic-ai/sdk – MIT – SDK ufficiale Anthropic (pagina «Ricerca sul web») */', sdkAnthropic()].join('\n');
 // Motore OCR: worker, nucleo WebAssembly (versione LSTM, già con il .wasm dentro) e dati della lingua (numeri)
 const ocrWorker = lib('tesseract.js/dist/worker.min.js'), ocrCore = lib('tesseract.js-core/tesseract-core-lstm.wasm.js');
 const ocrEng = fs.readFileSync(path.join(root, 'node_modules', '@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')).toString('base64');
 // Il «worker» di pdf.js resta come testo nella pagina e parte da un Blob (niente file esterni)
 const worker = lib('pdfjs-dist/legacy/build/pdf.worker.min.js');
 const ordine = JSON.parse(leggi(path.join(src, 'ordine.json')));
-let moduli = ordine.concat(['normativa.js', 'app.js', 'app2.js']).map(f => '/* ---- ' + f + ' ---- */\n' + leggi(path.join(src, f))).join('\n')
+let moduli = ordine.concat(['normativa.js', 'app.js', 'app2.js', 'ricerca.js']).map(f => '/* ---- ' + f + ' ---- */\n' + leggi(path.join(src, f))).join('\n')
   .replace(/^if \(typeof module !== 'undefined'\) module\.exports = ES;$/m, '');
 const demo = process.argv.indexOf('--demo');
 if (demo > 0) {

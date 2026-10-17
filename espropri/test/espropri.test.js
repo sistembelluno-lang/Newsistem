@@ -323,3 +323,14 @@ test('correzione della scala del disegno e taglio di una particella', () => {
   assert.ok(svg.startsWith('<svg') && svg.includes('Mappale ' + k.split('|')[1]) && /scala 1:\d+/.test(svg));
   assert.ok(/\d,\d\d<\/text>/.test(svg), 'quote dei lati nel taglio');
 });
+
+test('area d\'intervento più grande della superficie catastale: segnalata, e l\'operatore sceglie', () => {
+  const S = { '1|5': { espr: 150, servop: 0, serv: 60, occ: 0, graf: 200 } };
+  const x = { fg: '1', map: '5', sub: '', sup: 200, man: {} };
+  let a = ES.analisi.aree(x, S, {});
+  assert.strictEqual(a.eccede, 10);
+  x.limite = 'catasto'; a = ES.analisi.aree(x, S, {});
+  assert.strictEqual(a.espr + a.serv, 200); assert.ok(a.espr > a.serv);
+  x.limite = 'disegno'; a = ES.analisi.aree(x, S, {});
+  assert.strictEqual(a.espr + a.serv, 210);
+});
