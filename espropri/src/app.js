@@ -287,6 +287,76 @@ ${senza.length ? tabSenza(senza) : ''}`;
     if (!L.GlobalWorkerOptions.workerSrc) { const t = document.getElementById('pdfjs-worker'); if (t && t.textContent.length > 1000) L.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([t.textContent], { type: 'text/javascript' })); }
     return L;
   };
+  // ---- OCR (tesseract.js incluso nella pagina): numeri di particella disegnati, non scritti come testo ----
+  APP.ocr = async () => {
+    if (APP._ocr) return APP._ocr;
+    const T = window.Tesseract, el = id => document.getElementById(id);
+    if (!T || !el('ocr-core') || el('ocr-core').textContent.length < 1000) throw new Error('riconoscimento dei caratteri non disponibile in questa versione');
+    // un solo script per il worker: prima il nucleo (definisce TesseractCore, così il worker non deve caricarlo da fuori)
+    // e i dati della lingua serviti dentro il worker al posto dello scaricamento (niente rete)
+    const lingua = `self.__ENG=${JSON.stringify(el('ocr-eng').textContent.trim())};(function(){var f=self.fetch;self.fetch=function(u,o){if(/eng\\.traineddata/.test(String(u))){var b=atob(self.__ENG),a=new Uint8Array(b.length);for(var i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return Promise.resolve(new Response(a));}return f(u,o);};})();`;
+    const url = URL.createObjectURL(new Blob([lingua, '\n;\n', el('ocr-core').textContent, '\n;\n', el('ocr-worker').textContent], { type: 'text/javascript' }));
+    const w = await T.createWorker('eng', 1, { workerPath: url, corePath: 'incluso.js', langPath: 'https://dati-inclusi/lingua', workerBlobURL: false, cacheMethod: 'none' });
+    await w.setParameters({ tessedit_char_whitelist: '0123456789/', tessedit_pageseg_mode: '11' });
+    return (APP._ocr = w);
+  };
+  // Numeri in un'immagine (canvas), a riquadri; aPagina(x, y) converte i pixel in punti PDF. avanzamento(0..1)
+  APP.ocrNumeri = async (cv, aPagina, avanzamento) => {
+    const w = await APP.ocr(), S = 1000, O = 150, out = [];
+    const passi = Math.ceil(cv.height / (S - O)) * Math.ceil(cv.width / (S - O)); let n = 0;
+    for (let y = 0; y < cv.height; y += S - O) for (let x = 0; x < cv.width; x += S - O) {
+      const r = await w.recognize(cv, { rectangle: { left: x, top: y, width: Math.min(S, cv.width - x), height: Math.min(S, cv.height - y) } }, { blocks: true });
+      (r.data.blocks || []).forEach(b => b.paragraphs.forEach(pp => pp.lines.forEach(l => l.words.forEach(q => {
+        const t = q.text.trim(); if (q.confidence < 70 || !/^\d{1,5}(\/\d{1,5})?$/.test(t)) return;
+        const a = aPagina(q.bbox.x0, q.bbox.y1), b2 = aPagina(q.bbox.x1, q.bbox.y0);
+        out.push({ t, c: Math.round(q.confidence), x: (a[0] + b2[0]) / 2, y: (a[1] + b2[1]) / 2, w: Math.abs(b2[0] - a[0]), h: Math.abs(b2[1] - a[1]) });
+      }))));
+      if (avanzamento) avanzamento(++n / passi);
+    }
+    return out;
+  };
+  // Lettura dei numeri della mappa a immagine: dalla mappa senza i colori sopra (se il PDF la contiene a righe di pixel)
+  // e dalla pagina disegnata; i doppioni si tolgono, i numeri che coincidono con testi del PDF pure.
+  async function ocrPdf(el) {
+    const pagina = impPdf.r.pagine[impPdf.pag], P = ES.pdfv, stato = t => { const s2 = document.getElementById('pocrst'); if (s2) s2.textContent = t; };
+    try {
+      let tutti = [];
+      const mr = pagina._mr === undefined ? (pagina._mr = P.mappaRaster(pagina)) : pagina._mr;
+      if (mr) {
+        stato('Lettura dei numeri dalla mappa catastale…');
+        const cv = document.createElement('canvas'); cv.width = mr.W; cv.height = mr.H;
+        const g = cv.getContext('2d'), im = g.createImageData(mr.W, mr.H);
+        for (let r = 0; r < mr.H; r++) { const src = (mr.H - 1 - r) * mr.W; for (let c = 0; c < mr.W; c++) { const v = mr.mask[src + c] ? 0 : 255, o = (r * mr.W + c) * 4; im.data[o] = im.data[o + 1] = im.data[o + 2] = v; im.data[o + 3] = 255; } }
+        g.putImageData(im, 0, 0);
+        tutti = tutti.concat(await APP.ocrNumeri(cv, (x, y) => [mr.x0 + x * mr.px, mr.y0 + (mr.H - y) * mr.px], f => stato('Lettura dei numeri dalla mappa catastale… ' + Math.round(f * 100) + '%')));
+      }
+      // la pagina disegnata (numeri visibili nella tavola)
+      const v = P.vista(pagina), z = v ? v.b : [0, 0, pagina.w, pagina.h];
+      const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
+      const sc = Math.min(300 / 72, Math.sqrt(36e6 / Math.max(1, (z[2] - z[0]) * (z[3] - z[1]))));
+      const cv = document.createElement('canvas'); cv.width = Math.ceil((z[2] - z[0]) * sc); cv.height = Math.ceil((z[3] - z[1]) * sc);
+      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
+      stato('Disegno della pagina per la lettura…');
+      await pg.render({ canvasContext: cx, viewport: pg.getViewport({ scale: sc }) }).promise;
+      if (!mr) {
+        // mappa come immagine sotto il disegno: le linee scure della pagina disegnata fanno da confini
+        const d = cx.getImageData(0, 0, cv.width, cv.height).data, W = cv.width, H = cv.height, mask = new Uint8Array(W * H);
+        for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const o = (r * W + c) * 4, R = d[o], G2 = d[o + 1], B = d[o + 2]; if (R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45) mask[(H - 1 - r) * W + c] = 1; }
+        pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
+      }
+      tutti = tutti.concat(await APP.ocrNumeri(cv, (x, y) => [z[0] + x / sc, z[3] - y / sc], f => stato('Lettura dei numeri dalla tavola… ' + Math.round(f * 100) + '%')));
+      const testo = pagina.testi;
+      const u = [];
+      tutti.sort((a, b) => b.c - a.c).forEach(o => {
+        if (u.some(q => q.t === o.t && Math.hypot(q.x - o.x, q.y - o.y) < Math.max(o.h, 3) * 2)) return;
+        if (testo.some(t => Math.abs(t.x - o.x) < Math.max(o.w, (t.w || 0)) / 2 + 2 && Math.abs(t.y - o.y) < Math.max(o.h, t.h) / 2 + 2)) return;
+        u.push(o);
+      });
+      impPdf.numeri = u; impPdf.ocrFatto = true;
+      stato(`Letti ${u.length} numeri dalla mappa. Ora «Leggi la tavola».`);
+      toast(`OCR: ${u.length} numeri di particella letti dalla mappa`);
+    } catch (e) { console.error(e); stato('Lettura non riuscita: ' + e.message); impPdf.ocrFatto = true; }
+  }
   async function apriPdf(f) {
     const L = APP.pdfjs(); if (!L) { toast('Lettore PDF non disponibile in questa versione', 5000); return; }
     toast('Lettura del PDF in corso…', 20000);
@@ -306,6 +376,11 @@ ${senza.length ? tabSenza(senza) : ''}`;
   const selRuolo = (attr, v) => `<select ${attr}><option value="">— non è un'area d'intervento —</option>${Object.entries(NOMI_PDF).map(([k, n]) => `<option value="${k}" ${v === k ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
   function vistaPdf(el, p) {
     const P = ES.pdfv, pg = impPdf.r.pagine[impPdf.pag];
+    if (impPdf.mappaImg === undefined) {
+      // mappa catastale come immagine (righe di pixel nel PDF, o immagine sotto il disegno con pochi numeri scritti)
+      const numTesti = pg.testi.filter(t => ES.analisi.etichetta(t.t)).length;
+      impPdf.mappaImg = !!(pg._mr === undefined ? (pg._mr = P.mappaRaster(pg)) : pg._mr) || ((pg.immagini || []).some(im => (im.b[2] - im.b[0]) * (im.b[3] - im.b[1]) > pg.w * pg.h * 0.2) && numTesti < 15);
+    }
     if (!impPdf.leg) {
       impPdf.leg = P.legenda(pg); impPdf.voci = impPdf.leg.voci.map(v => ({ ...v }));
       const I0 = P.interpreta(pg, impPdf.scala || 1000);
@@ -329,8 +404,11 @@ ${impPdf.altri.length ? `<h3>Altri colori nel disegno</h3><p class="mu">Aree col
 <div class="g" style="margin-top:10px"><label>Scarta schegge sotto (mq)<input id="psch" value="${opt.scheggia}"></label>
 <label class="chk"><input type="checkbox" id="psot" ${opt.sottrai ? 'checked' : ''}> Togli le sovrapposizioni tra tipi</label>
 <label class="chk"><input type="checkbox" id="psost" ${opt.sostituisci ? 'checked' : ''}> Sostituisci il disegno già importato</label></div>
+${impPdf.mappaImg ? `<div class="ban" style="margin-top:10px">🔎 <b>Mappa catastale a immagine</b>: i numeri delle particelle sono disegnati, non scritti. Il programma li legge «a occhio» (riconoscimento dei caratteri) e da ogni numero ricostruisce la particella seguendo le linee della mappa, anche sotto le aree colorate. <span id="pocrst">${impPdf.ocrFatto ? (impPdf.numeri || []).length + ' numeri letti.' : 'Lettura in corso…'}</span> <button class="s" id="pocr">Rileggi i numeri</button></div>` : ''}
 <div class="row" style="margin-top:10px"><button class="p" id="pleggi">Leggi la tavola</button></div><div id="ires"></div>`;
-    const pp = el.querySelector('#ppag'); if (pp) pp.onchange = () => { impPdf.pag = +pp.value; impPdf.leg = null; impGeo = null; APP.render(); };
+    const pp = el.querySelector('#ppag'); if (pp) pp.onchange = () => { impPdf.pag = +pp.value; impPdf.leg = null; impGeo = null; impPdf.numeri = null; impPdf.ocrFatto = false; impPdf.mappaImg = undefined; APP.render(); };
+    const po = el.querySelector('#pocr'); if (po) po.onclick = () => { impPdf.ocrFatto = false; impPdf.ocrCorso = ocrPdf(el); };
+    if (impPdf.mappaImg && !impPdf.ocrFatto && !impPdf.ocrCorso) impPdf.ocrCorso = ocrPdf(el).finally(() => { impPdf.ocrCorso = null; });
     el.querySelectorAll('[data-pv]').forEach(s => s.onchange = () => { impPdf.voci[+s.dataset.pv].ruolo = s.value || null; });
     el.querySelectorAll('[data-pc]').forEach(s => s.onchange = () => { impPdf.colori[s.dataset.pc] = s.value; });
     const leggiOpt = () => { impPdf.scala = U.num(el.querySelector('#psc').value) || 0; opt.fg = el.querySelector('#pfg').value.trim(); opt.comune = el.querySelector('#pcom').value.trim(); opt.scheggia = U.num(el.querySelector('#psch').value); opt.sottrai = el.querySelector('#psot').checked; opt.sostituisci = el.querySelector('#psost').checked; };
@@ -345,19 +423,44 @@ ${impPdf.altri.length ? `<h3>Altri colori nel disegno</h3><p class="mu">Aree col
       if (!sc) { APP.dlg('Stima della scala', '<p>Nessuna particella del disegno corrisponde a quelle dell\'elenco ditte (o il PDF non ha i confini delle particelle in vettoriale). Indica la scala a mano.</p>'); return; }
       impPdf.scala = sc; APP.render(); toast(`Scala stimata 1:${sc} confrontando ${coppie.length} particelle con le superfici catastali`, 6000);
     };
-    el.querySelector('#pleggi').onclick = () => {
+    el.querySelector('#pleggi').onclick = async () => {
       leggiOpt();
+      if (impPdf.ocrCorso) { toast('Attendo la lettura dei numeri della mappa…', 4000); await impPdf.ocrCorso; }
       if (!impPdf.scala) { toast('Indica la scala del disegno (es. 1000)', 5000); el.querySelector('#psc').focus(); return; }
       if (![...impPdf.voci.map(v => v.ruolo), ...Object.values(impPdf.colori)].some(Boolean)) { toast('Indica almeno un tipo d\'area (legenda o colori)', 5000); return; }
       try {
-        const I = P.interpreta(pg, impPdf.scala, { voci: impPdf.voci, colori: impPdf.colori });
+        const I = P.interpreta(pg, impPdf.scala, { voci: impPdf.voci, colori: impPdf.colori, numeri: impPdf.numeri || [] });
         impDxf = { nome: impPdf.nome, dxf: I.dxf, ruoli: I.ruoli, opt: { ...opt }, pdf: true };
         impGeo = A.importaDxf(I.dxf, { ...opt, ruoli: I.ruoli, fgDa: I.fgDa });
-        impPdf.avvisi = I.avvisi;
+        impGeo.origine = 'pdf'; impGeo.scala = impPdf.scala;
+        impPdf.avvisi = [`Scala usata: 1:${impPdf.scala}${impPdf.r.scala && impPdf.r.scala !== impPdf.scala ? ' (nel cartiglio è scritto 1:' + impPdf.r.scala + ')' : impPdf.r.scala ? ' (letta nel cartiglio)' : ' (indicata a mano)'}. Se le superfici non tornano correggi la scala qui sopra e rileggi; dopo l'importazione si corregge anche dalla Tavola grafica.`].concat(I.avvisi);
       } catch (err) { toast('Lettura non riuscita: ' + err.message, 6000); console.error(err); return; }
       risultatoDxf(el.querySelector('#ires'), p);
     };
     if (impGeo) risultatoDxf(el.querySelector('#ires'), p);
+  }
+  // La pagina del PDF disegnata (pdf.js) con sopra i contorni delle aree lette, nella zona dell'intervento
+  async function sovrapponiPdf(el, g) {
+    if (!el || !impPdf || !impPdf.r.doc || !g.pezzi.length) { if (el) el.remove(); return; }
+    const pagina = impPdf.r.pagine[impPdf.pag], k = ES.pdfv.metriPerPunto(impPdf.scala);
+    const b = [Infinity, Infinity, -Infinity, -Infinity]; g.pezzi.forEach(z => ES.geo.bboxMP(z.mp, b));
+    const bp = b.map(v => v / k), mg = Math.max(bp[2] - bp[0], bp[3] - bp[1]) * 0.12 + 20;
+    const z = [Math.max(0, bp[0] - mg), Math.max(0, bp[1] - mg), Math.min(pagina.w, bp[2] + mg), Math.min(pagina.h, bp[3] + mg)];
+    const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
+    const sc = Math.min(6, 2200 / Math.max(1, z[2] - z[0])), vp = pg.getViewport({ scale: sc });
+    const cv = document.createElement('canvas'); cv.width = Math.ceil((z[2] - z[0]) * sc); cv.height = Math.ceil((z[3] - z[1]) * sc);
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height);
+    // la pagina intera alla scala sc, spostata per mostrare solo la zona (coordinate «come si vede», y verso l'alto)
+    cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
+    await pg.render({ canvasContext: cx, viewport: vp }).promise;
+    const X = x => (x / k - z[0]) * sc, Y = y => (z[3] - y / k) * sc, col = { espr: '#d62828', servop: '#7b2cbf', serv: '#1d70b8', occ: '#e07a00' };
+    const path = M => M.map(P => P.map(r => 'M' + r.map(q => X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1)).join('L') + 'Z').join('')).join('');
+    let s = `<svg viewBox="0 0 ${cv.width} ${cv.height}" style="position:absolute;inset:0;width:100%;height:100%">`;
+    g.pezzi.forEach(p => { s += `<path d="${path(p.mp)}" fill="${col[p.tipo]}" fill-opacity=".12" stroke="${col[p.tipo]}" stroke-width="${Math.max(1.5, cv.width / 900)}"><title>${E(A.RUOLI[p.tipo])} ${U.fmt(p.a, 1)} mq${p.map ? ' – mapp. ' + E(p.map) : ' – senza particella'}</title></path>`; });
+    g.pezzi.forEach(p => { const lp = ES.geo.puntoEtichettaMP(p.mp); if (!lp) return; const t = (p.map || '?') + ' · ' + U.fmt(p.a, 0); s += `<text x="${X(lp[0]).toFixed(1)}" y="${Y(lp[1]).toFixed(1)}" font-size="${Math.max(12, cv.width / 110)}" text-anchor="middle" font-family="Arial" font-weight="700" fill="${col[p.tipo]}" stroke="#fff" stroke-width="3" paint-order="stroke">${E(t)}</text>`; });
+    s += '</svg>';
+    cv.style.cssText = 'width:100%;height:auto;display:block';
+    el.innerHTML = ''; el.appendChild(cv); el.insertAdjacentHTML('beforeend', s);
   }
   // Anteprima della lettura: solo la zona delle aree d'intervento
   function anteprimaPdf(g, p) {
@@ -376,15 +479,20 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
 </tbody></table></div>
 <div class="g" style="margin-top:10px"><label>Foglio (se le etichette non lo indicano)<input id="ifg" value="${E(opt.fg)}"></label><label>Comune catastale<input id="icom" value="${E(opt.comune)}"></label>
 <label>Scarta schegge sotto (mq)<input id="isch" value="${opt.scheggia}"></label>
+<label>Unità del disegno<select id="iun">${[['1', 'metri (normale)'], ['0.001', 'millimetri'], ['0.01', 'centimetri'], ['0.1', 'decimetri']].map(([v, t]) => `<option value="${v}" ${String(opt.unita || 1) === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
 <label class="chk"><input type="checkbox" id="ifm" ${opt.fgMap ? 'checked' : ''}> Etichette «1/100» = foglio/mappale</label>
 <label class="chk"><input type="checkbox" id="isot" ${opt.sottrai ? 'checked' : ''}> Togli le sovrapposizioni tra tipi</label>
 <label class="chk"><input type="checkbox" id="isost" ${opt.sostituisci ? 'checked' : ''}> Sostituisci il disegno già importato</label></div>
 <div class="row" style="margin-top:10px"><button class="p" id="ian">Analizza il disegno</button></div><div id="ires"></div>`;
     el.querySelectorAll('[data-ly]').forEach(s => s.onchange = () => { impDxf.ruoli[s.dataset.ly] = s.value; });
-    const leggiOpt = () => { opt.fg = el.querySelector('#ifg').value.trim(); opt.comune = el.querySelector('#icom').value.trim(); opt.scheggia = U.num(el.querySelector('#isch').value); opt.fgMap = el.querySelector('#ifm').checked; opt.sottrai = el.querySelector('#isot').checked; opt.sostituisci = el.querySelector('#isost').checked; };
+    const leggiOpt = () => { opt.fg = el.querySelector('#ifg').value.trim(); opt.comune = el.querySelector('#icom').value.trim(); opt.scheggia = U.num(el.querySelector('#isch').value); opt.fgMap = el.querySelector('#ifm').checked; opt.sottrai = el.querySelector('#isot').checked; opt.sostituisci = el.querySelector('#isost').checked; opt.unita = +el.querySelector('#iun').value || 1; };
     el.querySelector('#ian').onclick = () => {
       leggiOpt();
-      try { impGeo = A.importaDxf(impDxf.dxf, { ...opt, ruoli: impDxf.ruoli }); } catch (err) { toast('Analisi non riuscita: ' + err.message, 6000); console.error(err); return; }
+      try {
+        // DXF in millimetri o centimetri: le coordinate si portano in metri prima dell'analisi (tolleranze in metri)
+        const dxf = opt.unita !== 1 ? { ...impDxf.dxf, poli: impDxf.dxf.poli.map(q => ({ ...q, pts: q.pts.map(v => [v[0] * opt.unita, v[1] * opt.unita]) })), testi: impDxf.dxf.testi.map(t => ({ ...t, x: t.x * opt.unita, y: t.y * opt.unita, h: (t.h || 0) * opt.unita })) } : impDxf.dxf;
+        impGeo = A.importaDxf(dxf, { ...opt, ruoli: impDxf.ruoli }); impGeo.origine = 'dxf';
+      } catch (err) { toast('Analisi non riuscita: ' + err.message, 6000); console.error(err); return; }
       risultatoDxf(el.querySelector('#ires'), p);
     };
     if (impGeo) risultatoDxf(el.querySelector('#ires'), p);
@@ -398,9 +506,10 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
 <div class="kpi"><div><small>Particelle catastali lette</small><b>${g.part.length}</b></div><div><small>Aree d'intervento</small><b>${g.pezzi.length}</b></div><div><small>Particelle interessate</small><b>${R.filter(r => r.map).length}</b></div></div>
 <div class="tw" style="max-height:45vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th class="n">Esproprio</th><th class="n">Servitù ingombro</th><th class="n">Servitù fascia</th><th class="n">Occupazione</th><th>Origine</th></tr></thead><tbody>
 ${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
-${impPdf ? anteprimaPdf(g, p) : ''}
+${impPdf ? '<h3>Confronto con il PDF originale</h3><p class="mu">Sotto c\'è la tavola PDF, sopra i contorni delle aree riconosciute (rosso esproprio, viola servitù opere, blu servitù, arancio occupazione) con il mappale assegnato: dove non coincidono, correggi la legenda o la scala e rileggi.</p><div id="povl" style="position:relative;max-width:1100px;border:1px solid #ccd;background:#fff;min-height:60px"><span class="mu" style="padding:8px;display:block">Disegno della pagina in corso…</span></div>' + anteprimaPdf(g, p) : ''}
 ${g.pezzi.some(z => !z.k) ? '<h3>Aree senza particella</h3>' + tabSenza(g.pezzi.filter(z => !z.k)) : ''}
 <div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
+    if (impPdf) sovrapponiPdf(el.querySelector('#povl'), g).catch(e => { const o = el.querySelector('#povl'); if (o) o.innerHTML = '<span class="mu" style="padding:8px;display:block">Anteprima del PDF non disponibile: ' + E(e.message) + '</span>'; });
     el.querySelector('#iapp').onclick = () => {
       if (impPdf) impGeo.pezzi.forEach(z => { z.stima = 'pdf'; });
       p.geo = A.unisciGeo(p.geo, impGeo, impDxf.opt.sostituisci);

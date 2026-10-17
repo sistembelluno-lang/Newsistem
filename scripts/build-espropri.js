@@ -20,7 +20,11 @@ put('/*STILE-DOPO*/', null, '.nav{top:62px}');
 const lib = f => leggi(path.join(root, 'node_modules', f));
 const librerie = ['/* polygon-clipping 0.15.7 – MIT – Mike Fogel */', lib('polygon-clipping/dist/polygon-clipping.umd.min.js'),
   '/* pdf-lib 1.17.1 – MIT – Andrew Dillon */', lib('pdf-lib/dist/pdf-lib.min.js'),
-  '/* pdf.js 3.11.174 (legacy) – Apache-2.0 – Mozilla */', lib('pdfjs-dist/legacy/build/pdf.min.js')].join('\n');
+  '/* pdf.js 3.11.174 (legacy) – Apache-2.0 – Mozilla */', lib('pdfjs-dist/legacy/build/pdf.min.js'),
+  '/* tesseract.js 6.0.1 – Apache-2.0 – riconoscimento dei caratteri (numeri delle mappe a immagine) */', lib('tesseract.js/dist/tesseract.min.js')].join('\n');
+// Motore OCR: worker, nucleo WebAssembly (versione LSTM, già con il .wasm dentro) e dati della lingua (numeri)
+const ocrWorker = lib('tesseract.js/dist/worker.min.js'), ocrCore = lib('tesseract.js-core/tesseract-core-lstm.wasm.js');
+const ocrEng = fs.readFileSync(path.join(root, 'node_modules', '@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz')).toString('base64');
 // Il «worker» di pdf.js resta come testo nella pagina e parte da un Blob (niente file esterni)
 const worker = lib('pdfjs-dist/legacy/build/pdf.worker.min.js');
 const ordine = JSON.parse(leggi(path.join(src, 'ordine.json')));
@@ -33,7 +37,7 @@ if (demo > 0) {
 }
 moduli += '\nAPP.avvia();';
 html = html.replace('<script>/*LIBRERIE*/</script>', () => '<script>\n' + script(librerie) + '\n</script>')
-  .replace('/*PDFWORKER*/', () => script(worker)).replace('<script>/*MODULI*/</script>', () => '<script>\n' + script(moduli) + '\n</script>');
+  .replace('/*PDFWORKER*/', () => script(worker)).replace('/*OCRWORKER*/', () => script(ocrWorker)).replace('/*OCRCORE*/', () => script(ocrCore)).replace('/*OCRENG*/', () => ocrEng).replace('<script>/*MODULI*/</script>', () => '<script>\n' + script(moduli) + '\n</script>');
 const out = demo > 0 ? path.resolve(process.argv[demo + 1]) : path.join(root, 'Espropri.html');
 if (demo > 0) html = html.replace('<title>ESPROPRI_SISTEM</title>', '<title>ESPROPRI_SISTEM prova</title>');
 fs.writeFileSync(out, html);

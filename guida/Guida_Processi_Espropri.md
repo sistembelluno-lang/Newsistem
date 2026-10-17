@@ -1,6 +1,6 @@
 # ESPROPRI_SISTEM – Guida dei processi
 
-Versione 1.13.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
+Versione 1.14.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
 
 ## 1. Il lavoro in breve
 
@@ -18,7 +18,16 @@ Versione 1.13.0. Guida generata dal programma: percorsi, passi, termini e docume
 
 - **DXF/DWG**: aree d'intervento già tagliate sulle particelle con il numero dentro, oppure layer delle particelle + aree intere (il programma taglia da solo). Si sceglie l'uso di ogni layer; le sovrapposizioni si tolgono per priorità esproprio > servitù ingombro opere > servitù fascia > occupazione.
 - **Tavola PDF** (esportata dal CAD, non scansionata): lettura «a occhio» di legenda, simboli (colori, tratteggi), aree, confini, numeri di particella, scala e fogli. Si controllano tipo delle voci di legenda, colori non spiegati e scala (anche stimata dalle superfici catastali). Le superfici sono marcate «dal PDF – da verificare».
+- Mappa catastale a immagine (numeri disegnati, non scritti): il programma legge i numeri con il riconoscimento dei caratteri (OCR) e da ogni numero ricostruisce la particella seguendo le linee della mappa, anche sotto le aree colorate. Il confronto con il PDF originale mostra sopra la tavola i contorni riconosciuti.
+- Legende con i nomi delle ditte o colori senza legenda: si dice al programma il tipo di ogni colore. Se una campitura copre tutta la particella e dentro c'è una fascia, di solito la campitura indica solo la particella interessata e l'area è la fascia: il programma lo segnala.
+- Scala: quella letta nel cartiglio si vede e si cambia prima della lettura; dopo l'importazione si corregge dalla Tavola grafica (scala giusta, unità del DXF o taratura su una particella di superficie nota).
 - Aree senza numero di particella: si assegnano a mano nella scheda Importa.
+
+## 2-bis. Tavola grafica e schemi delle ditte
+
+- **Tavola generale** in scala vera (stampa al 100%): particelle con i numeri, aree con i retini, cerchietto della ditta con i richiami alle sue particelle, legenda, quadro d'unione, elenco ditte, cartiglio; a scelta quote dei lati e superfici.
+- **Estratto** di una ditta e **taglio** mappale per mappale con quote e superfici: sono lo **schema del piano particellare** allegato alla convocazione per lo stato di consistenza e allo stato di consistenza stesso (comandi [[planimetria]] e [[tagli]] nei modelli).
+- Dalla scheda della ditta, **🗺️ Mostra aree** apre estratto e tagli da scorrere e li salva in PDF nella cartella della ditta.
 
 ### Excel delle ditte
 

@@ -112,8 +112,12 @@
       pagine.push({ n, w: vp.width, h: vp.height, poli, testi, clip, immagini });
     }
     const tutti = pagine.flatMap(p => p.testi);
-    return { pagine, scala: P.scalaDaTesti(tutti), livelli: Object.values(nomiOC) };
+    // doc: il documento pdf.js aperto (per disegnare la pagina sotto la lettura, nell'anteprima)
+    return { pagine, scala: P.scalaDaTesti(tutti), livelli: Object.values(nomiOC), doc };
   };
+
+  // Metri del disegno per punto PDF alla scala 1:s
+  P.metriPerPunto = s => PT_MM * (s || 1000) / 1000;
 
   // Pagina del PDF → struttura del DXF in metri alla scala indicata
   P.comeDxf = (pagina, scala) => {
@@ -148,6 +152,8 @@
   P.ruoloTesto = s => {
     let n = ES.U.norm(s);
     if (/non piu interessat|fascia di rispetto strad|corsi d acqua|strade pubbl|^ferrovi/.test(n)) return null;
+    // campitura dell'intera particella per dire che è interessata (la fascia d'intervento è un'altra voce)
+    if (/^(particell[ae]|propriet[ae]|ditt[ae]|fond[io]|mappal[ei])\b.*\b(interessat|coinvolt|oggetto)/.test(n) && !/\b(fascia|area|aree|superfic)/.test(n)) return null;
     const v = /variat[ao] in (.*)$/.exec(n);
     if (v) { const r = P.ruoloTesto(v[1]); if (r) return r; n = n.slice(0, v.index); }
     if (/esprop|acquisiz|reliquat|occupazione permanente|sede strad|mitigazion/.test(n)) return 'espr';
@@ -185,9 +191,10 @@
     const vicino = t => !ancora || (t.y <= ancora.y + ancora.h * 2 && ancora.y - t.y < pagina.h * 0.75 && Math.abs(t.x - ancora.x) < pagina.w * 0.25);
     let cand = T.filter(t => t.t.length >= 3 && /[a-z]{3}/i.test(t.t) && vicino(t));
     if (!ancora) {
-      // senza la scritta LEGENDA: le righe con una parola chiave e quelle allineate subito sopra o sotto
+      // senza la scritta LEGENDA: le righe con una parola chiave e quelle allineate subito sopra o sotto;
+      // se non ce ne sono (es. legenda con i nomi delle ditte) si provano tutte le righe con un simbolo a sinistra
       const chiave = cand.filter(t => P.ruoloTesto(t.t));
-      cand = cand.filter(t => chiave.some(c => c === t || (Math.abs(c.y - t.y) < c.h * 2.5 && Math.abs((c.x - (c.w || 0) / 2) - (t.x - (t.w || 0) / 2)) < c.h * 2)));
+      if (chiave.length) cand = cand.filter(t => chiave.some(c => c === t || (Math.abs(c.y - t.y) < c.h * 2.5 && Math.abs((c.x - (c.w || 0) / 2) - (t.x - (t.w || 0) / 2)) < c.h * 2)));
     }
     const grezze = [];
     cand.forEach(t => {
@@ -197,7 +204,7 @@
       if (!vic.length) return;
       // riempimento: il colore con più superficie (esclusi nero e bianco, che sono testo e sfondo)
       const sup = {};
-      vic.forEach(o => { if (o.p.area && !/^#(0{6}|f{6}|fafafa)$/.test(o.p.colore)) sup[o.p.colore] = (sup[o.p.colore] || 0) + (o.b[2] - o.b[0]) * (o.b[3] - o.b[1]); });
+      vic.forEach(o => { if (o.p.area && !/^#(f{6}|fafafa)$/.test(o.p.colore) && P.nomeColore(o.p.colore) !== 'nero') sup[o.p.colore] = (sup[o.p.colore] || 0) + (o.b[2] - o.b[0]) * (o.b[3] - o.b[1]); });
       const fill = Object.keys(sup).sort((x, y) => sup[y] - sup[x])[0] || null;
       const fb = fill ? vic.filter(o => o.p.area && o.p.colore === fill).reduce((z, o) => [Math.min(z[0], o.b[0]), Math.min(z[1], o.b[1]), Math.max(z[2], o.b[2]), Math.max(z[3], o.b[3])], [Infinity, Infinity, -Infinity, -Infinity]) : null;
       // tratteggio: linee di due punti parallele a passo regolare (dentro il riempimento, se c'è)
@@ -214,13 +221,22 @@
     // stesso simbolo (stesso riquadro) → stessa voce, testi dall'alto in basso
     const voci = [];
     grezze.sort((a, b) => b.t.y - a.t.y).forEach(g => {
-      const v = voci.find(x => x.simbolo.colore === g.simbolo.colore && x.simbolo.tratt === g.simbolo.tratt && Math.abs(x.sb[0] - g.sb[0]) < 1 && Math.abs(x.sb[1] - g.sb[1]) < 1 && Math.abs(x.sb[3] - g.sb[3]) < 1);
-      if (v) { v.righe.push(g.t.t); v.zona = [Math.min(v.zona[0], g.zona[0]), Math.min(v.zona[1], g.zona[1]), Math.max(v.zona[2], g.zona[2]), Math.max(v.zona[3], g.zona[3])]; }
-      else voci.push({ righe: [g.t.t], simbolo: g.simbolo, sb: g.sb, zona: g.zona, y: g.t.y });
+      // stesso simbolo: stesso colore e riquadri che si toccano (il simbolo può essere fatto di più pezzi)
+      const v = voci.find(x => x.simbolo.colore === g.simbolo.colore && x.simbolo.tratt === g.simbolo.tratt && Math.abs(x.sb[0] - g.sb[0]) < 2 && x.sb[1] <= g.sb[3] + 0.5 && g.sb[1] <= x.sb[3] + 0.5);
+      if (v) { v.righe.push([g.t.y, g.t.t]); v.sb = [Math.min(v.sb[0], g.sb[0]), Math.min(v.sb[1], g.sb[1]), Math.max(v.sb[2], g.sb[2]), Math.max(v.sb[3], g.sb[3])]; v.zona = [Math.min(v.zona[0], g.zona[0]), Math.min(v.zona[1], g.zona[1]), Math.max(v.zona[2], g.zona[2]), Math.max(v.zona[3], g.zona[3])]; }
+      else voci.push({ righe: [[g.t.y, g.t.t]], simbolo: g.simbolo, sb: g.sb, zona: g.zona, y: g.t.y });
     });
-    voci.forEach(v => { v.testo = v.righe.join(' ').replace(/\s+/g, ' ').trim(); v.ruolo = P.ruoloTesto(v.testo); delete v.righe; });
+    // righe della descrizione senza simbolo proprio (es. secondo e terzo intestatario sotto il primo): alla voce
+    // il cui simbolo sta alla loro altezza, con il testo allineato a sinistra
+    const usate = new Set(grezze.map(g => g.t));
+    cand.filter(t => !usate.has(t) && !P.ruoloTesto(t.t)).forEach(t => {
+      const x0 = t.x - (t.w || t.t.length * t.h * 0.55) / 2;
+      const v = voci.find(v2 => t.y >= v2.sb[1] - t.h * 0.8 && t.y <= v2.sb[3] + t.h * 0.8 && x0 > v2.sb[2] && x0 - v2.sb[2] < t.h * 6);
+      if (v) v.righe.push([t.y, t.t]);
+    });
+    voci.forEach(v => { v.testo = v.righe.sort((a, b) => b[0] - a[0]).map(r => r[1]).join(' ').replace(/\s+/g, ' ').trim(); v.ruolo = P.ruoloTesto(v.testo); delete v.righe; });
     // I simboli di una legenda stanno in colonna: si scartano le «voci» lontane dalla colonna (scritte del disegno sopra un'area colorata)
-    const xs = voci.filter(v => v.ruolo).map(v => v.sb[0]).sort((a, b) => a - b);
+    const xs = (voci.some(v => v.ruolo) ? voci.filter(v => v.ruolo) : voci).map(v => v.sb[0]).sort((a, b) => a - b);
     if (xs.length >= 2) { const xm = xs[Math.floor(xs.length / 2)], hm = Math.max(...voci.map(v => v.sb[3] - v.sb[1])); for (let i = voci.length - 1; i >= 0; i--) if (Math.abs(voci[i].sb[0] - xm) > Math.max(hm, 4)) voci.splice(i, 1); }
     // Zona occupata dalla legenda (da escludere quando si cercano le aree nel disegno)
     const zl = voci.length ? voci.reduce((z, v) => [Math.min(z[0], v.zona[0]), Math.min(z[1], v.zona[1]), Math.max(z[2], v.zona[2]), Math.max(z[3], v.zona[3])], [Infinity, Infinity, -Infinity, -Infinity]) : null;
@@ -252,6 +268,111 @@
       let acc = [];
       for (let i = 0; i < strisce.length; i += 150) acc = G.unione([acc, ...strisce.slice(i, i + 150).map(p => [p])].filter(x => x.length));
       acc.forEach(P2 => out.push({ poly: P2, passo }));
+    });
+    return out;
+  };
+
+  // ---- Mappa catastale «a pixel» (immagine scritta nel PDF come righe di rettangolini scuri) ----
+  // Un tecnico legge i numeri e segue le linee: qui le righe di pixel diventano una bitmap, e da ogni numero di
+  // particella si «riempie» la zona bianca fino alle linee che la chiudono (anche sotto le aree colorate, che nel PDF
+  // sono disegnate sopra la mappa ma non la cancellano).
+  P.mappaRaster = pagina => {
+    const runs = pagina.poli.filter(p => p.area && p.pts.length >= 4 && p.pts.length <= 5 && scuro(p.colore)).map(p => bbox(p.pts))
+      .filter(b => (b[3] - b[1]) > 0.01 && (b[3] - b[1]) < 0.8);
+    if (runs.length < 3000) return null;
+    const hs = runs.map(b => b[3] - b[1]).sort((a, b) => a - b), px = hs[Math.floor(hs.length / 2)];
+    const bb = runs.reduce((z, b) => [Math.min(z[0], b[0]), Math.min(z[1], b[1]), Math.max(z[2], b[2]), Math.max(z[3], b[3])], [Infinity, Infinity, -Infinity, -Infinity]);
+    const W = Math.ceil((bb[2] - bb[0]) / px) + 2, H = Math.ceil((bb[3] - bb[1]) / px) + 2;
+    if (W * H > 60e6) return null;
+    const mask = new Uint8Array(W * H);
+    runs.forEach(b => {
+      const c0 = Math.max(0, Math.round((b[0] - bb[0]) / px)), c1 = Math.min(W - 1, Math.round((b[2] - bb[0]) / px) - 1);
+      const r0 = Math.max(0, Math.round((b[1] - bb[1]) / px)), r1 = Math.min(H - 1, Math.round((b[3] - bb[1]) / px) - 1);
+      for (let r = r0; r <= Math.max(r0, r1); r++) mask.fill(1, r * W + c0, r * W + Math.max(c0, c1) + 1);
+    });
+    // le linee scure vere (vettoriali) contano come confini anch'esse
+    pagina.poli.filter(p => !p.area && scuro(p.colore)).forEach(p => {
+      for (let i = 0; i + 1 < p.pts.length; i++) {
+        const a = p.pts[i], b = p.pts[i + 1], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / px) + 1;
+        for (let j = 0; j <= n; j++) { const c = Math.round((a[0] + (b[0] - a[0]) * j / n - bb[0]) / px), r = Math.round((a[1] + (b[1] - a[1]) * j / n - bb[1]) / px); if (c >= 0 && c < W && r >= 0 && r < H) mask[r * W + c] = 1; }
+      }
+    });
+    return { px, x0: bb[0], y0: bb[1], W, H, mask };
+  };
+
+  // Zona bianca che contiene il punto (x, y in punti PDF): contorno esterno in punti PDF, o null se «scappa»
+  // (linee interrotte, zona più grande di maxFraz della mappa)
+  // w, h: ingombro del numero (punti PDF): si parte appena fuori dal numero, non dentro gli occhielli di 0, 6, 8, 9
+  P.regioneRaster = (mr, x, y, maxFraz = 0.12, w = 0, h = 0) => {
+    const { px, W, H } = mr, prove = [];
+    const mx = w / 2 + px * 3, my = h / 2 + px * 3;
+    if (w || h) for (const [dx, dy] of [[0, my], [0, -my], [mx, 0], [-mx, 0], [mx, my], [-mx, -my], [mx, -my], [-mx, my]]) prove.push([x + dx, y + dy]);
+    else prove.push([x, y]);
+    const minPix = Math.max(30, ((w + h) / px) ** 2 * 1.5);
+    for (const [px2, py2] of prove) { const r = regione1(mr, px2, py2, maxFraz); if (r && r.pixel >= minPix) return r; }
+    return null;
+  };
+  const regione1 = (mr, x, y, maxFraz) => {
+    const { px, x0, y0, W, H, mask } = mr;
+    let c = Math.round((x - x0) / px), r = Math.round((y - y0) / px);
+    if (c < 1 || r < 1 || c >= W - 1 || r >= H - 1) return null;
+    // sopra una linea o una lettera: si parte dal pixel bianco più vicino
+    if (mask[r * W + c]) {
+      let trovato = false;
+      for (let d = 1; d < 12 && !trovato; d++) for (let k = -d; k <= d && !trovato; k++) for (const [dc, dr] of [[k, -d], [k, d], [-d, k], [d, k]]) { const cc = c + dc, rr = r + dr; if (cc > 0 && rr > 0 && cc < W - 1 && rr < H - 1 && !mask[rr * W + cc]) { c = cc; r = rr; trovato = true; break; } }
+      if (!trovato) return null;
+    }
+    const max = W * H * maxFraz, vis = new Uint8Array(W * H), st = new Int32Array(Math.min(W * H, 4e6));
+    let sp = 0, n = 0, cm = c, cM = c, rm = r, rM = r;
+    st[sp++] = r * W + c; vis[r * W + c] = 1;
+    while (sp) {
+      const i = st[--sp], rr = (i / W) | 0, cc = i - rr * W;
+      if (++n > max) return null;
+      if (cc < cm) cm = cc; if (cc > cM) cM = cc; if (rr < rm) rm = rr; if (rr > rM) rM = rr;
+      if (cc <= 0 || rr <= 0 || cc >= W - 1 || rr >= H - 1) return null; // tocca il bordo della mappa: zona aperta
+      for (const j of [i - 1, i + 1, i - W, i + W]) if (!vis[j] && !mask[j]) { vis[j] = 1; if (sp >= st.length) return null; st[sp++] = j; }
+    }
+    if (n < 30) return null;
+    // contorno esterno: lati dei pixel della zona che confinano con l'esterno, concatenati (zona a sinistra)
+    const dentro = (cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && vis[rr * W + cc] === 1;
+    // il pixel più in basso a sinistra della zona: il suo lato inferiore è sul contorno esterno
+    let sr = rm, sc = -1; for (let cc = cm; cc <= cM; cc++) if (dentro(cc, sr)) { sc = cc; break; }
+    if (sc < 0) return null;
+    // si cammina sugli spigoli dei pixel: direzioni 0=est 1=nord 2=ovest 3=sud, con la zona a sinistra
+    const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+    let vx = sc, vy = sr, dir = 0; const ring = [[vx, vy]];
+    // pixel a sinistra e a destra del lato che parte da (vx,vy) in direzione d
+    const sx = (x2, y2, d) => d === 0 ? [x2, y2] : d === 1 ? [x2 - 1, y2] : d === 2 ? [x2 - 1, y2 - 1] : [x2, y2 - 1];
+    const dx2 = (x2, y2, d) => d === 0 ? [x2, y2 - 1] : d === 1 ? [x2, y2] : d === 2 ? [x2 - 1, y2] : [x2 - 1, y2 - 1];
+    for (let guard = 0; guard < 4 * (cM - cm + rM - rm + 4) * 50; guard++) {
+      vx += DX[dir]; vy += DY[dir];
+      if (vx === sc && vy === sr) break;
+      // prova a girare a destra, poi dritto, poi a sinistra, poi indietro
+      for (const t of [3, 0, 1, 2]) {
+        const d = (dir + t) % 4, L = sx(vx, vy, d), R = dx2(vx, vy, d);
+        if (dentro(L[0], L[1]) && !dentro(R[0], R[1])) { if (d !== dir) ring.push([vx, vy]); dir = d; break; }
+      }
+    }
+    // semplificazione (Douglas-Peucker, tolleranza 1,2 pixel) e ritorno in punti PDF
+    const dp = (pts, tol) => {
+      if (pts.length < 3) return pts;
+      const a = pts[0], b = pts[pts.length - 1]; let im = 0, dm = 0;
+      for (let i = 1; i < pts.length - 1; i++) { const q = pts[i], L = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, d = Math.abs((b[0] - a[0]) * (a[1] - q[1]) - (a[0] - q[0]) * (b[1] - a[1])) / L; if (d > dm) { dm = d; im = i; } }
+      return dm > tol ? dp(pts.slice(0, im + 1), tol).slice(0, -1).concat(dp(pts.slice(im), tol)) : [a, b];
+    };
+    const meta = Math.floor(ring.length / 2);
+    const semp = dp(ring.slice(0, meta + 1), 1.2).slice(0, -1).concat(dp(ring.slice(meta).concat([ring[0]]), 1.2).slice(0, -1));
+    if (semp.length < 3) return null;
+    return { pts: semp.map(q => [x0 + q[0] * px, y0 + q[1] * px]), pixel: n };
+  };
+
+  // Particelle ricostruite dalla mappa a pixel: una per numero letto (testi del PDF o letti con l'OCR).
+  // numeri: [{x, y, t}] in punti PDF. Restituisce [{pts, t}] senza sovrapposizioni (le particelle interne si tolgono).
+  P.particelleRaster = (mr, numeri) => {
+    const G = ES.geo, out = [];
+    numeri.forEach(n => {
+      if (out.some(o => G.inAnello(n.x, n.y, o.pts))) { const o = out.find(q => G.inAnello(n.x, n.y, q.pts)); if (o.t !== n.t) o.altri = (o.altri || []).concat(n.t); return; }
+      const reg = P.regioneRaster(mr, n.x, n.y, 0.12, n.w || 0, n.h || 0); if (reg) out.push({ pts: reg.pts, t: n.t, a: Math.abs(G.areaAnello(reg.pts)) });
     });
     return out;
   };
@@ -316,7 +437,7 @@
     const NOMI = { espr: 'Esproprio', servop: 'Servitù – ingombro opere', serv: 'Servitù – fascia', occ: 'Occupazione temporanea' };
     const ruoli = {};
     let raster = false;
-    const assenti = [];
+    const assenti = [], perVoce = [];
     // Segmenti di due punti del disegno e quali sono tratteggi
     const seg2 = pagina.poli.filter(p => !p.area && p.pts.length === 2 && nelDisegno(p));
     const trSet = P.tratteggi(seg2.map(p => p.pts), 14, seg2.map(p => p.colore));
@@ -325,7 +446,7 @@
     const cacheAree = {};
     // I buchi con dentro una scritta sono il riquadro bianco dell'etichetta («p.lla 62»): fanno parte dell'area
     const conScritta = h => { const b = bbox(h); return pagina.testi.some(t => t.x > b[0] && t.x < b[2] && t.y > b[1] && t.y < b[3] && G.inAnello(t.x, t.y, h)); };
-    const areeColore = col => cacheAree[col] || (cacheAree[col] = unisci(pagina.poli.filter(p => p.area && p.colore === col && p.pts.length >= 3 && nelDisegno(p)).map(p => p.pts))
+    const areeColore = col => cacheAree[col] || (cacheAree[col] = unisci((L => L.length > 60000 ? (avvisi.push(`Il colore ${col} è usato da ${L.length} elementi (la mappa stessa?): non è stato preso come area`), []) : L)(pagina.poli.filter(p => p.area && p.colore === col && p.pts.length >= 3 && nelDisegno(p))).map(p => p.pts))
       .map(Pol => [Pol[0], ...Pol.slice(1).filter(h => !conScritta(h))]));
     voci.forEach((v, i) => {
       if (!v.ruolo) return;
@@ -342,7 +463,7 @@
           const trattDentro = Pol => { const b = bbox(Pol[0]); let best = null, nb = 2; colT.forEach(c => { const n = mid[c].filter(q => q[0] >= b[0] && q[0] <= b[2] && q[1] >= b[1] && q[1] <= b[3] && G.inPoly(q[0], q[1], Pol)).length; if (n > nb) { nb = n; best = c; } }); return best; };
           M = M.filter(Pol => trattDentro(Pol) === (v.simbolo.tratt || null));
         }
-        M = taglia(M);
+        M = taglia(M); perVoce.push({ v, M });
         M.forEach(Pol => senzaBuchi(Pol).forEach(r => metti(nome, r, true)));
         if (!M.length) assenti.push(v.testo);
       } else {
@@ -350,6 +471,7 @@
         pagina.poli.filter(p => !p.area && p.colore === v.simbolo.colore && (!v.simbolo.oc || p.oc === v.simbolo.oc) && nelDisegno(p))
           .forEach(p => { for (let j = 0; j + 1 < p.pts.length; j++) segm.push([p.pts[j], p.pts[j + 1]]); });
         const A = P.areeTratteggio(segm);
+        perVoce.push({ v, M: A.map(x => x.poly) });
         A.forEach(x => taglia([x.poly]).forEach(Pol => senzaBuchi(Pol).forEach(r => metti(nome, r, true))));
         if (!A.length) avvisi.push(`«${v.testo}»: tratteggio non trovato nel disegno`);
       }
@@ -357,7 +479,26 @@
     // Particelle: livelli CAD con nome da particelle/confini/strade; se il PDF non ha livelli utili, le linee scure
     // del disegno che non sono tratteggi né contorni di simboli della legenda
     const perLivello = pagina.poli.filter(p => !p.area && /partic|confin|strad|limite|mappa/i.test(p.oc) && !/tratteg|fabbric|scritt|testi|^z_/i.test(p.oc) && nelDisegno(p));
-    if (perLivello.length) perLivello.forEach(p => metti('Particelle: ' + p.oc, p.pts, p.chiusa));
+    // Mappa catastale «a pixel»: particelle ricostruite dai numeri (testi del PDF e numeri letti con l'OCR)
+    const mr = pagina._mr === undefined ? (pagina._mr = P.mappaRaster(pagina)) : pagina._mr;
+    const inLeg = t => leg.zona && t.x >= leg.zona[0] && t.x <= leg.zona[2] && t.y >= leg.zona[1] && t.y <= leg.zona[3];
+    const inFin = t => !fin || (t.x >= fin.b[0] && t.x <= fin.b[2] && t.y >= fin.b[1] && t.y <= fin.b[3]);
+    const ocr = (opt.numeri || []).filter(n => inFin(n) && !inLeg(n));
+    if (mr && !perLivello.length) {
+      const numeri = pagina.testi.filter(t => inFin(t) && !inLeg(t) && ES.analisi.etichetta(t.t) && !/^\s*f(oglio|g)/i.test(t.t)).map(t => ({ t: t.t, x: t.x, y: t.y, w: t.w || t.h * t.t.length * 0.55, h: t.h })).concat(ocr);
+      const parti = P.particelleRaster(mr, numeri);
+      // aree d'intervento che non cadono in una particella ricostruita: si riempie la zona da un punto dell'area;
+      // se dentro c'è un numero (sfuggito al primo giro) quella è la sua particella
+      out.poli.filter(q => q.chiusa && /^Legenda /.test(q.layer)).forEach(q => {
+        const r = q.pts.map(v => [v[0] / k, v[1] / k]), lp = G.puntoEtichetta([r]); if (!lp || parti.some(o => G.inAnello(lp[0], lp[1], o.pts))) return;
+        const reg = P.regioneRaster(mr, lp[0], lp[1], 0.12); if (!reg) return;
+        const n = numeri.find(nn => G.inAnello(nn.x, nn.y, reg.pts)); if (n) parti.push({ pts: reg.pts, t: n.t, a: Math.abs(G.areaAnello(reg.pts)) });
+      });
+      parti.forEach(q => metti('Particelle: ricostruite dalla mappa', q.pts, true));
+      ocr.forEach(n => out.testi.push({ layer: 'numeri letti (OCR)', t: n.t, x: n.x * k, y: n.y * k, h: (n.h || 2) * k, rot: 0 }));
+      avvisi.push(parti.length ? `Mappa catastale a immagine: ${parti.length} particelle ricostruite seguendo le linee della mappa da ogni numero${ocr.length ? ' (' + ocr.length + ' numeri letti con l\'OCR, da verificare)' : ''}`
+        : 'Mappa catastale a immagine: i numeri delle particelle non sono testo. Usa «Leggi i numeri dalla mappa (OCR)» per farli riconoscere');
+    } else if (perLivello.length) perLivello.forEach(p => metti('Particelle: ' + p.oc, p.pts, p.chiusa));
     else {
       const colLeg = new Set(voci.map(v => v.simbolo.colore));
       const tr = new Set(seg2.filter((p, i) => trSet.has(i)));
@@ -421,8 +562,19 @@
       });
     }
     out.poli.forEach(p => { (out.layers[p.layer] = out.layers[p.layer] || { poli: 0, chiuse: 0, testi: 0 }).poli++; if (p.chiusa) out.layers[p.layer].chiuse++; if (/^Particelle: /.test(p.layer)) ruoli[p.layer] = 'part'; });
-    out.layers.testi = { poli: 0, chiuse: 0, testi: out.testi.length - nCerchi }; ruoli.testi = 'testi';
+    const nOcr = out.testi.filter(t => t.layer === 'numeri letti (OCR)').length;
+    out.layers.testi = { poli: 0, chiuse: 0, testi: out.testi.length - nCerchi - nOcr }; ruoli.testi = 'testi';
+    if (nOcr) { out.layers['numeri letti (OCR)'] = { poli: 0, chiuse: 0, testi: nOcr }; ruoli['numeri letti (OCR)'] = 'testi'; }
     if (nCerchi) { out.layers['richiami cerchiati'] = { poli: 0, chiuse: 0, testi: nCerchi }; ruoli['richiami cerchiati'] = 'ignora'; }
+    // Particella campita tutta e fascia d'intervento dentro: la campitura grande di solito dice solo «particella interessata»
+    perVoce.forEach(a => perVoce.forEach(b => {
+      if (a === b || !a.M.length || !b.M.length || a.v.ruolo === null) return;
+      try {
+        const Aa = G.areaMP(a.M), Ab = G.areaMP(b.M); if (Aa < Ab * 2.5) return;
+        const dentro2 = G.areaMP(G.intersezione(b.M, a.M));
+        if (dentro2 > Ab * 0.8) avvisi.push(`Le aree «${a.v.testo}» contengono quasi per intero le aree «${b.v.testo}»: se la prima campitura serve solo a indicare la particella interessata, impostala come «non è un'area d'intervento» e tieni la fascia come area`);
+      } catch (e) { /* geometrie non confrontabili */ }
+    }));
     if (assenti.length) avvisi.push(`Voci di legenda senza aree in questa tavola (normale se non usate qui): ${assenti.map(t => '«' + t + '»').join(', ')}`);
     if (!leg.voci.length) avvisi.push('Legenda non trovata: indica a mano il tipo di ciascun gruppo di aree');
     if (!scala) avvisi.push('Scala non trovata nel PDF: indicala (o falla stimare dalle superfici catastali delle ditte)');

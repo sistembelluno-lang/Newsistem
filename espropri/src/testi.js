@@ -17,6 +17,12 @@ Trasmessa a mezzo {{dest.mezzo}}
 {{/dati.lettere}}Ringraziando per l'attenzione e rimanendo a disposizione per qualsiasi chiarimento, si porgono cordiali saluti.
 [[firma {{ente.ruolo}}|{{ente.responsabile}}]]
 Documento informatico sottoscritto con firma digitale ai sensi dell'art. 24 del D.Lgs. 82/2005 e ss.mm.ii.`;
+  // Schema del piano particellare per la ditta: estratto con il numero di piano e un taglio per ogni particella
+  const SCHEMA = `
+[[salto]]
+## Schema del piano particellare – Ditta n. {{ditta.n}}
+[[planimetria scala=1000]]
+[[tagli]]`;
   const PLANIMETRIA = `
 [[salto]]
 ## Planimetria catastale con evidenziata l'area interessata
@@ -268,7 +274,7 @@ Avverso il presente decreto può essere proposto ricorso al T.A.R. {{ente.tar}} 
 [[tabella particelle colonne=fg,map,qual,sup,espr,servtot,occ]]
 La S.V. è invitata ad intervenire personalmente o a mezzo di persona di fiducia munita di delega. In caso di assenza le operazioni si svolgeranno ugualmente alla presenza di due testimoni che non siano dipendenti del beneficiario dell'espropriazione (art. 24, comma 3).
 Possono partecipare alle operazioni anche i titolari di diritti reali o personali sul bene (fittavoli, affittuari, conduttori).
-` + CHIUSURA
+` + CHIUSURA + SCHEMA
     },
     verbale_consistenza: {
       nome: 'Rilievo dello stato di consistenza e verbale di immissione in possesso', art: 'artt. 22, 22-bis, 24, 49', ambito: 'ditta', fase: 'Esecuzione',
@@ -335,8 +341,9 @@ _____________________________________________________________________________
 # VERBALE DI IMMISSIONE IN POSSESSO
 Rilevato, come sopra, lo stato dei luoghi, {{ente.beneficiario}} si immette nel possesso delle aree sopra descritte {{#ditta.particelle}}{{#espr}}per una superficie di esproprio di {{espr}} mq (Comune di {{comune}} Fg. {{fg}} Mapp. {{mappaleEspr}}); {{/espr}}{{#servTot}}di servitù di {{servTot}} mq (Comune di {{comune}} Fg. {{fg}} Mapp. {{mappaleServ}}); {{/servTot}}{{#occ}}di occupazione temporanea di {{occ}} mq (Comune di {{comune}} Fg. {{fg}} Mapp. {{mappaleOcc}}); {{/occ}}{{/ditta.particelle}}ritenendo, da oggi, la ditta proprietaria spogliata di ogni pretesa di utilizzo e permanenza sul bene per le aree espropriate. A riprova dell'avvenuta materiale apprensione del bene e allo scopo di dimensionarla fisicamente vengono apposti sul fondo dei picchetti che, ove non materializzati in altro modo, indicano i limiti delle aree.
 [[salto]]
-## Estratto di mappa catastale
+## Schema del piano particellare – Ditta n. {{ditta.n}}
 [[planimetria scala=1000]]
+[[tagli]]
 **LA DITTA PROPRIETARIA**
 {{#ditta.intestatari}}
 ______________________________ ({{nome}})

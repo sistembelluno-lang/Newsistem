@@ -309,3 +309,17 @@ test('Excel con celle «xml:space=preserve» (nomi delle persone) e quote mancan
   assert.ok(L.some(x => /Quota non indicata per BIANCHI ANNA \(Comproprietario\)/.test(x.msg)));
   assert.ok(!L.some(x => /sommano/.test(x.msg)));
 });
+
+test('correzione della scala del disegno e taglio di una particella', () => {
+  const dxf = ES.dxf.leggi(fs.readFileSync(path.join(esempi, 'esempio.dxf')));
+  const geo = ES.analisi.importaDxf(dxf, { fg: '1' });
+  const prima = geo.pezzi.reduce((s, z) => s + z.a, 0), bb = geo.bbox.slice();
+  ES.analisi.scalaGeo(geo, 0.1);
+  assert.ok(Math.abs(geo.pezzi.reduce((s, z) => s + z.a, 0) - prima / 100) < 1e-6);
+  assert.ok(Math.abs(geo.bbox[2] - bb[2] * 0.1) < 1e-9);
+  ES.analisi.scalaGeo(geo, 10);
+  const pr = { geo, particelle: [], ditte: [], ente: {} };
+  const k = geo.pezzi.find(z => z.k).k, svg = ES.tavola.taglio(pr, null, k);
+  assert.ok(svg.startsWith('<svg') && svg.includes('Mappale ' + k.split('|')[1]) && /scala 1:\d+/.test(svg));
+  assert.ok(/\d,\d\d<\/text>/.test(svg), 'quote dei lati nel taglio');
+});

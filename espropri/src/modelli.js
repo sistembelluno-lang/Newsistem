@@ -7,7 +7,7 @@
 //   # Titolo (centrato, grande)   ## Sottotitolo (centrato)   ### Titoletto   >> testo a destra (destinatario)
 //   - punto elenco     **grassetto**     ++sottolineato++
 //   [[tabella particelle colonne=fg,map,sup,espr]]  [[tabella intestatari]]  [[tabella indennita]]  [[tabella piano]]
-//   [[tabella consistenza]]  [[planimetria scala=1000]]  [[firma Ruolo|Nome]]  [[salto]]
+//   [[tabella consistenza]]  [[planimetria scala=1000]]  [[tagli]] (un taglio per ogni particella della ditta)  [[firma Ruolo|Nome]]  [[salto]]
 (function (ES) {
   'use strict';
   const M = ES.modelli = {}, U = ES.U, C = ES.cat;
@@ -269,6 +269,7 @@
         if (cmd === 'salto') B.push({ t: 'pb' });
         else if (cmd === 'tabella') { const nome = rest.split(/\s+/)[0]; B.push(tabella(nome, opzioni(rest), ctx)); }
         else if (cmd === 'planimetria') B.push({ t: 'img', ref: 'planimetria', opt: opzioni(rest), ditta: ctx._dittaId || null });
+        else if (cmd === 'tagli') B.push({ t: 'img', ref: 'tagli', opt: opzioni(rest), ditta: ctx._dittaId || null });
         else if (cmd === 'firma') { const [ruolo, nome] = rest.split('|'); B.push({ t: 'p', runs: [{ text: (ruolo || '').trim(), b: true }], align: 'center', ind: 4800, before: 240, after: 0, keep: true }); if (nome && nome.trim()) B.push({ t: 'p', runs: [{ text: nome.trim() }], align: 'center', ind: 4800, after: 0, keep: true }); B.push({ t: 'p', runs: [{ text: '______________________________' }], align: 'center', ind: 4800, before: 360 }); }
         else if (cmd === 'spazio') B.push({ t: 'p', runs: [{ text: '' }], after: 240 });
         return;

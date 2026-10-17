@@ -79,3 +79,18 @@ test('PDF: scala stimata dalle superfici catastali; correzione dei tipi dalla le
   assert.strictEqual(Math.round(S['12|10'].occ), 0);
   assert.ok(S['12|10'].serv > 0);
 });
+
+test('PDF con mappa a pixel: le particelle si ricostruiscono dai numeri seguendo le linee', () => {
+  // mappa 1000×200 punti in righe di pixel da 0,24 pt: cornice e due divisorie verticali (x = 100 e x = 150)
+  const px = 0.24, poli = [], run = (x0, x1, y) => poli.push({ area: true, colore: '#2d2d2d', pts: [[x0, y], [x1, y], [x1, y + px], [x0, y + px]] });
+  for (let y = 0; y < 200; y += px) { for (const x of [0, 100, 150, 999.76]) run(x, x + px, y); }
+  run(0, 1000, 0); run(0, 1000, 199.76);
+  const pagina = { w: 1010, h: 210, poli, testi: [], clip: [] };
+  const mr = ES.pdfv.mappaRaster(pagina);
+  assert.ok(mr, 'mappa a pixel riconosciuta');
+  const P = ES.pdfv.particelleRaster(mr, [{ t: '10', x: 50, y: 100, w: 6, h: 3 }, { t: '11', x: 125, y: 100, w: 6, h: 3 }, { t: '10', x: 60, y: 150, w: 6, h: 3 }]);
+  assert.strictEqual(P.length, 2);
+  const a = Object.fromEntries(P.map(p => [p.t, p.a]));
+  assert.ok(Math.abs(a['10'] - 100 * 200) < 100 * 200 * 0.03, 'particella 10: ' + a['10']);
+  assert.ok(Math.abs(a['11'] - 50 * 200) < 50 * 200 * 0.03, 'particella 11: ' + a['11']);
+});

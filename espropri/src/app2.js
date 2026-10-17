@@ -35,9 +35,15 @@
   };
   async function immaginiBlocchi(p, docs, perWord) {
     const calc = S.calcola(p);
-    for (const d of docs) for (const b of d.blocchi) if (b.t === 'img' && b.ref === 'planimetria' && p.geo) {
-      const svg = b.ditta ? T.estratto(p, calc, b.ditta, +(b.opt.scala || 1000)) : T.foglio(p, calc, { formato: 'A4', orient: 'P' });
-      if (perWord) { try { Object.assign(b, await APP.svgPng(svg, 1800), { mm: 165 }); } catch (e) { /* senza immagine */ } }
+    // [[tagli]]: un'immagine per ogni particella della ditta (schema del piano particellare)
+    for (const d of docs) d.blocchi = d.blocchi.flatMap(b => {
+      if (!(b.t === 'img' && b.ref === 'tagli')) return [b];
+      if (!p.geo || !b.ditta) return [];
+      return T.particelleDitta(p, b.ditta).map(k => ({ t: 'img', ref: 'taglio', chiave: k, opt: b.opt, ditta: b.ditta }));
+    });
+    for (const d of docs) for (const b of d.blocchi) if (b.t === 'img' && (b.ref === 'planimetria' || b.ref === 'taglio') && p.geo) {
+      const svg = b.ref === 'taglio' ? T.taglio(p, calc, b.chiave) : b.ditta ? T.estratto(p, calc, b.ditta, +(b.opt.scala || 1000), undefined, { aree: true }) : T.foglio(p, calc, { formato: 'A4', orient: 'P' });
+      if (perWord) { try { Object.assign(b, await APP.svgPng(svg, 1800), { mm: b.ref === 'taglio' ? 160 : 165 }); } catch (e) { /* senza immagine */ } }
       else { b.src = svgData(svg); b.mm = 170; }
     }
   }
@@ -191,7 +197,7 @@ ${d.note ? `<div class="dnota">📝 ${E(d.note)}</div>` : ''}<div class="row dc-
 <label class="f2">PEC / e-mail${v('pec')}</label><label>Invio con<select data-o="${i}" data-c="mezzo"><option value="">${o.pec ? 'PEC (automatico)' : 'Raccomandata A/R (automatico)'}</option>${MEZZI.map(x => `<option ${o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
 <div class="dest-prev" title="Come compare nelle lettere">${dest.map(E).join('<br>')}${o.via ? '' : '<br><span class="ko">indirizzo mancante</span>'}</div></div></div>`;
     };
-    m.innerHTML = `<div class="row"><button id="dback">‹ Tutte le ditte</button><h2 style="margin:0" class="grow">Ditta ${E(d.n)} <span class="mu">${E(S.PROCEDURE[proc].nome)}</span></h2>${APP.FS.ok ? '<button id="dfold">📁 Cartella della ditta</button>' : ''}</div>
+    m.innerHTML = `<div class="row"><button id="dback">‹ Tutte le ditte</button><h2 style="margin:0" class="grow">Ditta ${E(d.n)} <span class="mu">${E(S.PROCEDURE[proc].nome)}</span></h2>${p.geo ? '<button id="darea">🗺️ Mostra aree</button>' : ''}${APP.FS.ok ? '<button id="dfold">📁 Cartella della ditta</button>' : ''}</div>
 <div class="kpi" style="margin-top:10px"><div><small>Esproprio</small><b>${U.mq(D.aree.espr || 0)} mq</b></div><div><small>Servitù</small><b>${U.mq((D.aree.servop || 0) + (D.aree.serv || 0))} mq</b></div><div><small>Occupazione</small><b>${U.mq(D.aree.occ || 0)} mq</b></div><div><small>Indennità</small><b>${U.eur(D.tot)}</b></div>${D.ritenuta ? `<div><small>Ritenuta art. 35 (stima)</small><b>${U.eur(D.ritenuta)}</b></div>` : ''}</div>
 <div class="card"><label class="fl"><b style="color:var(--tx)">📝 Note della ditta</b><textarea data-f="note" rows="3" style="font-family:inherit;font-size:14px" placeholder="Annotazioni sulla ditta: contatti, accordi, documenti in attesa, correzioni da fare…"></textarea></label></div>
 ${docDitta(p, d)}
@@ -216,6 +222,7 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
 <div class="card"><h3 style="margin-top:0">Documenti nel fascicolo</h3><div id="dfiles" class="files mu">${APP.FS.ok ? 'Lettura…' : 'Nel browser i documenti vengono scaricati; il fascicolo con le cartelle è disponibile nel programma installato.'}</div></div>`;
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
+    const da = m.querySelector('#darea'); if (da) da.onclick = () => APP.mostraAree(p, d);
     const fo = m.querySelector('#dfold'); if (fo) fo.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
     m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => {
       const o = d.intest[+el.dataset.o], c = el.dataset.c;
@@ -372,20 +379,44 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
   // ---------- Vista: Tavola ----------
   let vb = null;
   APP.viste.tavola = (m, p) => {
-    if (!p.geo) { m.innerHTML = '<h2>🗺️ Tavola grafica</h2><div class="card vuoto">Importa prima il disegno DXF.</div>'; return; }
-    const c = APP.calc(), sch = T.schermo(p, c);
-    const o = APP.tavOpt = APP.tavOpt || { formato: 'A3', orient: 'L', scala: 0, ditta: '' };
+    if (!p.geo) { m.innerHTML = '<h2>🗺️ Tavola grafica</h2><div class="card vuoto">Importa prima il disegno (DXF, DWG o tavola PDF) e premi «Usa questo disegno nella pratica».</div>'; return; }
+    const c = APP.calc();
+    const o = APP.tavOpt = Object.assign({ formato: 'A3', orient: 'L', scala: 0, ditta: '', cosa: 'tavola', chiave: '', quote: false, aree: true, elenco: true, vQuote: false, vAree: false }, APP.tavOpt || {});
+    const sch = T.schermo(p, c, { quote: o.vQuote, aree: o.vAree });
+    const senzaDitte = !p.ditte.length, pz = p.geo.pezzi || [];
+    const chiavi = [...new Set(pz.map(z => z.k).filter(Boolean))].sort((x, y) => U.cmp(x, y));
+    const ix = k => { const x = p.particelle.find(q => A.chiave(q.fg, q.map, q.sub) === k || A.chiave(q.fg, q.map, '') === k); return x ? p.ditte.find(d => d.id === x.ditta) : null; };
+    const geo = p.geo, origine = geo.origine === 'pdf' ? 'tavola PDF' : geo.origine === 'dxf' ? 'disegno DXF/DWG' : 'disegno';
+    const tot = t => pz.filter(z => z.tipo === t).reduce((s2, z) => s2 + z.a, 0);
     m.innerHTML = `<h2>🗺️ Tavola grafica</h2>
-<div class="leg2">${Object.entries(T.STILI).map(([k, s]) => `<span><i style="background:${s.fill};border:1px solid ${s.col}"></i>${s.nome}</span>`).join('')}<span><i style="border:2px solid #d62828;border-radius:99px;width:12px"></i>Numero di piano</span></div>
+${senzaDitte ? '<div class="ban">Per i <b>numeri di piano</b> (cerchietti delle ditte) importa l\'elenco ditte: i cerchietti richiamano le particelle di ogni ditta.</div>' : ''}
+<div class="leg2">${Object.entries(T.STILI).map(([k, s2]) => `<span><i style="background:${s2.fill};border:1px solid ${s2.col}"></i>${s2.nome}</span>`).join('')}<span><i style="border:2px solid #c1121f;border-radius:99px;width:12px"></i>Numero di piano</span>
+<label class="chk" style="margin-left:auto"><input type="checkbox" id="vq" ${o.vQuote ? 'checked' : ''}> Quote dei lati</label><label class="chk"><input type="checkbox" id="va" ${o.vAree ? 'checked' : ''}> Superfici</label></div>
 <div class="tav" id="tv">${sch.svg}<div class="zm"><button id="zin">＋</button><button id="zout">－</button><button id="zfit">⤢</button></div><div class="info" id="tinfo">Rotellina o pulsanti per lo zoom, trascina per spostarti, clic su un'area per i dati.</div></div>
-<div class="card" style="margin-top:10px"><h3 style="margin-top:0">Stampa della tavola</h3><div class="g">
+<div class="card" style="margin-top:10px"><h3 style="margin-top:0">Stampa della tavola (in scala vera)</h3>
+<p class="mu">Il foglio è disegnato in millimetri alla scala scelta: stampato o salvato in PDF <b>al 100%</b> (senza «adatta alla pagina») le misure sulla carta corrispondono alla scala. La <b>tavola generale</b> ha i cerchietti delle ditte con i richiami alle particelle, legenda, quadro d'unione, elenco ditte e cartiglio; l'<b>estratto</b> è la parte di una ditta; il <b>taglio</b> è una particella con le sue aree, le quote dei lati e le superfici (gli stessi tagli sono allegati a convocazioni e stati di consistenza).</p>
+<div class="g">
+<label>Contenuto<select id="tc"><option value="tavola" ${o.cosa === 'tavola' ? 'selected' : ''}>Tavola generale</option><option value="estratto" ${o.cosa === 'estratto' ? 'selected' : ''}>Estratto di una ditta</option><option value="taglio" ${o.cosa === 'taglio' ? 'selected' : ''}>Taglio di una particella</option></select></label>
 <label>Formato<select id="tf">${Object.keys(T.FORMATI).map(f => `<option ${o.formato === f ? 'selected' : ''}>${f}</option>`).join('')}</select></label>
 <label>Orientamento<select id="to"><option value="L" ${o.orient === 'L' ? 'selected' : ''}>Orizzontale</option><option value="P" ${o.orient === 'P' ? 'selected' : ''}>Verticale</option></select></label>
-<label>Scala<select id="ts"><option value="0">Adatta al foglio</option>${T.SCALE.map(s => `<option value="${s}" ${+o.scala === s ? 'selected' : ''}>1:${s}</option>`).join('')}</select></label>
-<label>Ditta (estratto)<select id="td"><option value="">Tutta l'opera</option>${p.ditte.map(d => `<option value="${d.id}" ${o.ditta === d.id ? 'selected' : ''}>Ditta ${E(d.n)} – ${E((d.intest[0] || {}).nome || '')}</option>`).join('')}</select></label></div>
-<div class="row" style="margin-top:10px"><button class="p" id="tpdf">Stampa / PDF</button><button id="tsvg">Scarica SVG</button><button id="tdxf">Esporta DXF delle aree</button></div></div>`;
+<label>Scala<select id="ts"><option value="0">Adatta al foglio (scala standard)</option>${T.SCALE.map(s2 => `<option value="${s2}" ${+o.scala === s2 ? 'selected' : ''}>1:${s2}</option>`).join('')}</select></label>
+<label>Ditta<select id="td"><option value="">Tutte</option>${p.ditte.map(d => `<option value="${d.id}" ${o.ditta === d.id ? 'selected' : ''}>Ditta ${E(d.n)} – ${E((d.intest[0] || {}).nome || '')}</option>`).join('')}</select></label>
+<label>Particella (taglio)<select id="tk">${chiavi.map(k => { const d = ix(k); return `<option value="${E(k)}" ${o.chiave === k ? 'selected' : ''}>Fg. ${E(k.split('|')[0] || '?')} mapp. ${E(k.split('|')[1])}${d ? ' – ditta ' + E(d.n) : ''}</option>`; }).join('')}</select></label>
+<label class="chk"><input type="checkbox" id="tq" ${o.quote ? 'checked' : ''}> Quote dei lati</label>
+<label class="chk"><input type="checkbox" id="ta" ${o.aree ? 'checked' : ''}> Superfici nelle aree</label>
+<label class="chk"><input type="checkbox" id="te" ${o.elenco ? 'checked' : ''}> Elenco ditte nella tavola</label></div>
+<div class="row" style="margin-top:10px"><button id="tprev">Anteprima del foglio</button><button class="p" id="tpdf">Stampa / PDF</button><button id="tsvg">Scarica SVG</button><button id="tdxf">Esporta DXF delle aree</button>
+${p.ditte.length ? '<button id="tschemi">Salva gli schemi delle ditte (PDF: estratto + tagli)</button>' : ''}</div></div>
+<div class="card"><h3 style="margin-top:0">Scala e misure del disegno</h3>
+<p class="mu">Origine: <b>${origine}</b>${geo.scala ? ` letto alla scala <b>1:${geo.scala}</b>` : ''}. Superfici attuali dal disegno: ${A.TIPI.filter(t => tot(t)).map(t => `${A.RUOLI[t]} <b>${U.fmt(tot(t), 0)} mq</b>`).join(' · ') || 'nessuna area'}.
+Se la scala o l'unità di misura erano sbagliate (es. letto 1:1000 ma il disegno è 1:100, oppure DXF in millimetri) correggi qui: tutte le misure del disegno e le superfici si ricalcolano (quelle inserite a mano nel piano non cambiano).</p>
+<div class="g">${geo.scala ? `<label>Scala giusta 1:<input id="sc1" placeholder="${geo.scala}"></label>` : `<label>Il disegno è in<select id="scu"><option value="">metri (nessuna correzione)</option><option value="0.01">centimetri</option><option value="0.001">millimetri</option><option value="0.1">decimetri</option><option value="1000">chilometri</option></select></label><label>Oppure scala: era 1:<input id="scda" placeholder="es. 1000"></label><label>e invece è 1:<input id="sca" placeholder="es. 100"></label>`}
+<label>Oppure taro su una particella<select id="sck"><option value="">—</option>${(geo.part || []).filter(q => q.k).sort((x, y) => U.cmp(x.k, y.k)).map(q => `<option value="${E(q.k)}">Fg. ${E(q.fg || '?')} mapp. ${E(q.map)} (oggi ${U.fmt(q.a, 0)} mq)</option>`).join('')}</select></label>
+<label>che misura davvero (mq)<input id="scm" placeholder="es. dalla visura"></label></div>
+<div class="row" style="margin-top:8px"><button id="scok">Applica la correzione</button><span class="mu" id="scinfo"></span></div></div>`;
     const box = m.querySelector('#tv'), svg = box.querySelector('svg');
-    vb = vb && vb.W === sch.W ? vb : { x: 0, y: 0, w: sch.W, h: sch.H, W: sch.W };
+    const fit = () => ({ ...sch.vb0, W: sch.W, H: sch.H });
+    vb = vb && vb.W === sch.W && vb.H === sch.H ? vb : fit();
     const app = () => svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`); app();
     const zoom = (f, cx, cy) => { cx = cx ?? vb.x + vb.w / 2; cy = cy ?? vb.y + vb.h / 2; vb.x = cx - (cx - vb.x) * f; vb.y = cy - (cy - vb.y) * f; vb.w *= f; vb.h *= f; app(); };
     const pt = e => { const r = svg.getBoundingClientRect(), k = Math.max(vb.w / r.width, vb.h / r.height); return [vb.x + (e.clientX - r.left - (r.width - vb.w / k) / 2) * k, vb.y + (e.clientY - r.top - (r.height - vb.h / k) / 2) * k]; };
@@ -398,27 +429,104 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
       const t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset && (x.dataset.pezzo || x.dataset.k));
       if (!t) return;
       const k = t.dataset.k, x = p.particelle.find(q => A.chiave(q.fg, q.map, q.sub) === k || A.chiave(q.fg, q.map, '') === k);
-      const pz = t.dataset.pezzo && p.geo.pezzi.find(z => z.id === t.dataset.pezzo);
+      const pzz = t.dataset.pezzo && p.geo.pezzi.find(z => z.id === t.dataset.pezzo);
       const d = x && p.ditte.find(dd => dd.id === x.ditta);
-      m.querySelector('#tinfo').innerHTML = (pz ? `<b>${E(A.RUOLI[pz.tipo])}</b> ${U.fmt(pz.a, 1)} mq · ` : '') + (k ? `Fg.${E(k.split('|')[0])} Mapp.${E(k.split('|')[1])}` : 'particella non assegnata') + (d ? ` · <b>Ditta ${E(d.n)}</b> ${E(d.intest.map(o => o.nome).join(', '))} <button class="s" id="tgo">Apri ditta</button>` : '');
+      m.querySelector('#tinfo').innerHTML = (pzz ? `<b>${E(A.RUOLI[pzz.tipo])}</b> ${U.fmt(pzz.a, 1)} mq${pzz.stima ? ' <span class="tag t-wa">dal PDF</span>' : ''} · ` : '') + (k ? `Fg.${E(k.split('|')[0])} Mapp.${E(k.split('|')[1])}` : 'particella non assegnata') + (d ? ` · <b>Ditta ${E(d.n)}</b> ${E(d.intest.map(q => q.nome).join(', '))} <button class="s" id="tgo">Apri ditta</button>` : '') + (k ? ` <button class="s" id="ttg">Taglio della particella</button>` : '');
       const go = m.querySelector('#tgo'); if (go) go.onclick = () => APP.vai('ditte', d.id);
+      const tg = m.querySelector('#ttg'); if (tg) tg.onclick = () => { o.cosa = 'taglio'; o.chiave = k; anteprima(); };
     });
-    m.querySelector('#zin').onclick = () => zoom(1 / 1.4); m.querySelector('#zout').onclick = () => zoom(1.4); m.querySelector('#zfit').onclick = () => { vb = { x: 0, y: 0, w: sch.W, h: sch.H, W: sch.W }; app(); };
-    const leggi = () => { o.formato = m.querySelector('#tf').value; o.orient = m.querySelector('#to').value; o.scala = +m.querySelector('#ts').value; o.ditta = m.querySelector('#td').value; };
-    const foglio = () => { leggi(); return o.ditta && o.formato === 'A4' && o.orient === 'P' ? T.estratto(p, c, o.ditta, o.scala || 1000, [190, 277]) : T.foglio(p, c, { ...o, ditta: o.ditta || null, sotto: o.ditta ? 'Estratto – Ditta ' + (p.ditte.find(d => d.id === o.ditta) || {}).n : '' }); };
+    m.querySelector('#zin').onclick = () => zoom(1 / 1.4); m.querySelector('#zout').onclick = () => zoom(1.4); m.querySelector('#zfit').onclick = () => { vb = fit(); app(); };
+    m.querySelector('#vq').onchange = e => { o.vQuote = e.target.checked; APP.render(); };
+    m.querySelector('#va').onchange = e => { o.vAree = e.target.checked; APP.render(); };
+    const leggi = () => {
+      o.cosa = m.querySelector('#tc').value; o.formato = m.querySelector('#tf').value; o.orient = m.querySelector('#to').value; o.scala = +m.querySelector('#ts').value; o.ditta = m.querySelector('#td').value;
+      o.chiave = m.querySelector('#tk').value; o.quote = m.querySelector('#tq').checked; o.aree = m.querySelector('#ta').checked; o.elenco = m.querySelector('#te').checked;
+    };
+    ['#tc', '#tf', '#to', '#ts', '#td', '#tk', '#tq', '#ta', '#te'].forEach(q => { m.querySelector(q).onchange = leggi; });
+    // Foglio da stampare: [svg, larghezza mm, altezza mm, nome]
+    const foglio = () => {
+      const [fa, fb] = T.FORMATI[o.formato], W = o.orient === 'L' ? fb : fa, H = o.orient === 'L' ? fa : fb;
+      if (o.cosa === 'taglio') {
+        if (!o.chiave) return null;
+        const svg2 = T.taglio(p, c, o.chiave, [W - 20, H - 20]).replace(/^<svg ([^>]*)>/, (x, at) => `<svg ${at.replace(/width="[^"]*"|height="[^"]*"|viewBox="[^"]*"/g, '')} width="${W}mm" height="${H}mm" viewBox="-10 -10 ${W} ${H}">`);
+        return [svg2, W, H, 'Taglio Fg ' + o.chiave.split('|')[0] + ' mapp ' + o.chiave.split('|')[1]];
+      }
+      if (o.cosa === 'estratto') {
+        if (!o.ditta) { APP.toast('Scegli la ditta dell\'estratto'); return null; }
+        const svg2 = T.estratto(p, c, o.ditta, o.scala || 1000, [W - 20, H - 20], { quote: o.quote, aree: o.aree }).replace(/^<svg ([^>]*)>/, (x, at) => `<svg ${at.replace(/width="[^"]*"|height="[^"]*"|viewBox="[^"]*"/g, '')} width="${W}mm" height="${H}mm" viewBox="-10 -10 ${W} ${H}">`);
+        return [svg2, W, H, 'Estratto ditta ' + (p.ditte.find(d => d.id === o.ditta) || {}).n];
+      }
+      return [T.foglio(p, c, { ...o, ditta: o.ditta || null, sotto: o.ditta ? 'Ditta n. ' + (p.ditte.find(d => d.id === o.ditta) || {}).n : '' }), W, H, 'Tavola ' + o.formato];
+    };
+    const anteprima = () => {
+      const f = foglio(); if (!f) return;
+      APP.dlg('Anteprima: ' + f[3] + ' – ' + o.formato, `<div class="dlg-ampio" style="background:#fff;border:1px solid #ccd">${f[0].replace(/<svg /, '<svg style="width:100%;height:auto;display:block" ')}</div>`, [{ t: 'Chiudi', v: '' }]);
+    };
+    m.querySelector('#tprev').onclick = () => { leggi(); anteprima(); };
     m.querySelector('#tpdf').onclick = async () => {
-      const s = foglio(), [a, b] = T.FORMATI[o.formato], W = o.orient === 'L' ? b : a, H = o.orient === 'L' ? a : b;
-      $('#print').innerHTML = `<style>@media print{@page{size:${W}mm ${H}mm;margin:0}#print svg{display:block;width:${W}mm;height:${H}mm}}</style>${s}`;
-      if (window.desktop && window.desktop.pdfDati && APP.FS.ok) { const dati = await window.desktop.pdfDati({ formato: { width: W / 25.4, height: H / 25.4 } }); await APP.FS.salva(APP.FS.dirGenerale(p) + '/Tavola ' + o.formato + (o.ditta ? ' ditta ' + (p.ditte.find(d => d.id === o.ditta) || {}).n : '') + ' (' + U.oggi() + ').pdf', dati); }
+      leggi(); const f = foglio(); if (!f) return; const [s2, W, H, nome] = f;
+      $('#print').innerHTML = `<style>@media print{@page{size:${W}mm ${H}mm;margin:0}#print svg{display:block;width:${W}mm;height:${H}mm}}</style>${s2}`;
+      if (window.desktop && window.desktop.pdfDati && APP.FS.ok) { const dati = await window.desktop.pdfDati({ formato: { width: W / 25.4, height: H / 25.4 } }); await APP.FS.salva(APP.FS.dirGenerale(p) + '/' + san(nome) + ' (' + U.oggi() + ').pdf', dati); }
       else window.print();
     };
-    m.querySelector('#tsvg').onclick = () => APP.scarica(san(p.nome) + ' - tavola.svg', foglio(), 'image/svg+xml');
+    m.querySelector('#tsvg').onclick = () => { leggi(); const f = foglio(); if (f) APP.scarica(san(p.nome) + ' - ' + san(f[3]) + '.svg', f[0], 'image/svg+xml'); };
     m.querySelector('#tdxf').onclick = () => {
       const poli = [], testi = [];
       p.geo.pezzi.forEach(z => { z.mp.forEach(P => P.forEach(r => poli.push({ layer: 'ESPR_' + z.tipo.toUpperCase(), pts: r, chiusa: true }))); const lp = ES.geo.puntoEtichettaMP(z.mp); if (lp && z.k) testi.push({ layer: 'ESPR_TESTI', x: lp[0], y: lp[1], h: 1, t: z.map + ' ' + A.RUOLI[z.tipo] + ' ' + Math.round(z.a) + ' mq' }); });
+      (p.geo.part || []).forEach(q => q.mp.forEach(P => P.forEach(r => poli.push({ layer: 'PARTICELLE', pts: r, chiusa: true }))));
       APP.scarica(san(p.nome) + ' - aree.dxf', ES.dxf.scrivi(poli, testi), 'application/dxf');
     };
+    const sch2 = m.querySelector('#tschemi'); if (sch2) sch2.onclick = () => salvaSchemi(p, c);
+    // Correzione della scala
+    const fattore = () => {
+      const k = m.querySelector('#sck').value, mq = U.num(m.querySelector('#scm').value);
+      if (k && mq > 0) { const q = (geo.part || []).filter(x => x.k === k).reduce((s2, x) => s2 + x.a, 0); return q > 0 ? Math.sqrt(mq / q) : 0; }
+      const s1 = m.querySelector('#sc1'); if (s1 && U.num(s1.value) > 0) return U.num(s1.value) / geo.scala;
+      const u = m.querySelector('#scu'); if (u && +u.value) return +u.value;
+      const da = m.querySelector('#scda'), aa = m.querySelector('#sca'); if (da && aa && U.num(da.value) > 0 && U.num(aa.value) > 0) return U.num(aa.value) / U.num(da.value);
+      return 0;
+    };
+    const info = () => { const f = fattore(); m.querySelector('#scinfo').textContent = f && Math.abs(f - 1) > 1e-6 ? `Lunghezze × ${U.fmt(f, 4)}, superfici × ${U.fmt(f * f, 4)}: ${A.TIPI.filter(t => tot(t)).map(t => A.RUOLI[t] + ' ' + U.fmt(tot(t) * f * f, 0) + ' mq').join(' · ')}` : ''; };
+    ['#sc1', '#scu', '#scda', '#sca', '#sck', '#scm'].forEach(q => { const el = m.querySelector(q); if (el) el.oninput = el.onchange = info; });
+    m.querySelector('#scok').onclick = async () => {
+      const f = fattore(); if (!f || Math.abs(f - 1) < 1e-9) { APP.toast('Indica la scala giusta, l\'unità del disegno o una superficie nota'); return; }
+      if (!await APP.conferma(`Correggere tutte le misure del disegno? Lunghezze × ${U.fmt(f, 4)}, superfici × ${U.fmt(f * f, 4)}.`, 'Correggi')) return;
+      A.scalaGeo(p.geo, f); vb = null; APP.salva(); APP.toast('Scala corretta: superfici ricalcolate'); APP.render();
+    };
   };
+  // Schema del piano particellare di ogni ditta in PDF (estratto con il numero di piano + un taglio per particella),
+  // nella cartella della ditta: è lo stesso schema allegato alle convocazioni e agli stati di consistenza.
+  // Aree della ditta: estratto con il pallino della ditta e un taglio per ogni sua particella, in pagine da scorrere
+  APP.mostraAree = async (p, d) => {
+    const c = APP.calc(), ks = T.particelleDitta(p, d.id);
+    if (!ks.length) { APP.dlg('Aree della ditta ' + d.n, '<p>Nel disegno non ci sono aree collegate alle particelle di questa ditta (controlla foglio e mappale delle particelle e delle aree nella scheda Importa).</p>'); return; }
+    const pag = (titolo, svg) => `<div style="margin:0 0 14px"><div class="mu" style="margin:0 0 4px">${E(titolo)}</div><div style="background:#fff;border:1px solid #ccd">${svg.replace(/<svg /, '<svg style="width:100%;height:auto;display:block" ')}</div></div>`;
+    const html = `<div class="dlg-ampio" style="padding-right:6px">${pag('Estratto con il numero di piano', T.estratto(p, c, d.id, 1000, [190, 230], { aree: true }))}${ks.map((k, i) => pag(`Taglio ${i + 1} di ${ks.length} – Fg. ${k.split('|')[0]} mapp. ${k.split('|')[1]}`, T.taglio(p, c, k, [190, 135]))).join('')}</div>`;
+    const v = await APP.dlg('Aree della ditta ' + d.n + ' – ' + ((d.intest[0] || {}).nome || ''), html, [{ t: 'Salva lo schema in PDF', v: 'pdf' }, { t: 'Chiudi', v: '', p: true }]);
+    if (v === 'pdf') salvaSchemi(p, c, [d]);
+  };
+  async function salvaSchemi(p, c, sel) {
+    const L = window.PDFLib; if (!L) { APP.toast('Libreria PDF non disponibile'); return; }
+    const ditte = (sel || p.ditte).filter(d => T.particelleDitta(p, d.id).length);
+    if (!ditte.length) { APP.toast('Nessuna ditta con aree nel disegno: collega l\'elenco ditte al disegno'); return; }
+    APP.toast('Preparazione degli schemi…', 20000);
+    const files = [], W = 595.28, H = 841.89, mg = 28;
+    for (const d of ditte) {
+      const out = await L.PDFDocument.create();
+      const pagine = [T.estratto(p, c, d.id, 1000, [190, 270], { aree: true })].concat(T.particelleDitta(p, d.id).map(k => T.taglio(p, c, k, [190, 135])));
+      // estratto su una pagina, tagli due per pagina
+      let pg = null, y = 0;
+      for (let i = 0; i < pagine.length; i++) {
+        const im = await APP.svgPng(pagine[i], 2200), png = await out.embedPng(im.png);
+        const w = W - 2 * mg, h = w * im.h / im.w;
+        if (!pg || i === 1 || y - h < mg) { pg = out.addPage([W, H]); y = H - mg; }
+        pg.drawImage(png, { x: mg, y: y - h, width: w, height: h }); y -= h + 10;
+        if (i === 0) pg = null;
+      }
+      files.push({ rel: APP.FS.dirDitta(p, d) + '/Schema piano particellare - Ditta ' + d.n + ' (' + U.oggi() + ').pdf', dati: await out.save(), ditta: d.id });
+    }
+    await APP.salvaFile(p, files, APP.FS.dirPratica(p) + ' - schemi piano particellare');
+  }
 
   // ---------- Vista: Indennità ----------
   APP.viste.stima = (m, p) => {
@@ -527,7 +635,7 @@ ${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${w
     ['Opera ed ente', ['pratica.oggetto', 'pratica.cup', 'pratica.urgenza', 'ente.nome', 'ente.ufficio', 'ente.indirizzo', 'ente.pec', 'ente.ruolo', 'ente.responsabile', 'ente.rup', 'ente.tecnico', 'ente.beneficiario', 'ente.tar', 'ente.tribunale', 'ente.bur', 'ente.link', 'luogo', 'oggi', 'mesiOcc']],
     ['Atti (estremi e data)', ES.iter.FASI.map(f => 'atti.' + f.k + '.testo')],
     ['Dati specifici della pratica', M.DATI.map(c => 'dati.' + c.k).concat(['premesse', 'visti'].map(k => 'dati.' + k + 'Elenco')).concat((p.campi || []).map(c => 'dati.' + c.k))],
-    ['Tabelle e comandi', ['[[tabella particelle colonne=comune,fg,map,haareca,rd,ra,espr,servtot,occ]]', '[[tabella intestatari]]', '[[tabella indennita]]', '[[tabella consistenza]]', '[[tabella piano colonne=np,fg,map,qual,sup,espr,servtot,occ,ind]]', '[[planimetria scala=1000]]', '[[firma {{ente.ruolo}}|{{ente.responsabile}}]]', '[[salto]]', '{{#ditta.intestatari}} … {{/ditta.intestatari}}', '{{#ditta.particelle}} … {{/ditta.particelle}}', '{{#dati.premesse}} … {{/dati.premesse}}']]
+    ['Tabelle e comandi', ['[[tabella particelle colonne=comune,fg,map,haareca,rd,ra,espr,servtot,occ]]', '[[tabella intestatari]]', '[[tabella indennita]]', '[[tabella consistenza]]', '[[tabella piano colonne=np,fg,map,qual,sup,espr,servtot,occ,ind]]', '[[planimetria scala=1000]]', '[[tagli]]', '[[firma {{ente.ruolo}}|{{ente.responsabile}}]]', '[[salto]]', '{{#ditta.intestatari}} … {{/ditta.intestatari}}', '{{#ditta.particelle}} … {{/ditta.particelle}}', '{{#dati.premesse}} … {{/dati.premesse}}']]
   ];
   APP.editorModello = async (p, k) => {
     const lib = APP.lib(), md = APP.modello(k), propria = !!md.propria;

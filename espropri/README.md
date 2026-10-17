@@ -32,6 +32,13 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    delle ditte già importate; i colori che la legenda non spiega (es. un colore per ditta) si assegnano a mano.
    Le superfici sono una proposta segnata «dal PDF – da verificare»: si correggono nel piano particellare con quelle
    misurate.
+   **Novità 1.14**: mappe catastali a immagine (numeri disegnati) lette con il riconoscimento dei caratteri (OCR,
+   tesseract.js incluso) e particelle ricostruite seguendo le linee della mappa; confronto a video tra PDF originale e
+   aree riconosciute; legende con i nomi delle ditte; avviso per la particella campita con la fascia dentro; scala
+   correggibile anche dopo l'importazione (scala giusta, unità del DXF, taratura su una superficie nota).
+   **Tavola grafica** in scala vera con cerchietti delle ditte e richiami alle particelle, quote e superfici, elenco
+   ditte; **tagli mappale per mappale** allegati a convocazioni e stati di consistenza ([[tagli]]); «🗺️ Mostra aree»
+   nella scheda della ditta.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
@@ -109,7 +116,7 @@ dati del programma con `npm run build:espropri` (che produce anche `Normativa_Es
 guide sono allegate in **PDF** e **HTML** (il PDF si stampa dalla pagina HTML durante la pubblicazione).
 
 Librerie incluse nella pagina: polygon-clipping 0.15.7 e pdf-lib 1.17.1 (licenza MIT), pdf.js 3.11.174 (Mozilla,
-licenza Apache-2.0) per leggere le tavole PDF. Dati d'esempio fittizi in
+licenza Apache-2.0) per leggere le tavole PDF, tesseract.js 6.0.1 (Apache-2.0) per l'OCR dei numeri delle mappe. Dati d'esempio fittizi in
 `espropri/esempi/` (`genera_esempio.py`).
 
 ## Libreria dei modelli (da convertire nelle prossime versioni)

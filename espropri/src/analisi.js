@@ -177,7 +177,21 @@
     if (!geo || sostituisci) return nuovo;
     const bbox = geo.bbox.slice();
     G.bboxPts([[nuovo.bbox[0], nuovo.bbox[1]], [nuovo.bbox[2], nuovo.bbox[3]]], bbox);
-    return { part: geo.part.concat(nuovo.part), pezzi: geo.pezzi.concat(nuovo.pezzi), sfondo: geo.sfondo.concat(nuovo.sfondo), etich: geo.etich.concat(nuovo.etich), bbox, avvisi: nuovo.avvisi };
+    return { comune: geo.comune || nuovo.comune || '', origine: geo.origine || nuovo.origine, scala: geo.scala || nuovo.scala, part: geo.part.concat(nuovo.part), pezzi: geo.pezzi.concat(nuovo.pezzi), sfondo: geo.sfondo.concat(nuovo.sfondo), etich: geo.etich.concat(nuovo.etich), bbox, avvisi: nuovo.avvisi };
+  };
+
+  // Cambia la scala del disegno (scala del PDF sbagliata, DXF in millimetri o centimetri, taratura su una misura):
+  // tutte le coordinate × f, le superfici × f². Le superfici inserite a mano nelle particelle non cambiano.
+  A.scalaGeo = (geo, f) => {
+    if (!geo || !(f > 0) || f === 1) return geo;
+    const sc = M => M.map(P => P.map(r => r.map(q => [q[0] * f, q[1] * f])));
+    (geo.part || []).forEach(p => { p.mp = sc(p.mp); p.a *= f * f; });
+    (geo.pezzi || []).forEach(z => { z.mp = sc(z.mp); z.a *= f * f; });
+    (geo.sfondo || []).forEach(l => { l.pts = l.pts.map(q => [q[0] * f, q[1] * f]); });
+    (geo.etich || []).forEach(t => { t.x *= f; t.y *= f; if (t.h) t.h *= f; });
+    if (geo.bbox) geo.bbox = geo.bbox.map(v => v * f);
+    if (geo.scala) geo.scala = Math.round(geo.scala * f * 1000) / 1000;
+    return geo;
   };
 
   // Superfici per particella dai pezzi: {chiave: {espr, servop, serv, occ, graf}}
