@@ -123,23 +123,61 @@
     leggi: rel => (FASC ? window.desktop.fsLeggi(rel) : Promise.resolve(null))
   };
 
+  // ---------- Mother File System: Excel con tutti i dati, da esportare, correggere e ricaricare ----------
+  APP.mfsEsporta = async p => {
+    const dati = ES.office.xlsx(ES.mother.esporta(p)), nome = san(p.nome) + ' - MOTHER FILE SYSTEM (' + U.oggi() + ').xlsx';
+    if (FS.ok) await APP.salvaFile(p, [{ rel: FS.dirGenerale(p) + '/' + nome, dati }], nome);
+    else APP.scarica(nome, dati, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    APP.dlg('Mother File System esportato', `<p>Excel con tutti i dati della pratica: <b>PRATICA</b> (ente e dati per i documenti), <b>ATTI</b>, <b>DITTE</b>, <b>INTESTATARI</b> (nomi, C.F., nascita, indirizzi), <b>PARTICELLE</b> (dati catastali e superfici di progetto) e <b>ITER</b> (date dei passi per ditta).</p>
+<ul style="margin:6px 0 10px 18px"><li>Correggi solo le <b style="background:#fff5cc;color:#000;padding:0 4px">celle gialle</b>; quelle grigie (codici e valori calcolati) sono bloccate.</li><li>Non aggiungere, togliere o spostare righe e colonne: il foglio è protetto apposta.</li><li>Salva in .xlsx e ricaricalo con <b>MOTHER FILE › ⬆ Import</b>: vedrai le modifiche prima di applicarle.</li></ul>
+<p class="mu">Se nel frattempo aggiungi o togli ditte, intestatari o particelle nel programma, esporta un nuovo Mother File: quello vecchio verrebbe rifiutato.</p>`, [{ t: 'OK', v: 'ok', p: true }]);
+  };
+  APP.mfsImporta = async p => {
+    const [f] = await APP.scegliFile('.xlsx'); if (!f) return;
+    let file; try { file = await ES.tab.leggi(f.nome, f.buf); } catch (e) { APP.dlg('File rifiutato', `<p>Non riesco a leggere «${E(f.nome)}»: ${E(e.message)}</p>`, [{ t: 'OK', v: 'ok', p: true }]); return; }
+    const r = ES.mother.leggi(p, file);
+    if (!r.ok) {
+      APP.dlg('⛔ Mother File rifiutato', `<p>Il file <b>${E(f.nome)}</b> non è stato importato e <b>la pratica non è cambiata</b>. Motivi:</p><ul class="mfs-err">${r.errori.slice(0, 60).map(x => `<li>${E(x)}</li>`).join('')}${r.errori.length > 60 ? `<li>… e altri ${r.errori.length - 60}</li>` : ''}</ul><p class="mu">Correggi il file (o esporta un nuovo Mother File) e riprova.</p>`, [{ t: 'OK', v: 'ok', p: true }]);
+      return;
+    }
+    if (!r.modifiche.length) { toast('Mother File letto: nessuna modifica rispetto ai dati del programma'); return; }
+    const per = {}; r.modifiche.forEach(m => { per[m.foglio] = (per[m.foglio] || 0) + 1; });
+    const ok = await APP.dlg('Mother File: ' + r.modifiche.length + (r.modifiche.length === 1 ? ' modifica' : ' modifiche'), `<p>Il file è valido. Modifiche trovate: ${Object.entries(per).map(([k, n]) => `<span class="tag">${k}: ${n}</span>`).join(' ')}</p>
+<div class="tw" style="max-height:52vh"><table class="t mfs-tab"><thead><tr><th>Foglio</th><th>Riga</th><th>Campo</th><th>Prima → Dopo</th></tr></thead><tbody>${r.modifiche.slice(0, 400).map(m => `<tr><td>${E(m.foglio)}</td><td>${E(m.riga)}</td><td>${E(m.campo)}</td><td class="v"><del>${E(m.prima)}</del> → <ins>${E(m.dopo)}</ins></td></tr>`).join('')}</tbody></table></div>
+${r.modifiche.length > 400 ? `<p class="mu">… e altre ${r.modifiche.length - 400}</p>` : ''}<p class="mu">Prima di applicare si tiene una copia della pratica: con ↶ accanto a «MOTHER FILE» si torna indietro.</p>`, [{ t: 'Annulla', v: '' }, { t: 'Applica le modifiche', v: 'ok', p: true }]);
+    if (ok !== 'ok') return;
+    DB.mfsPrima = { id: p.id, quando: new Date().toISOString(), json: JSON.stringify(p) };
+    r.modifiche.forEach(m => m.applica());
+    (p.mfsLog = p.mfsLog || []).push({ data: U.oggi(), file: f.nome, n: r.modifiche.length });
+    APP.salva(); APP.render(); toast(r.modifiche.length + ' modifiche applicate dal Mother File', 5000);
+  };
+  APP.mfsAnnulla = async p => {
+    const b = DB.mfsPrima; if (!b || b.id !== p.id) return;
+    if (!await APP.conferma('Tornare ai dati com\'erano prima dell\'ultima importazione del Mother File (' + new Date(b.quando).toLocaleString('it-IT') + ')? Le modifiche fatte dopo nel programma andrebbero perse.', 'Torna indietro')) return;
+    const vecchia = normalizza(JSON.parse(b.json)), i = DB.pratiche.findIndex(x => x.id === p.id);
+    if (i >= 0) DB.pratiche[i] = vecchia;
+    delete DB.mfsPrima; APP.salva(); APP.render(); toast('Importazione annullata');
+  };
+
   // ---------- Navigazione ----------
   const VISTE = [
     ['pratica', '🗂️', 'Pratica'], ['problemi', '⚠️', 'Problemi da risolvere'], ['importa', '📥', 'Importa DXF / Excel'], ['piano', '📋', 'Piano particellare'], ['ditte', '👥', 'Ditte e iter'], ['indirizzi', '📮', 'Indirizzi'],
     ['tavola', '🗺️', 'Tavola grafica'], ['stima', '💶', 'Indennità'], ['documenti', '📄', 'Documenti'], ['scadenze', '⏰', 'Scadenze'], ['normativa', '⚖️', 'Normativa'], ['ricerca', '🔎', 'Ricerca sul web']
   ];
+  const GRUPPI = { pratica: 'Pratica', importa: 'Dati', tavola: 'Elaborati', scadenze: 'Strumenti' };
   let vista = 'pratica';
   APP.vai = (v, arg) => { vista = v; APP.arg = arg; render(); window.scrollTo(0, 0); };
   function nav() {
     const p = APP.pr();
     $('#nav').innerHTML = (p ? `<div class="pr"><b>${E(p.nome)}</b><br>${p.ditte.length} ditte · ${p.particelle.length} particelle</div>` : '') +
-      VISTE.map(([k, ic, t]) => (k === 'tavola' || k === 'scadenze' ? '<div class="sep"></div>' : '') + `<button data-v="${k}" class="${k === vista ? 'on' : ''}" ${!p && k !== 'pratica' && k !== 'normativa' && k !== 'ricerca' ? 'disabled' : ''}>${ic} ${t}${k === 'problemi' && p ? (n => n ? ` <span class="tag t-wa">${n}</span>` : '')(APP.problemi(p).filter(x => x.livello !== 'info').length) : ''}</button>`).join('');
+      VISTE.map(([k, ic, t]) => (GRUPPI[k] ? `<div class="grp">${GRUPPI[k]}</div>` : '') + `<button data-v="${k}" class="${k === vista ? 'on' : ''}" ${!p && k !== 'pratica' && k !== 'normativa' && k !== 'ricerca' ? 'disabled' : ''}><span class="ic">${ic}</span>${t}${k === 'problemi' && p ? (n => n ? ` <span class="tag t-wa">${n}</span>` : '')(APP.problemi(p).filter(x => x.livello !== 'info').length) : ''}</button>`).join('');
   }
   function hdr() {
     const p = APP.pr();
     $('#hdr').innerHTML = `<select id="selp" title="Pratica aperta">${DB.pratiche.map(x => `<option value="${x.id}" ${p && x.id === p.id ? 'selected' : ''}>${E(x.nome)}</option>`).join('')}${DB.pratiche.length ? '' : '<option>Nessuna pratica</option>'}</select>
 <button id="hnew">＋ Nuova pratica</button><button id="hopen" title="Apri una pratica salvata su file (.json)">Apri file</button><button id="hsave" ${p ? '' : 'disabled'} title="Salva la pratica in un file da conservare o inviare">Salva su file</button>
-${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fascicolo</button>' : ''}<span class="mu" style="color:#fff;opacity:.8">${salvato ? '✓ salvato' : '… salvataggio'}</span>`;
+${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fascicolo</button>' : ''}
+${p ? `<span class="mfs" title="Mother File System: l'Excel con tutti i dati della pratica"><span>MOTHER FILE</span><button id="hmfe" title="Esporta il Mother File System (Excel con tutti i dati, da correggere e ricaricare)">⬇ Export</button><button id="hmfi" title="Ricarica il Mother File System corretto in Excel">⬆ Import</button>${DB.mfsPrima && DB.mfsPrima.id === p.id ? '<button id="hmfu" title="Annulla l\'ultima importazione del Mother File">↶</button>' : ''}</span>` : ''}<span class="mu" style="color:#fff;opacity:.8">${salvato ? '✓ salvato' : '… salvataggio'}</span>`;
   }
   document.addEventListener('click', async e => {
     const b = e.target.closest('button,[data-v]'); if (!b) return;
@@ -156,6 +194,9 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
     }
     if (b.id === 'hsave') { const p = APP.pr(); APP.scarica(san(p.nome) + '.esproprio.json', JSON.stringify({ tipo: 'ESPROPRI_SISTEM', v: 1, pratica: p }, null, 1), 'application/json'); }
     if (b.id === 'hfasc') FS.apri(FS.dirPratica(APP.pr()));
+    if (b.id === 'hmfe') APP.mfsEsporta(APP.pr());
+    if (b.id === 'hmfi') APP.mfsImporta(APP.pr());
+    if (b.id === 'hmfu') APP.mfsAnnulla(APP.pr());
   });
   document.addEventListener('change', e => { if (e.target.id === 'selp') { DB.attiva = e.target.value; APP.salva(); render(); } });
 
@@ -170,17 +211,37 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
   APP.render = render;
   APP.viste = {};
 
+  // Percorso guidato: i passi del lavoro con lo stato di ognuno; un clic porta alla schermata dove si fa
+  function percorsoGuidato(p) {
+    const prob = APP.problemi ? APP.problemi(p).filter(x => x.livello !== 'info').length : 0, c = APP.calc ? APP.calc() : null;
+    const tot = c ? [...c.perD.values()].reduce((a, d) => a + (d.tot || 0), 0) : 0;
+    const scad = ES.iter.scadenze(p).filter(x => !x.fatto && ES.iter.statoScad(x) === 'scaduta').length;
+    const P = [
+      { t: 'Dati dell\'ente', ok: !!(p.ente.nome && p.ente.responsabile), info: p.ente.nome || 'ente, firmatario, RUP', v: '#cEnte' },
+      { t: 'Carta intestata', ok: !!APP.cartaSorgente(p), info: APP.cartaSorgente(p) ? 'impostata' : 'logo e dati dell\'ente', v: '#cartaCard', facolt: true },
+      { t: 'Planimetria', ok: !!p.geo, info: p.geo ? (p.geo.part || []).length + ' particelle nel disegno' : 'DXF, DWG o PDF (facoltativa)', v: 'importa', facolt: true },
+      { t: 'Elenco ditte', ok: p.ditte.length > 0, info: p.ditte.length ? p.ditte.length + ' ditte · ' + p.particelle.length + ' particelle' : 'Excel delle visure', v: 'importa' },
+      { t: 'Problemi', ok: p.ditte.length > 0 && !prob, att: prob > 0, info: prob ? prob + ' da risolvere' : 'nessuno', v: 'problemi' },
+      { t: 'Indennità', ok: tot > 0, info: tot ? U.eur(tot) : 'valori e categorie di stima', v: 'stima' },
+      { t: 'Documenti', ok: p.docs.length > 0, info: p.docs.length ? p.docs.length + ' prodotti' : 'lettere, avvisi, decreti', v: 'documenti' },
+      { t: 'Scadenze', ok: p.ditte.length > 0 && !scad, att: scad > 0, info: scad ? scad + ' termini scaduti' : 'sotto controllo', v: 'scadenze' }
+    ];
+    const ora = P.findIndex(x => !x.ok && !x.facolt);
+    return `<div class="guida">${P.map((x, i) => `<button type="button" class="st ${x.ok ? 'fatto' : x.att ? 'att' : i === ora ? 'ora' : ''}" data-guida="${x.v}"><span class="n">${x.ok ? '✓' : i + 1}</span><b>${E(x.t)}</b><small>${E(x.info)}</small>${i === ora ? '<span class="fr">→</span>' : ''}</button>`).join('')}</div>`;
+  }
+
   // ---------- Vista: Pratica ----------
   APP.viste.pratica = (m, p) => {
     const proc = Object.entries(S.PROCEDURE).map(([k, v]) => `<option value="${k}">${v.nome}</option>`).join('');
     m.innerHTML = `<h2>🗂️ Pratica</h2>
+${percorsoGuidato(p)}
 <div class="card"><h3 style="margin-top:0">Opera</h3><div class="g">
 <label class="f">Oggetto dei lavori<input data-f="nome"></label>
 <label>CUP<input data-f="cup"></label><label>Codice / commessa<input data-f="codice"></label>
 <label>Percorso procedurale principale<select data-f="impost.procedura">${proc}</select></label>
 <label class="f">Ragioni di urgenza (per i decreti artt. 22 / 22-bis)<input data-f="urgenza"></label>
 <label class="f">Descrizione dell'opera<textarea data-f="descrizione" rows="2"></textarea></label></div></div>
-<div class="card"><h3 style="margin-top:0">Autorità espropriante e beneficiario</h3><div class="g">
+<div class="card" id="cEnte"><h3 style="margin-top:0">Autorità espropriante e beneficiario</h3><div class="g">
 <label class="f2">Ente / Autorità espropriante<input data-f="ente.nome" placeholder="Comune di …"></label><label>Provincia<input data-f="ente.provincia"></label><label>Luogo per la data degli atti<input data-f="ente.luogo"></label>
 <label class="f2">Indirizzo<input data-f="ente.indirizzo"></label><label>C.F. / P.IVA<input data-f="ente.cf"></label><label>PEC<input data-f="ente.pec"></label>
 <label>E-mail<input data-f="ente.email"></label><label>Telefono<input data-f="ente.telefono"></label><label>Ufficio<input data-f="ente.ufficio"></label>
@@ -220,6 +281,7 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
     };
     const pco = m.querySelector('#pcopen'); if (pco) pco.onclick = async () => { await window.desktop.fsAmmetti(p.cartella); FS.apri(FS.dirPratica(p)); };
     APP.cartaUI(m.querySelector('#cartaCard'), p);
+    m.querySelectorAll('[data-guida]').forEach(b => b.onclick = () => { const g = b.dataset.guida; if (g.startsWith('#')) m.querySelector(g).scrollIntoView({ behavior: 'smooth', block: 'start' }); else APP.vai(g); });
     const pc = m.querySelector('#pcart'); if (pc) pc.onclick = async () => { const r = await window.desktop.fsScegli(); if (r) toast('Fascicoli in ' + r.dir); };
   };
 

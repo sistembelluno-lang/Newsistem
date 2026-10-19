@@ -1,6 +1,6 @@
 # ESPROPRI_SISTEM – Guida dei processi
 
-Versione 1.16.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
+Versione 1.17.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
 
 ## 1. Il lavoro in breve
 
@@ -189,6 +189,15 @@ Per ogni documento il programma produce il file generale (tutte le ditte) in `00
 - Si genera il verbale per la ditta, si stampa e si compila e firma sul posto.
 - Si caricano le foto (con didascalia e particella) e la scansione PDF firmata: il programma crea il PDF finale con verbale firmato e pagine delle foto nella cartella della ditta.
 - La data del verbale di immissione fa partire i termini «dall'immissione» (condivisione dell'indennità negli artt. 22 e 22-bis).
+
+## 6-quater. Mother File System (Excel con tutti i dati)
+
+- In alto a destra, **MOTHER FILE › ⬇ Export**: un Excel con tutti i dati della pratica nei fogli PRATICA (ente e dati per i documenti), ATTI, DITTE, INTESTATARI (nomi, C.F., nascita, diritti, quote, indirizzi, PEC), PARTICELLE (dati catastali, superfici di progetto, stima) e ITER (date, notifiche e protocolli di ogni passo per ditta). Nel programma installato si salva anche in «00 GENERALE».
+- Si correggono **solo le celle gialle**; le grigie (codici ID e valori calcolati) sono bloccate e il foglio è protetto: non si aggiungono, tolgono o spostano righe e colonne. Date gg/mm/aaaa, SI/NO dove richiesto, elenchi a discesa per i codici.
+- Superfici di progetto: il valore cambiato diventa un valore inserito a mano; svuotando la cella si torna al valore dal disegno.
+- **MOTHER FILE › ⬆ Import**: il programma controlla formato, pratica, fogli, intestazioni, numero e ordine delle righe e ogni valore. Se qualcosa non torna **rifiuta il file per intero** e spiega perché (la pratica non cambia); se è valido mostra l'elenco delle modifiche (prima → dopo) e le applica solo con la conferma.
+- Prima di applicare tiene una copia della pratica: il pulsante **↶** accanto a MOTHER FILE annulla l'ultima importazione.
+- Se nel programma si aggiungono o tolgono ditte, intestatari o particelle dopo l'esportazione, il vecchio file viene rifiutato: si esporta un nuovo Mother File.
 
 ## 6-ter. Carta intestata, estratti di mappa, documenti e file inseriti
 

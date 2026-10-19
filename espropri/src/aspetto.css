@@ -1,0 +1,43 @@
+/* ESPROPRI_SISTEM · aspetto per l'operatore: menu a sezioni, percorso guidato, schede più leggibili.
+   Va dopo il tema comune (src/tema.css) e lo completa. */
+/* Menu laterale a sezioni */
+.nav{width:228px;padding:14px 10px;background:var(--card);box-shadow:1px 0 0 var(--bd)}
+.nav .pr{margin:0 2px 10px;padding:10px 12px;border-radius:12px;background:linear-gradient(135deg,rgba(37,99,235,.10),rgba(91,63,217,.08));color:var(--tx);font-size:12px}
+.nav .pr b{font-size:13px;display:block;margin-bottom:2px;white-space:normal}
+.nav .grp{font-size:10.5px;font-weight:700;letter-spacing:.12em;color:var(--mu);text-transform:uppercase;margin:12px 10px 4px}
+.nav button{position:relative;padding:8px 10px;margin:1px 0;border-radius:10px;font-size:13.5px;transition:background-color .15s,color .15s}
+.nav button .ic{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;background:var(--hd);font-size:14px;flex:none}
+.nav button:hover:not(:disabled){background:var(--hd);box-shadow:none;border-color:transparent}
+.nav button.on{background:linear-gradient(135deg,rgba(37,99,235,.14),rgba(91,63,217,.10));color:var(--ac)}
+.nav button.on .ic{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;box-shadow:0 3px 8px rgba(79,70,229,.35)}
+.nav button.on::before{content:"";position:absolute;left:-10px;top:8px;bottom:8px;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(180deg,var(--g1),var(--g2))}
+.nav button .tag{margin-left:auto}
+/* Barra in alto: gruppo Mother File */
+.appbar .btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:flex-end}
+.appbar .mfs{display:inline-flex;align-items:center;border:1px solid rgba(255,255,255,.35);border-radius:12px;padding:2px 2px 2px 10px;gap:4px;background:rgba(255,255,255,.08)}
+.appbar .mfs span{font-size:11px;font-weight:700;letter-spacing:.08em;opacity:.9;white-space:nowrap}
+.appbar .mfs button{padding:5px 9px;border-radius:9px}
+/* Titoli di pagina */
+main>h2:first-child,main>.row:first-child h2{font-size:21px;font-weight:800;letter-spacing:-.01em}
+.card>h3:first-child,.card .row>h3:first-child{font-size:15.5px;font-weight:700}
+/* Percorso guidato (scheda Pratica) */
+.guida{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:10px;margin:2px 0 14px}
+.guida .st{position:relative;display:flex;flex-direction:column;gap:4px;align-items:flex-start;text-align:left;padding:12px 12px 12px 14px;border-radius:14px;background:var(--card);border:1px solid var(--bd);box-shadow:var(--sh);white-space:normal;cursor:pointer;min-height:96px}
+.guida .st:hover{transform:translateY(-1px);box-shadow:0 10px 24px rgba(36,87,214,.16);border-color:var(--ac)}
+.guida .st .n{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;font-weight:800;font-size:13px;background:var(--hd);color:var(--mu)}
+.guida .st b{font-size:13.5px;line-height:1.25}
+.guida .st small{color:var(--mu);font-size:11.5px;line-height:1.3}
+.guida .st.fatto .n{background:linear-gradient(135deg,#10b981,#059669);color:#fff}
+.guida .st.ora{border-color:var(--ac);box-shadow:0 0 0 3px rgba(36,87,214,.16),var(--sh)}
+.guida .st.ora .n{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
+.guida .st.att .n{background:#f59e0b;color:#fff}
+.guida .st .fr{position:absolute;right:10px;top:10px;font-size:18px;opacity:.85}
+/* Benvenuto */
+.vuoto{text-align:center;padding:40px 20px!important}
+.vuoto h2{font-size:24px!important}
+/* Finestre di dialogo e elenchi di modifiche */
+.mfs-tab td{white-space:normal!important}
+.mfs-tab td.v{font-family:Consolas,"Courier New",monospace;font-size:12px}
+.mfs-tab td.v del{color:var(--ko)}.mfs-tab td.v ins{color:var(--ok);text-decoration:none;font-weight:600}
+.mfs-err{margin:0;padding-left:18px;max-height:46vh;overflow:auto}.mfs-err li{margin:3px 0}
+@media (max-width:640px){.appbar .mfs span{display:none}.guida{grid-template-columns:1fr 1fr}}

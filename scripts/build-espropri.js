@@ -16,7 +16,7 @@ put('/*STILE*/', null, leggi(path.join(src, 'stile.css')));
 put('/*REPORT-CSS-INIZIO (da src/report.css)*/', '/*REPORT-CSS-FINE*/', leggi(path.join(root, 'src', 'report.css')).trim());
 put('/*TEMA-INIZIO (da src/tema.css)*/', '/*TEMA-FINE*/', leggi(path.join(root, 'src', 'tema.css')).trim());
 // Il tema rende la barra alta 62 px: la colonna di sinistra resta sotto la barra
-put('/*STILE-DOPO*/', null, '.nav{top:62px}');
+put('/*STILE-DOPO*/', null, '.nav{top:62px}\n' + leggi(path.join(src, 'aspetto.css')));
 const lib = f => leggi(path.join(root, 'node_modules', f));
 // SDK Anthropic impacchettato per la pagina (window.AnthropicSDK)
 function sdkAnthropic() {

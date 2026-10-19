@@ -90,6 +90,16 @@ ul([
   'La data del verbale di immissione fa partire i termini «dall\'immissione» (condivisione dell\'indennità negli artt. 22 e 22-bis).'
 ]);
 
+h(2, '6-quater. Mother File System (Excel con tutti i dati)');
+ul([
+  'In alto a destra, **MOTHER FILE › ⬇ Export**: un Excel con tutti i dati della pratica nei fogli PRATICA (ente e dati per i documenti), ATTI, DITTE, INTESTATARI (nomi, C.F., nascita, diritti, quote, indirizzi, PEC), PARTICELLE (dati catastali, superfici di progetto, stima) e ITER (date, notifiche e protocolli di ogni passo per ditta). Nel programma installato si salva anche in «00 GENERALE».',
+  'Si correggono **solo le celle gialle**; le grigie (codici ID e valori calcolati) sono bloccate e il foglio è protetto: non si aggiungono, tolgono o spostano righe e colonne. Date gg/mm/aaaa, SI/NO dove richiesto, elenchi a discesa per i codici.',
+  'Superfici di progetto: il valore cambiato diventa un valore inserito a mano; svuotando la cella si torna al valore dal disegno.',
+  '**MOTHER FILE › ⬆ Import**: il programma controlla formato, pratica, fogli, intestazioni, numero e ordine delle righe e ogni valore. Se qualcosa non torna **rifiuta il file per intero** e spiega perché (la pratica non cambia); se è valido mostra l\'elenco delle modifiche (prima → dopo) e le applica solo con la conferma.',
+  'Prima di applicare tiene una copia della pratica: il pulsante **↶** accanto a MOTHER FILE annulla l\'ultima importazione.',
+  'Se nel programma si aggiungono o tolgono ditte, intestatari o particelle dopo l\'esportazione, il vecchio file viene rifiutato: si esporta un nuovo Mother File.'
+]);
+
 h(2, '6-ter. Carta intestata, estratti di mappa, documenti e file inseriti');
 ul([
   '**Carta intestata** (Pratica › 🏛️ Carta intestata dell\'ente): si scrivono nel programma il **taglio alto** (intestazione) e il **taglio basso** (piè di pagina) con loghi, tabelle, testi e dati dell\'ente (come campi che si aggiornano da soli, es. {{ente.nome}}); si può partire da un Word .docx dell\'ente con «Importa da Word» e poi correggere. Vale per tutti i documenti: Word (intestazione e piè di pagina veri), anteprima e PDF; «Usa per tutte le pratiche» la rende predefinita.',

@@ -351,3 +351,37 @@ test('DXF della planimetria ricostruita: si reimporta con le stesse superfici e 
   }
   assert.ok(S1['22|100'] && !S1['1|100']);
 });
+
+test('Mother File System: esporta, rilegge senza modifiche, accetta una correzione e rifiuta i file manomessi', async () => {
+  const pr = pratica(); pr.id = 'pr1'; pr.campi = []; pr.dati = {};
+  pr.ditte.forEach(d => { d.ev = d.ev || {}; });
+  const MF = ES.mother;
+  const leggi = async fogli => ES.tab.xlsx(ES.office.xlsx(fogli).buffer);
+  const F = MF.esporta(pr);
+  // rilettura identica: nessuna modifica
+  let r = MF.leggi(pr, await leggi(F));
+  assert.ok(r.ok, r.errori.join('\n')); assert.strictEqual(r.modifiche.length, 0, JSON.stringify(r.modifiche.slice(0, 3).map(m => [m.foglio, m.campo, m.prima, m.dopo])));
+  // correzione di un codice fiscale, di una data dell'iter e di una superficie di progetto
+  const G = JSON.parse(JSON.stringify(F));
+  const fi = G.find(f => f.nome === 'INTESTATARI'), cCf = fi.righe[0].indexOf('CODICE FISCALE / P.IVA'); fi.righe[1][cCf] = 'rssmra80a01h501u';
+  const fp = G.find(f => f.nome === 'PARTICELLE'), cE = fp.righe[0].indexOf('ESPROPRIO MQ'); fp.righe[1][cE] = 999;
+  const ft = G.find(f => f.nome === 'ITER'), cD = ft.righe[0].indexOf('DATA'); ft.righe[1][cD] = '05/03/2026';
+  r = MF.leggi(pr, await leggi(G));
+  assert.ok(r.ok, r.errori.join('\n')); assert.strictEqual(r.modifiche.length, 3);
+  r.modifiche.forEach(m => m.applica());
+  assert.strictEqual(pr.ditte[0].intest[0].cf, 'RSSMRA80A01H501U');
+  assert.strictEqual(pr.particelle[0].man.espr, 999);
+  assert.ok(Object.values(pr.ditte[0].ev).some(e => e.data === '2026-03-05'));
+  // riga aggiunta, intestazione cambiata, valore non valido, pratica sbagliata: rifiutati
+  const H = JSON.parse(JSON.stringify(MF.esporta(pr)));
+  H.find(f => f.nome === 'DITTE').righe.push(['nuova', '99']);
+  assert.ok(!MF.leggi(pr, await leggi(H)).ok);
+  const K = JSON.parse(JSON.stringify(MF.esporta(pr))); K.find(f => f.nome === 'PARTICELLE').righe[0][3] = 'Altro';
+  assert.ok(!MF.leggi(pr, await leggi(K)).ok);
+  const V = JSON.parse(JSON.stringify(MF.esporta(pr))); V.find(f => f.nome === 'PARTICELLE').righe[1][cE] = 'tanti';
+  const rv = MF.leggi(pr, await leggi(V)); assert.ok(!rv.ok && /numero non valido/.test(rv.errori.join(' ')));
+  const Z = JSON.parse(JSON.stringify(MF.esporta(pr))); Z[0].righe[3][1] = 'altra';
+  assert.ok(/pratica/.test(MF.leggi(pr, await leggi(Z)).errori[0]));
+  const O = JSON.parse(JSON.stringify(MF.esporta(pr))); const fo = O.find(f => f.nome === 'INTESTATARI'); [fo.righe[1], fo.righe[2]] = [fo.righe[2], fo.righe[1]];
+  assert.ok(!MF.leggi(pr, await leggi(O)).ok);
+});

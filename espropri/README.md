@@ -51,6 +51,11 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    ricostruita; **esportazione DXF** della planimetria ricostruita da correggere in CAD e reimportare; mappe a
    immagine: tutte le zone chiuse diventano particelle e i numeri si leggono cifra per cifra; nato a / nato il
    dall'Excel nelle anteprime e nella stampa unione.
+   **Novità 1.17**: **Mother File System** (in alto a destra, Export / Import): Excel con tutti i dati della pratica
+   (ente, atti, ditte, intestatari, particelle con superfici di progetto, iter), celle gialle modificabili e fogli
+   protetti; all'importazione controlli rigorosi (file rifiutato se la struttura è stata alterata), anteprima delle
+   modifiche e annullamento dell'ultima importazione. Grafica rinnovata: menu a sezioni e **percorso guidato** nella
+   scheda Pratica con lo stato di ogni passo.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
