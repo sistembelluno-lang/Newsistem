@@ -172,6 +172,35 @@
     return { comune: opt.comune || '', part, pezzi, sfondo, etich, bbox: isFinite(bbox[0]) ? bbox : [0, 0, 1, 1], avvisi };
   };
 
+  // Planimetria ricostruita → DXF con i layer del programma: si modifica in CAD (numeri, confini, aree mancanti) e si
+  // reimporta con «Importa DXF»: i nomi dei layer sono quelli che il programma riconosce da solo, coordinate in metri.
+  A.LAYER_DXF = { part: ['PARTICELLE', 7], num: ['PARTICELLE_NUMERI', 3], espr: ['ESPROPRIO', 1], servop: ['SERVITU_INGOMBRO_OPERE', 6], serv: ['SERVITU_FASCIA', 5], occ: ['OCCUPAZIONE_TEMPORANEA', 30], sfondo: ['SFONDO_CARTOGRAFIA', 8] };
+  A.esportaDxf = geo => {
+    const L = A.LAYER_DXF, poli = [], testi = [];
+    let buchi = 0;
+    const anello = (r, layer) => { const pts = r.length > 1 && r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r.slice(0, -1) : r; if (pts.length > 2) poli.push({ layer, pts, chiusa: true }); };
+    const etichetta = (o, q) => (o.fg ? 'Fg.' + o.fg + ' mapp.' : 'mapp.') + o.map + (o.sub ? ' sub ' + o.sub : '');
+    const hT = a => Math.max(0.4, Math.min(2.5, Math.sqrt(a) / 8));
+    // Particelle: contorno esterno (le enclavi sono particelle a sé) e numero nel punto interno
+    (geo.part || []).forEach(q => (q.mp || []).forEach((P, i) => {
+      anello(P[0], L.part[0]);
+      if (q.map && i === 0) { const [x, y] = G.puntoEtichetta(P); testi.push({ layer: L.num[0], x, y, t: etichetta(q), h: hT(q.a || G.areaMP(q.mp)), centro: true }); }
+    }));
+    // Aree d'intervento: per tipo, unite (strisce intere, comode da modificare); dove l'unione lascia fori si tengono i pezzi
+    A.TIPI.forEach(t => {
+      const Z = (geo.pezzi || []).filter(z => z.tipo === t); if (!Z.length) return;
+      const sciolte = Z.filter(z => z.k && z.da !== 'catasto' || !z.k), cat = Z.filter(z => !sciolte.includes(z));
+      let U2 = cat.length ? G.unione(cat.map(z => z.mp)) : [];
+      if (U2.some(P => P.length > 1)) U2 = [].concat(...cat.map(z => z.mp));
+      U2.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; });
+      // Aree fuori dalle particelle disegnate (o assegnate a mano): ognuna con il suo numero scritto dentro
+      sciolte.forEach(z => z.mp.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; if (z.map) { const [x, y] = G.puntoEtichetta(P); testi.push({ layer: L[t][0], x, y, t: etichetta(z), h: hT(z.a) * 0.8, centro: true }); } }));
+    });
+    (geo.sfondo || []).forEach(l => { if (l.pts && l.pts.length > 1) poli.push({ layer: L.sfondo[0], pts: l.pts, chiusa: !!l.chiusa }); });
+    const layers = {}; Object.values(L).forEach(([n, c]) => { layers[n] = c; });
+    return { dxf: ES.dxf.scrivi(poli, testi, layers), buchi, n: { part: (geo.part || []).length, aree: (geo.pezzi || []).length } };
+  };
+
   // Unisce un nuovo import alla geometria della pratica (più fogli o più file)
   A.unisciGeo = (geo, nuovo, sostituisci) => {
     if (!geo || sostituisci) return nuovo;

@@ -334,3 +334,20 @@ test('area d\'intervento più grande della superficie catastale: segnalata, e l\
   x.limite = 'disegno'; a = ES.analisi.aree(x, S, {});
   assert.strictEqual(a.espr + a.serv, 210);
 });
+
+test('DXF della planimetria ricostruita: si reimporta con le stesse superfici e i fogli corretti', () => {
+  const pr = pratica();
+  // particella spostata su un altro foglio (correzione dell'operatore) prima dell'esportazione
+  pr.geo.part.filter(q => q.k === '1|100').forEach(q => { q.fg = '22'; q.k = '22|100'; });
+  pr.geo.pezzi.filter(z => z.k === '1|100').forEach(z => { z.fg = '22'; z.k = '22|100'; });
+  const S0 = ES.analisi.superfici(pr.geo);
+  const r = ES.analisi.esportaDxf(pr.geo);
+  const dxf = ES.dxf.leggi(r.dxf);
+  assert.ok(dxf.layers.PARTICELLE && dxf.layers.ESPROPRIO && dxf.layers.PARTICELLE_NUMERI);
+  const g2 = ES.analisi.importaDxf(dxf, { fg: '1' });
+  const S1 = ES.analisi.superfici(g2);
+  for (const k of Object.keys(S0)) for (const t of ['espr', 'servop', 'serv', 'occ']) {
+    assert.ok(Math.abs((S0[k][t] || 0) - ((S1[k] || {})[t] || 0)) < 0.5, `${k} ${t}: ${S0[k][t]} → ${(S1[k] || {})[t]}`);
+  }
+  assert.ok(S1['22|100'] && !S1['1|100']);
+});

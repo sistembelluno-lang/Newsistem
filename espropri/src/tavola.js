@@ -84,8 +84,8 @@
       o += `<path d="${pathMP(p.mp, f)}" fill="${si ? 'url(#' + st.pat + ')' : 'none'}" fill-rule="evenodd" stroke="${st.col}" stroke-width="${(si ? .3 : .15) * g}" ${si ? '' : 'stroke-dasharray="1 .8"'} data-pezzo="${p.id}" data-k="${p.k || ''}"/>`;
     }));
     // Particelle catastali (la particella del taglio più marcata)
-    const parti = (geo.part || []).filter(p => dentro(p.mp));
-    parti.forEach(p => { const ev = opt.particella && p.k === opt.particella; o += `<path d="${pathMP(p.mp, f)}" fill="none" stroke="#111" stroke-width="${(ev ? .6 : .22) * g}" data-k="${p.k || ''}" class="tv-part"/>`; });
+    const iP = new Map((geo.part || []).map((p, i) => [p, i])), parti = (geo.part || []).filter(p => dentro(p.mp));
+    parti.forEach(p => { const ev = opt.particella && p.k === opt.particella; o += `<path d="${pathMP(p.mp, f)}" fill="none" stroke="#111" stroke-width="${(ev ? .6 : .22) * g}" data-k="${p.k || ''}" data-pi="${iP.get(p)}" pointer-events="all" class="tv-part"/>`; });
     // Numeri di particella: nella parte visibile del poligono (le particelle grandi tagliate dal bordo restano numerate)
     const hTxt = (opt.hTesto || 2.2) * g, scritti = new Set(), interessate = new Set(pezzi.map(p => p.k).filter(Boolean));
     parti.forEach(p => {

@@ -155,16 +155,21 @@
     return out;
   };
 
-  // Scrittura DXF R12 minimale (per riportare in CAD le aree calcolate con le etichette)
-  D.scrivi = function (poli, testi) {
-    const o = ['0', 'SECTION', '2', 'ENTITIES'];
+  // Scrittura DXF R12 (per riportare in CAD le aree calcolate con le etichette). layers: {nome: colore ACI}
+  D.scrivi = function (poli, testi, layers) {
     const f = n => (Math.round(n * 1000) / 1000).toString();
+    const nomi = Object.assign({}, layers || {}); poli.concat(testi).forEach(x => { if (!(x.layer in nomi)) nomi[x.layer] = 7; });
+    const o = ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1009', '9', '$INSUNITS', '70', '6', '0', 'ENDSEC',
+      '0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LTYPE', '70', '1', '0', 'LTYPE', '2', 'CONTINUOUS', '70', '0', '3', 'Solid line', '72', '65', '73', '0', '40', '0.0', '0', 'ENDTAB',
+      '0', 'TABLE', '2', 'LAYER', '70', String(Object.keys(nomi).length)];
+    Object.entries(nomi).forEach(([n, c]) => o.push('0', 'LAYER', '2', n, '70', '0', '62', String(c), '6', 'CONTINUOUS'));
+    o.push('0', 'ENDTAB', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES');
     poli.forEach(p => {
-      o.push('0', 'POLYLINE', '8', p.layer, '66', '1', '70', p.chiusa ? '1' : '0');
+      o.push('0', 'POLYLINE', '8', p.layer, '66', '1', '10', '0', '20', '0', '30', '0', '70', p.chiusa ? '1' : '0');
       p.pts.forEach(q => o.push('0', 'VERTEX', '8', p.layer, '10', f(q[0]), '20', f(q[1]), '30', '0'));
       o.push('0', 'SEQEND', '8', p.layer);
     });
-    testi.forEach(t => o.push('0', 'TEXT', '8', t.layer, '10', f(t.x), '20', f(t.y), '30', '0', '40', f(t.h || 1), '1', String(t.t)));
+    testi.forEach(t => { o.push('0', 'TEXT', '8', t.layer, '10', f(t.x), '20', f(t.y), '30', '0', '40', f(t.h || 1), '1', String(t.t)); if (t.rot) o.push('50', f(t.rot)); if (t.centro) o.push('72', '1', '73', '2', '11', f(t.x), '21', f(t.y), '31', '0'); });
     o.push('0', 'ENDSEC', '0', 'EOF');
     return o.join('\r\n') + '\r\n';
   };

@@ -78,6 +78,8 @@
     }
   }
   const titoloDoc = m => san(m.nome.slice(0, 70));
+  // Modelli di un passo della procedura: quelli standard e i documenti nuovi che l'operatore ha collegato al passo
+  APP.modelliPasso = ps => ps.modelli.concat(APP.lib().custom.filter(c => c.passo === ps.k && !ps.modelli.includes(c.k)).map(c => c.k));
   const unisci = L => { const B = []; L.forEach((d, i) => { if (i) B.push({ t: 'pb' }); B.push(...d.blocchi); }); return B; };
   const perDitta = docs => { const per = new Map(); docs.forEach(d => { const k = d.ctx._dittaId; (per.get(k) || per.set(k, []).get(k)).push(d); }); return per; };
   const AMBITI = { intestatario: 'una lettera per ogni intestatario', ditta: 'un documento per ditta', pratica: 'un documento per la pratica' };
@@ -250,7 +252,7 @@ ${(() => { const L = C.controlli(d, parts); return L.length ? `<div class="ban $
 <div class="card"><h3 style="margin-top:0">Particelle</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fg.</th><th>Mapp.</th><th>Qualità</th><th class="n">Sup.</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th>Confini</th><th class="n">Indennità</th></tr></thead><tbody>
 ${parts.map(x => { const v = c.perP.get(x.id); return `<tr data-px="${x.id}"><td>${E(x.fg)}</td><td>${E(C.mappale(x))}</td><td>${E([x.qual, x.cls].filter(Boolean).join('/'))}</td><td class="n">${U.mq(x.sup)}</td><td class="n">${v.aree.espr ? U.mq(v.aree.espr) : ''}</td><td class="n">${v.aree.servop + v.aree.serv ? U.mq(v.aree.servop + v.aree.serv) : ''}</td><td class="n">${v.aree.occ ? U.mq(v.aree.occ) : ''}</td><td class="mu" style="white-space:normal;min-width:200px">${E(x.confini || '')}</td><td class="n">${U.eur(v.tot)}</td></tr>`; }).join('')}</tbody></table></div></div>
 <div class="card"><h3 style="margin-top:0">Iter della ditta</h3><p class="mu">Per ogni passo registra date (invio e notifica/ricevimento), protocollo e mezzo; i documenti si generano nella cartella della ditta.</p><div class="passi">
-${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${ps.modelli.filter(k => APP.modello(k)).map(k => `<button class="s" data-genp="${k}" title="Anteprima">👁</button><button class="s" data-gen="${k}" title="Crea il Word di questa ditta: ${E(APP.modello(k).nome)}">📄 ${E(APP.modello(k).nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
+${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${APP.modelliPasso(ps).filter(k => APP.modello(k)).map(k => `<button class="s" data-genp="${k}" title="Anteprima">👁</button><button class="s" data-gen="${k}" title="Crea il Word di questa ditta: ${E(APP.modello(k).nome)}">📄 ${E(APP.modello(k).nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
@@ -297,16 +299,44 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     const propri = p.docs.filter(x => x.ditta === d.id).slice().reverse();
     const gen = p.docs.filter(x => !x.ditta && (!x.ditte || x.ditte.includes(d.id))).slice().reverse();
     const nomeM = x => x.nome || (cat[x.modello] || {}).nome || x.modello;
-    const riga = (x, generale) => `<tr><td>${U.dataIt(x.data)}</td><td style="white-space:normal"><b>${E(nomeM(x))}</b>${generale ? ' <span class="tag">file generale</span>' : ''}<div class="mu">${E(x.file || '')}</div></td><td class="n" style="white-space:nowrap">${APP.FS.ok && x.rel ? `<button class="s" data-dapri="${x.id}">Apri</button>` : ''}${cat[x.modello] ? `<button class="s" data-dprev="${E(x.modello)}">👁 Anteprima</button><button class="s" data-drig="${E(x.modello)}">⟳ Rigenera</button>` : ''}</td></tr>`;
-    return `<div class="card"><div class="row"><h3 style="margin:0" class="grow">📄 Documenti della ditta</h3>${APP.FS.ok ? '<button id="dfold2">📁 Apri la cartella</button>' : ''}</div>
+    const riga = (x, generale) => `<tr><td>${U.dataIt(x.data)}</td><td style="white-space:normal"><b>${E(nomeM(x))}</b>${generale ? ' <span class="tag">file generale</span>' : ''}<div class="mu">${E(x.file || '')}</div></td><td class="n" style="white-space:nowrap">${APP.FS.ok && x.rel ? `<button class="s" data-dapri="${x.id}">Apri</button>` : ''}${x.dati ? `<button class="s" data-dscar="${x.id}">⬇ Scarica</button>` : ''}${x.inserito ? `<button class="s d" data-dtogli="${x.id}" title="Togli dall'elenco">✕</button>` : ''}${cat[x.modello] ? `<button class="s" data-dprev="${E(x.modello)}">👁 Anteprima</button><button class="s" data-drig="${E(x.modello)}">⟳ Rigenera</button>` : ''}</td></tr>`;
+    return `<div class="card"><div class="row"><h3 style="margin:0" class="grow">📄 Documenti della ditta</h3><button id="dins" title="Aggiungi un file già pronto (PDF, Word, immagine, scansione…) ai documenti della ditta">📎 Inserisci documento…</button>${APP.FS.ok ? '<button id="dfold2">📁 Apri la cartella</button>' : ''}</div>
 ${propri.length || gen.length ? `<div class="tw" style="max-height:40vh;margin-top:8px"><table class="t"><thead><tr><th>Data</th><th>Documento</th><th></th></tr></thead><tbody>${propri.map(x => riga(x)).join('')}${gen.map(x => riga(x, true)).join('')}</tbody></table></div>` : '<p class="mu">Nessun documento ancora: si creano dai passi dell\'iter qui sotto o da Documenti › «Genera per tutte le ditte».</p>'}</div>`;
   }
   function attivaDocDitta(m, p, d) {
     const f2 = m.querySelector('#dfold2'); if (f2) f2.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
+    m.querySelector('#dins').onclick = () => APP.inserisciFile(p, [d.id]);
+    m.querySelectorAll('[data-dscar]').forEach(b => b.onclick = () => { const x = p.docs.find(y => y.id === b.dataset.dscar); if (x && x.dati) APP.scarica(x.file, Uint8Array.from(atob(x.dati), ch => ch.charCodeAt(0))); });
+    m.querySelectorAll('[data-dtogli]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere il documento dall\'elenco? Il file nel fascicolo resta.', 'Togli')) { p.docs = p.docs.filter(y => y.id !== b.dataset.dtogli); APP.salva(); APP.render(); } });
     m.querySelectorAll('[data-dapri]').forEach(b => b.onclick = async () => { const x = p.docs.find(y => y.id === b.dataset.dapri); const r = await window.desktop.fsApriFile(x.rel); if (r && r.ok === false) APP.toast('File non trovato nel fascicolo: forse è stato spostato o rinominato', 6000); });
     m.querySelectorAll('[data-dprev]').forEach(b => b.onclick = async () => { const k = b.dataset.dprev; APP.dlg('Anteprima: ' + APP.modello(k).nome + ' – Ditta ' + d.n, await APP.anteprima(p, k, [d.id])); });
     m.querySelectorAll('[data-drig]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.drig, { ditte: [d.id], generale: false, perDitta: true }); APP.render(); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
   }
+
+  // File già pronti inseriti dall'operatore (PDF, Word, immagini, scansioni): nella cartella della ditta (o in «00 GENERALE»)
+  // e nel registro dei documenti; opzionale il passo della procedura di cui segnano la data
+  APP.inserisciFile = async (p, ditte) => {
+    const F = await APP.scegliFile('', true); if (!F.length) return;
+    const passi = I.passi(p.impost.procedura), una = ditte && ditte.length === 1 ? p.ditte.find(x => x.id === ditte[0]) : null;
+    const r = await APP.dlg('Inserisci documento', `<p class="mu">${F.map(f => '📎 ' + E(f.nome)).join('<br>')}</p><div class="g"><label class="f">Descrizione<input id="fn" value="${E(F.length === 1 ? F[0].nome.replace(/\.\w+$/, '') : '')}" placeholder="es. Ricevuta di ritorno, Atto di cessione firmato"></label>
+<label class="f">Dove<select id="fd">${una ? `<option value="ditta">Cartella della ditta ${E(una.n)}</option>` : ditte && ditte.length ? `<option value="ditta">Cartella di ognuna delle ${ditte.length} ditte selezionate</option>` : ''}<option value="gen">«00 GENERALE» (tutta la pratica)</option></select></label>
+<label class="f">Segna il passo come fatto (facoltativo)<select id="fp"><option value=""></option>${passi.map(ps => `<option value="${ps.k}">${E(ps.nome)}</option>`).join('')}</select></label><label>Data<input type="date" id="fdt" value="${U.oggi()}"></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Inserisci', v: 'ok', p: true }]);
+    if (r !== 'ok') return;
+    const desc = $('#fn').value.trim(), dove = $('#fd').value, passo = $('#fp').value, data = $('#fdt').value || U.oggi();
+    const dest = dove === 'ditta' ? (ditte || []).map(id => p.ditte.find(x => x.id === id)).filter(Boolean) : [null];
+    if (APP.FS.ok && !await APP.FS.pronto(p)) return;
+    let n = 0;
+    for (const d of dest) for (const f of F) {
+      const nome = san(desc && F.length === 1 ? desc + (f.nome.match(/\.\w+$/) || [''])[0] : f.nome);
+      const o = { id: U.id(), data, ora: new Date().toISOString(), modello: 'file', nome: desc || f.nome.replace(/\.\w+$/, ''), file: nome, ditta: d ? d.id : null, ditte: d ? null : (ditte || null), formato: (f.nome.split('.').pop() || '').toLowerCase(), inserito: true };
+      if (APP.FS.ok) { o.rel = (d ? APP.FS.dirDitta(p, d) : APP.FS.dirGenerale(p)) + '/Documenti inseriti/' + nome; await window.desktop.fsScrivi(o.rel, new Uint8Array(f.buf)); }
+      else if (f.buf.byteLength < 8e6) o.dati = b64(new Uint8Array(f.buf));
+      else { APP.toast(f.nome + ': nel browser si possono tenere file fino a 8 MB (nel programma installato nessun limite)', 6000); continue; }
+      p.docs.push(o); n++;
+    }
+    if (passo) dest.filter(Boolean).forEach(d => { const e = d.ev[passo] = d.ev[passo] || {}; if (!e.data) e.data = data; });
+    APP.salva(); APP.render(); if (n) APP.toast(n === 1 ? 'Documento inserito' : n + ' documenti inseriti');
+  };
 
   // ---------- Vista: Indirizzi di residenza (tutti gli intestatari della pratica) ----------
   APP.viste.indirizzi = (m, p) => {
@@ -472,7 +502,7 @@ ${senzaDitte ? '<div class="ban">Per i <b>numeri di piano</b> (cerchietti delle 
 <label class="chk"><input type="checkbox" id="tq" ${o.quote ? 'checked' : ''}> Quote dei lati</label>
 <label class="chk"><input type="checkbox" id="ta" ${o.aree ? 'checked' : ''}> Superfici nelle aree</label>
 <label class="chk"><input type="checkbox" id="te" ${o.elenco ? 'checked' : ''}> Elenco ditte nella tavola</label></div>
-<div class="row" style="margin-top:10px"><button id="tprev">Anteprima del foglio</button><button class="p" id="tpdf">Stampa / PDF</button><button id="tsvg">Scarica SVG</button><button id="tdxf">Esporta DXF delle aree</button>
+<div class="row" style="margin-top:10px"><button id="tprev">Anteprima del foglio</button><button class="p" id="tpdf">Stampa / PDF</button><button id="tsvg">Scarica SVG</button><button id="tdxf" title="Planimetria ricostruita con i layer del programma: modificala in CAD e reimportala (Importa › DXF) allineata">Esporta DXF (da modificare in CAD)</button>
 ${p.ditte.length ? '<button id="tschemi">Salva gli schemi delle ditte (PDF: estratto + tagli)</button>' : ''}</div></div>
 <div class="card"><h3 style="margin-top:0">Scala e misure del disegno</h3>
 <p class="mu">Origine: <b>${origine}</b>${geo.scala ? ` letto alla scala <b>1:${geo.scala}</b>` : ''}. Superfici attuali dal disegno: ${A.TIPI.filter(t => tot(t)).map(t => `${A.RUOLI[t]} <b>${U.fmt(tot(t), 0)} mq</b>`).join(' · ') || 'nessuna area'}.
@@ -493,12 +523,15 @@ Se la scala o l'unità di misura erano sbagliate (es. letto 1:1000 ma il disegno
     svg.addEventListener('pointermove', e => { if (!drag) return; const r = svg.getBoundingClientRect(), k = Math.max(vb.w / r.width, vb.h / r.height); if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 3) mosso = true; vb.x = drag.vx - (e.clientX - drag.x) * k; vb.y = drag.vy - (e.clientY - drag.y) * k; app(); });
     svg.addEventListener('pointerup', e => {
       drag = null; if (mosso) return;
-      const t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset && (x.dataset.pezzo || x.dataset.k));
+      const sotto = document.elementsFromPoint(e.clientX, e.clientY);
+      const t = sotto.find(x => x.dataset && x.dataset.pezzo) || sotto.find(x => x.dataset && x.dataset.pi != null);
       if (!t) return;
+      const tp = sotto.find(x => x.dataset && x.dataset.pi != null), pc = tp ? p.geo.part[+tp.dataset.pi] : null;
       const k = t.dataset.k, x = p.particelle.find(q => A.chiave(q.fg, q.map, q.sub) === k || A.chiave(q.fg, q.map, '') === k);
       const pzz = t.dataset.pezzo && p.geo.pezzi.find(z => z.id === t.dataset.pezzo);
       const d = x && p.ditte.find(dd => dd.id === x.ditta);
-      m.querySelector('#tinfo').innerHTML = (pzz ? `<b>${E(A.RUOLI[pzz.tipo])}</b> ${U.fmt(pzz.a, 1)} mq${pzz.stima ? ' <span class="tag t-wa">dal PDF</span>' : ''} · ` : '') + (k ? `Fg.${E(k.split('|')[0])} Mapp.${E(k.split('|')[1])}` : 'particella non assegnata') + (d ? ` · <b>Ditta ${E(d.n)}</b> ${E(d.intest.map(q => q.nome).join(', '))} <button class="s" id="tgo">Apri ditta</button>` : '') + (k ? ` <button class="s" id="ttg">Taglio della particella</button>` : '');
+      m.querySelector('#tinfo').innerHTML = (pzz ? `<b>${E(A.RUOLI[pzz.tipo])}</b> ${U.fmt(pzz.a, 1)} mq${pzz.stima ? ' <span class="tag t-wa">dal PDF</span>' : ''} · ` : '') + (k ? `Fg.${E(k.split('|')[0])} Mapp.${E(k.split('|')[1])}` : 'particella non assegnata') + (d ? ` · <b>Ditta ${E(d.n)}</b> ${E(d.intest.map(q => q.nome).join(', '))} <button class="s" id="tgo">Apri ditta</button>` : '') + (k ? ` <button class="s" id="ttg">Taglio della particella</button>` : '') + (pc || pzz ? ` <button class="s" id="tfm" title="Correggi foglio e mappale di questa particella ricostruita">✏️ Foglio / mappale</button>` : '');
+      const fm = m.querySelector('#tfm'); if (fm) fm.onclick = () => APP.correggiParticella(p, p.geo, pzz && !pc ? { pezzo: pzz } : { part: pc, pezzo: pzz }, () => APP.render());
       const go = m.querySelector('#tgo'); if (go) go.onclick = () => APP.vai('ditte', d.id);
       const tg = m.querySelector('#ttg'); if (tg) tg.onclick = () => { o.cosa = 'taglio'; o.chiave = k; anteprima(); };
     });
@@ -537,12 +570,7 @@ Se la scala o l'unità di misura erano sbagliate (es. letto 1:1000 ma il disegno
       else window.print();
     };
     m.querySelector('#tsvg').onclick = () => { leggi(); const f = foglio(); if (f) APP.scarica(san(p.nome) + ' - ' + san(f[3]) + '.svg', f[0], 'image/svg+xml'); };
-    m.querySelector('#tdxf').onclick = () => {
-      const poli = [], testi = [];
-      p.geo.pezzi.forEach(z => { z.mp.forEach(P => P.forEach(r => poli.push({ layer: 'ESPR_' + z.tipo.toUpperCase(), pts: r, chiusa: true }))); const lp = ES.geo.puntoEtichettaMP(z.mp); if (lp && z.k) testi.push({ layer: 'ESPR_TESTI', x: lp[0], y: lp[1], h: 1, t: z.map + ' ' + A.RUOLI[z.tipo] + ' ' + Math.round(z.a) + ' mq' }); });
-      (p.geo.part || []).forEach(q => q.mp.forEach(P => P.forEach(r => poli.push({ layer: 'PARTICELLE', pts: r, chiusa: true }))));
-      APP.scarica(san(p.nome) + ' - aree.dxf', ES.dxf.scrivi(poli, testi), 'application/dxf');
-    };
+    m.querySelector('#tdxf').onclick = () => APP.esportaDxf(p, p.geo, p.nome);
     const sch2 = m.querySelector('#tschemi'); if (sch2) sch2.onclick = () => salvaSchemi(p, c);
     // Correzione della scala
     const fattore = () => {
@@ -639,7 +667,7 @@ ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.i
 <div class="row"><button class="s" data-a="prev" data-k="${k}">👁 Anteprima</button><button class="s" data-a="edit" data-k="${k}">✏️ Testo</button><button class="s" data-a="pdf" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>PDF</button><button class="s p" data-a="word" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>${tutti ? '⬇ Genera per ' + (nd === p.ditte.length ? 'tutte le ditte' : nd + ' ditte') : '⬇ Genera'}</button></div></div>`;
     };
     const fatti = ps => p.ditte.filter(d => d.ev[ps.k] && d.ev[ps.k].data).length;
-    const sezPercorso = passi.map((ps, i) => `<div class="mp2"><div class="row"><span class="nr2">${i + 1}</span><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span><span class="tag ${fatti(ps) === p.ditte.length && p.ditte.length ? 't-ok' : ''}">${fatti(ps)}/${p.ditte.length} ditte</span></div>${ps.modelli.filter(k => cat[k]).map(k => riga(k, ps.k)).join('') || '<div class="mu">Nessun modello collegato: usa «Altri modelli».</div>'}</div>`).join('');
+    const sezPercorso = passi.map((ps, i) => `<div class="mp2"><div class="row"><span class="nr2">${i + 1}</span><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span><span class="tag ${fatti(ps) === p.ditte.length && p.ditte.length ? 't-ok' : ''}">${fatti(ps)}/${p.ditte.length} ditte</span></div>${APP.modelliPasso(ps).filter(k => cat[k]).map(k => riga(k, ps.k)).join('') || '<div class="mu">Nessun modello collegato.</div>'}<div class="row" style="margin-top:4px"><button class="s" data-nuovo="${ps.k}" title="Crea un documento tuo collegato a questo passo (anche partendo dal testo di un altro)">＋ Inserisci nuovo documento</button></div></div>`).join('');
     const generali = Object.keys(cat).filter(k => cat[k].ambito === 'pratica' && !usati.has(k));
     const sezGen = generali.map(k => riga(k)).join('');
     const altri = Object.keys(cat).filter(k => !usati.has(k)).map(k => riga(k)).join('');
@@ -650,7 +678,7 @@ ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.i
 <div class="f2 opz"><span class="mu">File da creare</span><label class="chk"><input type="checkbox" id="ogen" ${st.generale ? 'checked' : ''}> File generale con tutte le ditte (in «00 GENERALE»)</label><label class="chk"><input type="checkbox" id="oper" ${st.perDitta ? 'checked' : ''}> Documento nella cartella di ogni ditta</label>
 <div class="row"><label class="chk"><input type="checkbox" id="oreg" ${st.registra ? 'checked' : ''}> Segna il passo come inviato alle ditte in data</label><input type="date" id="odat" value="${E(st.data)}"></div></div></div>
 <div class="row" style="margin-top:8px"><button id="dtutte">Seleziona tutte</button><span class="mu grow">${APP.FS.ok ? 'I file vanno nel fascicolo: generale in «00 GENERALE», specifici in «DITTA n …».' : 'Nel browser i file arrivano in un unico ZIP con le stesse cartelle del fascicolo.'}</span>
-<button id="mnew">＋ Nuovo modello</button><button id="wcar">Carica modello Word…</button><button id="mexp">Esporta modelli</button><button id="mimp">Importa modelli</button><button id="wcampi">Campi disponibili</button></div></div>
+<button id="mnew" class="p">＋ Inserisci nuovo documento</button><button id="ffile" title="Aggiungi al fascicolo un file già pronto (PDF, Word, immagine…) per la pratica o per le ditte selezionate">📎 Inserisci file…</button><button id="wcar">Carica modello Word…</button><button id="mexp">Esporta modelli</button><button id="mimp">Importa modelli</button><button id="wcampi">Campi disponibili</button></div></div>
 <div class="card"><h3 style="margin-top:0">Percorso: ${E(S.PROCEDURE[proc].nome)}</h3><p class="mu">Il percorso si cambia nella scheda Pratica (o per singola ditta). I dati del progetto approvato, i visti e le premesse si scrivono una volta in Pratica › «Dati specifici per i documenti».</p>${sezPercorso}</div>
 ${sezGen ? `<div class="card"><h3 style="margin-top:0">Atti generali della pratica</h3>${sezGen}</div>` : ''}
 <div class="card"><h3 style="margin-top:0">Altri modelli</h3>${altri || '<div class="mu">—</div>'}</div>
@@ -679,6 +707,8 @@ ${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${w
       } catch (e) { APP.toast('Errore: ' + e.message, 6000); console.error(e); }
     });
     m.querySelector('#mnew').onclick = () => nuovoModello(p);
+    m.querySelectorAll('[data-nuovo]').forEach(b => b.onclick = () => nuovoModello(p, b.dataset.nuovo));
+    m.querySelector('#ffile').onclick = () => APP.inserisciFile(p, sel());
     m.querySelector('#wcar').onclick = () => caricaWord();
     m.querySelector('#wcampi').onclick = () => campiDisponibili();
     m.querySelector('#mexp').onclick = () => APP.scarica('Modelli ESPROPRI_SISTEM (' + U.oggi() + ').json', JSON.stringify({ tipo: 'ESPROPRI_SISTEM-modelli', v: 1, base: APP.lib().base, custom: APP.lib().custom, word: APP.DB.modelliWord || [] }, null, 1), 'application/json');
@@ -738,16 +768,16 @@ ${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${w
     if (r === 'del' && await APP.conferma('Eliminare il modello «' + E(md.nome) + '» da tutte le pratiche?', 'Elimina')) { lib.custom.splice(lib.custom.findIndex(x => x.k === k), 1); Object.values(APP.DB.pratiche).forEach(x => { if (x.modelli) delete x.modelli[k]; }); }
     if (r) { APP.salva(); APP.render(); }
   };
-  async function nuovoModello(p) {
-    const cat = M.catalogo(APP.lib());
-    const r = await APP.dlg('Nuovo modello', `<div class="g"><label class="f">Nome<input id="nn" placeholder="es. Richiesta di nulla osta allo svincolo"></label><label>Articolo<input id="na" placeholder="art. 28"></label><label>Fase<input id="nf" placeholder="Indennità"></label>
+  async function nuovoModello(p, passo) {
+    const cat = M.catalogo(APP.lib()), passi = I.passi(p.impost.procedura);
+    const r = await APP.dlg('Inserisci nuovo documento', `<div class="g"><label class="f">Passo della procedura<select id="np"><option value="">(nessuno: tra gli altri modelli)</option>${passi.map(ps => `<option value="${ps.k}" ${ps.k === passo ? 'selected' : ''}>${E(ps.nome)} – ${E(ps.art)}</option>`).join('')}</select></label><label class="f">Nome<input id="nn" placeholder="es. Richiesta di nulla osta allo svincolo"></label><label>Articolo<input id="na" placeholder="art. 28"></label><label>Fase<input id="nf" placeholder="Indennità"></label>
 <label>Un documento per<select id="nb">${Object.entries(AMBITI).map(([a, t]) => `<option value="${a}">${t}</option>`).join('')}</select></label>
 <label class="f">Parti dal testo di<select id="nc"><option value="">(foglio bianco con intestazione)</option>${Object.entries(cat).map(([k, v]) => `<option value="${k}">${E(v.nome)}</option>`).join('')}</select></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Crea e modifica', v: 'ok', p: true }]);
     if (r !== 'ok') return;
     const da = $('#nc').value, amb = $('#nb').value;
     const vuoto = amb === 'pratica' ? '# TITOLO\n## {{pratica.oggetto}}\n\nTesto…\n\n{{luogo}}, {{oggi}}\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]'
       : 'Prot. n. ________\t{{luogo}}, {{oggi}}\n**Ditta {{ditta.n}}**\n>> {{dest.saluto}}\n>> **{{dest.nome}}**\n>> {{dest.via}}\n>> {{dest.cittaCap}}\n\n**Oggetto: {{pratica.oggetto}}**\n\n{{dest.gentile}},\nTesto…\n[[tabella particelle colonne=fg,map,sup,espr,servtot,occ]]\n\nDistinti saluti.\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]';
-    const c = { k: 'u_' + U.id(), nome: $('#nn').value || 'Nuovo modello', art: $('#na').value, fase: $('#nf').value || 'Modelli vostri', ambito: (da && cat[da].ambito) || amb, testo: da ? APP.testoModello(p, da) : vuoto };
+    const c = { k: 'u_' + U.id(), nome: $('#nn').value || 'Nuovo modello', art: $('#na').value, fase: $('#nf').value || 'Modelli vostri', passo: $('#np').value || undefined, ambito: (da && cat[da].ambito) || amb, testo: da ? APP.testoModello(p, da) : vuoto };
     APP.lib().custom.push(c); APP.salva(); APP.render();
     return APP.editorModello(p, c.k);
   }

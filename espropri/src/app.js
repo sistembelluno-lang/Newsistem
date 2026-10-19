@@ -277,6 +277,55 @@ ${senza.length ? tabSenza(senza) : ''}`;
   function tabSenza(L) {
     return `<div class="tw"><table class="t"><thead><tr><th>Tipo</th><th>Layer</th><th class="n">Superficie</th><th>Foglio</th><th>Mappale</th></tr></thead><tbody>${L.map(z => `<tr><td><span class="tag ${tagTipo(z.tipo)}">${A.RUOLI[z.tipo]}</span></td><td>${E(z.layer)}</td><td class="n">${U.fmt(z.a, 1)} mq</td><td><input data-pz="${z.id}" data-c="fg" value="${E(z.fg)}"></td><td><input data-pz="${z.id}" data-c="map" value="${E(z.map)}"></td></tr>`).join('')}</tbody></table></div>`;
   }
+  // Foglio, mappale e sub di una particella ricostruita (o di un'area): tutti i poligoni con lo stesso numero e le aree
+  // d'intervento che ci cadono sopra prendono la correzione. sel: {part, pezzo}
+  const rinumera = (geo, k0, nuovo, sel, tutti) => {
+    const kN = nuovo.map ? A.chiave(nuovo.fg, nuovo.map, nuovo.sub) : null, metti = o => { o.fg = nuovo.fg; o.map = nuovo.map; o.sub = nuovo.sub; o.k = kN; };
+    const parti = sel.part ? (tutti && k0 ? geo.part.filter(q => q.k === k0) : [sel.part]) : [];
+    let pezzi = [];
+    if (k0 && (tutti || !sel.part)) pezzi = tutti ? (geo.pezzi || []).filter(z => z.k === k0) : [sel.pezzo];
+    else if (sel.part) pezzi = (geo.pezzi || []).filter(z => { if (z.k && z.k !== k0) return false; const b = ES.geo.bboxMP(z.mp), x = (b[0] + b[2]) / 2, y = (b[1] + b[3]) / 2; return sel.part.mp.some(P => ES.geo.inPoly(x, y, P)); });
+    else if (sel.pezzo) pezzi = [sel.pezzo];
+    parti.forEach(metti); pezzi.filter(Boolean).forEach(z => { metti(z); if (z.da !== 'catasto') z.da = 'a mano'; });
+    return parti.length + pezzi.length;
+  };
+  APP.correggiParticella = async (p, geo, sel, dopo) => {
+    const o = sel.part || sel.pezzo, k0 = o.k || null;
+    const n = k0 ? geo.part.filter(q => q.k === k0).length : 0, np = k0 ? (geo.pezzi || []).filter(z => z.k === k0).length : 0;
+    const fogli = [...new Set(p.particelle.map(x => x.fg).filter(Boolean))].sort(U.cmp);
+    const r = await APP.dlg(k0 ? 'Particella Fg. ' + (o.fg || '?') + ' mapp. ' + o.map : 'Particella senza numero', `<p class="mu">Correggi il foglio catastale (ad es. particelle vicine su fogli diversi: Fg. 10 e Fg. 22) e il numero letto dal disegno.</p>
+<div class="g"><label>Foglio<input id="cfg" value="${E(o.fg || '')}" list="cfgl"><datalist id="cfgl">${fogli.map(f => `<option value="${E(f)}">`).join('')}</datalist></label><label>Mappale<input id="cmap" value="${E(o.map || '')}"></label><label>Sub<input id="csub" value="${E(o.sub || '')}"></label></div>
+${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" checked> Applica a tutto il mappale (${n} poligon${n === 1 ? 'o' : 'i'} di particella, ${np} aree d'intervento)</label>` : ''}`, [{ t: 'Annulla', v: '' }, { t: 'Applica', v: 'ok', p: true }]);
+    if (r !== 'ok') return;
+    const tut = $('#ctut'), nuovo = { fg: $('#cfg').value.trim(), map: $('#cmap').value.trim(), sub: $('#csub').value.trim() };
+    const c = rinumera(geo, k0, nuovo, sel, tut ? tut.checked : true);
+    APP.salva(); toast(c + ' elementi aggiornati' + (nuovo.map ? ': Fg. ' + (nuovo.fg || '?') + ' mapp. ' + nuovo.map : '')); if (dopo) dopo();
+  };
+  // Tabella delle particelle ricostruite dal disegno: foglio e mappale sempre modificabili
+  function tabParticelle(g) {
+    const per = new Map(), senza = [];
+    g.part.forEach((q, i) => { if (!q.k) { senza.push(i); return; } const o = per.get(q.k) || per.set(q.k, { q, i, n: 0, a: 0 }).get(q.k); o.n++; o.a += q.a; });
+    const R = [...per.values()].sort((a, b) => U.cmp(a.q.fg, b.q.fg) || U.cmp(a.q.map, b.q.map));
+    const inter = new Set(g.pezzi.map(z => z.k).filter(Boolean));
+    const riga = (q, i, n, a) => `<tr><td><input data-rpi="${i}" data-c="fg" value="${E(q.fg || '')}" style="width:70px"></td><td><input data-rpi="${i}" data-c="map" value="${E(q.map || '')}" style="width:90px" placeholder="—"></td><td><input data-rpi="${i}" data-c="sub" value="${E(q.sub || '')}" style="width:56px"></td><td class="n">${U.fmt(a, 0)} mq</td><td class="n">${n > 1 ? n : ''}</td><td>${q.k && inter.has(q.k) ? '<span class="tag t-es">interessata</span>' : ''}</td></tr>`;
+    return `<details${R.length < 60 ? ' open' : ''}><summary><b>Particelle ricostruite (${R.length} numerate${senza.length ? ', ' + senza.length + ' senza numero' : ''})</b> <span class="mu">– correggi qui foglio, mappale e sub: vale per tutti i poligoni con lo stesso numero e per le aree che ci cadono sopra</span></summary>
+<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th>Sub</th><th class="n">Superficie disegnata</th><th class="n">Poligoni</th><th></th></tr></thead><tbody>${R.map(o => riga(o.q, o.i, o.n, o.a)).join('')}${senza.slice(0, 150).map(i => riga(g.part[i], i, 1, g.part[i].a)).join('')}</tbody></table></div></details>`;
+  }
+  document.addEventListener('change', e => {
+    const el = e.target; if (!el.dataset || el.dataset.rpi == null || !impGeo) return;
+    const q = impGeo.part[+el.dataset.rpi]; if (!q) return;
+    const nuovo = { fg: q.fg || '', map: q.map || '', sub: q.sub || '' }; nuovo[el.dataset.c] = el.value.trim();
+    const n = rinumera(impGeo, q.k || null, nuovo, { part: q }, true);
+    toast(n + ' elementi aggiornati'); if (APP._risultato) APP._risultato();
+  });
+  // DXF della planimetria ricostruita (dal PDF o dal DXF), da correggere in CAD e reimportare allineato
+  APP.esportaDxf = (p, geo, nome) => {
+    const r = A.esportaDxf(geo);
+    APP.scarica((String(nome || 'planimetria').replace(/\.(pdf|dxf|dwg)$/i, '').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'planimetria') + ' - planimetria ricostruita.dxf', r.dxf, 'application/dxf');
+    APP.dlg('DXF esportato', `<p>${r.n.part} particelle e ${r.n.aree} aree d'intervento, coordinate in <b>metri</b>, layer del programma:</p>
+<ul class="mu" style="margin:4px 0 8px 18px"><li><b>PARTICELLE</b> – confini (polilinee chiuse)</li><li><b>PARTICELLE_NUMERI</b> – «Fg.10 mapp.100» dentro ogni particella: correggi qui foglio e numero</li><li><b>ESPROPRIO</b>, <b>SERVITU_INGOMBRO_OPERE</b>, <b>SERVITU_FASCIA</b>, <b>OCCUPAZIONE_TEMPORANEA</b> – aree d'intervento (polilinee chiuse)</li><li><b>SFONDO_CARTOGRAFIA</b> – linee di contorno</li></ul>
+<p class="mu">Modifica in CAD (aggiungi o correggi confini, numeri, aree; disegna sempre polilinee chiuse sui layer giusti), salva come DXF e reimportalo da <b>Importa › Disegno</b> con unità «metri»: i layer si riconoscono da soli e il disegno resta allineato.${r.buchi ? ` <b class="wa">Attenzione: ${r.buchi} fori interni alle aree sono esportati solo come contorno esterno: controllali in CAD.</b>` : ''}</p>`, [{ t: 'OK', v: 'ok', p: true }]);
+  };
   const tagTipo = APP.tagTipo = t => ({ espr: 't-es', serv: 't-sv', servop: 't-so', occ: 't-oc' }[t] || '');
   document.addEventListener('change', e => {
     const el = e.target; if (!el.dataset || !el.dataset.pz) return;
@@ -540,16 +589,26 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
   }
   function risultatoDxf(el, p) {
     const g = impGeo, per = {};
-    g.pezzi.forEach(z => { const k = z.k || '—'; const o = per[k] = per[k] || { fg: z.fg, map: z.map, espr: 0, servop: 0, serv: 0, occ: 0, n: 0, da: new Set() }; o[z.tipo] += z.a; o.n++; if (z.da) o.da.add(z.da); });
+    g.pezzi.forEach(z => { const k = z.k || '—'; const o = per[k] = per[k] || { k, fg: z.fg, map: z.map, espr: 0, servop: 0, serv: 0, occ: 0, n: 0, da: new Set() }; o[z.tipo] += z.a; o.n++; if (z.da) o.da.add(z.da); });
     const R = Object.values(per).sort((a, b) => U.cmp(a.fg, b.fg) || U.cmp(a.map, b.map));
     const avv = (impPdf && impPdf.avvisi || []).concat(g.avvisi).map(a => `<div class="ban">${E(a)}</div>`);
     el.innerHTML = `<h3>Risultato</h3>${avv.length > 4 ? avv.slice(0, 2).join('') + `<details><summary class="mu">Altri ${avv.length - 2} avvisi</summary>${avv.slice(2).join('')}</details>` : avv.join('')}
 <div class="kpi"><div><small>Particelle catastali lette</small><b>${g.part.length}</b></div><div><small>Aree d'intervento</small><b>${g.pezzi.length}</b></div><div><small>Particelle interessate</small><b>${R.filter(r => r.map).length}</b></div></div>
 <div class="tw" style="max-height:45vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th class="n">Esproprio</th><th class="n">Servitù ingombro</th><th class="n">Servitù fascia</th><th class="n">Occupazione</th><th>Origine</th></tr></thead><tbody>
-${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : x === 'a mano' ? 'assegnata a mano' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
+${R.map(r => `<tr><td>${r.map ? `<input data-rk="${E(r.k)}" data-c="fg" value="${E(r.fg || '')}" style="width:70px" placeholder="?">` : '?'}</td><td>${r.map ? `<input data-rk="${E(r.k)}" data-c="map" value="${E(r.map)}" style="width:90px">` : 'da assegnare'}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : x === 'a mano' ? 'assegnata a mano' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
 ${impPdf ? '<h3>Confronto con il PDF originale</h3><p class="mu">Sotto c\'è la tavola PDF, sopra i contorni delle aree riconosciute (rosso esproprio, viola servitù opere, blu servitù, arancio occupazione) con il mappale assegnato: dove non coincidono, correggi la legenda o la scala e rileggi.</p><div id="povl" style="position:relative;max-width:1100px;border:1px solid #ccd;background:#fff;min-height:60px"><span class="mu" style="padding:8px;display:block">Disegno della pagina in corso…</span></div>' + anteprimaPdf(g, p) : ''}
 ${g.pezzi.some(z => !z.k) ? '<h3>Aree senza particella</h3>' + tabSenza(g.pezzi.filter(z => !z.k)) : ''}
-<div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
+${g.part.length ? tabParticelle(g) : ''}
+<div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><button id="iexd" title="Esporta quello che il programma ha ricostruito, con i suoi layer: lo correggi in CAD e lo reimporti allineato">Esporta DXF da correggere in CAD</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
+    APP._risultato = () => risultatoDxf(el, p);
+    el.querySelector('#iexd').onclick = () => APP.esportaDxf(p, g, (impDxf && impDxf.nome) || p.nome);
+    el.querySelectorAll('[data-rk]').forEach(i => i.onchange = () => {
+      const k0 = i.dataset.rk, z = g.pezzi.find(x => x.k === k0); if (!z) return;
+      const nuovo = { fg: z.fg || '', map: z.map || '', sub: z.sub || '' }; nuovo[i.dataset.c] = i.value.trim();
+      const q = g.part.find(x => x.k === k0);
+      const n = rinumera(g, k0, nuovo, q ? { part: q } : { pezzo: z }, true);
+      toast(n + ' elementi aggiornati'); risultatoDxf(el, p);
+    });
     if (impPdf) sovrapponiPdf(el.querySelector('#povl'), g).catch(e => { const o = el.querySelector('#povl'); if (o) o.innerHTML = '<span class="mu" style="padding:8px;display:block">Anteprima del PDF non disponibile: ' + E(e.message) + '</span>'; });
     el.querySelector('#iapp').onclick = () => {
       if (impPdf) impGeo.pezzi.forEach(z => { z.stima = 'pdf'; });
