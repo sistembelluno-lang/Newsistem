@@ -44,6 +44,13 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    pagina **🔎 Ricerca sul web** (norme e sentenze con risposta di sintesi e fonti, tramite l'API di Claude con chiave
    dell'ufficio); OCR dei numeri anche ruotati e solo delle scritte nere; colori e tratteggi senza legenda proposti dal
    nome del livello CAD; foglio corretto dall'elenco ditte; aree della tavola PDF assegnabili con un clic.
+   **Novità 1.16**: **carta intestata** scritta nel programma (taglio alto e taglio basso con loghi, tabelle e dati
+   dell'ente; importabile da un .docx) su tutti i documenti; **estratti di mappa per ditta** (immagini che sostituiscono
+   l'estratto automatico); **Inserisci nuovo documento** in ogni passo e **Inserisci file** nel fascicolo; PDF con
+   numerazione per documento e foglio bianco per il fronte/retro; foglio e mappale modificabili su ogni particella
+   ricostruita; **esportazione DXF** della planimetria ricostruita da correggere in CAD e reimportare; mappe a
+   immagine: tutte le zone chiuse diventano particelle e i numeri si leggono cifra per cifra; nato a / nato il
+   dall'Excel nelle anteprime e nella stampa unione.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli

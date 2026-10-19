@@ -1,6 +1,6 @@
 # ESPROPRI_SISTEM – Guida dei processi
 
-Versione 1.15.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
+Versione 1.16.0. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
 
 ## 1. Il lavoro in breve
 
@@ -190,6 +190,13 @@ Per ogni documento il programma produce il file generale (tutte le ditte) in `00
 - Si caricano le foto (con didascalia e particella) e la scansione PDF firmata: il programma crea il PDF finale con verbale firmato e pagine delle foto nella cartella della ditta.
 - La data del verbale di immissione fa partire i termini «dall'immissione» (condivisione dell'indennità negli artt. 22 e 22-bis).
 
+## 6-ter. Carta intestata, estratti di mappa, documenti e file inseriti
+
+- **Carta intestata** (Pratica › 🏛️ Carta intestata dell'ente): si scrivono nel programma il **taglio alto** (intestazione) e il **taglio basso** (piè di pagina) con loghi, tabelle, testi e dati dell'ente (come campi che si aggiornano da soli, es. {{ente.nome}}); si può partire da un Word .docx dell'ente con «Importa da Word» e poi correggere. Vale per tutti i documenti: Word (intestazione e piè di pagina veri), anteprima e PDF; «Usa per tutte le pratiche» la rende predefinita.
+- **Estratti di mappa della ditta** (scheda ditta): si caricano una o più immagini (png, jpg…) con le occupazioni della ditta; se ci sono, sostituiscono l'estratto automatico dalla planimetria in tutti i documenti (anche senza aver importato DXF o PDF).
+- **Inserisci nuovo documento**: in Documenti, in ogni passo della procedura, accanto ai documenti standard (es. art. 22 e successivi); il nuovo modello resta collegato al passo e compare anche nell'iter della ditta. **📎 Inserisci file** aggiunge al fascicolo un documento già pronto (PDF firmato, ricevuta, scansione) per la pratica o per le ditte, con la data del passo.
+- **PDF per la stampa fronte/retro**: ogni documento (intestatario o ditta) ha la sua numerazione «Pag. 1 di N» e, se finisce su una pagina dispari, è seguito da un foglio bianco, così il documento successivo comincia sempre su un foglio nuovo.
+
 ## 6-bis. Ricerca sul web
 
 - Per i casi difficili: una domanda in italiano (es. «cosa succede se la particella da espropriare è edificabile?»); il programma cerca in rete norme, sentenze e prassi e dà una risposta di sintesi con l'elenco delle fonti da aprire e verificare. Usa il servizio Claude di Anthropic con una chiave API dell'ufficio; non si inviano dati personali delle ditte. Non sostituisce il parere legale.
@@ -200,4 +207,6 @@ Per ogni documento il programma produce il file generale (tutte le ditte) in `00
 - **Area d'intervento più grande della superficie catastale** (es. 210 mq su una particella di 200 mq, per gli errori della mappa): il programma lo segnala e l'operatore sceglie, d'accordo con la committenza, se usare la superficie catastale (le superfici dal disegno si riducono in proporzione) o tenere la misura.
 - Banner dei controlli sulle ditte: codice fiscale mancante o errato, quote che non tornano o non indicate, indirizzo mancante.
 - Particelle del disegno non presenti nell'elenco ditte e particelle dell'elenco senza superfici: segnalate nella scheda Importa.
+- **Foglio e mappale delle particelle ricostruite** sempre modificabili: nella tabella «Particelle ricostruite» del risultato dell'importazione e con un clic sulla tavola grafica (✏️ Foglio / mappale), per le particelle vicine su fogli diversi (es. Fg. 10 e Fg. 22).
+- **Esporta DXF da correggere in CAD**: la planimetria ricostruita con i layer del programma (PARTICELLE, PARTICELLE_NUMERI, ESPROPRIO, SERVITU_INGOMBRO_OPERE, SERVITU_FASCIA, OCCUPAZIONE_TEMPORANEA, SFONDO_CARTOGRAFIA) in metri; corretta in CAD si reimporta da Importa › Disegno e resta allineata.
 - Scadenze: in rosso i termini scaduti, in arancio quelli entro 15 giorni.

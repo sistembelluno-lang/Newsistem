@@ -85,6 +85,15 @@ dialog::backdrop{background:rgba(0,0,0,.45)}#dlgb{max-height:72vh;overflow:auto}
 .dc-az{margin-top:8px;gap:6px}
 tr.clic{cursor:pointer}tr.clic:hover td{background:rgba(80,110,230,.07)}
 .ric-r h3{margin:14px 0 6px}.ric-r p{margin:6px 0;line-height:1.5}.ric-r sup a{text-decoration:none}.ric-f li{margin:6px 0}.ric-f blockquote{margin:4px 0 4px 12px;padding-left:8px;border-left:3px solid var(--bd);color:var(--mu,#667);font-size:.92em}
+/* Carta intestata: editor del taglio alto e del taglio basso */
+.carta-tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px;border:1px solid var(--bd,#ccc);border-radius:6px 6px 0 0;background:var(--hd);position:sticky;top:0;z-index:2}
+.carta-tb select{width:auto;padding:3px 4px}.carta-tb .sep{width:1px;height:20px;background:#bbb;margin:0 3px}
+.carta-col{display:inline-flex;align-items:center;gap:3px;font-weight:bold}.carta-col input{width:28px;height:24px;padding:0;border:0;background:none}
+.carta-pag{background:#fff;color:#000;border:1px solid var(--bd,#ccc);border-top:0;padding:14px 22px;max-width:794px;font:9pt/1.3 Arial,sans-serif}
+.carta-et{font:600 10px/1 system-ui,sans-serif;color:#7a8699;letter-spacing:.06em;margin:4px 0 3px}
+.carta-z{min-height:46px;border:1px dashed #9fb0c8;padding:6px;outline:none}.carta-z:focus{border-color:#2e6bd8;box-shadow:0 0 0 2px rgba(46,107,216,.15)}
+.carta-z table td{border:1px dotted #c8d2e0;padding:2px 4px}.carta-z img{cursor:pointer;vertical-align:middle}.carta-z img.sel{outline:2px solid #2e6bd8}
+.carta-mezzo{color:#999;text-align:center;padding:26px 0;font-style:italic}
 
 
 /*REPORT-CSS-INIZIO (da src/report.css)*/
@@ -631,6 +640,8 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   const U = ES.U = {};
 
   U.id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  U.b64 = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  U.hash = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (h * 33 + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
   U.esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   U.norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -1014,16 +1025,21 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     return out;
   };
 
-  // Scrittura DXF R12 minimale (per riportare in CAD le aree calcolate con le etichette)
-  D.scrivi = function (poli, testi) {
-    const o = ['0', 'SECTION', '2', 'ENTITIES'];
+  // Scrittura DXF R12 (per riportare in CAD le aree calcolate con le etichette). layers: {nome: colore ACI}
+  D.scrivi = function (poli, testi, layers) {
     const f = n => (Math.round(n * 1000) / 1000).toString();
+    const nomi = Object.assign({}, layers || {}); poli.concat(testi).forEach(x => { if (!(x.layer in nomi)) nomi[x.layer] = 7; });
+    const o = ['0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1009', '9', '$INSUNITS', '70', '6', '0', 'ENDSEC',
+      '0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LTYPE', '70', '1', '0', 'LTYPE', '2', 'CONTINUOUS', '70', '0', '3', 'Solid line', '72', '65', '73', '0', '40', '0.0', '0', 'ENDTAB',
+      '0', 'TABLE', '2', 'LAYER', '70', String(Object.keys(nomi).length)];
+    Object.entries(nomi).forEach(([n, c]) => o.push('0', 'LAYER', '2', n, '70', '0', '62', String(c), '6', 'CONTINUOUS'));
+    o.push('0', 'ENDTAB', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES');
     poli.forEach(p => {
-      o.push('0', 'POLYLINE', '8', p.layer, '66', '1', '70', p.chiusa ? '1' : '0');
+      o.push('0', 'POLYLINE', '8', p.layer, '66', '1', '10', '0', '20', '0', '30', '0', '70', p.chiusa ? '1' : '0');
       p.pts.forEach(q => o.push('0', 'VERTEX', '8', p.layer, '10', f(q[0]), '20', f(q[1]), '30', '0'));
       o.push('0', 'SEQEND', '8', p.layer);
     });
-    testi.forEach(t => o.push('0', 'TEXT', '8', t.layer, '10', f(t.x), '20', f(t.y), '30', '0', '40', f(t.h || 1), '1', String(t.t)));
+    testi.forEach(t => { o.push('0', 'TEXT', '8', t.layer, '10', f(t.x), '20', f(t.y), '30', '0', '40', f(t.h || 1), '1', String(t.t)); if (t.rot) o.push('50', f(t.rot)); if (t.centro) o.push('72', '1', '73', '2', '11', f(t.x), '21', f(t.y), '31', '0'); });
     o.push('0', 'ENDSEC', '0', 'EOF');
     return o.join('\r\n') + '\r\n';
   };
@@ -1352,6 +1368,35 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     part.forEach(p => G.bboxMP(p.mp, bbox)); pezzi.forEach(p => G.bboxMP(p.mp, bbox)); sfondo.forEach(l => G.bboxPts(l.pts, bbox));
     part.forEach(p => { delete p.b; });
     return { comune: opt.comune || '', part, pezzi, sfondo, etich, bbox: isFinite(bbox[0]) ? bbox : [0, 0, 1, 1], avvisi };
+  };
+
+  // Planimetria ricostruita → DXF con i layer del programma: si modifica in CAD (numeri, confini, aree mancanti) e si
+  // reimporta con «Importa DXF»: i nomi dei layer sono quelli che il programma riconosce da solo, coordinate in metri.
+  A.LAYER_DXF = { part: ['PARTICELLE', 7], num: ['PARTICELLE_NUMERI', 3], espr: ['ESPROPRIO', 1], servop: ['SERVITU_INGOMBRO_OPERE', 6], serv: ['SERVITU_FASCIA', 5], occ: ['OCCUPAZIONE_TEMPORANEA', 30], sfondo: ['SFONDO_CARTOGRAFIA', 8] };
+  A.esportaDxf = geo => {
+    const L = A.LAYER_DXF, poli = [], testi = [];
+    let buchi = 0;
+    const anello = (r, layer) => { const pts = r.length > 1 && r[0][0] === r[r.length - 1][0] && r[0][1] === r[r.length - 1][1] ? r.slice(0, -1) : r; if (pts.length > 2) poli.push({ layer, pts, chiusa: true }); };
+    const etichetta = (o, q) => (o.fg ? 'Fg.' + o.fg + ' mapp.' : 'mapp.') + o.map + (o.sub ? ' sub ' + o.sub : '');
+    const hT = a => Math.max(0.4, Math.min(2.5, Math.sqrt(a) / 8));
+    // Particelle: contorno esterno (le enclavi sono particelle a sé) e numero nel punto interno
+    (geo.part || []).forEach(q => (q.mp || []).forEach((P, i) => {
+      anello(P[0], L.part[0]);
+      if (q.map && i === 0) { const [x, y] = G.puntoEtichetta(P); testi.push({ layer: L.num[0], x, y, t: etichetta(q), h: hT(q.a || G.areaMP(q.mp)), centro: true }); }
+    }));
+    // Aree d'intervento: per tipo, unite (strisce intere, comode da modificare); dove l'unione lascia fori si tengono i pezzi
+    A.TIPI.forEach(t => {
+      const Z = (geo.pezzi || []).filter(z => z.tipo === t); if (!Z.length) return;
+      const sciolte = Z.filter(z => z.k && z.da !== 'catasto' || !z.k), cat = Z.filter(z => !sciolte.includes(z));
+      let U2 = cat.length ? G.unione(cat.map(z => z.mp)) : [];
+      if (U2.some(P => P.length > 1)) U2 = [].concat(...cat.map(z => z.mp));
+      U2.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; });
+      // Aree fuori dalle particelle disegnate (o assegnate a mano): ognuna con il suo numero scritto dentro
+      sciolte.forEach(z => z.mp.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; if (z.map) { const [x, y] = G.puntoEtichetta(P); testi.push({ layer: L[t][0], x, y, t: etichetta(z), h: hT(z.a) * 0.8, centro: true }); } }));
+    });
+    (geo.sfondo || []).forEach(l => { if (l.pts && l.pts.length > 1) poli.push({ layer: L.sfondo[0], pts: l.pts, chiusa: !!l.chiusa }); });
+    const layers = {}; Object.values(L).forEach(([n, c]) => { layers[n] = c; });
+    return { dxf: ES.dxf.scrivi(poli, testi, layers), buchi, n: { part: (geo.part || []).length, aree: (geo.pezzi || []).length } };
   };
 
   // Unisce un nuovo import alla geometria della pratica (più fogli o più file)
@@ -2099,15 +2144,15 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     return `<w:p><w:pPr>${ppr}</w:pPr>${runs.map(r => runXml(r, b.size || ctx.size, ctx.font)).join('')}</w:p>`;
   }
   function imgXml(b, ctx) {
-    const id = ctx.img(b.png), wmm = b.mm || 170, emuW = Math.round(wmm * 36000), emuH = Math.round(emuW * (b.h / b.w));
+    const id = ctx.img(b.png), wmm = Math.min(b.mm || 170, ctx.tw ? ctx.tw / 56.7 : 170), emuW = Math.round(wmm * 36000), emuH = Math.round(emuW * (b.h / b.w));
     const n = ctx.nImg = (ctx.nImg || 0) + 1;
     return `<w:p><w:pPr><w:jc w:val="${b.align || 'center'}"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${emuW}" cy="${emuH}"/><wp:docPr id="${n}" name="Immagine ${n}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="img${n}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emuW}" cy="${emuH}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
   }
   function tabXml(b, ctx) {
     const cols = b.cols || b.rows[0].cells.map(() => 100 / b.rows[0].cells.length), tot = cols.reduce((s, x) => s + x, 0);
-    const tw = cols.map(c => Math.round(TW * c / tot)), size = b.size || Math.max(14, (ctx.size || 21) - 4);
+    const TWc = ctx.tw || TW, tw = cols.map(c => Math.round(TWc * c / tot)), size = b.size || Math.max(14, (ctx.size || 21) - 4);
     const bd = b.border === false ? '' : '<w:tblBorders>' + ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(s => `<w:${s} w:val="single" w:sz="4" w:space="0" w:color="808080"/>`).join('') + '</w:tblBorders>';
-    let x = `<w:tbl><w:tblPr><w:tblW w:w="${TW}" w:type="dxa"/>${bd}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${tw.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+    let x = `<w:tbl><w:tblPr><w:tblW w:w="${TWc}" w:type="dxa"/>${bd}<w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${tw.map(w => `<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
     b.rows.forEach(r => {
       x += `<w:tr>${r.h ? '<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>' : '<w:trPr><w:cantSplit/></w:trPr>'}`;
       let ci = 0;
@@ -2130,19 +2175,23 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   }
   // opt: {font, size (mezzi punti, 21 = 10,5 pt), intestazione:[righe], piede:'testo'}
   O.docx = (blocchi, opt = {}) => {
-    const media = [], ctx = { font: opt.font || 'Arial', size: opt.size || 21, img: png => { media.push(png); return 'rIdImg' + media.length; } };
+    // larghezza utile della pagina: quella della carta intestata, se c'è (pagina meno i margini)
+    const twCarta = (() => { const c = opt.carta && opt.carta.sect; if (!c) return 0; const w = /<w:pgSz[^>]*w:w="(\d+)"/.exec(c), l = /<w:pgMar[^>]*w:left="(\d+)"/.exec(c), r = /<w:pgMar[^>]*w:right="(\d+)"/.exec(c); return w && l && r ? +w[1] - +l[1] - +r[1] : 0; })();
+    const media = [], ctx = { font: opt.font || 'Arial', size: opt.size || 21, tw: twCarta > 3000 ? twCarta : 0, img: png => { media.push(png); return 'rIdImg' + media.length; } };
     const body = blocchi.map(b => blocco(b, ctx)).join('');
-    const hdr = opt.intestazione && opt.intestazione.length;
-    const ftr = !!opt.piede;
-    const sect = `<w:sectPr>${hdr ? '<w:headerReference w:type="default" r:id="rIdH"/>' : ''}${ftr ? '<w:footerReference w:type="default" r:id="rIdF"/>' : ''}<w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>`;
+    const carta = opt.carta && opt.carta.sect ? opt.carta : null;
+    const hdr = !carta && opt.intestazione && opt.intestazione.length;
+    const ftr = !carta && !!opt.piede;
+    const sect = carta ? carta.sect : `<w:sectPr>${hdr ? '<w:headerReference w:type="default" r:id="rIdH"/>' : ''}${ftr ? '<w:footerReference w:type="default" r:id="rIdF"/>' : ''}<w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="567" w:footer="567" w:gutter="0"/></w:sectPr>`;
     const NS = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
     const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${NS}><w:body>${body}${sect}</w:body></w:document>`;
     const rels = ['<Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>']
       .concat(media.map((m, i) => `<Relationship Id="rIdImg${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/img${i + 1}.png"/>`))
       .concat(hdr ? ['<Relationship Id="rIdH" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>'] : [])
-      .concat(ftr ? ['<Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'] : []);
+      .concat(ftr ? ['<Relationship Id="rIdF" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'] : [])
+      .concat(carta ? carta.rels : []);
     const files = [
-      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>${hdr ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ''}${ftr ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : ''}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
+      { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/>${carta ? '<Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="jpg" ContentType="image/jpeg"/><Default Extension="gif" ContentType="image/gif"/><Default Extension="bmp" ContentType="image/bmp"/><Default Extension="emf" ContentType="image/x-emf"/><Default Extension="wmf" ContentType="image/x-wmf"/><Default Extension="tif" ContentType="image/tiff"/><Default Extension="svg" ContentType="image/svg+xml"/>' + carta.ct.join('') : ''}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>${hdr ? '<Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>' : ''}${ftr ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>' : ''}<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>` },
       { name: '_rels/.rels', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>' },
       { name: 'docProps/core.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${xe(opt.titolo || '')}</dc:title><dc:creator>ESPROPRI_SISTEM</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0, 19)}Z</dcterms:created></cp:coreProperties>` },
       { name: 'word/_rels/document.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels.join('')}</Relationships>` },
@@ -2152,7 +2201,176 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     if (hdr) files.push({ name: 'word/header1.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:hdr ${NS}>${opt.intestazione.map((r, i) => parXml({ runs: [{ text: r, b: i === 0 }], align: 'center', after: 0, size: i === 0 ? ctx.size + 3 : ctx.size - 3 }, ctx)).join('')}</w:hdr>` });
     if (ftr) files.push({ name: 'word/footer1.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${NS}>${parXml({ runs: [{ text: opt.piede }], align: 'center', size: 15, after: 0 }, ctx)}</w:ftr>` });
     media.forEach((m, i) => files.push({ name: `word/media/img${i + 1}.png`, data: m }));
+    if (carta) carta.parti.forEach(q => files.push(q));
     return O.zip(files);
+  };
+
+  // ---- Carta intestata dell'ente: «taglio alto» (intestazione) e «taglio basso» (piè di pagina) ----
+  // Si scrivono nel programma come HTML modificabile (testi, loghi, tabelle); un .docx dell'ente può fare da punto di partenza.
+
+  // Word .docx → {testa, piede} in HTML modificabile (paragrafi con grassetto, corsivo, dimensioni, colori, immagini, tabelle)
+  O.cartaDaDocx = async buf => {
+    const z = await ES.tab.unzipTutto(buf), td = new TextDecoder();
+    const doc = z['word/document.xml'] ? td.decode(z['word/document.xml']) : '';
+    if (!doc) throw new Error('il file non è un documento Word .docx');
+    const relsDoc = z['word/_rels/document.xml.rels'] ? td.decode(z['word/_rels/document.xml.rels']) : '';
+    const rel = (rels, id) => { const t = new RegExp('<Relationship\\b[^>]*Id="' + id + '"[^>]*>').exec(rels); const g = t && /Target="([^"]+)"/.exec(t[0]); return g ? g[1] : null; };
+    const sp = doc.lastIndexOf('<w:sectPr'), sect = sp >= 0 ? doc.slice(sp, doc.indexOf('</w:sectPr>', sp) + 11) : '';
+    const mime = f => (/\.png$/i.test(f) ? 'image/png' : /\.jpe?g$/i.test(f) ? 'image/jpeg' : /\.gif$/i.test(f) ? 'image/gif' : /\.bmp$/i.test(f) ? 'image/bmp' : null);
+    const b64 = u8 => { let s2 = ''; for (let i = 0; i < u8.length; i += 0x8000) s2 += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s2); };
+    const dex = s => s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+    const he = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const parte = (nome, rels) => {
+      const xml = td.decode(z[nome]);
+      const par = p => {
+        const al = /<w:jc w:val="(\w+)"/.exec(p), a = al ? ({ both: 'justify', center: 'center', right: 'right', end: 'right' }[al[1]] || 'left') : 'left';
+        let h = '';
+        for (const r of p.match(/<w:r[ >][\s\S]*?<\/w:r>/g) || []) {
+          const pr = /<w:rPr>([\s\S]*?)<\/w:rPr>/.exec(r), rp = pr ? pr[1] : '';
+          for (const e of r.matchAll(/r:embed="([^"]+)"/g)) {
+            const tg = rel(rels, e[1]), f = tg && z['word/' + tg.replace(/^\/?word\//, '')], mt = tg && mime(tg);
+            const ext = /<wp:extent cx="(\d+)" cy="(\d+)"/.exec(r), w = ext ? Math.round(+ext[1] / 9525) : 120, hh = ext ? Math.round(+ext[2] / 9525) : 60;
+            if (f && mt) h += `<img src="data:${mt};base64,${b64(f)}" width="${w}" height="${hh}">`;
+          }
+          let t = '';
+          for (const m of r.matchAll(/<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>|<w:(tab|br|cr)\b[^>]*\/>/g)) t += m[1] != null ? he(dex(m[1])) : m[2] === 'tab' ? ' &nbsp; ' : '<br>';
+          if (!t) continue;
+          const st = [];
+          if (/<w:b(?: w:val="(?:1|true|on)")?\/>/.test(rp)) st.push('font-weight:bold');
+          if (/<w:i(?: w:val="(?:1|true|on)")?\/>/.test(rp)) st.push('font-style:italic');
+          if (/<w:u w:val="(?!none)/.test(rp)) st.push('text-decoration:underline');
+          const sz = /<w:sz w:val="(\d+)"/.exec(rp); if (sz) st.push('font-size:' + (+sz[1] / 2) + 'pt');
+          const co = /<w:color w:val="([0-9A-Fa-f]{6})"/.exec(rp); if (co && co[1] !== '000000') st.push('color:#' + co[1]);
+          h += st.length ? `<span style="${st.join(';')}">${t}</span>` : t;
+        }
+        return `<div style="text-align:${a}">${h || '<br>'}</div>`;
+      };
+      const tab = t => {
+        const righe = t.match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || [];
+        const grid = [...t.matchAll(/<w:gridCol w:w="(\d+)"/g)].map(m => +m[1]), tot = grid.reduce((a, b) => a + b, 0);
+        return `<table style="width:100%;border-collapse:collapse">${righe.map(r => `<tr>${(r.match(/<w:tc[ >][\s\S]*?<\/w:tc>/g) || []).map((c, i) => `<td style="vertical-align:middle${tot && grid[i] ? ';width:' + Math.round(grid[i] / tot * 100) + '%' : ''}">${(c.match(/<w:p[ >][\s\S]*?<\/w:p>|<w:p\/>/g) || []).map(par).join('')}</td>`).join('')}</tr>`).join('')}</table>`;
+      };
+      let h = '';
+      for (const m of xml.matchAll(/<w:tbl>[\s\S]*?<\/w:tbl>|<w:p[ >][\s\S]*?<\/w:p>|<w:p\/>/g)) h += m[0].startsWith('<w:tbl') ? tab(m[0]) : par(m[0]);
+      return h.replace(/(<div style="text-align:left"><br><\/div>)+$/, '');
+    };
+    const out = { testa: '', piede: '' };
+    for (const m of sect.matchAll(/<w:(header|footer)Reference\b[^>]*\/>/g)) {
+      const id = /r:id="([^"]+)"/.exec(m[0]), tipo = /w:type="(\w+)"/.exec(m[0]);
+      if (tipo && tipo[1] !== 'default' && out[m[1] === 'header' ? 'testa' : 'piede']) continue;
+      const tg = id && rel(relsDoc, id[1]); if (!tg) continue;
+      const nome = 'word/' + tg.replace(/^\/?word\//, ''); if (!z[nome]) continue;
+      const nr = 'word/_rels/' + nome.split('/').pop() + '.rels';
+      out[m[1] === 'header' ? 'testa' : 'piede'] = parte(nome, z[nr] ? td.decode(z[nr]) : '');
+    }
+    if (!out.testa && !out.piede) throw new Error('nel documento non ci sono intestazione né piè di pagina');
+    return out;
+  };
+
+  // {testa, piede} HTML → parti Word (intestazione, piè di pagina, immagini, impostazioni di sezione) per O.docx
+  // opt: {font, size (mezzi punti), margini mm {alto, basso, sx, dx}}
+  O.cartaDaHtml = (testa, piede, opt = {}) => {
+    const font = opt.font || 'Arial', mg = Object.assign({ alto: 20, basso: 20, sx: 20, dx: 20 }, opt.margini || {});
+    const mm = v => Math.round(v * 56.7), TW = 11906 - mm(mg.sx) - mm(mg.dx);
+    const parti = [], rels = [], ct = [];
+    const DIM = { 1: 7.5, 2: 10, 3: 12, 4: 13.5, 5: 18, 6: 24, 7: 36 };
+    const colore = v => { if (!v) return null; v = v.trim(); let m = /^#([0-9a-f]{6})$/i.exec(v); if (m) return m[1].toUpperCase(); m = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/i.exec(v); if (m) return (m[1] + m[1] + m[2] + m[2] + m[3] + m[3]).toUpperCase(); m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(v); return m ? [m[1], m[2], m[3]].map(x => (+x).toString(16).padStart(2, '0')).join('').toUpperCase() : null; };
+    const pt = v => { const m = /([\d.]+)\s*(pt|px|em|rem)?/.exec(v || ''); if (!m) return null; const n = +m[1]; return m[2] === 'px' ? n * 0.75 : m[2] === 'em' || m[2] === 'rem' ? n * 11 : n; };
+    const costruisci = (html, tipo, n) => {
+      const media = [];
+      const dom = new DOMParser().parseFromString('<!doctype html><body>' + (html || '') + '</body>', 'text/html');
+      const stile = (el, s) => {
+        const t = el.tagName, cs = el.style || {}, x = { ...s };
+        if (t === 'B' || t === 'STRONG' || /bold|[6-9]00/.test(cs.fontWeight || '')) x.b = true;
+        if (/^(normal|[1-4]00)$/.test(cs.fontWeight || '')) x.b = false;
+        if (t === 'I' || t === 'EM' || cs.fontStyle === 'italic') x.i = true;
+        if (t === 'U' || /underline/.test(cs.textDecoration || cs.textDecorationLine || '')) x.u = true;
+        if (/^H[1-3]$/.test(t)) { x.b = true; x.sz = { H1: 16, H2: 14, H3: 12 }[t]; }
+        if (t === 'FONT') { if (el.getAttribute('size')) x.sz = DIM[el.getAttribute('size')] || x.sz; if (el.getAttribute('color')) x.co = colore(el.getAttribute('color')) || x.co; if (el.getAttribute('face')) x.f = el.getAttribute('face').split(',')[0].replace(/['"]/g, '').trim(); }
+        if (cs.fontSize) x.sz = pt(cs.fontSize) || x.sz;
+        if (cs.color) x.co = colore(cs.color) || x.co;
+        if (cs.fontFamily) x.f = cs.fontFamily.split(',')[0].replace(/['"]/g, '').trim();
+        return x;
+      };
+      const allinea = el => { const a = (el.style && el.style.textAlign) || el.getAttribute('align') || (el.tagName === 'CENTER' ? 'center' : ''); return { center: 'center', right: 'right', justify: 'both', left: 'left', start: 'left', end: 'right' }[a] || null; };
+      const run = (t, s) => `<w:r><w:rPr><w:rFonts w:ascii="${xe(s.f || font)}" w:hAnsi="${xe(s.f || font)}" w:cs="${xe(s.f || font)}"/>${s.b ? '<w:b/>' : ''}${s.i ? '<w:i/>' : ''}${s.u ? '<w:u w:val="single"/>' : ''}${s.co ? `<w:color w:val="${s.co}"/>` : ''}<w:sz w:val="${Math.round((s.sz || 9) * 2)}"/><w:szCs w:val="${Math.round((s.sz || 9) * 2)}"/></w:rPr><w:t xml:space="preserve">${xe(t)}</w:t></w:r>`;
+      const img = el => {
+        const m = /^data:(image\/(png|jpe?g|gif|bmp));base64,(.*)$/i.exec(el.getAttribute('src') || ''); if (!m) return '';
+        const bin = atob(m[3]), u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        const ext = m[2].toLowerCase().replace('jpeg', 'jpg');
+        const w = +el.getAttribute('width') || pt(el.style.width) / 0.75 || 120, h = +el.getAttribute('height') || pt(el.style.height) / 0.75 || (el.dataset && +el.dataset.r ? w * +el.dataset.r : w / 2);
+        media.push({ u8, ext }); const k = media.length, id = 'rIdM' + k, did = 7000 + n * 100 + k;
+        const cx = Math.round(w * 9525), cy = Math.round(h * 9525);
+        return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${did}" name="Logo ${did}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${did}" name="logo${k}.${ext}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+      };
+      const BLK = /^(P|DIV|H[1-6]|LI|UL|OL|BLOCKQUOTE|SECTION|HEADER|FOOTER|CENTER|ARTICLE)$/;
+      const BR = '<w:r><w:br/></w:r>';
+      // Contenuto di un contenitore (corpo, cella) → paragrafi e tabelle Word
+      const blocchi = (root, s0, larg) => {
+        const out = []; let runs = [], al = null;
+        const par = (R, a) => `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/>${a ? `<w:jc w:val="${a}"/>` : ''}<w:rPr><w:sz w:val="${Math.round((s0.sz || 9) * 2)}"/></w:rPr></w:pPr>${R.join('')}</w:p>`;
+        const flush = () => { while (runs.length && runs[runs.length - 1] === BR) runs.pop(); if (runs.length) out.push(par(runs, al)); runs = []; };
+        const metti = (x, a) => { if (!runs.length) al = a; runs.push(x); };
+        const walk = (node, s, a) => {
+          for (const c of node.childNodes) {
+            if (c.nodeType === 3) { let t = c.nodeValue.replace(/[\s ]+/g, m => (/ /.test(m) ? ' '.repeat(m.length) : ' ')); if (!runs.length) t = t.replace(/^ +/, ''); if (t) metti(run(t, s), a); continue; }
+            if (c.nodeType !== 1) continue;
+            const tg = c.tagName;
+            if (/^(STYLE|SCRIPT|META|TITLE|HEAD|LINK|O:P|XML)$/.test(tg)) continue;
+            if (tg === 'BR') { metti(BR, a); continue; }
+            if (tg === 'IMG') { const x = img(c); if (x) metti(x, a); continue; }
+            if (tg === 'HR') { flush(); out.push(`<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="808080"/></w:pBdr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>`); continue; }
+            if (tg === 'TABLE') { flush(); out.push(tabella(c, s, larg)); continue; }
+            const s2 = stile(c, s), a2 = allinea(c) || a;
+            if (BLK.test(tg)) {
+              flush();
+              if (!c.textContent.trim() && !c.querySelector('img,table')) { out.push(par([], a2)); continue; }
+              walk(c, s2, a2); flush();
+            } else walk(c, s2, a);
+          }
+        };
+        walk(root, s0, null); flush();
+        return out;
+      };
+      const tabella = (t, s, larg) => {
+        const righe = [...t.querySelectorAll('tr')].filter(r => r.closest('table') === t);
+        const nc = Math.max(1, ...righe.map(r => [...r.children].filter(c => /^T[DH]$/.test(c.tagName)).reduce((a, c) => a + (+c.getAttribute('colspan') || 1), 0)));
+        const r0 = righe[0] ? [...righe[0].children].filter(c => /^T[DH]$/.test(c.tagName)) : [];
+        let pc = r0.length === nc ? r0.map(c => { const w = (c.style && c.style.width) || c.getAttribute('width') || ''; return /%/.test(w) ? parseFloat(w) : 0; }) : [];
+        if (!pc.length || pc.some(x => !x)) { const fiss = pc.reduce((a, b) => a + (b || 0), 0), liberi = pc.length ? pc.filter(x => !x).length : nc; pc = (pc.length ? pc : Array(nc).fill(0)).map(x => x || Math.max(5, (100 - fiss) / liberi)); }
+        const tot = pc.reduce((a, b) => a + b, 0), cols = pc.map(x => Math.round(larg * x / tot));
+        const bordi = /solid|\d+px/.test(t.getAttribute('style') || '') && !/border\s*:\s*(0|none)/.test(t.getAttribute('style') || '') || +t.getAttribute('border') > 0;
+        const b = v => ['top', 'left', 'bottom', 'right', 'insideH', 'insideV'].map(x => `<w:${x} w:val="${v ? 'single' : 'nil'}" w:sz="4" w:space="0" w:color="808080"/>`).join('');
+        return `<w:tbl><w:tblPr><w:tblW w:w="${larg}" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders>${b(bordi)}</w:tblBorders><w:tblCellMar><w:left w:w="57" w:type="dxa"/><w:right w:w="57" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${cols.map(c => `<w:gridCol w:w="${c}"/>`).join('')}</w:tblGrid>${righe.map(r => {
+          let i = 0;
+          return `<w:tr>${[...r.children].filter(c => /^T[DH]$/.test(c.tagName)).map(c => {
+            const span = Math.min(+c.getAttribute('colspan') || 1, nc - i), w = cols.slice(i, i + span).reduce((a, x) => a + x, 0); i += span;
+            const va = (c.style && c.style.verticalAlign) || c.getAttribute('valign') || 'middle';
+            const dentro = blocchi(c, stile(c, s), w - 114);
+            return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}<w:vAlign w:val="${va === 'top' ? 'top' : va === 'bottom' ? 'bottom' : 'center'}"/></w:tcPr>${dentro.length && !dentro[dentro.length - 1].startsWith('<w:tbl') ? dentro.join('') : dentro.join('') + '<w:p/>'}</w:tc>`;
+          }).join('')}</w:tr>`;
+        }).join('')}</w:tbl>`;
+      };
+      const corpo = blocchi(dom.body, { sz: 9 }, TW);
+      if (!corpo.length || corpo[corpo.length - 1].startsWith('<w:tbl')) corpo.push('<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr></w:p>');
+      const tag = tipo === 'header' ? 'hdr' : 'ftr', nome = 'carta' + (tipo === 'header' ? 'Testa' : 'Piede') + '.xml';
+      const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:${tag} xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">${corpo.join('')}</w:${tag}>`;
+      parti.push({ name: 'word/' + nome, data: new TextEncoder().encode(xml) });
+      if (media.length) {
+        media.forEach((m, i) => parti.push({ name: `word/media/carta${n}_${i + 1}.${m.ext}`, data: m.u8 }));
+        parti.push({ name: `word/_rels/${nome}.rels`, data: new TextEncoder().encode(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${media.map((m, i) => `<Relationship Id="rIdM${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/carta${n}_${i + 1}.${m.ext}"/>`).join('')}</Relationships>`) });
+      }
+      rels.push(`<Relationship Id="rIdCarta${n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${tipo}" Target="${nome}"/>`);
+      ct.push(`<Override PartName="/word/${nome}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.${tipo}+xml"/>`);
+      return `<w:${tipo}Reference w:type="default" r:id="rIdCarta${n}"/>`;
+    };
+    const vuoto = h => !String(h || '').replace(/<(?!img|table)[^>]*>|&nbsp;|\s/gi, '');
+    let refs = '';
+    if (!vuoto(testa)) refs += costruisci(testa, 'header', 1);
+    if (!vuoto(piede)) refs += costruisci(piede, 'footer', 2);
+    if (!refs) return null;
+    const sect = `<w:sectPr>${refs}<w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="${mm(mg.alto)}" w:right="${mm(mg.dx)}" w:bottom="${mm(mg.basso)}" w:left="${mm(mg.sx)}" w:header="425" w:footer="425" w:gutter="0"/></w:sectPr>`;
+    return { parti, rels, ct, sect, html: { testa: vuoto(testa) ? '' : testa, piede: vuoto(piede) ? '' : piede } };
   };
 
   // ---- Compilazione di un modello Word dell'utente ----
@@ -2261,12 +2479,12 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
       for (const m of imgs) {
         const f = immagini[m[1]]; let rep = '';
         if (f) {
-          const im = await f(contesti[i]);
-          if (im && im.png) {
+          // una o più immagini (es. estratti di mappa caricati per la ditta)
+          for (const im of [].concat(await f(contesti[i]) || [])) if (im && im.png) {
             nImg++; const id = 'rIdEs' + nImg; extra[`word/media/es${nImg}.png`] = im.png;
             rels = rels.replace('</Relationships>', `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/es${nImg}.png"/></Relationships>`);
             const emuW = Math.round((im.mm || 160) * 36000), emuH = Math.round(emuW * im.h / im.w);
-            rep = `</w:t></w:r><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="${emuW}" cy="${emuH}"/><wp:docPr id="${9000 + nImg}" name="Planimetria ${nImg}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${9000 + nImg}" name="es${nImg}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emuW}" cy="${emuH}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t xml:space="preserve">`;
+            rep += `</w:t></w:r><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><wp:extent cx="${emuW}" cy="${emuH}"/><wp:docPr id="${9000 + nImg}" name="Planimetria ${nImg}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${9000 + nImg}" name="es${nImg}.png"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${id}" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${emuW}" cy="${emuH}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r><w:r><w:t xml:space="preserve">`;
           }
         }
         x = x.replace(m[0], rep);
@@ -3254,8 +3472,8 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
       o += `<path d="${pathMP(p.mp, f)}" fill="${si ? 'url(#' + st.pat + ')' : 'none'}" fill-rule="evenodd" stroke="${st.col}" stroke-width="${(si ? .3 : .15) * g}" ${si ? '' : 'stroke-dasharray="1 .8"'} data-pezzo="${p.id}" data-k="${p.k || ''}"/>`;
     }));
     // Particelle catastali (la particella del taglio più marcata)
-    const parti = (geo.part || []).filter(p => dentro(p.mp));
-    parti.forEach(p => { const ev = opt.particella && p.k === opt.particella; o += `<path d="${pathMP(p.mp, f)}" fill="none" stroke="#111" stroke-width="${(ev ? .6 : .22) * g}" data-k="${p.k || ''}" class="tv-part"/>`; });
+    const iP = new Map((geo.part || []).map((p, i) => [p, i])), parti = (geo.part || []).filter(p => dentro(p.mp));
+    parti.forEach(p => { const ev = opt.particella && p.k === opt.particella; o += `<path d="${pathMP(p.mp, f)}" fill="none" stroke="#111" stroke-width="${(ev ? .6 : .22) * g}" data-k="${p.k || ''}" data-pi="${iP.get(p)}" pointer-events="all" class="tv-part"/>`; });
     // Numeri di particella: nella parte visibile del poligono (le particelle grandi tagliate dal bordo restano numerate)
     const hTxt = (opt.hTesto || 2.2) * g, scritti = new Set(), interessate = new Set(pezzi.map(p => p.k).filter(Boolean));
     parti.forEach(p => {
@@ -3829,8 +4047,16 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
     for (const [px2, py2] of prove) { const r = regione1(mr, px2, py2, maxFraz); if (r && r.pixel >= minPix) return r; }
     return null;
   };
+  // Maschera per i riempimenti: linee ispessite di un pixel, così le piccole interruzioni dei confini (1-2 pixel,
+  // frequenti nelle mappe scansionate o convertite) non fanno «colare» una particella nella vicina
+  const chiusa = mr => {
+    if (mr._chiusa) return mr._chiusa;
+    const { W, H, mask } = mr, m = new Uint8Array(mask);
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const i = r * W + c; if (!mask[i]) continue; if (c > 0) m[i - 1] = 1; if (c < W - 1) m[i + 1] = 1; if (r > 0) m[i - W] = 1; if (r < H - 1) m[i + W] = 1; }
+    return (mr._chiusa = m);
+  };
   const regione1 = (mr, x, y, maxFraz) => {
-    const { px, x0, y0, W, H, mask } = mr;
+    const { px, x0, y0, W, H } = mr, mask = chiusa(mr);
     let c = Math.round((x - x0) / px), r = Math.round((y - y0) / px);
     if (c < 1 || r < 1 || c >= W - 1 || r >= H - 1) return null;
     // sopra una linea o una lettera: si parte dal pixel bianco più vicino
@@ -3850,8 +4076,13 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
       for (const j of [i - 1, i + 1, i - W, i + W]) if (!vis[j] && !mask[j]) { vis[j] = 1; if (sp >= st.length) return null; st[sp++] = j; }
     }
     if (n < 30) return null;
-    // contorno esterno: lati dei pixel della zona che confinano con l'esterno, concatenati (zona a sinistra)
-    const dentro = (cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && vis[rr * W + cc] === 1;
+    const pts = contorno((cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && vis[rr * W + cc] === 1, cm, cM, rm, rM, mr);
+    return pts ? { pts, pixel: n } : null;
+  };
+  // Contorno esterno di una zona di pixel (dentro(c, r)): lati dei pixel che confinano con l'esterno, concatenati
+  // (zona a sinistra), semplificati e riportati in punti PDF
+  const contorno = (dentro, cm, cM, rm, rM, mr) => {
+    const { px, x0, y0 } = mr;
     // il pixel più in basso a sinistra della zona: il suo lato inferiore è sul contorno esterno
     let sr = rm, sc = -1; for (let cc = cm; cc <= cM; cc++) if (dentro(cc, sr)) { sc = cc; break; }
     if (sc < 0) return null;
@@ -3880,7 +4111,125 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
     const meta = Math.floor(ring.length / 2);
     const semp = dp(ring.slice(0, meta + 1), 1.2).slice(0, -1).concat(dp(ring.slice(meta).concat([ring[0]]), 1.2).slice(0, -1));
     if (semp.length < 3) return null;
-    return { pts: semp.map(q => [x0 + q[0] * px, y0 + q[1] * px]), pixel: n };
+    return semp.map(q => [x0 + q[0] * px, y0 + q[1] * px]);
+  };
+
+  // Tutte le zone bianche chiuse della mappa a pixel (anche quelle senza numero letto e quelle tagliate dal bordo
+  // della mappa): come un tecnico che ripassa ogni contorno. minMm2: zona minima in mm² di carta (via occhielli dei
+  // numeri, cortili minuscoli, retini); maxFraz: oltre questa frazione della mappa è lo sfondo, non una particella.
+  P.regioniRaster = (mr, opt = {}) => {
+    const { px, W, H } = mr, mask = chiusa(mr), mmPx = 72 / 25.4 / px;
+    const min = Math.max(200, (opt.minMm2 || 9) * mmPx * mmPx), max = W * H * (opt.maxFraz || 0.12);
+    const lab = new Int32Array(W * H), st = new Int32Array(Math.min(W * H, 8e6)), out = [];
+    let id = 0;
+    for (let i0 = 0; i0 < W * H; i0++) {
+      if (mask[i0] || lab[i0]) continue;
+      id++; let sp = 0, n = 0, cm = W, cM = 0, rm = H, rM = 0, bordo = false, troppo = false;
+      st[sp++] = i0; lab[i0] = id;
+      while (sp) {
+        const i = st[--sp], rr = (i / W) | 0, cc = i - rr * W; n++;
+        if (cc < cm) cm = cc; if (cc > cM) cM = cc; if (rr < rm) rm = rr; if (rr > rM) rM = rr;
+        if (cc === 0 || rr === 0 || cc === W - 1 || rr === H - 1) bordo = true;
+        if (cc > 0 && !mask[i - 1] && !lab[i - 1]) { lab[i - 1] = id; if (sp < st.length) st[sp++] = i - 1; else troppo = true; }
+        if (cc < W - 1 && !mask[i + 1] && !lab[i + 1]) { lab[i + 1] = id; if (sp < st.length) st[sp++] = i + 1; else troppo = true; }
+        if (rr > 0 && !mask[i - W] && !lab[i - W]) { lab[i - W] = id; if (sp < st.length) st[sp++] = i - W; else troppo = true; }
+        if (rr < H - 1 && !mask[i + W] && !lab[i + W]) { lab[i + W] = id; if (sp < st.length) st[sp++] = i + W; else troppo = true; }
+      }
+      if (troppo || n < min || n > max) continue;
+      const me = id, pts = contorno((cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && lab[rr * W + cc] === me, cm, cM, rm, rM, mr);
+      if (!pts) continue;
+      // zone troppo sottili (strade, fossi, spazi tra le scritte) restano: diventano particelle senza numero da verificare
+      if (opt.escludi) { const lp = ES.geo.puntoEtichetta([pts]); if (lp && opt.escludi(lp[0], lp[1])) continue; }
+      out.push({ pts, pixel: n, bordo, a: Math.abs(ES.geo.areaAnello(pts)) });
+    }
+    return out;
+  };
+
+  // Numeri scritti nella mappa a pixel, cercati come li cerca un tecnico: gruppi di segni piccoli e staccati dalle linee
+  // (le cifre), della stessa altezza e allineati. Restituisce i riquadri delle parole in pixel della mappa
+  // {c0, r0, c1, r1, n} (righe dal basso, come la mappa): poi l'OCR legge ogni parola da sola.
+  P.paroleRaster = (mr, opt = {}) => {
+    const { px, W, H, mask } = mr, mmPx = 72 / 25.4 / px;
+    const hMin = Math.max(6, (opt.hMinMm || 0.9) * mmPx), hMax = (opt.hMaxMm || 4.5) * mmPx;
+    const lab = new Int32Array(W * H), st = new Int32Array(1 << 16), blob = [];
+    let id = 0;
+    for (let i0 = 0; i0 < W * H; i0++) {
+      if (!mask[i0] || lab[i0]) continue;
+      id++; let sp = 0, n = 0, cm = W, cM = 0, rm = H, rM = 0, grande = false;
+      st[sp++] = i0; lab[i0] = id;
+      while (sp) {
+        const i = st[--sp], rr = (i / W) | 0, cc = i - rr * W; n++;
+        if (cc < cm) cm = cc; if (cc > cM) cM = cc; if (rr < rm) rm = rr; if (rr > rM) rM = rr;
+        if (cM - cm > hMax * 1.2 || rM - rm > hMax * 1.2) grande = true;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+          const c2 = cc + dc, r2 = rr + dr; if (c2 < 0 || r2 < 0 || c2 >= W || r2 >= H) continue;
+          const j = r2 * W + c2; if (mask[j] && !lab[j]) { lab[j] = id; if (sp < st.length) st[sp++] = j; else grande = true; }
+        }
+      }
+      const w = cM - cm + 1, h = rM - rm + 1;
+      if (grande || h < hMin || h > hMax || w > h * 1.3 || n < 8) continue;
+      blob.push({ id, c0: cm, c1: cM, r0: rm, r1: rM, h, cy: (rm + rM) / 2 });
+    }
+    // parole: segni vicini in orizzontale, di altezza simile e con il centro alla stessa quota
+    blob.sort((a, b) => a.c0 - b.c0);
+    const usato = new Uint8Array(blob.length), parole = [];
+    for (let i = 0; i < blob.length; i++) {
+      if (usato[i]) continue;
+      const w0 = { c0: blob[i].c0, c1: blob[i].c1, r0: blob[i].r0, r1: blob[i].r1, h: blob[i].h, n: 1, ids: [blob[i].id], segni: [blob[i]] }; usato[i] = 1;
+      let ultimo = blob[i];
+      for (let j = i + 1; j < blob.length && blob[j].c0 - w0.c1 <= w0.h * 1.4; j++) {
+        const b = blob[j]; if (usato[j]) continue;
+        if (b.c0 - ultimo.c1 > w0.h * 1.3 || Math.abs(b.cy - ultimo.cy) > w0.h * 0.35 || b.h > w0.h * 1.5 || b.h < w0.h / 1.5) continue;
+        usato[j] = 1; w0.ids.push(b.id); w0.segni.push(b); w0.c1 = Math.max(w0.c1, b.c1); w0.r0 = Math.min(w0.r0, b.r0); w0.r1 = Math.max(w0.r1, b.r1); w0.n++; ultimo = b;
+      }
+      if (w0.n > 6) continue;
+      // solo i pixel delle cifre (senza i pezzi di linee che passano vicino): bitmap della parola, righe dal basso
+      const ww = w0.c1 - w0.c0 + 1, hh = w0.r1 - w0.r0 + 1, ids = new Set(w0.ids), bits = new Uint8Array(ww * hh);
+      for (let rr = 0; rr < hh; rr++) for (let cc = 0; cc < ww; cc++) if (ids.has(lab[(w0.r0 + rr) * W + w0.c0 + cc])) bits[rr * ww + cc] = 1;
+      // ogni segno (cifra) con la sua bitmap, per il confronto con i modelli di cifra
+      w0.segni = w0.segni.map(b => { const sw = b.c1 - b.c0 + 1, sh = b.r1 - b.r0 + 1, sb = new Uint8Array(sw * sh); for (let rr = 0; rr < sh; rr++) for (let cc = 0; cc < sw; cc++) if (lab[(b.r0 + rr) * W + b.c0 + cc] === b.id) sb[rr * sw + cc] = 1; return { w: sw, h: sh, bits: sb }; });
+      w0.bits = bits; delete w0.ids; parole.push(w0);
+    }
+    return parole;
+  };
+
+  // Cifre della mappa riconosciute per confronto: il carattere di una mappa è sempre lo stesso, quindi le parole lette
+  // con sicurezza dall'OCR insegnano la forma di ogni cifra, e con quei modelli si rileggono tutte le parole.
+  // parole: da P.paroleRaster; letture: [{t, c}] dell'OCR per ogni parola (o null). Restituisce [{t, c, da}] o null.
+  const N = 20;
+  P.normCifra = (bits, w, h) => {
+    // in un riquadro N×N, altezza piena e larghezza in proporzione, centrata; poi sfumata di un pixel
+    const k = (N - 2) / h, ww = Math.max(1, Math.round(w * k)), ox = Math.floor((N - ww) / 2), a = new Float32Array(N * N);
+    for (let y = 0; y < N - 2; y++) for (let x = 0; x < ww; x++) {
+      const sx = Math.min(w - 1, Math.floor(x / k)), sy = Math.min(h - 1, Math.floor((N - 3 - y) / k)); // righe dal basso
+      if (bits[sy * w + sx] && x + ox >= 0 && x + ox < N) a[(y + 1) * N + x + ox] = 1;
+    }
+    const b = new Float32Array(N * N);
+    for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { let v = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) v += a[(y + dy) * N + x + dx] * (dx || dy ? 0.5 : 1); b[y * N + x] = v; }
+    let m = 0; for (let i = 0; i < b.length; i++) m += b[i] * b[i]; m = Math.sqrt(m) || 1;
+    for (let i = 0; i < b.length; i++) b[i] /= m;
+    return { v: b, asp: w / h };
+  };
+  const somiglia = (a, b) => { let s2 = 0; for (let i = 0; i < a.v.length; i++) s2 += a.v[i] * b.v[i]; return s2 - Math.min(0.15, Math.abs(a.asp - b.asp) * 0.25); };
+  P.leggiConModelli = (parole, letture, minConf = 80) => {
+    const campioni = {};
+    parole.forEach((w, i) => {
+      const l = letture[i]; if (!l || l.c < minConf || !/^\d+$/.test(l.t) || l.t.length !== w.segni.length) return;
+      w.segni.forEach((g, j) => (campioni[l.t[j]] = campioni[l.t[j]] || []).push(P.normCifra(g.bits, g.w, g.h)));
+    });
+    const cifre = Object.keys(campioni); if (cifre.length < 4) return letture.map(l => l && { ...l, da: 'ocr' });
+    // per ogni cifra si tengono fino a 12 campioni (confronto con il più somigliante)
+    cifre.forEach(d => { campioni[d] = campioni[d].slice(0, 12); });
+    return parole.map((w, i) => {
+      const l = letture[i];
+      const sc = w.segni.map(g => { const n = P.normCifra(g.bits, g.w, g.h); let best = null, bv = -1, sec = -1; cifre.forEach(d => { const v = Math.max(...campioni[d].map(c => somiglia(n, c))); if (v > bv) { sec = bv; bv = v; best = d; } else if (v > sec) sec = v; }); return { d: best, v: bv, marg: bv - sec }; });
+      const t = sc.map(x => x.d).join(''), minV = Math.min(...sc.map(x => x.v)), minM = Math.min(...sc.map(x => x.marg));
+      const buono = minV > 0.82 && minM > 0.03;
+      if (l && l.t === t) return { t, c: Math.max(l.c, Math.round(minV * 100)), da: 'ocr+modelli' };
+      // una cifra sola letta solo per somiglianza può essere una lettera di un toponimo: fiducia bassa
+      if (buono) return { t, c: Math.round(Math.min(t.length === 1 ? 70 : 95, minV * 100 - (l && /^\d/.test(l.t) ? 10 : 0))), da: 'modelli' };
+      return l && /^\d{1,5}(\/\d{1,5})?$/.test(l.t) ? { ...l, da: 'ocr' } : null;
+    });
   };
 
   // Particelle ricostruite dalla mappa a pixel: una per numero letto (testi del PDF o letti con l'OCR).
@@ -4013,6 +4362,15 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
         const reg = P.regioneRaster(mr, lp[0], lp[1], 0.12); if (!reg) return;
         const n = numeri.find(nn => G.inAnello(nn.x, nn.y, reg.pts)); if (n) parti.push({ pts: reg.pts, t: n.t, a: Math.abs(G.areaAnello(reg.pts)) });
       });
+      // tutte le altre zone chiuse della mappa (numeri non letti, particelle tagliate dalla cornice): particelle senza
+      // numero, che prendono il numero dai testi che cadono dentro o si numerano a mano
+      const giaPresa = (x, y) => parti.some(o => G.inAnello(x, y, o.pts));
+      const altre = P.regioniRaster(mr, { escludi: (x, y) => giaPresa(x, y) || inLeg({ x, y }) || !inFin({ x, y }) });
+      // zone chiuse dentro un'altra zona (contorni dei fabbricati, cortili): fanno parte della particella che le contiene
+      const tutte = parti.concat(altre), dentroAltra = q => { const lp = G.puntoEtichetta([q.pts]); return lp && tutte.some(o => o !== q && o.a > q.a && G.inAnello(q.pts[0][0], q.pts[0][1], o.pts) && G.inAnello(lp[0], lp[1], o.pts)); };
+      for (let i = altre.length - 1; i >= 0; i--) if (dentroAltra(altre[i])) altre.splice(i, 1);
+      altre.forEach(q => metti('Particelle: ricostruite dalla mappa', q.pts, true));
+      if (altre.length) avvisi.push(`Mappa catastale a immagine: ${altre.length} zone chiuse senza numero letto (particelle tagliate dalla cornice, strade, numeri non riconosciuti): numerale con un clic dove serve`);
       parti.forEach(q => metti('Particelle: ricostruite dalla mappa', q.pts, true));
       avvisi.push(parti.length ? `Mappa catastale a immagine: ${parti.length} particelle ricostruite seguendo le linee della mappa da ogni numero${ocr.length ? ' (' + ocr.length + ' numeri letti con l\'OCR, da verificare)' : ''}`
         : 'Mappa catastale a immagine: i numeri delle particelle non sono testo. Usa «Leggi i numeri dalla mappa (OCR)» per farli riconoscere');
@@ -4267,6 +4625,18 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
   });
   APP.conferma = async (m, ok = 'Conferma') => (await APP.dlg('Conferma', `<p>${m}</p>`, [{ t: 'Annulla', v: '' }, { t: ok, v: 'ok', p: true }])) === 'ok';
   // Scelta di file: Promise([{nome, buf}])
+  // Carta intestata della pratica (o quella predefinita per tutte le pratiche): taglio alto e taglio basso in HTML,
+  // con i dati dell'ente richiamabili come {{ente.nome}}; convertita in parti Word una volta e tenuta in memoria
+  const cacheCarta = new Map();
+  APP.cartaSorgente = p => { const c = (p && p.carta) || DB.carta; return c && (c.testa || c.piede) ? c : null; };
+  APP.carta = async p => {
+    const c = APP.cartaSorgente(p); if (!c) return null;
+    const base = ES.modelli.base(p, ES.stima.calcola(p));
+    const sost = h => String(h || '').replace(/\{\{\s*([\w.]+)\s*\}\}/g, (x, k) => E(k.split('.').reduce((o, q) => (o == null ? o : o[q]), base) ?? ''));
+    const testa = sost(c.testa), piede = sost(c.piede), k = JSON.stringify(c.margini || {}) + testa.length + ':' + piede.length + ':' + U.hash(testa + '|' + piede);
+    if (!cacheCarta.has(k)) { try { cacheCarta.set(k, ES.office.cartaDaHtml(testa, piede, { margini: c.margini })); } catch (e) { console.error(e); cacheCarta.set(k, null); } }
+    return cacheCarta.get(k);
+  };
   APP.scegliFile = (accept, multi) => new Promise(res => {
     const f = $('#fin'); f.value = ''; f.accept = accept || ''; f.multiple = !!multi;
     f.onchange = async () => { const L = []; for (const x of f.files) L.push({ nome: x.name, buf: await x.arrayBuffer(), tipo: x.type }); res(L); };
@@ -4386,6 +4756,7 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
 <label class="f2">Beneficiario dell'esproprio (se diverso)<input data-f="ente.beneficiario"></label><label>C.F. beneficiario<input data-f="ente.cfBeneficiario"></label><label class="f2">Sede beneficiario<input data-f="ente.sedeBeneficiario"></label>
 <label>Tribunale civile di<input data-f="ente.tribunale"></label><label>T.A.R.<input data-f="ente.tar" placeholder="Veneto"></label><label class="f2">Bollettino per gli estratti<input data-f="ente.bur" placeholder="BUR Veneto"></label>
 <label class="f">Link alla documentazione progettuale<input data-f="ente.link"></label></div></div>
+<div class="card" id="cartaCard"></div>
 <div class="card"><h3 style="margin-top:0">Dati specifici per i documenti</h3><p class="mu">Si scrivono una volta e compaiono in tutti i documenti di questa pratica (il testo base dei modelli resta uguale per tutte le pratiche). Nei modelli si richiamano con il segnaposto indicato.</p>
 <div class="g">${ES.modelli.DATI.map(c => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${c.k}}} – ${E(c.aiuto)}</span>${c.righe > 1 ? `<textarea data-f="dati.${c.k}" rows="${c.righe}" style="font-family:inherit;font-size:13px"></textarea>` : `<input data-f="dati.${c.k}">`}</label>`).join('')}
 ${p.campi.map((c, i) => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${E(c.k)}}} <button type="button" class="s d" data-cdel="${i}">togli campo</button></span><textarea data-f="dati.${E(c.k)}" rows="2" style="font-family:inherit;font-size:13px"></textarea></label>`).join('')}</div>
@@ -4415,6 +4786,7 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
       p.cartella = x.dir; APP.salva(); APP.render(); toast('I documenti si salveranno in ' + x.dir + '\\ESPROPRI_SISTEM');
     };
     const pco = m.querySelector('#pcopen'); if (pco) pco.onclick = async () => { await window.desktop.fsAmmetti(p.cartella); FS.apri(FS.dirPratica(p)); };
+    APP.cartaUI(m.querySelector('#cartaCard'), p);
     const pc = m.querySelector('#pcart'); if (pc) pc.onclick = async () => { const r = await window.desktop.fsScegli(); if (r) toast('Fascicoli in ' + r.dir); };
   };
 
@@ -4472,6 +4844,55 @@ ${senza.length ? tabSenza(senza) : ''}`;
   function tabSenza(L) {
     return `<div class="tw"><table class="t"><thead><tr><th>Tipo</th><th>Layer</th><th class="n">Superficie</th><th>Foglio</th><th>Mappale</th></tr></thead><tbody>${L.map(z => `<tr><td><span class="tag ${tagTipo(z.tipo)}">${A.RUOLI[z.tipo]}</span></td><td>${E(z.layer)}</td><td class="n">${U.fmt(z.a, 1)} mq</td><td><input data-pz="${z.id}" data-c="fg" value="${E(z.fg)}"></td><td><input data-pz="${z.id}" data-c="map" value="${E(z.map)}"></td></tr>`).join('')}</tbody></table></div>`;
   }
+  // Foglio, mappale e sub di una particella ricostruita (o di un'area): tutti i poligoni con lo stesso numero e le aree
+  // d'intervento che ci cadono sopra prendono la correzione. sel: {part, pezzo}
+  const rinumera = (geo, k0, nuovo, sel, tutti) => {
+    const kN = nuovo.map ? A.chiave(nuovo.fg, nuovo.map, nuovo.sub) : null, metti = o => { o.fg = nuovo.fg; o.map = nuovo.map; o.sub = nuovo.sub; o.k = kN; };
+    const parti = sel.part ? (tutti && k0 ? geo.part.filter(q => q.k === k0) : [sel.part]) : [];
+    let pezzi = [];
+    if (k0 && (tutti || !sel.part)) pezzi = tutti ? (geo.pezzi || []).filter(z => z.k === k0) : [sel.pezzo];
+    else if (sel.part) pezzi = (geo.pezzi || []).filter(z => { if (z.k && z.k !== k0) return false; const b = ES.geo.bboxMP(z.mp), x = (b[0] + b[2]) / 2, y = (b[1] + b[3]) / 2; return sel.part.mp.some(P => ES.geo.inPoly(x, y, P)); });
+    else if (sel.pezzo) pezzi = [sel.pezzo];
+    parti.forEach(metti); pezzi.filter(Boolean).forEach(z => { metti(z); if (z.da !== 'catasto') z.da = 'a mano'; });
+    return parti.length + pezzi.length;
+  };
+  APP.correggiParticella = async (p, geo, sel, dopo) => {
+    const o = sel.part || sel.pezzo, k0 = o.k || null;
+    const n = k0 ? geo.part.filter(q => q.k === k0).length : 0, np = k0 ? (geo.pezzi || []).filter(z => z.k === k0).length : 0;
+    const fogli = [...new Set(p.particelle.map(x => x.fg).filter(Boolean))].sort(U.cmp);
+    const r = await APP.dlg(k0 ? 'Particella Fg. ' + (o.fg || '?') + ' mapp. ' + o.map : 'Particella senza numero', `<p class="mu">Correggi il foglio catastale (ad es. particelle vicine su fogli diversi: Fg. 10 e Fg. 22) e il numero letto dal disegno.</p>
+<div class="g"><label>Foglio<input id="cfg" value="${E(o.fg || '')}" list="cfgl"><datalist id="cfgl">${fogli.map(f => `<option value="${E(f)}">`).join('')}</datalist></label><label>Mappale<input id="cmap" value="${E(o.map || '')}"></label><label>Sub<input id="csub" value="${E(o.sub || '')}"></label></div>
+${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" checked> Applica a tutto il mappale (${n} poligon${n === 1 ? 'o' : 'i'} di particella, ${np} aree d'intervento)</label>` : ''}`, [{ t: 'Annulla', v: '' }, { t: 'Applica', v: 'ok', p: true }]);
+    if (r !== 'ok') return;
+    const tut = $('#ctut'), nuovo = { fg: $('#cfg').value.trim(), map: $('#cmap').value.trim(), sub: $('#csub').value.trim() };
+    const c = rinumera(geo, k0, nuovo, sel, tut ? tut.checked : true);
+    APP.salva(); toast(c + ' elementi aggiornati' + (nuovo.map ? ': Fg. ' + (nuovo.fg || '?') + ' mapp. ' + nuovo.map : '')); if (dopo) dopo();
+  };
+  // Tabella delle particelle ricostruite dal disegno: foglio e mappale sempre modificabili
+  function tabParticelle(g) {
+    const per = new Map(), senza = [];
+    g.part.forEach((q, i) => { if (!q.k) { senza.push(i); return; } const o = per.get(q.k) || per.set(q.k, { q, i, n: 0, a: 0 }).get(q.k); o.n++; o.a += q.a; });
+    const R = [...per.values()].sort((a, b) => U.cmp(a.q.fg, b.q.fg) || U.cmp(a.q.map, b.q.map));
+    const inter = new Set(g.pezzi.map(z => z.k).filter(Boolean));
+    const riga = (q, i, n, a) => `<tr><td><input data-rpi="${i}" data-c="fg" value="${E(q.fg || '')}" style="width:70px"></td><td><input data-rpi="${i}" data-c="map" value="${E(q.map || '')}" style="width:90px" placeholder="—"></td><td><input data-rpi="${i}" data-c="sub" value="${E(q.sub || '')}" style="width:56px"></td><td class="n">${U.fmt(a, 0)} mq</td><td class="n">${n > 1 ? n : ''}</td><td>${q.k && inter.has(q.k) ? '<span class="tag t-es">interessata</span>' : ''}</td></tr>`;
+    return `<details${R.length < 60 ? ' open' : ''}><summary><b>Particelle ricostruite (${R.length} numerate${senza.length ? ', ' + senza.length + ' senza numero' : ''})</b> <span class="mu">– correggi qui foglio, mappale e sub: vale per tutti i poligoni con lo stesso numero e per le aree che ci cadono sopra</span></summary>
+<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th>Sub</th><th class="n">Superficie disegnata</th><th class="n">Poligoni</th><th></th></tr></thead><tbody>${R.map(o => riga(o.q, o.i, o.n, o.a)).join('')}${senza.slice(0, 150).map(i => riga(g.part[i], i, 1, g.part[i].a)).join('')}</tbody></table></div></details>`;
+  }
+  document.addEventListener('change', e => {
+    const el = e.target; if (!el.dataset || el.dataset.rpi == null || !impGeo) return;
+    const q = impGeo.part[+el.dataset.rpi]; if (!q) return;
+    const nuovo = { fg: q.fg || '', map: q.map || '', sub: q.sub || '' }; nuovo[el.dataset.c] = el.value.trim();
+    const n = rinumera(impGeo, q.k || null, nuovo, { part: q }, true);
+    toast(n + ' elementi aggiornati'); if (APP._risultato) APP._risultato();
+  });
+  // DXF della planimetria ricostruita (dal PDF o dal DXF), da correggere in CAD e reimportare allineato
+  APP.esportaDxf = (p, geo, nome) => {
+    const r = A.esportaDxf(geo);
+    APP.scarica((String(nome || 'planimetria').replace(/\.(pdf|dxf|dwg)$/i, '').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'planimetria') + ' - planimetria ricostruita.dxf', r.dxf, 'application/dxf');
+    APP.dlg('DXF esportato', `<p>${r.n.part} particelle e ${r.n.aree} aree d'intervento, coordinate in <b>metri</b>, layer del programma:</p>
+<ul class="mu" style="margin:4px 0 8px 18px"><li><b>PARTICELLE</b> – confini (polilinee chiuse)</li><li><b>PARTICELLE_NUMERI</b> – «Fg.10 mapp.100» dentro ogni particella: correggi qui foglio e numero</li><li><b>ESPROPRIO</b>, <b>SERVITU_INGOMBRO_OPERE</b>, <b>SERVITU_FASCIA</b>, <b>OCCUPAZIONE_TEMPORANEA</b> – aree d'intervento (polilinee chiuse)</li><li><b>SFONDO_CARTOGRAFIA</b> – linee di contorno</li></ul>
+<p class="mu">Modifica in CAD (aggiungi o correggi confini, numeri, aree; disegna sempre polilinee chiuse sui layer giusti), salva come DXF e reimportalo da <b>Importa › Disegno</b> con unità «metri»: i layer si riconoscono da soli e il disegno resta allineato.${r.buchi ? ` <b class="wa">Attenzione: ${r.buchi} fori interni alle aree sono esportati solo come contorno esterno: controllali in CAD.</b>` : ''}</p>`, [{ t: 'OK', v: 'ok', p: true }]);
+  };
   const tagTipo = APP.tagTipo = t => ({ espr: 't-es', serv: 't-sv', servop: 't-so', occ: 't-oc' }[t] || '');
   document.addEventListener('change', e => {
     const el = e.target; if (!el.dataset || !el.dataset.pz) return;
@@ -4534,6 +4955,49 @@ ${senza.length ? tabSenza(senza) : ''}`;
     }
     return out;
   };
+  // Numeri della mappa a pixel letti uno per uno: le parole trovate da ES.pdfv.paroleRaster (gruppi di cifre staccati
+  // dalle linee) si ritagliano e si mettono in fila su un foglio pulito, che l'OCR legge in una volta sola.
+  APP.ocrParole = async (mr, parole, avanzamento) => {
+    const { W, H, mask, px, x0, y0 } = mr, out = [], PAD = 10, LARGH = 2400;
+    // celle: ogni parola ingrandita ad almeno 32 pixel di altezza (l'OCR legge meglio)
+    const celle = []; let x = 0, y = 0, hRiga = 0;
+    parole.forEach(w => {
+      const k = Math.max(1, Math.min(3, 32 / (w.r1 - w.r0 + 1))), cw = Math.ceil((w.c1 - w.c0 + 1 + PAD * 2) * k), ch = Math.ceil((w.r1 - w.r0 + 1 + PAD * 2) * k);
+      if (x + cw > LARGH) { x = 0; y += hRiga + 16; hRiga = 0; }
+      celle.push({ w, k, x, y, cw, ch }); x += cw + 28; hRiga = Math.max(hRiga, ch);
+    });
+    const blocco = 1800; // fogli di al massimo 1800 pixel di altezza
+    for (let b0 = 0; b0 <= y; b0 += blocco) {
+      const C = celle.filter(c => c.y >= b0 && c.y < b0 + blocco); if (!C.length) continue;
+      const hh = Math.max(...C.map(c => c.y - b0 + c.ch)) + 20, cv = document.createElement('canvas'); cv.width = LARGH + 40; cv.height = hh;
+      const g = cv.getContext('2d'), im = g.createImageData(cv.width, cv.height); im.data.fill(255);
+      C.forEach(c => {
+        const { w, k } = c;
+        for (let yy = 0; yy < c.ch; yy++) for (let xx = 0; xx < c.cw; xx++) {
+          const sc = Math.floor(xx / k - PAD), sr = Math.floor(w.r1 - w.r0 + PAD - yy / k), ww = w.c1 - w.c0 + 1; // righe dal basso
+          if (sc < 0 || sr < 0 || sc >= ww || sr > w.r1 - w.r0 || !(w.bits ? w.bits[sr * ww + sc] : mask[(w.r0 + sr) * W + w.c0 + sc])) continue;
+          const o = ((c.y - b0 + 10 + yy) * cv.width + (c.x + 20 + xx)) * 4; im.data[o] = im.data[o + 1] = im.data[o + 2] = 0;
+        }
+      });
+      g.putImageData(im, 0, 0);
+      const ocr = await APP.ocr(), r = await ocr.recognize(cv, {}, { blocks: true }), trovati = new Map();
+      (r.data.blocks || []).forEach(bl => bl.paragraphs.forEach(pp => pp.lines.forEach(l => l.words.forEach(q => {
+        const cx = (q.bbox.x0 + q.bbox.x1) / 2 - 20, cy = (q.bbox.y0 + q.bbox.y1) / 2 - 10 + b0;
+        const c = C.find(c2 => cx >= c2.x && cx <= c2.x + c2.cw && cy >= c2.y && cy <= c2.y + c2.ch); if (!c) return;
+        (trovati.get(c) || trovati.set(c, []).get(c)).push(q);
+      }))));
+      trovati.forEach((Q, c) => { Q.sort((a2, b2) => a2.bbox.x0 - b2.bbox.x0); c.l = { t: Q.map(q => q.text.trim()).join(''), c: Math.round(Math.min(...Q.map(q => q.confidence))) }; });
+      if (avanzamento) avanzamento(Math.min(1, (b0 + blocco) / (y + 1)));
+    }
+    // confronto con i modelli di cifra imparati dalle letture sicure
+    const fin = ES.pdfv.leggiConModelli(parole, celle.map(c => c.l || null));
+    celle.forEach((c, i) => {
+      const l = fin[i]; if (!l || !/^\d{1,5}(\/\d{1,5})?$/.test(l.t)) return;
+      const w = c.w;
+      out.push({ t: l.t, c: l.c, da: l.da, x: x0 + (w.c0 + w.c1 + 1) / 2 * px, y: y0 + (w.r0 + w.r1 + 1) / 2 * px, w: (w.c1 - w.c0 + 1) * px, h: (w.r1 - w.r0 + 1) * px, rot: 0 });
+    });
+    return out;
+  };
   // Lettura dei numeri della mappa a immagine: dalla mappa senza i colori sopra (se il PDF la contiene a righe di pixel)
   // e dalla pagina disegnata; i doppioni si tolgono, i numeri che coincidono con testi del PDF pure.
   async function ocrPdf(el) {
@@ -4542,30 +5006,33 @@ ${senza.length ? tabSenza(senza) : ''}`;
       let tutti = [];
       const mr = pagina._mr === undefined ? (pagina._mr = P.mappaRaster(pagina)) : pagina._mr;
       if (mr) {
-        stato('Lettura dei numeri dalla mappa catastale…');
-        const cv = document.createElement('canvas'); cv.width = mr.W; cv.height = mr.H;
-        const g = cv.getContext('2d'), im = g.createImageData(mr.W, mr.H);
-        for (let r = 0; r < mr.H; r++) { const src = (mr.H - 1 - r) * mr.W; for (let c = 0; c < mr.W; c++) { const v = mr.mask[src + c] ? 0 : 255, o = (r * mr.W + c) * 4; im.data[o] = im.data[o + 1] = im.data[o + 2] = v; im.data[o + 3] = 255; } }
-        g.putImageData(im, 0, 0);
-        tutti = tutti.concat(await APP.ocrNumeri(cv, (x, y) => [mr.x0 + x * mr.px, mr.y0 + (mr.H - y) * mr.px], f => stato('Lettura dei numeri dalla mappa catastale… ' + Math.round(f * 100) + '%')));
+        // come un tecnico: si cercano i gruppi di cifre staccati dalle linee e si leggono uno per uno
+        stato('Ricerca dei numeri nella mappa catastale…');
+        await new Promise(r => setTimeout(r, 30));
+        const parole = ES.pdfv.paroleRaster(mr);
+        tutti = tutti.concat(await APP.ocrParole(mr, parole, f => stato('Lettura dei numeri dalla mappa catastale… ' + Math.round(f * 100) + '%')));
       }
-      // la pagina disegnata (numeri visibili nella tavola)
-      const v = P.vista(pagina), z = v ? v.b : [0, 0, pagina.w, pagina.h];
-      const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
-      const sc = Math.min(300 / 72, Math.sqrt(36e6 / Math.max(1, (z[2] - z[0]) * (z[3] - z[1]))));
-      const cv = document.createElement('canvas'); cv.width = Math.ceil((z[2] - z[0]) * sc); cv.height = Math.ceil((z[3] - z[1]) * sc);
-      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
-      stato('Disegno della pagina per la lettura…');
-      await pg.render({ canvasContext: cx, viewport: pg.getViewport({ scale: sc }) }).promise;
-      // solo i segni scuri (nero e grigio scuro): i numeri di particella; via colori, retini e numeri di piano colorati
-      const W = cv.width, H = cv.height, im = cx.getImageData(0, 0, W, H), d = im.data, mask = new Uint8Array(W * H);
-      for (let i = 0, j = 0; i < d.length; i += 4, j++) { const R = d[i], G2 = d[i + 1], B = d[i + 2], scuro = R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45; d[i] = d[i + 1] = d[i + 2] = scuro ? 0 : 255; d[i + 3] = 255; if (scuro) mask[(H - (j / W | 0) - 1) * W + (j % W)] = 1; }
-      const bn = document.createElement('canvas'); bn.width = W; bn.height = H; bn.getContext('2d').putImageData(im, 0, 0);
-      // confini dalla pagina disegnata solo se il PDF non ha già le linee vettoriali delle particelle
-      const lineeVett = pagina.poli.filter(q => !q.area && /nero|grigio/.test(P.nomeColore(q.colore)) && q.pts.some((v2, i) => i && Math.abs(v2[0] - q.pts[i - 1][0]) > 0.5 && Math.abs(v2[1] - q.pts[i - 1][1]) > 0.5)).length;
-      if (!mr && lineeVett < 300) pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
-      const aP = (x, y) => [z[0] + x / sc, z[3] - y / sc];
-      for (const [rot, nome] of [[0, 'diritti'], [90, 'ruotati'], [-90, 'ruotati']]) tutti = tutti.concat(await APP.ocrNumeri(bn, aP, f => stato(`Lettura dei numeri ${nome} dalla tavola… ` + Math.round(f * 100) + '%'), rot));
+      // la pagina disegnata (numeri visibili nella tavola): serve se la mappa non è a pixel o se lì si è letto poco
+      if (!mr || tutti.length < 20) {
+        const v = P.vista(pagina), z = v ? v.b : [0, 0, pagina.w, pagina.h];
+        const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
+        const sc = Math.min(300 / 72, Math.sqrt(36e6 / Math.max(1, (z[2] - z[0]) * (z[3] - z[1]))));
+        const cv = document.createElement('canvas'); cv.width = Math.ceil((z[2] - z[0]) * sc); cv.height = Math.ceil((z[3] - z[1]) * sc);
+        const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
+        stato('Disegno della pagina per la lettura…');
+        await pg.render({ canvasContext: cx, viewport: pg.getViewport({ scale: sc }) }).promise;
+        // solo i segni scuri (nero e grigio scuro): i numeri di particella; via colori, retini e numeri di piano colorati
+        const W = cv.width, H = cv.height, im = cx.getImageData(0, 0, W, H), d = im.data, mask = new Uint8Array(W * H);
+        for (let i = 0, j = 0; i < d.length; i += 4, j++) { const R = d[i], G2 = d[i + 1], B = d[i + 2], scuro = R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45; d[i] = d[i + 1] = d[i + 2] = scuro ? 0 : 255; d[i + 3] = 255; if (scuro) mask[(H - (j / W | 0) - 1) * W + (j % W)] = 1; }
+        const bn = document.createElement('canvas'); bn.width = W; bn.height = H; bn.getContext('2d').putImageData(im, 0, 0);
+        // confini dalla pagina disegnata solo se il PDF non ha già le linee vettoriali delle particelle
+        const lineeVett = pagina.poli.filter(q => !q.area && /nero|grigio/.test(P.nomeColore(q.colore)) && q.pts.some((v2, i) => i && Math.abs(v2[0] - q.pts[i - 1][0]) > 0.5 && Math.abs(v2[1] - q.pts[i - 1][1]) > 0.5)).length;
+        if (!mr && lineeVett < 300) pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
+        const aP = (x, y) => [z[0] + x / sc, z[3] - y / sc];
+        // mappa a immagine (non a righe di pixel): stessa lettura parola per parola sulla pagina disegnata
+        if (!mr && pagina._mr) { stato('Ricerca dei numeri nella mappa…'); tutti = tutti.concat(await APP.ocrParole(pagina._mr, ES.pdfv.paroleRaster(pagina._mr), f => stato('Lettura dei numeri dalla mappa… ' + Math.round(f * 100) + '%'))); }
+        for (const [rot, nome] of [[0, 'diritti'], [90, 'ruotati'], [-90, 'ruotati']]) tutti = tutti.concat(await APP.ocrNumeri(bn, aP, f => stato(`Lettura dei numeri ${nome} dalla tavola… ` + Math.round(f * 100) + '%'), rot));
+      }
       const testo = pagina.testi;
       // con l'elenco ditte già importato, i numeri che non sono mappali del piano si tengono solo se letti con sicurezza
       const p = APP.pr(), attesi = new Set((p && p.particelle || []).map(x => String(x.map).replace(/^0+/, '')));
@@ -4735,16 +5202,26 @@ ${L.map(l => { const x = impDxf.dxf.layers[l]; return `<tr><td>${E(l)}</td><td c
   }
   function risultatoDxf(el, p) {
     const g = impGeo, per = {};
-    g.pezzi.forEach(z => { const k = z.k || '—'; const o = per[k] = per[k] || { fg: z.fg, map: z.map, espr: 0, servop: 0, serv: 0, occ: 0, n: 0, da: new Set() }; o[z.tipo] += z.a; o.n++; if (z.da) o.da.add(z.da); });
+    g.pezzi.forEach(z => { const k = z.k || '—'; const o = per[k] = per[k] || { k, fg: z.fg, map: z.map, espr: 0, servop: 0, serv: 0, occ: 0, n: 0, da: new Set() }; o[z.tipo] += z.a; o.n++; if (z.da) o.da.add(z.da); });
     const R = Object.values(per).sort((a, b) => U.cmp(a.fg, b.fg) || U.cmp(a.map, b.map));
     const avv = (impPdf && impPdf.avvisi || []).concat(g.avvisi).map(a => `<div class="ban">${E(a)}</div>`);
     el.innerHTML = `<h3>Risultato</h3>${avv.length > 4 ? avv.slice(0, 2).join('') + `<details><summary class="mu">Altri ${avv.length - 2} avvisi</summary>${avv.slice(2).join('')}</details>` : avv.join('')}
 <div class="kpi"><div><small>Particelle catastali lette</small><b>${g.part.length}</b></div><div><small>Aree d'intervento</small><b>${g.pezzi.length}</b></div><div><small>Particelle interessate</small><b>${R.filter(r => r.map).length}</b></div></div>
 <div class="tw" style="max-height:45vh"><table class="t"><thead><tr><th>Foglio</th><th>Mappale</th><th class="n">Esproprio</th><th class="n">Servitù ingombro</th><th class="n">Servitù fascia</th><th class="n">Occupazione</th><th>Origine</th></tr></thead><tbody>
-${R.map(r => `<tr><td>${E(r.fg || '?')}</td><td>${E(r.map || 'da assegnare')}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : x === 'a mano' ? 'assegnata a mano' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
+${R.map(r => `<tr><td>${r.map ? `<input data-rk="${E(r.k)}" data-c="fg" value="${E(r.fg || '')}" style="width:70px" placeholder="?">` : '?'}</td><td>${r.map ? `<input data-rk="${E(r.k)}" data-c="map" value="${E(r.map)}" style="width:90px">` : 'da assegnare'}</td>${['espr', 'servop', 'serv', 'occ'].map(t => `<td class="n">${r[t] ? U.fmt(r[t], 1) : ''}</td>`).join('')}<td class="mu">${[...r.da].map(x => x === 'catasto' ? 'intersezione con particelle' : x === 'a mano' ? 'assegnata a mano' : 'etichetta nel disegno').join(', ')}${impPdf ? ' <span class="tag t-wa">dal PDF – da verificare</span>' : ''}</td></tr>`).join('')}</tbody></table></div>
 ${impPdf ? '<h3>Confronto con il PDF originale</h3><p class="mu">Sotto c\'è la tavola PDF, sopra i contorni delle aree riconosciute (rosso esproprio, viola servitù opere, blu servitù, arancio occupazione) con il mappale assegnato: dove non coincidono, correggi la legenda o la scala e rileggi.</p><div id="povl" style="position:relative;max-width:1100px;border:1px solid #ccd;background:#fff;min-height:60px"><span class="mu" style="padding:8px;display:block">Disegno della pagina in corso…</span></div>' + anteprimaPdf(g, p) : ''}
 ${g.pezzi.some(z => !z.k) ? '<h3>Aree senza particella</h3>' + tabSenza(g.pezzi.filter(z => !z.k)) : ''}
-<div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
+${g.part.length ? tabParticelle(g) : ''}
+<div class="row" style="margin-top:10px"><button class="p" id="iapp">Usa questo disegno nella pratica</button><button id="iexd" title="Esporta quello che il programma ha ricostruito, con i suoi layer: lo correggi in CAD e lo reimporti allineato">Esporta DXF da correggere in CAD</button><span class="mu">Le superfici si collegano alle particelle dell'elenco ditte per foglio e mappale.</span></div>`;
+    APP._risultato = () => risultatoDxf(el, p);
+    el.querySelector('#iexd').onclick = () => APP.esportaDxf(p, g, (impDxf && impDxf.nome) || p.nome);
+    el.querySelectorAll('[data-rk]').forEach(i => i.onchange = () => {
+      const k0 = i.dataset.rk, z = g.pezzi.find(x => x.k === k0); if (!z) return;
+      const nuovo = { fg: z.fg || '', map: z.map || '', sub: z.sub || '' }; nuovo[i.dataset.c] = i.value.trim();
+      const q = g.part.find(x => x.k === k0);
+      const n = rinumera(g, k0, nuovo, q ? { part: q } : { pezzo: z }, true);
+      toast(n + ' elementi aggiornati'); risultatoDxf(el, p);
+    });
     if (impPdf) sovrapponiPdf(el.querySelector('#povl'), g).catch(e => { const o = el.querySelector('#povl'); if (o) o.innerHTML = '<span class="mu" style="padding:8px;display:block">Anteprima del PDF non disponibile: ' + E(e.message) + '</span>'; });
     el.querySelector('#iapp').onclick = () => {
       if (impPdf) impGeo.pezzi.forEach(z => { z.stima = 'pdf'; });
@@ -4770,7 +5247,7 @@ ${err ? `<div class="ban err">${E(err)}</div>` : `
 ${res.avvisi.slice(0, 15).map(a => `<div class="ban">${E(a)}</div>`).join('')}${res.avvisi.length > 15 ? `<p class="mu">… e altri ${res.avvisi.length - 15} avvisi</p>` : ''}
 <div class="kpi"><div><small>Particelle</small><b>${res.particelle.length}</b></div><div><small>Ditte</small><b>${res.ditte.length}</b></div><div><small>Intestatari</small><b>${res.ditte.reduce((s, d) => s + d.intest.length, 0)}</b></div></div>
 ${(() => { const L = res.ditte.flatMap(d => d.intest.filter(o => !o.cf || !C.cfValido(o.cf)).map(o => ({ d, o }))); return L.length ? `<div class="ban">⚠ ${L.length} intestatari senza codice fiscale o con codice da verificare: le ditte vengono create lo stesso, il codice va inserito a mano nella scheda della ditta.<br><span class="mu">${L.slice(0, 20).map(x => 'Ditta ' + E(x.d.n) + ': ' + E(x.o.nome) + (x.o.cf ? ' (' + E(x.o.cf) + ')' : '')).join(' · ')}${L.length > 20 ? ' …' : ''}</span></div>` : ''; })()}
-<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th>Particelle</th></tr></thead><tbody>${res.ditte.map(d => `<tr><td><b>${E(d.n)}</b></td><td>${d.intest.map(o => E(o.nome) + ' <span class="mu">' + E(C.diritto(o)) + '</span>' + (!o.cf ? ' <span class="tag t-wa">C.F. mancante</span>' : !C.cfValido(o.cf) ? ' <span class="tag t-ko">C.F. da verificare</span>' : '')).join('<br>')}</td><td>${res.particelle.filter(x => x.ditta === d.id).map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(', ')}</td></tr>`).join('')}</tbody></table></div>
+<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th>Particelle</th></tr></thead><tbody>${res.ditte.map(d => `<tr><td><b>${E(d.n)}</b></td><td>${d.intest.map(o => E(o.nome) + (o.natoA || o.natoIl || o.sede ? ' <span class="mu">' + E(C.giuridica(o) ? 'sede ' + (o.sede || o.natoA || '') : [o.natoA ? 'nato/a a ' + o.natoA : '', o.natoIl ? 'il ' + U.dataIt(o.natoIl) : ''].filter(Boolean).join(' ')) + '</span>' : '') + ' <span class="mu">' + E(C.diritto(o)) + '</span>' + (!o.cf ? ' <span class="tag t-wa">C.F. mancante</span>' : !C.cfValido(o.cf) ? ' <span class="tag t-ko">C.F. da verificare</span>' : '')).join('<br>')}</td><td>${res.particelle.filter(x => x.ditta === d.id).map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(', ')}</td></tr>`).join('')}</tbody></table></div>
 <div class="g" style="margin-top:10px"><label>Foglio per le righe senza foglio<input id="itfg" value="${E(impTab.fg || '')}"></label>
 <label class="chk"><input type="checkbox" id="itsost" ${p.particelle.length ? '' : 'checked'}> Sostituisci elenco e ditte esistenti</label></div>
 <div class="row" style="margin-top:10px"><button class="p" id="itapp">Importa nel piano particellare</button></div>`}`;
@@ -4868,16 +5345,16 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
   // Un foglio con una riga per intestatario e i campi numerati come nei modelli a stampa unione (Comune1, Foglio1, Particella1…)
   function esportaUnione(p, c) {
     const N = Math.max(1, ...p.ditte.map(d => p.particelle.filter(x => x.ditta === d.id).length)), NI = Math.max(1, ...p.ditte.map(d => d.intest.length));
-    const H = ['Ditta', 'Nome_e_Cognome', 'via', 'cap', 'citta', 'nato_a_il', 'Cf', 'proprietà', 'quota'];
-    for (let i = 1; i <= NI; i++) H.push('Nome_e_Cognome' + i, 'via' + i, 'cap' + i, 'citta' + i, 'nato_a_il' + i, 'Cf' + i, 'proprietà' + i, 'quota' + i);
+    const H = ['Ditta', 'Nome_e_Cognome', 'via', 'cap', 'citta', 'nato_a_il', 'nato_a', 'nato_il', 'Cf', 'proprietà', 'quota'];
+    for (let i = 1; i <= NI; i++) H.push('Nome_e_Cognome' + i, 'via' + i, 'cap' + i, 'citta' + i, 'nato_a_il' + i, 'nato_a' + i, 'nato_il' + i, 'Cf' + i, 'proprietà' + i, 'quota' + i);
     for (let i = 1; i <= N; i++) H.push('Comune' + i, 'Foglio' + i, 'Particella' + i, 'haareca' + i, 'Superficie' + i, 'Reddito_Domenicale' + i, 'Reddito_agrario' + i, 'Sup' + i, 'Servitu' + i, 'Occupazione' + i);
     H.push('Indennita');
     const R = [H];
     p.ditte.forEach(d => {
       const ctx = ES.modelli.ditta(p, d, c);
       ctx.intestatari.forEach(o => {
-        const r = [d.n, o.nome, o.via, o.cap, o.citta, o.nascita, o.cf, o.titolo, o.quota];
-        for (let i = 0; i < NI; i++) { const q = ctx.intestatari[i] || {}; r.push(q.nome || '', q.via || '', q.cap || '', q.citta || '', q.nascita || '', q.cf || '', q.titolo || '', q.quota || ''); }
+        const r = [d.n, o.nome, o.via, o.cap, o.citta, o.nascita, o.natoA, o.natoIl, o.cf, o.titolo, o.quota];
+        for (let i = 0; i < NI; i++) { const q = ctx.intestatari[i] || {}; r.push(q.nome || '', q.via || '', q.cap || '', q.citta || '', q.nascita || '', q.natoA || '', q.natoIl || '', q.cf || '', q.titolo || '', q.quota || ''); }
         for (let i = 0; i < N; i++) { const x = ctx.particelle[i] || {}; r.push(x.comune || '', x.fg || '', x.mappale || '', x.haareca || '', x.sup || '', x.rd || '', x.ra || '', x.espr || '', x.servTot || '', x.occ || ''); }
         r.push(ctx.tot); R.push(r);
       });
@@ -4945,8 +5422,38 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
     const m = APP.modello(k), calc = S.calcola(p);
     return M.contesti(p, calc, m.ambito, ditteSel).map(ctx => ({ ctx, blocchi: M.blocchi(M.mustache(testo ?? APP.testoModello(p, k), ctx), ctx) }));
   };
+  // Estratti di mappa caricati dall'operatore per la ditta: se ci sono comandano su quelli automatici
+  // [{png, w, h, src, nome}]
+  APP.estrattiDitta = async (p, d) => {
+    const L = [];
+    for (const e of (d && d.estratti) || []) {
+      let png = null;
+      if (e.data) png = Uint8Array.from(atob(e.data.split(',')[1]), ch => ch.charCodeAt(0));
+      else if (e.file && APP.FS.ok) png = await APP.FS.leggi(e.file);
+      if (png && png.length) L.push({ png, w: e.w, h: e.h, nome: e.nome, src: e.data || 'data:image/png;base64,' + b64(png) });
+    }
+    return L;
+  };
+  // Immagine qualsiasi (png, jpg, gif, bmp, webp…) → PNG ridotto a 2400 px sul lato lungo
+  const inPng = APP.inPng = (buf, tipo) => new Promise((res, rej) => {
+    const url = URL.createObjectURL(new Blob([buf], { type: tipo || 'image/png' })), img = new Image();
+    img.onload = () => { const k = Math.min(1, 2400 / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); cv.toBlob(async b => res({ png: new Uint8Array(await b.arrayBuffer()), w: cv.width, h: cv.height }), 'image/png'); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('formato immagine non leggibile')); };
+    img.src = url;
+  });
   async function immaginiBlocchi(p, docs, perWord) {
-    const calc = S.calcola(p);
+    const calc = S.calcola(p), est = new Map();
+    for (const d of docs) for (const b of d.blocchi) if (b.t === 'img' && b.ditta && !est.has(b.ditta)) est.set(b.ditta, await APP.estrattiDitta(p, p.ditte.find(x => x.id === b.ditta)));
+    // Estratti caricati per la ditta al posto di planimetria e tagli automatici (i tagli si tolgono se il documento ha già la planimetria)
+    for (const d of docs) {
+      const conPlan = new Set(d.blocchi.filter(b => b.t === 'img' && b.ref === 'planimetria' && b.ditta).map(b => b.ditta));
+      d.blocchi = d.blocchi.flatMap(b => {
+        const L = b.t === 'img' && b.ditta && (b.ref === 'planimetria' || b.ref === 'tagli') ? est.get(b.ditta) : null;
+        if (!L || !L.length) return [b];
+        if (b.ref === 'tagli' && conPlan.has(b.ditta)) return [];
+        return L.map(e => (perWord ? { t: 'img', ref: 'utente', png: e.png, w: e.w, h: e.h, mm: 165 } : { t: 'img', ref: 'utente', src: e.src, mm: 170 }));
+      });
+    }
     // [[tagli]]: un'immagine per ogni particella della ditta (schema del piano particellare)
     for (const d of docs) d.blocchi = d.blocchi.flatMap(b => {
       if (!(b.t === 'img' && b.ref === 'tagli')) return [b];
@@ -4960,6 +5467,8 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
     }
   }
   const titoloDoc = m => san(m.nome.slice(0, 70));
+  // Modelli di un passo della procedura: quelli standard e i documenti nuovi che l'operatore ha collegato al passo
+  APP.modelliPasso = ps => ps.modelli.concat(APP.lib().custom.filter(c => c.passo === ps.k && !ps.modelli.includes(c.k)).map(c => c.k));
   const unisci = L => { const B = []; L.forEach((d, i) => { if (i) B.push({ t: 'pb' }); B.push(...d.blocchi); }); return B; };
   const perDitta = docs => { const per = new Map(); docs.forEach(d => { const k = d.ctx._dittaId; (per.get(k) || per.set(k, []).get(k)).push(d); }); return per; };
   const AMBITI = { intestatario: 'una lettera per ogni intestatario', ditta: 'un documento per ditta', pratica: 'un documento per la pratica' };
@@ -5002,8 +5511,8 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
     const docs = APP.componi(p, k, opt.ditte); if (!docs.length) { APP.toast('Nessuna ditta selezionata'); return; }
     APP.toast('Preparazione dei documenti…');
     await immaginiBlocchi(p, docs, true);
-    const oggi = U.oggi(), files = [], titolo = titoloDoc(m);
-    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: m.nome });
+    const oggi = U.oggi(), files = [], titolo = titoloDoc(m), carta = await APP.carta(p);
+    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: m.nome, carta });
     if (m.ambito === 'pratica') files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
     else {
       if (opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' - TUTTE LE DITTE (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
@@ -5018,7 +5527,7 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
     const buf = Uint8Array.from(atob(w.dati), ch => ch.charCodeAt(0)).buffer, calc = S.calcola(p);
     const ctxs = M.contesti(p, calc, w.ambito, opt.ditte).map(c => ({ ...c, _unione: M.unione(c) }));
     if (!ctxs.length) return;
-    const img = { planimetria: async ctx => (p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null) };
+    const img = { planimetria: async ctx => { const L = ctx._dittaId ? await APP.estrattiDitta(p, p.ditte.find(x => x.id === ctx._dittaId)) : []; return L.length ? L.map(e => ({ ...e, mm: 160 })) : p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null; } };
     const oggi = U.oggi(), files = [], titolo = san(w.nome);
     if (w.ambito === 'pratica' || opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (w.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, ctxs, img) });
     if (w.ambito !== 'pratica' && opt.perDitta !== false) {
@@ -5033,27 +5542,51 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
   // Anteprima HTML
   APP.anteprima = async (p, k, ditteSel, testo) => {
     const docs = APP.componi(p, k, ditteSel, testo); await immaginiBlocchi(p, docs, false);
-    return docs.map(d => `<div class="doc-prev">${M.html(d.blocchi)}</div>`).join('<div style="height:14px"></div>');
+    const c = await APP.carta(p), t = c ? `<div style="border-bottom:1px dashed #ccc;margin-bottom:8px;padding-bottom:4px">${c.html.testa}</div>` : '', f = c ? `<div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:4px">${c.html.piede}</div>` : '';
+    return docs.map(d => `<div class="doc-prev">${t}${M.html(d.blocchi)}${f}</div>`).join('<div style="height:14px"></div>');
   };
   const CSS_STAMPA = '<style>@media print{.doc-print{font:10.5pt/1.35 Arial,sans-serif;color:#000;break-after:page}.doc-print:last-child{break-after:auto}.doc-print p{margin:0 0 5pt}.doc-print .doc-pb{break-after:page}.doc-t{border-collapse:collapse;width:100%}.doc-t th,.doc-t td{border:1px solid #777;padding:1.5pt 3pt}.doc-t th{background:#e8edf5;-webkit-print-color-adjust:exact;print-color-adjust:exact}img{max-width:100%}@page{size:A4;margin:18mm 16mm}}</style>';
+  // Documenti da stampare: con la carta intestata, intestazione e piè di pagina si ripetono su ogni pagina
+  // (righe di testata e di chiusura della tabella che contiene il documento)
+  async function htmlStampa(p) {
+    const c = await APP.carta(p);
+    if (!c) return L => CSS_STAMPA + L.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
+    return L => CSS_STAMPA + L.map(d => `<section class="doc-print"><table style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:0 0 6pt">${c.html.testa}</td></tr></thead><tfoot><tr><td style="padding:6pt 0 0">${c.html.piede}</td></tr></tfoot><tbody><tr><td>${M.html(d.blocchi)}</td></tr></tbody></table></section>`).join('');
+  }
   // PDF: generale (stampa o fascicolo) e, nel programma installato, anche uno per ditta
   APP.pdfTutti = async (p, k, opt = {}) => {
     const m = APP.modello(k); const docs = APP.componi(p, k, opt.ditte); if (!docs.length) return;
     await immaginiBlocchi(p, docs, false);
-    const html = L => CSS_STAMPA + L.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
+    const html = await htmlStampa(p);
     const titolo = titoloDoc(m), oggi = U.oggi();
     if (!(window.desktop && window.desktop.pdfDati && APP.FS.ok)) { $('#print').innerHTML = html(docs); window.print(); return; }
+    // Un PDF per documento (ogni intestatario o ditta), poi uniti: la numerazione riparte da 1 a ogni documento
+    // e dopo un documento con un numero dispari di pagine si aggiunge un foglio bianco (stampa fronte/retro)
+    const pezzi = [];
+    for (const d of docs) { $('#print').innerHTML = html([d]); pezzi.push(await window.desktop.pdfDati({})); }
     const files = [];
-    $('#print').innerHTML = html(docs);
-    files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+    files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await APP.unisciPdfNumerati(pezzi) });
     if (m.ambito !== 'pratica' && opt.perDitta !== false) for (const [id, L] of perDitta(docs)) {
-      const d = p.ditte.find(x => x.id === id); $('#print').innerHTML = html(L);
-      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}), ditta: id });
+      const d = p.ditte.find(x => x.id === id);
+      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await APP.unisciPdfNumerati(L.map(x => pezzi[docs.indexOf(x)])), ditta: id });
     }
     await APP.salvaFile(p, files, titolo);
     logDoc(p, files, k, m.nome, opt);
     if (registra(p, opt)) APP.render();
     APP.salva();
+  };
+  // Unisce più PDF: «Pag. n di N» in basso a destra che riparte a ogni documento, foglio bianco dopo i documenti dispari
+  APP.unisciPdfNumerati = async (lista, opt = {}) => {
+    const L = window.PDFLib, out = await L.PDFDocument.create(), font = await out.embedFont(L.StandardFonts.Helvetica);
+    for (const dati of lista) {
+      const src = await L.PDFDocument.load(dati), pag = await out.copyPages(src, src.getPageIndices()), N = pag.length;
+      pag.forEach((pg, i) => {
+        out.addPage(pg);
+        if (opt.numeri !== false) { const t = 'Pag. ' + (i + 1) + ' di ' + N, sz = 8, { width } = pg.getSize(); pg.drawText(t, { x: width - 42 - font.widthOfTextAtSize(t, sz), y: 16, size: sz, font, color: L.rgb(0.25, 0.25, 0.25) }); }
+      });
+      if (N % 2 && opt.fronteRetro !== false) { const { width, height } = pag[N - 1].getSize(); out.addPage([width, height]); }
+    }
+    return out.save();
   };
   // Compatibilità: stampa di un modello (es. elenco ditte dal piano particellare)
   APP.stampaModello = (k, ambito, ditteSel, nelFascicolo) => APP.pdfTutti(APP.pr(), k, { ditte: ditteSel, perDitta: false, _fasc: nelFascicolo });
@@ -5071,6 +5604,7 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
       const prox = sc.filter(s => s.ditta === d).sort((a, b) => (a.data < b.data ? -1 : 1))[0];
       const st = prox ? I.statoScad(prox, oggi) : '';
       return `<div class="dc" data-d="${d.id}" data-ko="${ctrl.get(d.id).length ? 1 : 0}" data-q="${E(U.norm(d.intest.map(o => o.nome + ' ' + o.cf).join(' ') + ' ' + parts.map(x => x.fg + ' ' + x.map).join(' ')))}"><h4><span class="np">${E(d.n)}</span>${E(d.intest.map(o => o.nome).join(', ').slice(0, 90) || '(senza intestatari)')}</h4>
+${d.intest.some(o => o.natoA || o.natoIl || o.sede) ? `<div class="mu" style="font-size:12px">${d.intest.slice(0, 4).map(o => E(C.giuridica(o) ? (o.sede || o.natoA ? 'sede ' + (o.sede || o.natoA) : '') : [o.natoA ? 'n. a ' + o.natoA : '', o.natoIl ? 'il ' + U.dataIt(o.natoIl) : ''].filter(Boolean).join(' '))).filter(Boolean).join(' · ')}${d.intest.length > 4 ? ' …' : ''}</div>` : ''}
 <div class="mu" style="margin-top:6px">${parts.map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(' · ')}</div>${ctrl.get(d.id).length ? `<div style="margin-top:6px">${ctrl.get(d.id).map(x => `<span class="tag ${x.livello === 'errore' ? 't-ko' : 't-wa'}">⚠ ${E(x.msg)}</span>`).join(' ')}</div>` : ''}
 <div class="row" style="margin-top:6px">${D.aree.espr ? `<span class="tag t-es">esproprio ${U.mq(D.aree.espr)} mq</span>` : ''}${D.aree.servop + D.aree.serv ? `<span class="tag t-sv">servitù ${U.mq(D.aree.servop + D.aree.serv)} mq</span>` : ''}${D.aree.occ ? `<span class="tag t-oc">occupazione ${U.mq(D.aree.occ)} mq</span>` : ''}<span class="grow"></span><b>${U.eur(D.tot)}</b></div>
 <div class="bar"><i style="width:${Math.round(100 * av.fatti / av.totale)}%"></i></div>${(() => { const n = p.docs.filter(x => x.ditta === d.id).length, ni = d.intest.filter(o => !o.via && !o.pec).length; return (n ? `<span class="tag t-sv">📄 ${n} documenti</span> ` : '') + (ni ? `<span class="tag t-wa">📮 ${ni} indirizzi da inserire</span>` : ''); })()}
@@ -5123,10 +5657,13 @@ ${(() => { const L = C.controlli(d, parts); return L.length ? `<div class="ban $
 <div class="card"><h3 style="margin-top:0">Particelle</h3><div class="tw" style="max-height:none"><table class="t"><thead><tr><th>Fg.</th><th>Mapp.</th><th>Qualità</th><th class="n">Sup.</th><th class="n">Esproprio</th><th class="n">Servitù</th><th class="n">Occupazione</th><th>Confini</th><th class="n">Indennità</th></tr></thead><tbody>
 ${parts.map(x => { const v = c.perP.get(x.id); return `<tr data-px="${x.id}"><td>${E(x.fg)}</td><td>${E(C.mappale(x))}</td><td>${E([x.qual, x.cls].filter(Boolean).join('/'))}</td><td class="n">${U.mq(x.sup)}</td><td class="n">${v.aree.espr ? U.mq(v.aree.espr) : ''}</td><td class="n">${v.aree.servop + v.aree.serv ? U.mq(v.aree.servop + v.aree.serv) : ''}</td><td class="n">${v.aree.occ ? U.mq(v.aree.occ) : ''}</td><td class="mu" style="white-space:normal;min-width:200px">${E(x.confini || '')}</td><td class="n">${U.eur(v.tot)}</td></tr>`; }).join('')}</tbody></table></div></div>
 <div class="card"><h3 style="margin-top:0">Iter della ditta</h3><p class="mu">Per ogni passo registra date (invio e notifica/ricevimento), protocollo e mezzo; i documenti si generano nella cartella della ditta.</p><div class="passi">
-${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${ps.modelli.filter(k => APP.modello(k)).map(k => `<button class="s" data-genp="${k}" title="Anteprima">👁</button><button class="s" data-gen="${k}" title="Crea il Word di questa ditta: ${E(APP.modello(k).nome)}">📄 ${E(APP.modello(k).nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
+${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|restituzione/.test(ps.k) || ps.k === 'avviso_imm'; return `<div class="passo ${e.data ? 'fatto' : ''}"><span class="nr">${i + 1}</span><div><div class="row"><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span>${APP.modelliPasso(ps).filter(k => APP.modello(k)).map(k => `<button class="s" data-genp="${k}" title="Anteprima">👁</button><button class="s" data-gen="${k}" title="Crea il Word di questa ditta: ${E(APP.modello(k).nome)}">📄 ${E(APP.modello(k).nome.split(' ').slice(0, 4).join(' '))}…</button>`).join('')}</div>
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
+<div class="card"><div class="row"><h3 style="margin:0" class="grow">🗺️ Estratti di mappa della ditta</h3><button id="dest">＋ Carica estratti di mappa</button></div>
+<p class="mu">Immagini (png, jpg…) degli stralci di mappa con le occupazioni della ditta, anche più di una. ${p.geo ? 'Se ne carichi, <b>sostituiscono l\'estratto automatico</b> dalla planimetria in tutti i documenti; togliendole torna quello automatico.' : 'Senza planimetria di base sono le immagini usate nei documenti dove è prevista la planimetria.'}</p>
+<div class="foto" id="destl"></div></div>
 <div class="card"><h3 style="margin-top:0">Stato di consistenza: foto e verbale firmato</h3>
 <p class="mu">1) Genera il verbale (passo «Stato di consistenza»), stampalo e fallo firmare in sito. 2) Carica le foto con la didascalia. 3) Carica la scansione PDF del verbale firmato. 4) Crea il PDF finale (verbale firmato + documentazione fotografica) nella cartella della ditta.</p>
 <div class="row"><button id="dfoto">＋ Carica foto</button><button id="dscan">Carica verbale firmato (PDF)</button><span class="mu" id="dscann">${d.scan ? '📎 ' + E(d.scan.nome) : ''}</span><span class="grow"></span><button class="p" id="dpdf" ${d.foto.length || d.scan ? '' : 'disabled'}>Crea PDF finale</button></div>
@@ -5135,6 +5672,7 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
     const da = m.querySelector('#darea'); if (da) da.onclick = () => APP.mostraAree(p, d);
+    estrattiUI(m, p, d);
     const fo = m.querySelector('#dfold'); if (fo) fo.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
     m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => {
       const o = d.intest[+el.dataset.o], c = el.dataset.c;
@@ -5166,16 +5704,44 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     const propri = p.docs.filter(x => x.ditta === d.id).slice().reverse();
     const gen = p.docs.filter(x => !x.ditta && (!x.ditte || x.ditte.includes(d.id))).slice().reverse();
     const nomeM = x => x.nome || (cat[x.modello] || {}).nome || x.modello;
-    const riga = (x, generale) => `<tr><td>${U.dataIt(x.data)}</td><td style="white-space:normal"><b>${E(nomeM(x))}</b>${generale ? ' <span class="tag">file generale</span>' : ''}<div class="mu">${E(x.file || '')}</div></td><td class="n" style="white-space:nowrap">${APP.FS.ok && x.rel ? `<button class="s" data-dapri="${x.id}">Apri</button>` : ''}${cat[x.modello] ? `<button class="s" data-dprev="${E(x.modello)}">👁 Anteprima</button><button class="s" data-drig="${E(x.modello)}">⟳ Rigenera</button>` : ''}</td></tr>`;
-    return `<div class="card"><div class="row"><h3 style="margin:0" class="grow">📄 Documenti della ditta</h3>${APP.FS.ok ? '<button id="dfold2">📁 Apri la cartella</button>' : ''}</div>
+    const riga = (x, generale) => `<tr><td>${U.dataIt(x.data)}</td><td style="white-space:normal"><b>${E(nomeM(x))}</b>${generale ? ' <span class="tag">file generale</span>' : ''}<div class="mu">${E(x.file || '')}</div></td><td class="n" style="white-space:nowrap">${APP.FS.ok && x.rel ? `<button class="s" data-dapri="${x.id}">Apri</button>` : ''}${x.dati ? `<button class="s" data-dscar="${x.id}">⬇ Scarica</button>` : ''}${x.inserito ? `<button class="s d" data-dtogli="${x.id}" title="Togli dall'elenco">✕</button>` : ''}${cat[x.modello] ? `<button class="s" data-dprev="${E(x.modello)}">👁 Anteprima</button><button class="s" data-drig="${E(x.modello)}">⟳ Rigenera</button>` : ''}</td></tr>`;
+    return `<div class="card"><div class="row"><h3 style="margin:0" class="grow">📄 Documenti della ditta</h3><button id="dins" title="Aggiungi un file già pronto (PDF, Word, immagine, scansione…) ai documenti della ditta">📎 Inserisci documento…</button>${APP.FS.ok ? '<button id="dfold2">📁 Apri la cartella</button>' : ''}</div>
 ${propri.length || gen.length ? `<div class="tw" style="max-height:40vh;margin-top:8px"><table class="t"><thead><tr><th>Data</th><th>Documento</th><th></th></tr></thead><tbody>${propri.map(x => riga(x)).join('')}${gen.map(x => riga(x, true)).join('')}</tbody></table></div>` : '<p class="mu">Nessun documento ancora: si creano dai passi dell\'iter qui sotto o da Documenti › «Genera per tutte le ditte».</p>'}</div>`;
   }
   function attivaDocDitta(m, p, d) {
     const f2 = m.querySelector('#dfold2'); if (f2) f2.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
+    m.querySelector('#dins').onclick = () => APP.inserisciFile(p, [d.id]);
+    m.querySelectorAll('[data-dscar]').forEach(b => b.onclick = () => { const x = p.docs.find(y => y.id === b.dataset.dscar); if (x && x.dati) APP.scarica(x.file, Uint8Array.from(atob(x.dati), ch => ch.charCodeAt(0))); });
+    m.querySelectorAll('[data-dtogli]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere il documento dall\'elenco? Il file nel fascicolo resta.', 'Togli')) { p.docs = p.docs.filter(y => y.id !== b.dataset.dtogli); APP.salva(); APP.render(); } });
     m.querySelectorAll('[data-dapri]').forEach(b => b.onclick = async () => { const x = p.docs.find(y => y.id === b.dataset.dapri); const r = await window.desktop.fsApriFile(x.rel); if (r && r.ok === false) APP.toast('File non trovato nel fascicolo: forse è stato spostato o rinominato', 6000); });
     m.querySelectorAll('[data-dprev]').forEach(b => b.onclick = async () => { const k = b.dataset.dprev; APP.dlg('Anteprima: ' + APP.modello(k).nome + ' – Ditta ' + d.n, await APP.anteprima(p, k, [d.id])); });
     m.querySelectorAll('[data-drig]').forEach(b => b.onclick = async () => { try { await APP.generaTutti(p, b.dataset.drig, { ditte: [d.id], generale: false, perDitta: true }); APP.render(); } catch (e) { APP.toast('Errore: ' + e.message, 6000); } });
   }
+
+  // File già pronti inseriti dall'operatore (PDF, Word, immagini, scansioni): nella cartella della ditta (o in «00 GENERALE»)
+  // e nel registro dei documenti; opzionale il passo della procedura di cui segnano la data
+  APP.inserisciFile = async (p, ditte) => {
+    const F = await APP.scegliFile('', true); if (!F.length) return;
+    const passi = I.passi(p.impost.procedura), una = ditte && ditte.length === 1 ? p.ditte.find(x => x.id === ditte[0]) : null;
+    const r = await APP.dlg('Inserisci documento', `<p class="mu">${F.map(f => '📎 ' + E(f.nome)).join('<br>')}</p><div class="g"><label class="f">Descrizione<input id="fn" value="${E(F.length === 1 ? F[0].nome.replace(/\.\w+$/, '') : '')}" placeholder="es. Ricevuta di ritorno, Atto di cessione firmato"></label>
+<label class="f">Dove<select id="fd">${una ? `<option value="ditta">Cartella della ditta ${E(una.n)}</option>` : ditte && ditte.length ? `<option value="ditta">Cartella di ognuna delle ${ditte.length} ditte selezionate</option>` : ''}<option value="gen">«00 GENERALE» (tutta la pratica)</option></select></label>
+<label class="f">Segna il passo come fatto (facoltativo)<select id="fp"><option value=""></option>${passi.map(ps => `<option value="${ps.k}">${E(ps.nome)}</option>`).join('')}</select></label><label>Data<input type="date" id="fdt" value="${U.oggi()}"></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Inserisci', v: 'ok', p: true }]);
+    if (r !== 'ok') return;
+    const desc = $('#fn').value.trim(), dove = $('#fd').value, passo = $('#fp').value, data = $('#fdt').value || U.oggi();
+    const dest = dove === 'ditta' ? (ditte || []).map(id => p.ditte.find(x => x.id === id)).filter(Boolean) : [null];
+    if (APP.FS.ok && !await APP.FS.pronto(p)) return;
+    let n = 0;
+    for (const d of dest) for (const f of F) {
+      const nome = san(desc && F.length === 1 ? desc + (f.nome.match(/\.\w+$/) || [''])[0] : f.nome);
+      const o = { id: U.id(), data, ora: new Date().toISOString(), modello: 'file', nome: desc || f.nome.replace(/\.\w+$/, ''), file: nome, ditta: d ? d.id : null, ditte: d ? null : (ditte || null), formato: (f.nome.split('.').pop() || '').toLowerCase(), inserito: true };
+      if (APP.FS.ok) { o.rel = (d ? APP.FS.dirDitta(p, d) : APP.FS.dirGenerale(p)) + '/Documenti inseriti/' + nome; await window.desktop.fsScrivi(o.rel, new Uint8Array(f.buf)); }
+      else if (f.buf.byteLength < 8e6) o.dati = b64(new Uint8Array(f.buf));
+      else { APP.toast(f.nome + ': nel browser si possono tenere file fino a 8 MB (nel programma installato nessun limite)', 6000); continue; }
+      p.docs.push(o); n++;
+    }
+    if (passo) dest.filter(Boolean).forEach(d => { const e = d.ev[passo] = d.ev[passo] || {}; if (!e.data) e.data = data; });
+    APP.salva(); APP.render(); if (n) APP.toast(n === 1 ? 'Documento inserito' : n + ' documenti inseriti');
+  };
 
   // ---------- Vista: Indirizzi di residenza (tutti gli intestatari della pratica) ----------
   APP.viste.indirizzi = (m, p) => {
@@ -5188,7 +5754,7 @@ ${propri.length || gen.length ? `<div class="tw" style="max-height:40vh;margin-t
 <p class="mu">Indirizzo a cui inviare le comunicazioni per ogni intestatario. La stessa persona presente in più ditte compare una volta sola. ${manc ? `<b class="wa">${manc} indirizzi da inserire.</b>` : '<b class="ok">Tutti gli indirizzi sono inseriti.</b>'}</p>
 <div class="row" style="margin-bottom:8px"><label class="chk"><input type="checkbox" id="isolo" ${APP._isolo ? 'checked' : ''}> Solo quelli da completare</label></div>
 <div class="tw"><table class="t"><thead><tr><th>Ditta</th><th>Intestatario</th><th>C.F.</th><th>Via e civico</th><th>CAP</th><th>Comune</th><th>Prov.</th><th>PEC</th><th>Invio con</th></tr></thead><tbody>
-${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte.map(E).join(', ')}</td><td>${E(r.o.nome)}<div class="mu">${E(C.diritto(r.o))}</div></td><td class="${!r.o.cf || !C.cfValido(r.o.cf) ? 'ko' : ''}">${E(r.o.cf || 'manca')}</td>${['via', 'cap', 'citta', 'prov', 'pec'].map(c => `<td><input data-ir="${i}" data-c="${c}" value="${E(r.o[c] || '')}" style="min-width:${c === 'via' ? 200 : c === 'cap' || c === 'prov' ? 60 : 130}px"></td>`).join('')}<td><select data-ir="${i}" data-c="mezzo"><option value="">automatico</option>${['Raccomandata A/R', 'PEC', 'Notifica (messo / ufficiale giudiziario)', 'A mano'].map(x => `<option ${r.o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;
+${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte.map(E).join(', ')}</td><td>${E(r.o.nome)}<div class="mu">${E([C.giuridica(r.o) ? (r.o.sede ? 'sede ' + r.o.sede : '') : [r.o.natoA ? 'nato/a a ' + r.o.natoA : '', r.o.natoIl ? 'il ' + U.dataIt(r.o.natoIl) : ''].filter(Boolean).join(' '), C.diritto(r.o)].filter(Boolean).join(' · '))}</div></td><td class="${!r.o.cf || !C.cfValido(r.o.cf) ? 'ko' : ''}">${E(r.o.cf || 'manca')}</td>${['via', 'cap', 'citta', 'prov', 'pec'].map(c => `<td><input data-ir="${i}" data-c="${c}" value="${E(r.o[c] || '')}" style="min-width:${c === 'via' ? 200 : c === 'cap' || c === 'prov' ? 60 : 130}px"></td>`).join('')}<td><select data-ir="${i}" data-c="mezzo"><option value="">automatico</option>${['Raccomandata A/R', 'PEC', 'Notifica (messo / ufficiale giudiziario)', 'A mano'].map(x => `<option ${r.o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;
     m.querySelector('#iback').onclick = () => APP.vai('ditte');
     m.querySelector('#isolo').onchange = e => { APP._isolo = e.target.checked; APP.render(); };
     m.querySelectorAll('[data-ir]').forEach(el => el.onchange = () => { const r = R[+el.dataset.ir], c = el.dataset.c, v = c === 'prov' ? el.value.trim().toUpperCase() : el.value.trim(); r.tutti.forEach(o => { o[c] = v; }); APP.salva(); });
@@ -5220,6 +5786,30 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
   }
 
   // Foto: ridotte a 1600 px; nel programma installato vanno nella cartella della ditta, nel browser restano nella pratica
+  function estrattiUI(m, p, d) {
+    d.estratti = d.estratti || [];
+    const box = m.querySelector('#destl');
+    const disegna = async () => {
+      const L = await APP.estrattiDitta(p, d);
+      box.innerHTML = d.estratti.map((e, i) => `<figure><img src="${L[i] ? L[i].src : ''}" alt="" style="object-fit:contain;background:#fff"><div class="mu" style="font-size:12px;word-break:break-all">${E(e.nome)}</div><div class="row" style="margin-top:4px"><button class="s" data-eu="${i}">↑</button><button class="s" data-edn="${i}">↓</button><span class="grow"></span><button class="s d" data-ex="${i}">✕</button></div></figure>`).join('') || '<span class="mu">Nessun estratto caricato' + (p.geo ? ': nei documenti si usa quello generato dalla planimetria.' : '.') + '</span>';
+      const sp = (i, j) => { [d.estratti[i], d.estratti[j]] = [d.estratti[j], d.estratti[i]]; APP.salva(); disegna(); };
+      box.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { d.estratti.splice(+b.dataset.ex, 1); APP.salva(); disegna(); });
+      box.querySelectorAll('[data-eu]').forEach(b => b.onclick = () => { const i = +b.dataset.eu; if (i) sp(i - 1, i); });
+      box.querySelectorAll('[data-edn]').forEach(b => b.onclick = () => { const i = +b.dataset.edn; if (i < d.estratti.length - 1) sp(i, i + 1); });
+    };
+    disegna();
+    m.querySelector('#dest').onclick = async () => {
+      const F = await APP.scegliFile('image/*,.png,.jpg,.jpeg,.gif,.bmp,.webp', true);
+      for (const f of F) {
+        let im; try { im = await inPng(f.buf, f.tipo); } catch (e) { APP.toast(f.nome + ': ' + e.message); continue; }
+        const o = { id: U.id(), nome: f.nome, w: im.w, h: im.h };
+        if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Estratti di mappa/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.png'; await window.desktop.fsScrivi(o.file, im.png); }
+        else o.data = 'data:image/png;base64,' + b64(im.png);
+        d.estratti.push(o);
+      }
+      if (F.length) { APP.salva(); disegna(); APP.toast('Estratti di mappa caricati: nei documenti della ditta si useranno questi'); }
+    };
+  }
   function fotoUI(m, p, d) {
     const box = m.querySelector('#dft'), parts = p.particelle.filter(x => x.ditta === d.id);
     const disegna = async () => {
@@ -5317,7 +5907,7 @@ ${senzaDitte ? '<div class="ban">Per i <b>numeri di piano</b> (cerchietti delle 
 <label class="chk"><input type="checkbox" id="tq" ${o.quote ? 'checked' : ''}> Quote dei lati</label>
 <label class="chk"><input type="checkbox" id="ta" ${o.aree ? 'checked' : ''}> Superfici nelle aree</label>
 <label class="chk"><input type="checkbox" id="te" ${o.elenco ? 'checked' : ''}> Elenco ditte nella tavola</label></div>
-<div class="row" style="margin-top:10px"><button id="tprev">Anteprima del foglio</button><button class="p" id="tpdf">Stampa / PDF</button><button id="tsvg">Scarica SVG</button><button id="tdxf">Esporta DXF delle aree</button>
+<div class="row" style="margin-top:10px"><button id="tprev">Anteprima del foglio</button><button class="p" id="tpdf">Stampa / PDF</button><button id="tsvg">Scarica SVG</button><button id="tdxf" title="Planimetria ricostruita con i layer del programma: modificala in CAD e reimportala (Importa › DXF) allineata">Esporta DXF (da modificare in CAD)</button>
 ${p.ditte.length ? '<button id="tschemi">Salva gli schemi delle ditte (PDF: estratto + tagli)</button>' : ''}</div></div>
 <div class="card"><h3 style="margin-top:0">Scala e misure del disegno</h3>
 <p class="mu">Origine: <b>${origine}</b>${geo.scala ? ` letto alla scala <b>1:${geo.scala}</b>` : ''}. Superfici attuali dal disegno: ${A.TIPI.filter(t => tot(t)).map(t => `${A.RUOLI[t]} <b>${U.fmt(tot(t), 0)} mq</b>`).join(' · ') || 'nessuna area'}.
@@ -5338,12 +5928,15 @@ Se la scala o l'unità di misura erano sbagliate (es. letto 1:1000 ma il disegno
     svg.addEventListener('pointermove', e => { if (!drag) return; const r = svg.getBoundingClientRect(), k = Math.max(vb.w / r.width, vb.h / r.height); if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 3) mosso = true; vb.x = drag.vx - (e.clientX - drag.x) * k; vb.y = drag.vy - (e.clientY - drag.y) * k; app(); });
     svg.addEventListener('pointerup', e => {
       drag = null; if (mosso) return;
-      const t = document.elementsFromPoint(e.clientX, e.clientY).find(x => x.dataset && (x.dataset.pezzo || x.dataset.k));
+      const sotto = document.elementsFromPoint(e.clientX, e.clientY);
+      const t = sotto.find(x => x.dataset && x.dataset.pezzo) || sotto.find(x => x.dataset && x.dataset.pi != null);
       if (!t) return;
+      const tp = sotto.find(x => x.dataset && x.dataset.pi != null), pc = tp ? p.geo.part[+tp.dataset.pi] : null;
       const k = t.dataset.k, x = p.particelle.find(q => A.chiave(q.fg, q.map, q.sub) === k || A.chiave(q.fg, q.map, '') === k);
       const pzz = t.dataset.pezzo && p.geo.pezzi.find(z => z.id === t.dataset.pezzo);
       const d = x && p.ditte.find(dd => dd.id === x.ditta);
-      m.querySelector('#tinfo').innerHTML = (pzz ? `<b>${E(A.RUOLI[pzz.tipo])}</b> ${U.fmt(pzz.a, 1)} mq${pzz.stima ? ' <span class="tag t-wa">dal PDF</span>' : ''} · ` : '') + (k ? `Fg.${E(k.split('|')[0])} Mapp.${E(k.split('|')[1])}` : 'particella non assegnata') + (d ? ` · <b>Ditta ${E(d.n)}</b> ${E(d.intest.map(q => q.nome).join(', '))} <button class="s" id="tgo">Apri ditta</button>` : '') + (k ? ` <button class="s" id="ttg">Taglio della particella</button>` : '');
+      m.querySelector('#tinfo').innerHTML = (pzz ? `<b>${E(A.RUOLI[pzz.tipo])}</b> ${U.fmt(pzz.a, 1)} mq${pzz.stima ? ' <span class="tag t-wa">dal PDF</span>' : ''} · ` : '') + (k ? `Fg.${E(k.split('|')[0])} Mapp.${E(k.split('|')[1])}` : 'particella non assegnata') + (d ? ` · <b>Ditta ${E(d.n)}</b> ${E(d.intest.map(q => q.nome).join(', '))} <button class="s" id="tgo">Apri ditta</button>` : '') + (k ? ` <button class="s" id="ttg">Taglio della particella</button>` : '') + (pc || pzz ? ` <button class="s" id="tfm" title="Correggi foglio e mappale di questa particella ricostruita">✏️ Foglio / mappale</button>` : '');
+      const fm = m.querySelector('#tfm'); if (fm) fm.onclick = () => APP.correggiParticella(p, p.geo, pzz && !pc ? { pezzo: pzz } : { part: pc, pezzo: pzz }, () => APP.render());
       const go = m.querySelector('#tgo'); if (go) go.onclick = () => APP.vai('ditte', d.id);
       const tg = m.querySelector('#ttg'); if (tg) tg.onclick = () => { o.cosa = 'taglio'; o.chiave = k; anteprima(); };
     });
@@ -5382,12 +5975,7 @@ Se la scala o l'unità di misura erano sbagliate (es. letto 1:1000 ma il disegno
       else window.print();
     };
     m.querySelector('#tsvg').onclick = () => { leggi(); const f = foglio(); if (f) APP.scarica(san(p.nome) + ' - ' + san(f[3]) + '.svg', f[0], 'image/svg+xml'); };
-    m.querySelector('#tdxf').onclick = () => {
-      const poli = [], testi = [];
-      p.geo.pezzi.forEach(z => { z.mp.forEach(P => P.forEach(r => poli.push({ layer: 'ESPR_' + z.tipo.toUpperCase(), pts: r, chiusa: true }))); const lp = ES.geo.puntoEtichettaMP(z.mp); if (lp && z.k) testi.push({ layer: 'ESPR_TESTI', x: lp[0], y: lp[1], h: 1, t: z.map + ' ' + A.RUOLI[z.tipo] + ' ' + Math.round(z.a) + ' mq' }); });
-      (p.geo.part || []).forEach(q => q.mp.forEach(P => P.forEach(r => poli.push({ layer: 'PARTICELLE', pts: r, chiusa: true }))));
-      APP.scarica(san(p.nome) + ' - aree.dxf', ES.dxf.scrivi(poli, testi), 'application/dxf');
-    };
+    m.querySelector('#tdxf').onclick = () => APP.esportaDxf(p, p.geo, p.nome);
     const sch2 = m.querySelector('#tschemi'); if (sch2) sch2.onclick = () => salvaSchemi(p, c);
     // Correzione della scala
     const fattore = () => {
@@ -5484,7 +6072,7 @@ ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.i
 <div class="row"><button class="s" data-a="prev" data-k="${k}">👁 Anteprima</button><button class="s" data-a="edit" data-k="${k}">✏️ Testo</button><button class="s" data-a="pdf" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>PDF</button><button class="s p" data-a="word" data-k="${k}" ${passo ? `data-passo="${passo}"` : ''}>${tutti ? '⬇ Genera per ' + (nd === p.ditte.length ? 'tutte le ditte' : nd + ' ditte') : '⬇ Genera'}</button></div></div>`;
     };
     const fatti = ps => p.ditte.filter(d => d.ev[ps.k] && d.ev[ps.k].data).length;
-    const sezPercorso = passi.map((ps, i) => `<div class="mp2"><div class="row"><span class="nr2">${i + 1}</span><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span><span class="tag ${fatti(ps) === p.ditte.length && p.ditte.length ? 't-ok' : ''}">${fatti(ps)}/${p.ditte.length} ditte</span></div>${ps.modelli.filter(k => cat[k]).map(k => riga(k, ps.k)).join('') || '<div class="mu">Nessun modello collegato: usa «Altri modelli».</div>'}</div>`).join('');
+    const sezPercorso = passi.map((ps, i) => `<div class="mp2"><div class="row"><span class="nr2">${i + 1}</span><b>${E(ps.nome)}</b><span class="mu">${E(ps.art)}</span><span class="grow"></span><span class="tag ${fatti(ps) === p.ditte.length && p.ditte.length ? 't-ok' : ''}">${fatti(ps)}/${p.ditte.length} ditte</span></div>${APP.modelliPasso(ps).filter(k => cat[k]).map(k => riga(k, ps.k)).join('') || '<div class="mu">Nessun modello collegato.</div>'}<div class="row" style="margin-top:4px"><button class="s" data-nuovo="${ps.k}" title="Crea un documento tuo collegato a questo passo (anche partendo dal testo di un altro)">＋ Inserisci nuovo documento</button></div></div>`).join('');
     const generali = Object.keys(cat).filter(k => cat[k].ambito === 'pratica' && !usati.has(k));
     const sezGen = generali.map(k => riga(k)).join('');
     const altri = Object.keys(cat).filter(k => !usati.has(k)).map(k => riga(k)).join('');
@@ -5495,7 +6083,7 @@ ${p.ditte.map(d => { const D = c.perD.get(d.id) || {}; return `<tr data-d="${d.i
 <div class="f2 opz"><span class="mu">File da creare</span><label class="chk"><input type="checkbox" id="ogen" ${st.generale ? 'checked' : ''}> File generale con tutte le ditte (in «00 GENERALE»)</label><label class="chk"><input type="checkbox" id="oper" ${st.perDitta ? 'checked' : ''}> Documento nella cartella di ogni ditta</label>
 <div class="row"><label class="chk"><input type="checkbox" id="oreg" ${st.registra ? 'checked' : ''}> Segna il passo come inviato alle ditte in data</label><input type="date" id="odat" value="${E(st.data)}"></div></div></div>
 <div class="row" style="margin-top:8px"><button id="dtutte">Seleziona tutte</button><span class="mu grow">${APP.FS.ok ? 'I file vanno nel fascicolo: generale in «00 GENERALE», specifici in «DITTA n …».' : 'Nel browser i file arrivano in un unico ZIP con le stesse cartelle del fascicolo.'}</span>
-<button id="mnew">＋ Nuovo modello</button><button id="wcar">Carica modello Word…</button><button id="mexp">Esporta modelli</button><button id="mimp">Importa modelli</button><button id="wcampi">Campi disponibili</button></div></div>
+<button id="mnew" class="p">＋ Inserisci nuovo documento</button><button id="ffile" title="Aggiungi al fascicolo un file già pronto (PDF, Word, immagine…) per la pratica o per le ditte selezionate">📎 Inserisci file…</button><button id="wcar">Carica modello Word…</button><button id="mexp">Esporta modelli</button><button id="mimp">Importa modelli</button><button id="wcampi">Campi disponibili</button></div></div>
 <div class="card"><h3 style="margin-top:0">Percorso: ${E(S.PROCEDURE[proc].nome)}</h3><p class="mu">Il percorso si cambia nella scheda Pratica (o per singola ditta). I dati del progetto approvato, i visti e le premesse si scrivono una volta in Pratica › «Dati specifici per i documenti».</p>${sezPercorso}</div>
 ${sezGen ? `<div class="card"><h3 style="margin-top:0">Atti generali della pratica</h3>${sezGen}</div>` : ''}
 <div class="card"><h3 style="margin-top:0">Altri modelli</h3>${altri || '<div class="mu">—</div>'}</div>
@@ -5524,6 +6112,8 @@ ${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${w
       } catch (e) { APP.toast('Errore: ' + e.message, 6000); console.error(e); }
     });
     m.querySelector('#mnew').onclick = () => nuovoModello(p);
+    m.querySelectorAll('[data-nuovo]').forEach(b => b.onclick = () => nuovoModello(p, b.dataset.nuovo));
+    m.querySelector('#ffile').onclick = () => APP.inserisciFile(p, sel());
     m.querySelector('#wcar').onclick = () => caricaWord();
     m.querySelector('#wcampi').onclick = () => campiDisponibili();
     m.querySelector('#mexp').onclick = () => APP.scarica('Modelli ESPROPRI_SISTEM (' + U.oggi() + ').json', JSON.stringify({ tipo: 'ESPROPRI_SISTEM-modelli', v: 1, base: APP.lib().base, custom: APP.lib().custom, word: APP.DB.modelliWord || [] }, null, 1), 'application/json');
@@ -5583,16 +6173,16 @@ ${word ? `<div class="card"><h3 style="margin-top:0">Vostri modelli Word</h3>${w
     if (r === 'del' && await APP.conferma('Eliminare il modello «' + E(md.nome) + '» da tutte le pratiche?', 'Elimina')) { lib.custom.splice(lib.custom.findIndex(x => x.k === k), 1); Object.values(APP.DB.pratiche).forEach(x => { if (x.modelli) delete x.modelli[k]; }); }
     if (r) { APP.salva(); APP.render(); }
   };
-  async function nuovoModello(p) {
-    const cat = M.catalogo(APP.lib());
-    const r = await APP.dlg('Nuovo modello', `<div class="g"><label class="f">Nome<input id="nn" placeholder="es. Richiesta di nulla osta allo svincolo"></label><label>Articolo<input id="na" placeholder="art. 28"></label><label>Fase<input id="nf" placeholder="Indennità"></label>
+  async function nuovoModello(p, passo) {
+    const cat = M.catalogo(APP.lib()), passi = I.passi(p.impost.procedura);
+    const r = await APP.dlg('Inserisci nuovo documento', `<div class="g"><label class="f">Passo della procedura<select id="np"><option value="">(nessuno: tra gli altri modelli)</option>${passi.map(ps => `<option value="${ps.k}" ${ps.k === passo ? 'selected' : ''}>${E(ps.nome)} – ${E(ps.art)}</option>`).join('')}</select></label><label class="f">Nome<input id="nn" placeholder="es. Richiesta di nulla osta allo svincolo"></label><label>Articolo<input id="na" placeholder="art. 28"></label><label>Fase<input id="nf" placeholder="Indennità"></label>
 <label>Un documento per<select id="nb">${Object.entries(AMBITI).map(([a, t]) => `<option value="${a}">${t}</option>`).join('')}</select></label>
 <label class="f">Parti dal testo di<select id="nc"><option value="">(foglio bianco con intestazione)</option>${Object.entries(cat).map(([k, v]) => `<option value="${k}">${E(v.nome)}</option>`).join('')}</select></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Crea e modifica', v: 'ok', p: true }]);
     if (r !== 'ok') return;
     const da = $('#nc').value, amb = $('#nb').value;
     const vuoto = amb === 'pratica' ? '# TITOLO\n## {{pratica.oggetto}}\n\nTesto…\n\n{{luogo}}, {{oggi}}\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]'
       : 'Prot. n. ________\t{{luogo}}, {{oggi}}\n**Ditta {{ditta.n}}**\n>> {{dest.saluto}}\n>> **{{dest.nome}}**\n>> {{dest.via}}\n>> {{dest.cittaCap}}\n\n**Oggetto: {{pratica.oggetto}}**\n\n{{dest.gentile}},\nTesto…\n[[tabella particelle colonne=fg,map,sup,espr,servtot,occ]]\n\nDistinti saluti.\n[[firma {{ente.ruolo}}|{{ente.responsabile}}]]';
-    const c = { k: 'u_' + U.id(), nome: $('#nn').value || 'Nuovo modello', art: $('#na').value, fase: $('#nf').value || 'Modelli vostri', ambito: (da && cat[da].ambito) || amb, testo: da ? APP.testoModello(p, da) : vuoto };
+    const c = { k: 'u_' + U.id(), nome: $('#nn').value || 'Nuovo modello', art: $('#na').value, fase: $('#nf').value || 'Modelli vostri', passo: $('#np').value || undefined, ambito: (da && cat[da].ambito) || amb, testo: da ? APP.testoModello(p, da) : vuoto };
     APP.lib().custom.push(c); APP.salva(); APP.render();
     return APP.editorModello(p, c.k);
   }
@@ -5806,6 +6396,131 @@ ${storia.length ? `<div class="card"><h3 style="margin-top:0">Ricerche precedent
         const SDK = window.AnthropicSDK, msg = SDK && e instanceof SDK.AuthenticationError ? 'chiave API non valida' : SDK && e instanceof SDK.PermissionDeniedError ? 'la chiave non ha accesso a questo servizio (o la ricerca web non è attiva per l\'organizzazione)' : SDK && e instanceof SDK.RateLimitError ? 'troppe richieste: riprova tra poco' : SDK && e instanceof SDK.APIConnectionError ? 'collegamento a internet non disponibile' : SDK && e instanceof SDK.APIError ? 'errore del servizio (' + (e.status || '') + '): ' + e.message : e.message;
         res.innerHTML = `<div class="ban err">Ricerca non riuscita: ${E(msg)}</div>`; stato(''); btn.disabled = false;
       }
+    };
+  };
+})();
+
+/* ---- carta.js ---- */
+// ESPROPRI_SISTEM · Carta intestata dell'ente: «taglio alto» (intestazione) e «taglio basso» (piè di pagina) che
+// l'operatore scrive e modifica nel programma (testi, loghi, tabelle, dati dell'ente). Compaiono in tutti i documenti:
+// nei Word come intestazione e piè di pagina veri, nell'anteprima e nei PDF in testa e in fondo a ogni pagina.
+(function () {
+  'use strict';
+  const U = ES.U, E = U.esc, APP = window.APP;
+  const DATI = [['ente.nome', 'Nome dell\'ente'], ['ente.ufficio', 'Ufficio'], ['ente.indirizzo', 'Indirizzo'], ['ente.provincia', 'Provincia'], ['ente.cf', 'C.F. / P.IVA'], ['ente.pec', 'PEC'], ['ente.email', 'E-mail'], ['ente.telefono', 'Telefono'], ['ente.responsabile', 'Firmatario'], ['ente.rup', 'RUP'], ['pratica.nome', 'Oggetto dei lavori'], ['pratica.cup', 'CUP']];
+  const DIM = [8, 9, 10, 11, 12, 14, 16, 18, 22];
+  const FONT = ['Arial', 'Calibri', 'Times New Roman', 'Garamond', 'Verdana'];
+
+  // Incollati da Word o dal web: via stili di classe, commenti e marcature di Office; restano testo, grassetti, immagini, tabelle
+  const pulisci = html => {
+    const d = new DOMParser().parseFromString(html, 'text/html');
+    d.querySelectorAll('style,script,meta,link,title,xml,o\\:p').forEach(x => x.remove());
+    d.querySelectorAll('*').forEach(x => { x.removeAttribute('class'); x.removeAttribute('id'); [...x.attributes].forEach(a => { if (/^on|^lang$|^xmlns/i.test(a.name)) x.removeAttribute(a.name); }); });
+    return d.body.innerHTML.replace(/<\!--[\s\S]*?-->/g, '');
+  };
+
+  APP.cartaUI = (box, p) => {
+    const DB = APP.DB, propria = !!(p.carta && (p.carta.testa || p.carta.piede)), def = DB.carta && (DB.carta.testa || DB.carta.piede);
+    const c = propria ? p.carta : def ? DB.carta : { testa: '', piede: '' };
+    const mg = Object.assign({ alto: 20, basso: 20, sx: 20, dx: 20 }, c.margini || {});
+    const btn = (cmd, t, tit, st) => `<button type="button" class="s" data-cmd="${cmd}" title="${tit}"${st ? ` style="${st}"` : ''}>${t}</button>`;
+    box.innerHTML = `<div class="row"><h3 style="margin:0" class="grow">🏛️ Carta intestata dell'ente</h3><span class="tag">${propria ? 'di questa pratica' : def ? 'predefinita per tutte le pratiche' : 'non impostata'}</span></div>
+<p class="mu">Scrivi qui il <b>taglio alto</b> (intestazione) e il <b>taglio basso</b> (piè di pagina) con tutto quello che l'ente chiede: loghi, nome e dati dell'ufficio, indirizzi, PEC, riferimenti. Compaiono in tutti i documenti (Word, anteprima e PDF). I dati dell'ente si possono inserire come campi che si aggiornano da soli. Puoi anche partire da un Word dell'ente (.docx) e poi correggerlo qui.</p>
+<div class="carta-tb" id="ctb">
+${btn('bold', '<b>G</b>', 'Grassetto')}${btn('italic', '<i>C</i>', 'Corsivo')}${btn('underline', '<u>S</u>', 'Sottolineato')}
+<span class="sep"></span>${btn('justifyLeft', '⇤', 'Allinea a sinistra')}${btn('justifyCenter', '↔', 'Centra')}${btn('justifyRight', '⇥', 'Allinea a destra')}
+<span class="sep"></span><select id="cfont" title="Carattere"><option value="">Carattere</option>${FONT.map(f => `<option>${f}</option>`).join('')}</select>
+<select id="cdim" title="Dimensione"><option value="">Dim.</option>${DIM.map(d => `<option value="${d}">${d} pt</option>`).join('')}</select>
+<label class="carta-col" title="Colore del testo">A<input type="color" id="ccol" value="#000000"></label>
+<span class="sep"></span><button type="button" class="s" id="clogo" title="Inserisci un'immagine (logo, stemma) nel punto del cursore">🖼️ Logo</button>
+<button type="button" class="s" id="ctab2" title="Tabella a 2 colonne: logo a sinistra, testo a destra">▦ 2 col.</button><button type="button" class="s" id="ctab3" title="Tabella a 3 colonne: logo, testo, logo">▦ 3 col.</button>
+${btn('insertHorizontalRule', '―', 'Linea orizzontale')}${btn('removeFormat', '⌫', 'Togli la formattazione del testo selezionato')}
+<select id="cdato" title="Inserisci un dato della pratica che si aggiorna da solo"><option value="">＋ Dato dell'ente…</option>${DATI.map(([k, t]) => `<option value="${k}">${t}</option>`).join('')}</select>
+<span id="cimgw" style="display:none" class="mu">Larghezza immagine <input type="number" id="cimgmm" min="5" max="180" step="1" style="width:64px"> mm <button type="button" class="s d" id="cimgx" title="Togli l'immagine">✕</button></span>
+</div>
+<div class="carta-pag">
+<div class="carta-et">TAGLIO ALTO · intestazione</div><div class="carta-z" id="ctesta" contenteditable="true" spellcheck="false">${c.testa || ''}</div>
+<div class="carta-mezzo">… testo del documento …</div>
+<div class="carta-et">TAGLIO BASSO · piè di pagina</div><div class="carta-z" id="cpiede" contenteditable="true" spellcheck="false">${c.piede || ''}</div>
+</div>
+<div class="row" style="margin-top:8px;flex-wrap:wrap"><span class="mu">Margini pagina (mm):</span>${[['alto', 'alto'], ['basso', 'basso'], ['sx', 'sinistro'], ['dx', 'destro']].map(([k, t]) => `<label class="mu" style="display:inline-flex;gap:4px;align-items:center">${t}<input type="number" data-mg="${k}" value="${mg[k]}" min="5" max="60" style="width:58px"></label>`).join('')}
+<span class="grow"></span><button id="cimp">Importa da Word (.docx)…</button>${propria ? '<button id="cdef" title="La stessa carta per tutte le pratiche che non ne hanno una propria">Usa per tutte le pratiche</button>' : ''}${propria && def ? '<button id="cpre">Torna alla predefinita</button>' : ''}<button id="csvu" class="d">Svuota</button></div>`;
+    const zT = box.querySelector('#ctesta'), zP = box.querySelector('#cpiede');
+    let zona = zT, range = null, img = null, timer = 0;
+    // Salva come carta di questa pratica (modificare la predefinita qui la copia nella pratica)
+    const salva = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const m = {}; box.querySelectorAll('[data-mg]').forEach(i => { m[i.dataset.mg] = Math.max(5, Math.min(60, +i.value || 20)); });
+        const t = zT.innerHTML.trim(), pi = zP.innerHTML.trim(), vuota = h => !h.replace(/<(?!img|table)[^>]*>|&nbsp;|\s/gi, '');
+        if (vuota(t) && vuota(pi)) delete p.carta; else p.carta = { testa: t, piede: pi, margini: m };
+        APP.salva();
+      }, 350);
+    };
+    const tieni = () => { const s = getSelection(); if (s.rangeCount && (zT.contains(s.anchorNode) || zP.contains(s.anchorNode))) { range = s.getRangeAt(0).cloneRange(); zona = zT.contains(s.anchorNode) ? zT : zP; } };
+    const ripristina = () => { zona.focus(); if (range) { const s = getSelection(); s.removeAllRanges(); s.addRange(range); } };
+    const inserisci = html => { ripristina(); document.execCommand('insertHTML', false, html); tieni(); salva(); };
+    [zT, zP].forEach(z => {
+      z.addEventListener('input', salva);
+      z.addEventListener('keyup', tieni); z.addEventListener('mouseup', tieni); z.addEventListener('focus', () => { zona = z; });
+      z.addEventListener('click', e => {
+        box.querySelectorAll('.carta-z img.sel').forEach(x => x.classList.remove('sel'));
+        img = e.target.tagName === 'IMG' ? e.target : null;
+        box.querySelector('#cimgw').style.display = img ? '' : 'none';
+        if (img) { img.classList.add('sel'); box.querySelector('#cimgmm').value = Math.round((+img.getAttribute('width') || img.width) / 3.7795); }
+      });
+      z.addEventListener('paste', async e => {
+        const f = [...(e.clipboardData.files || [])].find(x => /^image\//.test(x.type));
+        if (f) { e.preventDefault(); const im = await APP.inPng(await f.arrayBuffer(), f.type); logo(im); return; }
+        const h = e.clipboardData.getData('text/html');
+        if (h) { e.preventDefault(); document.execCommand('insertHTML', false, pulisci(h)); salva(); }
+      });
+    });
+    box.querySelectorAll('[data-cmd]').forEach(b => {
+      b.onmousedown = e => e.preventDefault();
+      b.onclick = () => { ripristina(); document.execCommand(b.dataset.cmd, false, null); tieni(); salva(); };
+    });
+    // Dimensione e carattere: execCommand produce <font>; si convertono in stili espliciti (punti tipografici)
+    box.querySelector('#cdim').onchange = e => {
+      const v = e.target.value; e.target.value = ''; if (!v) return;
+      ripristina(); document.execCommand('fontSize', false, '7');
+      zona.querySelectorAll('font[size="7"]').forEach(f => { const s = document.createElement('span'); s.style.fontSize = v + 'pt'; s.innerHTML = f.innerHTML; f.replaceWith(s); });
+      tieni(); salva();
+    };
+    box.querySelector('#cfont').onchange = e => { const v = e.target.value; e.target.value = ''; if (!v) return; ripristina(); document.execCommand('fontName', false, v); tieni(); salva(); };
+    box.querySelector('#ccol').onchange = e => { ripristina(); document.execCommand('foreColor', false, e.target.value); tieni(); salva(); };
+    box.querySelector('#cdato').onchange = e => { const v = e.target.value; e.target.value = ''; if (v) inserisci(E('{{' + v + '}}')); };
+    const logo = im => {
+      const w = Math.min(im.w, 170), h = Math.round(w * im.h / im.w);
+      inserisci(`<img src="data:image/png;base64,${U.b64(im.png)}" width="${w}" height="${h}" data-r="${(im.h / im.w).toFixed(4)}">`);
+    };
+    box.querySelector('#clogo').onmousedown = e => e.preventDefault();
+    box.querySelector('#clogo').onclick = async () => {
+      const [f] = await APP.scegliFile('image/*,.png,.jpg,.jpeg,.gif,.bmp'); if (!f) return;
+      try { logo(await APP.inPng(f.buf, f.tipo)); } catch (e) { APP.toast(e.message); }
+    };
+    const tab = n => `<table style="width:100%;border-collapse:collapse"><tr>${(n === 2 ? [[25, 'left', 'Logo'], [75, 'left', 'Nome dell\'ente<br>Ufficio · indirizzo']] : [[20, 'left', 'Logo'], [60, 'center', 'Nome dell\'ente<br>Ufficio · indirizzo'], [20, 'right', 'Logo']]).map(([w, a, t]) => `<td style="width:${w}%;vertical-align:middle;text-align:${a}">${t}</td>`).join('')}</tr></table><div><br></div>`;
+    ['#ctab2', '#ctab3'].forEach((id, i) => { const b = box.querySelector(id); b.onmousedown = e => e.preventDefault(); b.onclick = () => inserisci(tab(i + 2)); });
+    box.querySelector('#cimgmm').onchange = e => {
+      if (!img) return;
+      const r = +img.dataset.r || (img.naturalHeight / img.naturalWidth) || 0.5, w = Math.round(Math.max(5, Math.min(180, +e.target.value || 30)) * 3.7795);
+      img.setAttribute('width', w); img.setAttribute('height', Math.round(w * r)); salva();
+    };
+    box.querySelector('#cimgx').onclick = () => { if (img) { img.remove(); img = null; box.querySelector('#cimgw').style.display = 'none'; salva(); } };
+    box.querySelectorAll('[data-mg]').forEach(i => i.onchange = salva);
+    box.querySelector('#cimp').onclick = async () => {
+      const [f] = await APP.scegliFile('.docx,.doc'); if (!f) return;
+      if (/\.doc$/i.test(f.nome)) { APP.toast('Apri il file in Word e salvalo come .docx, poi importalo di nuovo', 6000); return; }
+      let x; try { x = await ES.office.cartaDaDocx(f.buf); } catch (e) { APP.toast('Non riesco a leggere la carta intestata: ' + e.message, 6000); return; }
+      if ((zT.textContent.trim() || zP.textContent.trim()) && !await APP.conferma('Sostituire il taglio alto e il taglio basso attuali con quelli del Word «' + E(f.nome) + '»?', 'Sostituisci')) return;
+      zT.innerHTML = x.testa; zP.innerHTML = x.piede; salva();
+      APP.toast('Intestazione e piè di pagina importati: ora puoi modificarli qui', 5000);
+    };
+    const cd = box.querySelector('#cdef'); if (cd) cd.onclick = () => { clearTimeout(timer); DB.carta = JSON.parse(JSON.stringify(p.carta)); APP.salva(); APP.toast('Carta intestata predefinita per tutte le pratiche'); };
+    const cp = box.querySelector('#cpre'); if (cp) cp.onclick = async () => { if (await APP.conferma('Togliere la carta di questa pratica e usare quella predefinita?', 'Usa la predefinita')) { delete p.carta; APP.salva(); APP.render(); } };
+    box.querySelector('#csvu').onclick = async () => {
+      if (!await APP.conferma(propria ? 'Svuotare la carta intestata di questa pratica?' : def ? 'Togliere la carta predefinita per tutte le pratiche?' : 'Svuotare?', 'Svuota')) return;
+      clearTimeout(timer); if (propria) delete p.carta; else delete DB.carta; APP.salva(); APP.render();
     };
   };
 })();
