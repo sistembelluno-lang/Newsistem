@@ -94,3 +94,14 @@ test('PDF con mappa a pixel: le particelle si ricostruiscono dai numeri seguendo
   assert.ok(Math.abs(a['10'] - 100 * 200) < 100 * 200 * 0.03, 'particella 10: ' + a['10']);
   assert.ok(Math.abs(a['11'] - 50 * 200) < 50 * 200 * 0.03, 'particella 11: ' + a['11']);
 });
+
+test('mappa a pixel: tutte le zone chiuse, anche tagliate dal bordo, e piccole interruzioni chiuse', () => {
+  // griglia 200×200 pixel con linee a 0, 100, 199 (bordo) e una croce interna con un buco di un pixel
+  const W = 200, H = 200, mask = new Uint8Array(W * H);
+  for (let i = 0; i < W; i++) { mask[100 * W + i] = 1; mask[i * W + 100] = 1; }
+  mask[100 * W + 50] = 0; // interruzione di un pixel nel confine tra le due zone in basso
+  const mr = { px: 0.24, x0: 0, y0: 0, W, H, mask };
+  const R = ES.pdfv.regioniRaster(mr, { minMm2: 1, maxFraz: 0.5 });
+  assert.strictEqual(R.length, 4, 'quattro zone: ' + R.length);
+  R.forEach(z => assert.ok(z.bordo));
+});

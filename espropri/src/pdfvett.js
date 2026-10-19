@@ -327,8 +327,16 @@
     for (const [px2, py2] of prove) { const r = regione1(mr, px2, py2, maxFraz); if (r && r.pixel >= minPix) return r; }
     return null;
   };
+  // Maschera per i riempimenti: linee ispessite di un pixel, così le piccole interruzioni dei confini (1-2 pixel,
+  // frequenti nelle mappe scansionate o convertite) non fanno «colare» una particella nella vicina
+  const chiusa = mr => {
+    if (mr._chiusa) return mr._chiusa;
+    const { W, H, mask } = mr, m = new Uint8Array(mask);
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const i = r * W + c; if (!mask[i]) continue; if (c > 0) m[i - 1] = 1; if (c < W - 1) m[i + 1] = 1; if (r > 0) m[i - W] = 1; if (r < H - 1) m[i + W] = 1; }
+    return (mr._chiusa = m);
+  };
   const regione1 = (mr, x, y, maxFraz) => {
-    const { px, x0, y0, W, H, mask } = mr;
+    const { px, x0, y0, W, H } = mr, mask = chiusa(mr);
     let c = Math.round((x - x0) / px), r = Math.round((y - y0) / px);
     if (c < 1 || r < 1 || c >= W - 1 || r >= H - 1) return null;
     // sopra una linea o una lettera: si parte dal pixel bianco più vicino
@@ -348,8 +356,13 @@
       for (const j of [i - 1, i + 1, i - W, i + W]) if (!vis[j] && !mask[j]) { vis[j] = 1; if (sp >= st.length) return null; st[sp++] = j; }
     }
     if (n < 30) return null;
-    // contorno esterno: lati dei pixel della zona che confinano con l'esterno, concatenati (zona a sinistra)
-    const dentro = (cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && vis[rr * W + cc] === 1;
+    const pts = contorno((cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && vis[rr * W + cc] === 1, cm, cM, rm, rM, mr);
+    return pts ? { pts, pixel: n } : null;
+  };
+  // Contorno esterno di una zona di pixel (dentro(c, r)): lati dei pixel che confinano con l'esterno, concatenati
+  // (zona a sinistra), semplificati e riportati in punti PDF
+  const contorno = (dentro, cm, cM, rm, rM, mr) => {
+    const { px, x0, y0 } = mr;
     // il pixel più in basso a sinistra della zona: il suo lato inferiore è sul contorno esterno
     let sr = rm, sc = -1; for (let cc = cm; cc <= cM; cc++) if (dentro(cc, sr)) { sc = cc; break; }
     if (sc < 0) return null;
@@ -378,7 +391,125 @@
     const meta = Math.floor(ring.length / 2);
     const semp = dp(ring.slice(0, meta + 1), 1.2).slice(0, -1).concat(dp(ring.slice(meta).concat([ring[0]]), 1.2).slice(0, -1));
     if (semp.length < 3) return null;
-    return { pts: semp.map(q => [x0 + q[0] * px, y0 + q[1] * px]), pixel: n };
+    return semp.map(q => [x0 + q[0] * px, y0 + q[1] * px]);
+  };
+
+  // Tutte le zone bianche chiuse della mappa a pixel (anche quelle senza numero letto e quelle tagliate dal bordo
+  // della mappa): come un tecnico che ripassa ogni contorno. minMm2: zona minima in mm² di carta (via occhielli dei
+  // numeri, cortili minuscoli, retini); maxFraz: oltre questa frazione della mappa è lo sfondo, non una particella.
+  P.regioniRaster = (mr, opt = {}) => {
+    const { px, W, H } = mr, mask = chiusa(mr), mmPx = 72 / 25.4 / px;
+    const min = Math.max(200, (opt.minMm2 || 9) * mmPx * mmPx), max = W * H * (opt.maxFraz || 0.12);
+    const lab = new Int32Array(W * H), st = new Int32Array(Math.min(W * H, 8e6)), out = [];
+    let id = 0;
+    for (let i0 = 0; i0 < W * H; i0++) {
+      if (mask[i0] || lab[i0]) continue;
+      id++; let sp = 0, n = 0, cm = W, cM = 0, rm = H, rM = 0, bordo = false, troppo = false;
+      st[sp++] = i0; lab[i0] = id;
+      while (sp) {
+        const i = st[--sp], rr = (i / W) | 0, cc = i - rr * W; n++;
+        if (cc < cm) cm = cc; if (cc > cM) cM = cc; if (rr < rm) rm = rr; if (rr > rM) rM = rr;
+        if (cc === 0 || rr === 0 || cc === W - 1 || rr === H - 1) bordo = true;
+        if (cc > 0 && !mask[i - 1] && !lab[i - 1]) { lab[i - 1] = id; if (sp < st.length) st[sp++] = i - 1; else troppo = true; }
+        if (cc < W - 1 && !mask[i + 1] && !lab[i + 1]) { lab[i + 1] = id; if (sp < st.length) st[sp++] = i + 1; else troppo = true; }
+        if (rr > 0 && !mask[i - W] && !lab[i - W]) { lab[i - W] = id; if (sp < st.length) st[sp++] = i - W; else troppo = true; }
+        if (rr < H - 1 && !mask[i + W] && !lab[i + W]) { lab[i + W] = id; if (sp < st.length) st[sp++] = i + W; else troppo = true; }
+      }
+      if (troppo || n < min || n > max) continue;
+      const me = id, pts = contorno((cc, rr) => cc >= 0 && rr >= 0 && cc < W && rr < H && lab[rr * W + cc] === me, cm, cM, rm, rM, mr);
+      if (!pts) continue;
+      // zone troppo sottili (strade, fossi, spazi tra le scritte) restano: diventano particelle senza numero da verificare
+      if (opt.escludi) { const lp = ES.geo.puntoEtichetta([pts]); if (lp && opt.escludi(lp[0], lp[1])) continue; }
+      out.push({ pts, pixel: n, bordo, a: Math.abs(ES.geo.areaAnello(pts)) });
+    }
+    return out;
+  };
+
+  // Numeri scritti nella mappa a pixel, cercati come li cerca un tecnico: gruppi di segni piccoli e staccati dalle linee
+  // (le cifre), della stessa altezza e allineati. Restituisce i riquadri delle parole in pixel della mappa
+  // {c0, r0, c1, r1, n} (righe dal basso, come la mappa): poi l'OCR legge ogni parola da sola.
+  P.paroleRaster = (mr, opt = {}) => {
+    const { px, W, H, mask } = mr, mmPx = 72 / 25.4 / px;
+    const hMin = Math.max(6, (opt.hMinMm || 0.9) * mmPx), hMax = (opt.hMaxMm || 4.5) * mmPx;
+    const lab = new Int32Array(W * H), st = new Int32Array(1 << 16), blob = [];
+    let id = 0;
+    for (let i0 = 0; i0 < W * H; i0++) {
+      if (!mask[i0] || lab[i0]) continue;
+      id++; let sp = 0, n = 0, cm = W, cM = 0, rm = H, rM = 0, grande = false;
+      st[sp++] = i0; lab[i0] = id;
+      while (sp) {
+        const i = st[--sp], rr = (i / W) | 0, cc = i - rr * W; n++;
+        if (cc < cm) cm = cc; if (cc > cM) cM = cc; if (rr < rm) rm = rr; if (rr > rM) rM = rr;
+        if (cM - cm > hMax * 1.2 || rM - rm > hMax * 1.2) grande = true;
+        for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+          const c2 = cc + dc, r2 = rr + dr; if (c2 < 0 || r2 < 0 || c2 >= W || r2 >= H) continue;
+          const j = r2 * W + c2; if (mask[j] && !lab[j]) { lab[j] = id; if (sp < st.length) st[sp++] = j; else grande = true; }
+        }
+      }
+      const w = cM - cm + 1, h = rM - rm + 1;
+      if (grande || h < hMin || h > hMax || w > h * 1.3 || n < 8) continue;
+      blob.push({ id, c0: cm, c1: cM, r0: rm, r1: rM, h, cy: (rm + rM) / 2 });
+    }
+    // parole: segni vicini in orizzontale, di altezza simile e con il centro alla stessa quota
+    blob.sort((a, b) => a.c0 - b.c0);
+    const usato = new Uint8Array(blob.length), parole = [];
+    for (let i = 0; i < blob.length; i++) {
+      if (usato[i]) continue;
+      const w0 = { c0: blob[i].c0, c1: blob[i].c1, r0: blob[i].r0, r1: blob[i].r1, h: blob[i].h, n: 1, ids: [blob[i].id], segni: [blob[i]] }; usato[i] = 1;
+      let ultimo = blob[i];
+      for (let j = i + 1; j < blob.length && blob[j].c0 - w0.c1 <= w0.h * 1.4; j++) {
+        const b = blob[j]; if (usato[j]) continue;
+        if (b.c0 - ultimo.c1 > w0.h * 1.3 || Math.abs(b.cy - ultimo.cy) > w0.h * 0.35 || b.h > w0.h * 1.5 || b.h < w0.h / 1.5) continue;
+        usato[j] = 1; w0.ids.push(b.id); w0.segni.push(b); w0.c1 = Math.max(w0.c1, b.c1); w0.r0 = Math.min(w0.r0, b.r0); w0.r1 = Math.max(w0.r1, b.r1); w0.n++; ultimo = b;
+      }
+      if (w0.n > 6) continue;
+      // solo i pixel delle cifre (senza i pezzi di linee che passano vicino): bitmap della parola, righe dal basso
+      const ww = w0.c1 - w0.c0 + 1, hh = w0.r1 - w0.r0 + 1, ids = new Set(w0.ids), bits = new Uint8Array(ww * hh);
+      for (let rr = 0; rr < hh; rr++) for (let cc = 0; cc < ww; cc++) if (ids.has(lab[(w0.r0 + rr) * W + w0.c0 + cc])) bits[rr * ww + cc] = 1;
+      // ogni segno (cifra) con la sua bitmap, per il confronto con i modelli di cifra
+      w0.segni = w0.segni.map(b => { const sw = b.c1 - b.c0 + 1, sh = b.r1 - b.r0 + 1, sb = new Uint8Array(sw * sh); for (let rr = 0; rr < sh; rr++) for (let cc = 0; cc < sw; cc++) if (lab[(b.r0 + rr) * W + b.c0 + cc] === b.id) sb[rr * sw + cc] = 1; return { w: sw, h: sh, bits: sb }; });
+      w0.bits = bits; delete w0.ids; parole.push(w0);
+    }
+    return parole;
+  };
+
+  // Cifre della mappa riconosciute per confronto: il carattere di una mappa è sempre lo stesso, quindi le parole lette
+  // con sicurezza dall'OCR insegnano la forma di ogni cifra, e con quei modelli si rileggono tutte le parole.
+  // parole: da P.paroleRaster; letture: [{t, c}] dell'OCR per ogni parola (o null). Restituisce [{t, c, da}] o null.
+  const N = 20;
+  P.normCifra = (bits, w, h) => {
+    // in un riquadro N×N, altezza piena e larghezza in proporzione, centrata; poi sfumata di un pixel
+    const k = (N - 2) / h, ww = Math.max(1, Math.round(w * k)), ox = Math.floor((N - ww) / 2), a = new Float32Array(N * N);
+    for (let y = 0; y < N - 2; y++) for (let x = 0; x < ww; x++) {
+      const sx = Math.min(w - 1, Math.floor(x / k)), sy = Math.min(h - 1, Math.floor((N - 3 - y) / k)); // righe dal basso
+      if (bits[sy * w + sx] && x + ox >= 0 && x + ox < N) a[(y + 1) * N + x + ox] = 1;
+    }
+    const b = new Float32Array(N * N);
+    for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { let v = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) v += a[(y + dy) * N + x + dx] * (dx || dy ? 0.5 : 1); b[y * N + x] = v; }
+    let m = 0; for (let i = 0; i < b.length; i++) m += b[i] * b[i]; m = Math.sqrt(m) || 1;
+    for (let i = 0; i < b.length; i++) b[i] /= m;
+    return { v: b, asp: w / h };
+  };
+  const somiglia = (a, b) => { let s2 = 0; for (let i = 0; i < a.v.length; i++) s2 += a.v[i] * b.v[i]; return s2 - Math.min(0.15, Math.abs(a.asp - b.asp) * 0.25); };
+  P.leggiConModelli = (parole, letture, minConf = 80) => {
+    const campioni = {};
+    parole.forEach((w, i) => {
+      const l = letture[i]; if (!l || l.c < minConf || !/^\d+$/.test(l.t) || l.t.length !== w.segni.length) return;
+      w.segni.forEach((g, j) => (campioni[l.t[j]] = campioni[l.t[j]] || []).push(P.normCifra(g.bits, g.w, g.h)));
+    });
+    const cifre = Object.keys(campioni); if (cifre.length < 4) return letture.map(l => l && { ...l, da: 'ocr' });
+    // per ogni cifra si tengono fino a 12 campioni (confronto con il più somigliante)
+    cifre.forEach(d => { campioni[d] = campioni[d].slice(0, 12); });
+    return parole.map((w, i) => {
+      const l = letture[i];
+      const sc = w.segni.map(g => { const n = P.normCifra(g.bits, g.w, g.h); let best = null, bv = -1, sec = -1; cifre.forEach(d => { const v = Math.max(...campioni[d].map(c => somiglia(n, c))); if (v > bv) { sec = bv; bv = v; best = d; } else if (v > sec) sec = v; }); return { d: best, v: bv, marg: bv - sec }; });
+      const t = sc.map(x => x.d).join(''), minV = Math.min(...sc.map(x => x.v)), minM = Math.min(...sc.map(x => x.marg));
+      const buono = minV > 0.82 && minM > 0.03;
+      if (l && l.t === t) return { t, c: Math.max(l.c, Math.round(minV * 100)), da: 'ocr+modelli' };
+      // una cifra sola letta solo per somiglianza può essere una lettera di un toponimo: fiducia bassa
+      if (buono) return { t, c: Math.round(Math.min(t.length === 1 ? 70 : 95, minV * 100 - (l && /^\d/.test(l.t) ? 10 : 0))), da: 'modelli' };
+      return l && /^\d{1,5}(\/\d{1,5})?$/.test(l.t) ? { ...l, da: 'ocr' } : null;
+    });
   };
 
   // Particelle ricostruite dalla mappa a pixel: una per numero letto (testi del PDF o letti con l'OCR).
@@ -511,6 +642,15 @@
         const reg = P.regioneRaster(mr, lp[0], lp[1], 0.12); if (!reg) return;
         const n = numeri.find(nn => G.inAnello(nn.x, nn.y, reg.pts)); if (n) parti.push({ pts: reg.pts, t: n.t, a: Math.abs(G.areaAnello(reg.pts)) });
       });
+      // tutte le altre zone chiuse della mappa (numeri non letti, particelle tagliate dalla cornice): particelle senza
+      // numero, che prendono il numero dai testi che cadono dentro o si numerano a mano
+      const giaPresa = (x, y) => parti.some(o => G.inAnello(x, y, o.pts));
+      const altre = P.regioniRaster(mr, { escludi: (x, y) => giaPresa(x, y) || inLeg({ x, y }) || !inFin({ x, y }) });
+      // zone chiuse dentro un'altra zona (contorni dei fabbricati, cortili): fanno parte della particella che le contiene
+      const tutte = parti.concat(altre), dentroAltra = q => { const lp = G.puntoEtichetta([q.pts]); return lp && tutte.some(o => o !== q && o.a > q.a && G.inAnello(q.pts[0][0], q.pts[0][1], o.pts) && G.inAnello(lp[0], lp[1], o.pts)); };
+      for (let i = altre.length - 1; i >= 0; i--) if (dentroAltra(altre[i])) altre.splice(i, 1);
+      altre.forEach(q => metti('Particelle: ricostruite dalla mappa', q.pts, true));
+      if (altre.length) avvisi.push(`Mappa catastale a immagine: ${altre.length} zone chiuse senza numero letto (particelle tagliate dalla cornice, strade, numeri non riconosciuti): numerale con un clic dove serve`);
       parti.forEach(q => metti('Particelle: ricostruite dalla mappa', q.pts, true));
       avvisi.push(parti.length ? `Mappa catastale a immagine: ${parti.length} particelle ricostruite seguendo le linee della mappa da ogni numero${ocr.length ? ' (' + ocr.length + ' numeri letti con l\'OCR, da verificare)' : ''}`
         : 'Mappa catastale a immagine: i numeri delle particelle non sono testo. Usa «Leggi i numeri dalla mappa (OCR)» per farli riconoscere');

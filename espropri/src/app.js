@@ -388,6 +388,49 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
     }
     return out;
   };
+  // Numeri della mappa a pixel letti uno per uno: le parole trovate da ES.pdfv.paroleRaster (gruppi di cifre staccati
+  // dalle linee) si ritagliano e si mettono in fila su un foglio pulito, che l'OCR legge in una volta sola.
+  APP.ocrParole = async (mr, parole, avanzamento) => {
+    const { W, H, mask, px, x0, y0 } = mr, out = [], PAD = 10, LARGH = 2400;
+    // celle: ogni parola ingrandita ad almeno 32 pixel di altezza (l'OCR legge meglio)
+    const celle = []; let x = 0, y = 0, hRiga = 0;
+    parole.forEach(w => {
+      const k = Math.max(1, Math.min(3, 32 / (w.r1 - w.r0 + 1))), cw = Math.ceil((w.c1 - w.c0 + 1 + PAD * 2) * k), ch = Math.ceil((w.r1 - w.r0 + 1 + PAD * 2) * k);
+      if (x + cw > LARGH) { x = 0; y += hRiga + 16; hRiga = 0; }
+      celle.push({ w, k, x, y, cw, ch }); x += cw + 28; hRiga = Math.max(hRiga, ch);
+    });
+    const blocco = 1800; // fogli di al massimo 1800 pixel di altezza
+    for (let b0 = 0; b0 <= y; b0 += blocco) {
+      const C = celle.filter(c => c.y >= b0 && c.y < b0 + blocco); if (!C.length) continue;
+      const hh = Math.max(...C.map(c => c.y - b0 + c.ch)) + 20, cv = document.createElement('canvas'); cv.width = LARGH + 40; cv.height = hh;
+      const g = cv.getContext('2d'), im = g.createImageData(cv.width, cv.height); im.data.fill(255);
+      C.forEach(c => {
+        const { w, k } = c;
+        for (let yy = 0; yy < c.ch; yy++) for (let xx = 0; xx < c.cw; xx++) {
+          const sc = Math.floor(xx / k - PAD), sr = Math.floor(w.r1 - w.r0 + PAD - yy / k), ww = w.c1 - w.c0 + 1; // righe dal basso
+          if (sc < 0 || sr < 0 || sc >= ww || sr > w.r1 - w.r0 || !(w.bits ? w.bits[sr * ww + sc] : mask[(w.r0 + sr) * W + w.c0 + sc])) continue;
+          const o = ((c.y - b0 + 10 + yy) * cv.width + (c.x + 20 + xx)) * 4; im.data[o] = im.data[o + 1] = im.data[o + 2] = 0;
+        }
+      });
+      g.putImageData(im, 0, 0);
+      const ocr = await APP.ocr(), r = await ocr.recognize(cv, {}, { blocks: true }), trovati = new Map();
+      (r.data.blocks || []).forEach(bl => bl.paragraphs.forEach(pp => pp.lines.forEach(l => l.words.forEach(q => {
+        const cx = (q.bbox.x0 + q.bbox.x1) / 2 - 20, cy = (q.bbox.y0 + q.bbox.y1) / 2 - 10 + b0;
+        const c = C.find(c2 => cx >= c2.x && cx <= c2.x + c2.cw && cy >= c2.y && cy <= c2.y + c2.ch); if (!c) return;
+        (trovati.get(c) || trovati.set(c, []).get(c)).push(q);
+      }))));
+      trovati.forEach((Q, c) => { Q.sort((a2, b2) => a2.bbox.x0 - b2.bbox.x0); c.l = { t: Q.map(q => q.text.trim()).join(''), c: Math.round(Math.min(...Q.map(q => q.confidence))) }; });
+      if (avanzamento) avanzamento(Math.min(1, (b0 + blocco) / (y + 1)));
+    }
+    // confronto con i modelli di cifra imparati dalle letture sicure
+    const fin = ES.pdfv.leggiConModelli(parole, celle.map(c => c.l || null));
+    celle.forEach((c, i) => {
+      const l = fin[i]; if (!l || !/^\d{1,5}(\/\d{1,5})?$/.test(l.t)) return;
+      const w = c.w;
+      out.push({ t: l.t, c: l.c, da: l.da, x: x0 + (w.c0 + w.c1 + 1) / 2 * px, y: y0 + (w.r0 + w.r1 + 1) / 2 * px, w: (w.c1 - w.c0 + 1) * px, h: (w.r1 - w.r0 + 1) * px, rot: 0 });
+    });
+    return out;
+  };
   // Lettura dei numeri della mappa a immagine: dalla mappa senza i colori sopra (se il PDF la contiene a righe di pixel)
   // e dalla pagina disegnata; i doppioni si tolgono, i numeri che coincidono con testi del PDF pure.
   async function ocrPdf(el) {
@@ -396,30 +439,33 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
       let tutti = [];
       const mr = pagina._mr === undefined ? (pagina._mr = P.mappaRaster(pagina)) : pagina._mr;
       if (mr) {
-        stato('Lettura dei numeri dalla mappa catastale…');
-        const cv = document.createElement('canvas'); cv.width = mr.W; cv.height = mr.H;
-        const g = cv.getContext('2d'), im = g.createImageData(mr.W, mr.H);
-        for (let r = 0; r < mr.H; r++) { const src = (mr.H - 1 - r) * mr.W; for (let c = 0; c < mr.W; c++) { const v = mr.mask[src + c] ? 0 : 255, o = (r * mr.W + c) * 4; im.data[o] = im.data[o + 1] = im.data[o + 2] = v; im.data[o + 3] = 255; } }
-        g.putImageData(im, 0, 0);
-        tutti = tutti.concat(await APP.ocrNumeri(cv, (x, y) => [mr.x0 + x * mr.px, mr.y0 + (mr.H - y) * mr.px], f => stato('Lettura dei numeri dalla mappa catastale… ' + Math.round(f * 100) + '%')));
+        // come un tecnico: si cercano i gruppi di cifre staccati dalle linee e si leggono uno per uno
+        stato('Ricerca dei numeri nella mappa catastale…');
+        await new Promise(r => setTimeout(r, 30));
+        const parole = ES.pdfv.paroleRaster(mr);
+        tutti = tutti.concat(await APP.ocrParole(mr, parole, f => stato('Lettura dei numeri dalla mappa catastale… ' + Math.round(f * 100) + '%')));
       }
-      // la pagina disegnata (numeri visibili nella tavola)
-      const v = P.vista(pagina), z = v ? v.b : [0, 0, pagina.w, pagina.h];
-      const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
-      const sc = Math.min(300 / 72, Math.sqrt(36e6 / Math.max(1, (z[2] - z[0]) * (z[3] - z[1]))));
-      const cv = document.createElement('canvas'); cv.width = Math.ceil((z[2] - z[0]) * sc); cv.height = Math.ceil((z[3] - z[1]) * sc);
-      const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
-      stato('Disegno della pagina per la lettura…');
-      await pg.render({ canvasContext: cx, viewport: pg.getViewport({ scale: sc }) }).promise;
-      // solo i segni scuri (nero e grigio scuro): i numeri di particella; via colori, retini e numeri di piano colorati
-      const W = cv.width, H = cv.height, im = cx.getImageData(0, 0, W, H), d = im.data, mask = new Uint8Array(W * H);
-      for (let i = 0, j = 0; i < d.length; i += 4, j++) { const R = d[i], G2 = d[i + 1], B = d[i + 2], scuro = R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45; d[i] = d[i + 1] = d[i + 2] = scuro ? 0 : 255; d[i + 3] = 255; if (scuro) mask[(H - (j / W | 0) - 1) * W + (j % W)] = 1; }
-      const bn = document.createElement('canvas'); bn.width = W; bn.height = H; bn.getContext('2d').putImageData(im, 0, 0);
-      // confini dalla pagina disegnata solo se il PDF non ha già le linee vettoriali delle particelle
-      const lineeVett = pagina.poli.filter(q => !q.area && /nero|grigio/.test(P.nomeColore(q.colore)) && q.pts.some((v2, i) => i && Math.abs(v2[0] - q.pts[i - 1][0]) > 0.5 && Math.abs(v2[1] - q.pts[i - 1][1]) > 0.5)).length;
-      if (!mr && lineeVett < 300) pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
-      const aP = (x, y) => [z[0] + x / sc, z[3] - y / sc];
-      for (const [rot, nome] of [[0, 'diritti'], [90, 'ruotati'], [-90, 'ruotati']]) tutti = tutti.concat(await APP.ocrNumeri(bn, aP, f => stato(`Lettura dei numeri ${nome} dalla tavola… ` + Math.round(f * 100) + '%'), rot));
+      // la pagina disegnata (numeri visibili nella tavola): serve se la mappa non è a pixel o se lì si è letto poco
+      if (!mr || tutti.length < 20) {
+        const v = P.vista(pagina), z = v ? v.b : [0, 0, pagina.w, pagina.h];
+        const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
+        const sc = Math.min(300 / 72, Math.sqrt(36e6 / Math.max(1, (z[2] - z[0]) * (z[3] - z[1]))));
+        const cv = document.createElement('canvas'); cv.width = Math.ceil((z[2] - z[0]) * sc); cv.height = Math.ceil((z[3] - z[1]) * sc);
+        const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.translate(-z[0] * sc, -(base.height - z[3]) * sc);
+        stato('Disegno della pagina per la lettura…');
+        await pg.render({ canvasContext: cx, viewport: pg.getViewport({ scale: sc }) }).promise;
+        // solo i segni scuri (nero e grigio scuro): i numeri di particella; via colori, retini e numeri di piano colorati
+        const W = cv.width, H = cv.height, im = cx.getImageData(0, 0, W, H), d = im.data, mask = new Uint8Array(W * H);
+        for (let i = 0, j = 0; i < d.length; i += 4, j++) { const R = d[i], G2 = d[i + 1], B = d[i + 2], scuro = R < 120 && G2 < 120 && B < 120 && Math.max(R, G2, B) - Math.min(R, G2, B) < 45; d[i] = d[i + 1] = d[i + 2] = scuro ? 0 : 255; d[i + 3] = 255; if (scuro) mask[(H - (j / W | 0) - 1) * W + (j % W)] = 1; }
+        const bn = document.createElement('canvas'); bn.width = W; bn.height = H; bn.getContext('2d').putImageData(im, 0, 0);
+        // confini dalla pagina disegnata solo se il PDF non ha già le linee vettoriali delle particelle
+        const lineeVett = pagina.poli.filter(q => !q.area && /nero|grigio/.test(P.nomeColore(q.colore)) && q.pts.some((v2, i) => i && Math.abs(v2[0] - q.pts[i - 1][0]) > 0.5 && Math.abs(v2[1] - q.pts[i - 1][1]) > 0.5)).length;
+        if (!mr && lineeVett < 300) pagina._mr = { px: 1 / sc, x0: z[0], y0: z[1], W, H, mask };
+        const aP = (x, y) => [z[0] + x / sc, z[3] - y / sc];
+        // mappa a immagine (non a righe di pixel): stessa lettura parola per parola sulla pagina disegnata
+        if (!mr && pagina._mr) { stato('Ricerca dei numeri nella mappa…'); tutti = tutti.concat(await APP.ocrParole(pagina._mr, ES.pdfv.paroleRaster(pagina._mr), f => stato('Lettura dei numeri dalla mappa… ' + Math.round(f * 100) + '%'))); }
+        for (const [rot, nome] of [[0, 'diritti'], [90, 'ruotati'], [-90, 'ruotati']]) tutti = tutti.concat(await APP.ocrNumeri(bn, aP, f => stato(`Lettura dei numeri ${nome} dalla tavola… ` + Math.round(f * 100) + '%'), rot));
+      }
       const testo = pagina.testi;
       // con l'elenco ditte già importato, i numeri che non sono mappali del piano si tengono solo se letti con sicurezza
       const p = APP.pr(), attesi = new Set((p && p.particelle || []).map(x => String(x.map).replace(/^0+/, '')));
