@@ -76,3 +76,12 @@ dialog::backdrop{background:rgba(0,0,0,.45)}#dlgb{max-height:72vh;overflow:auto}
 .dc-az{margin-top:8px;gap:6px}
 tr.clic{cursor:pointer}tr.clic:hover td{background:rgba(80,110,230,.07)}
 .ric-r h3{margin:14px 0 6px}.ric-r p{margin:6px 0;line-height:1.5}.ric-r sup a{text-decoration:none}.ric-f li{margin:6px 0}.ric-f blockquote{margin:4px 0 4px 12px;padding-left:8px;border-left:3px solid var(--bd);color:var(--mu,#667);font-size:.92em}
+/* Carta intestata: editor del taglio alto e del taglio basso */
+.carta-tb{display:flex;flex-wrap:wrap;gap:4px;align-items:center;padding:6px;border:1px solid var(--bd,#ccc);border-radius:6px 6px 0 0;background:var(--hd);position:sticky;top:0;z-index:2}
+.carta-tb select{width:auto;padding:3px 4px}.carta-tb .sep{width:1px;height:20px;background:#bbb;margin:0 3px}
+.carta-col{display:inline-flex;align-items:center;gap:3px;font-weight:bold}.carta-col input{width:28px;height:24px;padding:0;border:0;background:none}
+.carta-pag{background:#fff;color:#000;border:1px solid var(--bd,#ccc);border-top:0;padding:14px 22px;max-width:794px;font:9pt/1.3 Arial,sans-serif}
+.carta-et{font:600 10px/1 system-ui,sans-serif;color:#7a8699;letter-spacing:.06em;margin:4px 0 3px}
+.carta-z{min-height:46px;border:1px dashed #9fb0c8;padding:6px;outline:none}.carta-z:focus{border-color:#2e6bd8;box-shadow:0 0 0 2px rgba(46,107,216,.15)}
+.carta-z table td{border:1px dotted #c8d2e0;padding:2px 4px}.carta-z img{cursor:pointer;vertical-align:middle}.carta-z img.sel{outline:2px solid #2e6bd8}
+.carta-mezzo{color:#999;text-align:center;padding:26px 0;font-style:italic}

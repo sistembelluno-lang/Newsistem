@@ -33,8 +33,38 @@
     const m = APP.modello(k), calc = S.calcola(p);
     return M.contesti(p, calc, m.ambito, ditteSel).map(ctx => ({ ctx, blocchi: M.blocchi(M.mustache(testo ?? APP.testoModello(p, k), ctx), ctx) }));
   };
+  // Estratti di mappa caricati dall'operatore per la ditta: se ci sono comandano su quelli automatici
+  // [{png, w, h, src, nome}]
+  APP.estrattiDitta = async (p, d) => {
+    const L = [];
+    for (const e of (d && d.estratti) || []) {
+      let png = null;
+      if (e.data) png = Uint8Array.from(atob(e.data.split(',')[1]), ch => ch.charCodeAt(0));
+      else if (e.file && APP.FS.ok) png = await APP.FS.leggi(e.file);
+      if (png && png.length) L.push({ png, w: e.w, h: e.h, nome: e.nome, src: e.data || 'data:image/png;base64,' + b64(png) });
+    }
+    return L;
+  };
+  // Immagine qualsiasi (png, jpg, gif, bmp, webp…) → PNG ridotto a 2400 px sul lato lungo
+  const inPng = APP.inPng = (buf, tipo) => new Promise((res, rej) => {
+    const url = URL.createObjectURL(new Blob([buf], { type: tipo || 'image/png' })), img = new Image();
+    img.onload = () => { const k = Math.min(1, 2400 / Math.max(img.width, img.height)), cv = document.createElement('canvas'); cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k); const g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height); g.drawImage(img, 0, 0, cv.width, cv.height); URL.revokeObjectURL(url); cv.toBlob(async b => res({ png: new Uint8Array(await b.arrayBuffer()), w: cv.width, h: cv.height }), 'image/png'); };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('formato immagine non leggibile')); };
+    img.src = url;
+  });
   async function immaginiBlocchi(p, docs, perWord) {
-    const calc = S.calcola(p);
+    const calc = S.calcola(p), est = new Map();
+    for (const d of docs) for (const b of d.blocchi) if (b.t === 'img' && b.ditta && !est.has(b.ditta)) est.set(b.ditta, await APP.estrattiDitta(p, p.ditte.find(x => x.id === b.ditta)));
+    // Estratti caricati per la ditta al posto di planimetria e tagli automatici (i tagli si tolgono se il documento ha già la planimetria)
+    for (const d of docs) {
+      const conPlan = new Set(d.blocchi.filter(b => b.t === 'img' && b.ref === 'planimetria' && b.ditta).map(b => b.ditta));
+      d.blocchi = d.blocchi.flatMap(b => {
+        const L = b.t === 'img' && b.ditta && (b.ref === 'planimetria' || b.ref === 'tagli') ? est.get(b.ditta) : null;
+        if (!L || !L.length) return [b];
+        if (b.ref === 'tagli' && conPlan.has(b.ditta)) return [];
+        return L.map(e => (perWord ? { t: 'img', ref: 'utente', png: e.png, w: e.w, h: e.h, mm: 165 } : { t: 'img', ref: 'utente', src: e.src, mm: 170 }));
+      });
+    }
     // [[tagli]]: un'immagine per ogni particella della ditta (schema del piano particellare)
     for (const d of docs) d.blocchi = d.blocchi.flatMap(b => {
       if (!(b.t === 'img' && b.ref === 'tagli')) return [b];
@@ -90,8 +120,8 @@
     const docs = APP.componi(p, k, opt.ditte); if (!docs.length) { APP.toast('Nessuna ditta selezionata'); return; }
     APP.toast('Preparazione dei documenti…');
     await immaginiBlocchi(p, docs, true);
-    const oggi = U.oggi(), files = [], titolo = titoloDoc(m);
-    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: m.nome });
+    const oggi = U.oggi(), files = [], titolo = titoloDoc(m), carta = await APP.carta(p);
+    const optW = ctx => ({ intestazione: M.intestazione(ctx), titolo: m.nome, carta });
     if (m.ambito === 'pratica') files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
     else {
       if (opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + ' - TUTTE LE DITTE (' + oggi + ').docx', dati: ES.office.docx(unisci(docs), optW(docs[0].ctx)) });
@@ -106,7 +136,7 @@
     const buf = Uint8Array.from(atob(w.dati), ch => ch.charCodeAt(0)).buffer, calc = S.calcola(p);
     const ctxs = M.contesti(p, calc, w.ambito, opt.ditte).map(c => ({ ...c, _unione: M.unione(c) }));
     if (!ctxs.length) return;
-    const img = { planimetria: async ctx => (p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null) };
+    const img = { planimetria: async ctx => { const L = ctx._dittaId ? await APP.estrattiDitta(p, p.ditte.find(x => x.id === ctx._dittaId)) : []; return L.length ? L.map(e => ({ ...e, mm: 160 })) : p.geo ? APP.svgPng(ctx._dittaId ? T.estratto(p, calc, ctx._dittaId, 1000) : T.foglio(p, calc, { formato: 'A4', orient: 'P' }), 1800).then(r => ({ ...r, mm: 160 })) : null; } };
     const oggi = U.oggi(), files = [], titolo = san(w.nome);
     if (w.ambito === 'pratica' || opt.generale !== false) files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (w.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').docx', dati: await ES.office.compila(buf, ctxs, img) });
     if (w.ambito !== 'pratica' && opt.perDitta !== false) {
@@ -121,14 +151,22 @@
   // Anteprima HTML
   APP.anteprima = async (p, k, ditteSel, testo) => {
     const docs = APP.componi(p, k, ditteSel, testo); await immaginiBlocchi(p, docs, false);
-    return docs.map(d => `<div class="doc-prev">${M.html(d.blocchi)}</div>`).join('<div style="height:14px"></div>');
+    const c = await APP.carta(p), t = c ? `<div style="border-bottom:1px dashed #ccc;margin-bottom:8px;padding-bottom:4px">${c.html.testa}</div>` : '', f = c ? `<div style="border-top:1px dashed #ccc;margin-top:8px;padding-top:4px">${c.html.piede}</div>` : '';
+    return docs.map(d => `<div class="doc-prev">${t}${M.html(d.blocchi)}${f}</div>`).join('<div style="height:14px"></div>');
   };
   const CSS_STAMPA = '<style>@media print{.doc-print{font:10.5pt/1.35 Arial,sans-serif;color:#000;break-after:page}.doc-print:last-child{break-after:auto}.doc-print p{margin:0 0 5pt}.doc-print .doc-pb{break-after:page}.doc-t{border-collapse:collapse;width:100%}.doc-t th,.doc-t td{border:1px solid #777;padding:1.5pt 3pt}.doc-t th{background:#e8edf5;-webkit-print-color-adjust:exact;print-color-adjust:exact}img{max-width:100%}@page{size:A4;margin:18mm 16mm}}</style>';
+  // Documenti da stampare: con la carta intestata, intestazione e piè di pagina si ripetono su ogni pagina
+  // (righe di testata e di chiusura della tabella che contiene il documento)
+  async function htmlStampa(p) {
+    const c = await APP.carta(p);
+    if (!c) return L => CSS_STAMPA + L.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
+    return L => CSS_STAMPA + L.map(d => `<section class="doc-print"><table style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:0 0 6pt">${c.html.testa}</td></tr></thead><tfoot><tr><td style="padding:6pt 0 0">${c.html.piede}</td></tr></tfoot><tbody><tr><td>${M.html(d.blocchi)}</td></tr></tbody></table></section>`).join('');
+  }
   // PDF: generale (stampa o fascicolo) e, nel programma installato, anche uno per ditta
   APP.pdfTutti = async (p, k, opt = {}) => {
     const m = APP.modello(k); const docs = APP.componi(p, k, opt.ditte); if (!docs.length) return;
     await immaginiBlocchi(p, docs, false);
-    const html = L => CSS_STAMPA + L.map(d => `<section class="doc-print">${M.html(d.blocchi)}</section>`).join('');
+    const html = await htmlStampa(p);
     const titolo = titoloDoc(m), oggi = U.oggi();
     if (!(window.desktop && window.desktop.pdfDati && APP.FS.ok)) { $('#print').innerHTML = html(docs); window.print(); return; }
     const files = [];
@@ -159,6 +197,7 @@
       const prox = sc.filter(s => s.ditta === d).sort((a, b) => (a.data < b.data ? -1 : 1))[0];
       const st = prox ? I.statoScad(prox, oggi) : '';
       return `<div class="dc" data-d="${d.id}" data-ko="${ctrl.get(d.id).length ? 1 : 0}" data-q="${E(U.norm(d.intest.map(o => o.nome + ' ' + o.cf).join(' ') + ' ' + parts.map(x => x.fg + ' ' + x.map).join(' ')))}"><h4><span class="np">${E(d.n)}</span>${E(d.intest.map(o => o.nome).join(', ').slice(0, 90) || '(senza intestatari)')}</h4>
+${d.intest.some(o => o.natoA || o.natoIl || o.sede) ? `<div class="mu" style="font-size:12px">${d.intest.slice(0, 4).map(o => E(C.giuridica(o) ? (o.sede || o.natoA ? 'sede ' + (o.sede || o.natoA) : '') : [o.natoA ? 'n. a ' + o.natoA : '', o.natoIl ? 'il ' + U.dataIt(o.natoIl) : ''].filter(Boolean).join(' '))).filter(Boolean).join(' · ')}${d.intest.length > 4 ? ' …' : ''}</div>` : ''}
 <div class="mu" style="margin-top:6px">${parts.map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(' · ')}</div>${ctrl.get(d.id).length ? `<div style="margin-top:6px">${ctrl.get(d.id).map(x => `<span class="tag ${x.livello === 'errore' ? 't-ko' : 't-wa'}">⚠ ${E(x.msg)}</span>`).join(' ')}</div>` : ''}
 <div class="row" style="margin-top:6px">${D.aree.espr ? `<span class="tag t-es">esproprio ${U.mq(D.aree.espr)} mq</span>` : ''}${D.aree.servop + D.aree.serv ? `<span class="tag t-sv">servitù ${U.mq(D.aree.servop + D.aree.serv)} mq</span>` : ''}${D.aree.occ ? `<span class="tag t-oc">occupazione ${U.mq(D.aree.occ)} mq</span>` : ''}<span class="grow"></span><b>${U.eur(D.tot)}</b></div>
 <div class="bar"><i style="width:${Math.round(100 * av.fatti / av.totale)}%"></i></div>${(() => { const n = p.docs.filter(x => x.ditta === d.id).length, ni = d.intest.filter(o => !o.via && !o.pec).length; return (n ? `<span class="tag t-sv">📄 ${n} documenti</span> ` : '') + (ni ? `<span class="tag t-wa">📮 ${ni} indirizzi da inserire</span>` : ''); })()}
@@ -215,6 +254,9 @@ ${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|res
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
+<div class="card"><div class="row"><h3 style="margin:0" class="grow">🗺️ Estratti di mappa della ditta</h3><button id="dest">＋ Carica estratti di mappa</button></div>
+<p class="mu">Immagini (png, jpg…) degli stralci di mappa con le occupazioni della ditta, anche più di una. ${p.geo ? 'Se ne carichi, <b>sostituiscono l\'estratto automatico</b> dalla planimetria in tutti i documenti; togliendole torna quello automatico.' : 'Senza planimetria di base sono le immagini usate nei documenti dove è prevista la planimetria.'}</p>
+<div class="foto" id="destl"></div></div>
 <div class="card"><h3 style="margin-top:0">Stato di consistenza: foto e verbale firmato</h3>
 <p class="mu">1) Genera il verbale (passo «Stato di consistenza»), stampalo e fallo firmare in sito. 2) Carica le foto con la didascalia. 3) Carica la scansione PDF del verbale firmato. 4) Crea il PDF finale (verbale firmato + documentazione fotografica) nella cartella della ditta.</p>
 <div class="row"><button id="dfoto">＋ Carica foto</button><button id="dscan">Carica verbale firmato (PDF)</button><span class="mu" id="dscann">${d.scan ? '📎 ' + E(d.scan.nome) : ''}</span><span class="grow"></span><button class="p" id="dpdf" ${d.foto.length || d.scan ? '' : 'disabled'}>Crea PDF finale</button></div>
@@ -223,6 +265,7 @@ ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase =
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
     const da = m.querySelector('#darea'); if (da) da.onclick = () => APP.mostraAree(p, d);
+    estrattiUI(m, p, d);
     const fo = m.querySelector('#dfold'); if (fo) fo.onclick = () => APP.FS.apri(APP.FS.dirDitta(p, d));
     m.querySelectorAll('[data-o]').forEach(el => el.onchange = () => {
       const o = d.intest[+el.dataset.o], c = el.dataset.c;
@@ -276,7 +319,7 @@ ${propri.length || gen.length ? `<div class="tw" style="max-height:40vh;margin-t
 <p class="mu">Indirizzo a cui inviare le comunicazioni per ogni intestatario. La stessa persona presente in più ditte compare una volta sola. ${manc ? `<b class="wa">${manc} indirizzi da inserire.</b>` : '<b class="ok">Tutti gli indirizzi sono inseriti.</b>'}</p>
 <div class="row" style="margin-bottom:8px"><label class="chk"><input type="checkbox" id="isolo" ${APP._isolo ? 'checked' : ''}> Solo quelli da completare</label></div>
 <div class="tw"><table class="t"><thead><tr><th>Ditta</th><th>Intestatario</th><th>C.F.</th><th>Via e civico</th><th>CAP</th><th>Comune</th><th>Prov.</th><th>PEC</th><th>Invio con</th></tr></thead><tbody>
-${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte.map(E).join(', ')}</td><td>${E(r.o.nome)}<div class="mu">${E(C.diritto(r.o))}</div></td><td class="${!r.o.cf || !C.cfValido(r.o.cf) ? 'ko' : ''}">${E(r.o.cf || 'manca')}</td>${['via', 'cap', 'citta', 'prov', 'pec'].map(c => `<td><input data-ir="${i}" data-c="${c}" value="${E(r.o[c] || '')}" style="min-width:${c === 'via' ? 200 : c === 'cap' || c === 'prov' ? 60 : 130}px"></td>`).join('')}<td><select data-ir="${i}" data-c="mezzo"><option value="">automatico</option>${['Raccomandata A/R', 'PEC', 'Notifica (messo / ufficiale giudiziario)', 'A mano'].map(x => `<option ${r.o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;
+${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte.map(E).join(', ')}</td><td>${E(r.o.nome)}<div class="mu">${E([C.giuridica(r.o) ? (r.o.sede ? 'sede ' + r.o.sede : '') : [r.o.natoA ? 'nato/a a ' + r.o.natoA : '', r.o.natoIl ? 'il ' + U.dataIt(r.o.natoIl) : ''].filter(Boolean).join(' '), C.diritto(r.o)].filter(Boolean).join(' · '))}</div></td><td class="${!r.o.cf || !C.cfValido(r.o.cf) ? 'ko' : ''}">${E(r.o.cf || 'manca')}</td>${['via', 'cap', 'citta', 'prov', 'pec'].map(c => `<td><input data-ir="${i}" data-c="${c}" value="${E(r.o[c] || '')}" style="min-width:${c === 'via' ? 200 : c === 'cap' || c === 'prov' ? 60 : 130}px"></td>`).join('')}<td><select data-ir="${i}" data-c="mezzo"><option value="">automatico</option>${['Raccomandata A/R', 'PEC', 'Notifica (messo / ufficiale giudiziario)', 'A mano'].map(x => `<option ${r.o.mezzo === x ? 'selected' : ''}>${x}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div>`;
     m.querySelector('#iback').onclick = () => APP.vai('ditte');
     m.querySelector('#isolo').onchange = e => { APP._isolo = e.target.checked; APP.render(); };
     m.querySelectorAll('[data-ir]').forEach(el => el.onchange = () => { const r = R[+el.dataset.ir], c = el.dataset.c, v = c === 'prov' ? el.value.trim().toUpperCase() : el.value.trim(); r.tutti.forEach(o => { o[c] = v; }); APP.salva(); });
@@ -308,6 +351,30 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
   }
 
   // Foto: ridotte a 1600 px; nel programma installato vanno nella cartella della ditta, nel browser restano nella pratica
+  function estrattiUI(m, p, d) {
+    d.estratti = d.estratti || [];
+    const box = m.querySelector('#destl');
+    const disegna = async () => {
+      const L = await APP.estrattiDitta(p, d);
+      box.innerHTML = d.estratti.map((e, i) => `<figure><img src="${L[i] ? L[i].src : ''}" alt="" style="object-fit:contain;background:#fff"><div class="mu" style="font-size:12px;word-break:break-all">${E(e.nome)}</div><div class="row" style="margin-top:4px"><button class="s" data-eu="${i}">↑</button><button class="s" data-edn="${i}">↓</button><span class="grow"></span><button class="s d" data-ex="${i}">✕</button></div></figure>`).join('') || '<span class="mu">Nessun estratto caricato' + (p.geo ? ': nei documenti si usa quello generato dalla planimetria.' : '.') + '</span>';
+      const sp = (i, j) => { [d.estratti[i], d.estratti[j]] = [d.estratti[j], d.estratti[i]]; APP.salva(); disegna(); };
+      box.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { d.estratti.splice(+b.dataset.ex, 1); APP.salva(); disegna(); });
+      box.querySelectorAll('[data-eu]').forEach(b => b.onclick = () => { const i = +b.dataset.eu; if (i) sp(i - 1, i); });
+      box.querySelectorAll('[data-edn]').forEach(b => b.onclick = () => { const i = +b.dataset.edn; if (i < d.estratti.length - 1) sp(i, i + 1); });
+    };
+    disegna();
+    m.querySelector('#dest').onclick = async () => {
+      const F = await APP.scegliFile('image/*,.png,.jpg,.jpeg,.gif,.bmp,.webp', true);
+      for (const f of F) {
+        let im; try { im = await inPng(f.buf, f.tipo); } catch (e) { APP.toast(f.nome + ': ' + e.message); continue; }
+        const o = { id: U.id(), nome: f.nome, w: im.w, h: im.h };
+        if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Estratti di mappa/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.png'; await window.desktop.fsScrivi(o.file, im.png); }
+        else o.data = 'data:image/png;base64,' + b64(im.png);
+        d.estratti.push(o);
+      }
+      if (F.length) { APP.salva(); disegna(); APP.toast('Estratti di mappa caricati: nei documenti della ditta si useranno questi'); }
+    };
+  }
   function fotoUI(m, p, d) {
     const box = m.querySelector('#dft'), parts = p.particelle.filter(x => x.ditta === d.id);
     const disegna = async () => {

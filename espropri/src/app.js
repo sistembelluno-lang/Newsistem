@@ -58,6 +58,18 @@
   });
   APP.conferma = async (m, ok = 'Conferma') => (await APP.dlg('Conferma', `<p>${m}</p>`, [{ t: 'Annulla', v: '' }, { t: ok, v: 'ok', p: true }])) === 'ok';
   // Scelta di file: Promise([{nome, buf}])
+  // Carta intestata della pratica (o quella predefinita per tutte le pratiche): taglio alto e taglio basso in HTML,
+  // con i dati dell'ente richiamabili come {{ente.nome}}; convertita in parti Word una volta e tenuta in memoria
+  const cacheCarta = new Map();
+  APP.cartaSorgente = p => { const c = (p && p.carta) || DB.carta; return c && (c.testa || c.piede) ? c : null; };
+  APP.carta = async p => {
+    const c = APP.cartaSorgente(p); if (!c) return null;
+    const base = ES.modelli.base(p, ES.stima.calcola(p));
+    const sost = h => String(h || '').replace(/\{\{\s*([\w.]+)\s*\}\}/g, (x, k) => E(k.split('.').reduce((o, q) => (o == null ? o : o[q]), base) ?? ''));
+    const testa = sost(c.testa), piede = sost(c.piede), k = JSON.stringify(c.margini || {}) + testa.length + ':' + piede.length + ':' + U.hash(testa + '|' + piede);
+    if (!cacheCarta.has(k)) { try { cacheCarta.set(k, ES.office.cartaDaHtml(testa, piede, { margini: c.margini })); } catch (e) { console.error(e); cacheCarta.set(k, null); } }
+    return cacheCarta.get(k);
+  };
   APP.scegliFile = (accept, multi) => new Promise(res => {
     const f = $('#fin'); f.value = ''; f.accept = accept || ''; f.multiple = !!multi;
     f.onchange = async () => { const L = []; for (const x of f.files) L.push({ nome: x.name, buf: await x.arrayBuffer(), tipo: x.type }); res(L); };
@@ -177,6 +189,7 @@ ${FASC && p ? '<button id="hfasc" title="Apri la cartella del fascicolo">📁 Fa
 <label class="f2">Beneficiario dell'esproprio (se diverso)<input data-f="ente.beneficiario"></label><label>C.F. beneficiario<input data-f="ente.cfBeneficiario"></label><label class="f2">Sede beneficiario<input data-f="ente.sedeBeneficiario"></label>
 <label>Tribunale civile di<input data-f="ente.tribunale"></label><label>T.A.R.<input data-f="ente.tar" placeholder="Veneto"></label><label class="f2">Bollettino per gli estratti<input data-f="ente.bur" placeholder="BUR Veneto"></label>
 <label class="f">Link alla documentazione progettuale<input data-f="ente.link"></label></div></div>
+<div class="card" id="cartaCard"></div>
 <div class="card"><h3 style="margin-top:0">Dati specifici per i documenti</h3><p class="mu">Si scrivono una volta e compaiono in tutti i documenti di questa pratica (il testo base dei modelli resta uguale per tutte le pratiche). Nei modelli si richiamano con il segnaposto indicato.</p>
 <div class="g">${ES.modelli.DATI.map(c => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${c.k}}} – ${E(c.aiuto)}</span>${c.righe > 1 ? `<textarea data-f="dati.${c.k}" rows="${c.righe}" style="font-family:inherit;font-size:13px"></textarea>` : `<input data-f="dati.${c.k}">`}</label>`).join('')}
 ${p.campi.map((c, i) => `<label class="f">${E(c.nome)} <span class="mu">{{dati.${E(c.k)}}} <button type="button" class="s d" data-cdel="${i}">togli campo</button></span><textarea data-f="dati.${E(c.k)}" rows="2" style="font-family:inherit;font-size:13px"></textarea></label>`).join('')}</div>
@@ -206,6 +219,7 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
       p.cartella = x.dir; APP.salva(); APP.render(); toast('I documenti si salveranno in ' + x.dir + '\\ESPROPRI_SISTEM');
     };
     const pco = m.querySelector('#pcopen'); if (pco) pco.onclick = async () => { await window.desktop.fsAmmetti(p.cartella); FS.apri(FS.dirPratica(p)); };
+    APP.cartaUI(m.querySelector('#cartaCard'), p);
     const pc = m.querySelector('#pcart'); if (pc) pc.onclick = async () => { const r = await window.desktop.fsScegli(); if (r) toast('Fascicoli in ' + r.dir); };
   };
 
@@ -561,7 +575,7 @@ ${err ? `<div class="ban err">${E(err)}</div>` : `
 ${res.avvisi.slice(0, 15).map(a => `<div class="ban">${E(a)}</div>`).join('')}${res.avvisi.length > 15 ? `<p class="mu">… e altri ${res.avvisi.length - 15} avvisi</p>` : ''}
 <div class="kpi"><div><small>Particelle</small><b>${res.particelle.length}</b></div><div><small>Ditte</small><b>${res.ditte.length}</b></div><div><small>Intestatari</small><b>${res.ditte.reduce((s, d) => s + d.intest.length, 0)}</b></div></div>
 ${(() => { const L = res.ditte.flatMap(d => d.intest.filter(o => !o.cf || !C.cfValido(o.cf)).map(o => ({ d, o }))); return L.length ? `<div class="ban">⚠ ${L.length} intestatari senza codice fiscale o con codice da verificare: le ditte vengono create lo stesso, il codice va inserito a mano nella scheda della ditta.<br><span class="mu">${L.slice(0, 20).map(x => 'Ditta ' + E(x.d.n) + ': ' + E(x.o.nome) + (x.o.cf ? ' (' + E(x.o.cf) + ')' : '')).join(' · ')}${L.length > 20 ? ' …' : ''}</span></div>` : ''; })()}
-<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th>Particelle</th></tr></thead><tbody>${res.ditte.map(d => `<tr><td><b>${E(d.n)}</b></td><td>${d.intest.map(o => E(o.nome) + ' <span class="mu">' + E(C.diritto(o)) + '</span>' + (!o.cf ? ' <span class="tag t-wa">C.F. mancante</span>' : !C.cfValido(o.cf) ? ' <span class="tag t-ko">C.F. da verificare</span>' : '')).join('<br>')}</td><td>${res.particelle.filter(x => x.ditta === d.id).map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(', ')}</td></tr>`).join('')}</tbody></table></div>
+<div class="tw" style="max-height:40vh"><table class="t"><thead><tr><th>Ditta</th><th>Intestatari</th><th>Particelle</th></tr></thead><tbody>${res.ditte.map(d => `<tr><td><b>${E(d.n)}</b></td><td>${d.intest.map(o => E(o.nome) + (o.natoA || o.natoIl || o.sede ? ' <span class="mu">' + E(C.giuridica(o) ? 'sede ' + (o.sede || o.natoA || '') : [o.natoA ? 'nato/a a ' + o.natoA : '', o.natoIl ? 'il ' + U.dataIt(o.natoIl) : ''].filter(Boolean).join(' ')) + '</span>' : '') + ' <span class="mu">' + E(C.diritto(o)) + '</span>' + (!o.cf ? ' <span class="tag t-wa">C.F. mancante</span>' : !C.cfValido(o.cf) ? ' <span class="tag t-ko">C.F. da verificare</span>' : '')).join('<br>')}</td><td>${res.particelle.filter(x => x.ditta === d.id).map(x => 'Fg.' + E(x.fg) + ' ' + E(C.mappale(x))).join(', ')}</td></tr>`).join('')}</tbody></table></div>
 <div class="g" style="margin-top:10px"><label>Foglio per le righe senza foglio<input id="itfg" value="${E(impTab.fg || '')}"></label>
 <label class="chk"><input type="checkbox" id="itsost" ${p.particelle.length ? '' : 'checked'}> Sostituisci elenco e ditte esistenti</label></div>
 <div class="row" style="margin-top:10px"><button class="p" id="itapp">Importa nel piano particellare</button></div>`}`;
@@ -659,16 +673,16 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
   // Un foglio con una riga per intestatario e i campi numerati come nei modelli a stampa unione (Comune1, Foglio1, Particella1…)
   function esportaUnione(p, c) {
     const N = Math.max(1, ...p.ditte.map(d => p.particelle.filter(x => x.ditta === d.id).length)), NI = Math.max(1, ...p.ditte.map(d => d.intest.length));
-    const H = ['Ditta', 'Nome_e_Cognome', 'via', 'cap', 'citta', 'nato_a_il', 'Cf', 'proprietà', 'quota'];
-    for (let i = 1; i <= NI; i++) H.push('Nome_e_Cognome' + i, 'via' + i, 'cap' + i, 'citta' + i, 'nato_a_il' + i, 'Cf' + i, 'proprietà' + i, 'quota' + i);
+    const H = ['Ditta', 'Nome_e_Cognome', 'via', 'cap', 'citta', 'nato_a_il', 'nato_a', 'nato_il', 'Cf', 'proprietà', 'quota'];
+    for (let i = 1; i <= NI; i++) H.push('Nome_e_Cognome' + i, 'via' + i, 'cap' + i, 'citta' + i, 'nato_a_il' + i, 'nato_a' + i, 'nato_il' + i, 'Cf' + i, 'proprietà' + i, 'quota' + i);
     for (let i = 1; i <= N; i++) H.push('Comune' + i, 'Foglio' + i, 'Particella' + i, 'haareca' + i, 'Superficie' + i, 'Reddito_Domenicale' + i, 'Reddito_agrario' + i, 'Sup' + i, 'Servitu' + i, 'Occupazione' + i);
     H.push('Indennita');
     const R = [H];
     p.ditte.forEach(d => {
       const ctx = ES.modelli.ditta(p, d, c);
       ctx.intestatari.forEach(o => {
-        const r = [d.n, o.nome, o.via, o.cap, o.citta, o.nascita, o.cf, o.titolo, o.quota];
-        for (let i = 0; i < NI; i++) { const q = ctx.intestatari[i] || {}; r.push(q.nome || '', q.via || '', q.cap || '', q.citta || '', q.nascita || '', q.cf || '', q.titolo || '', q.quota || ''); }
+        const r = [d.n, o.nome, o.via, o.cap, o.citta, o.nascita, o.natoA, o.natoIl, o.cf, o.titolo, o.quota];
+        for (let i = 0; i < NI; i++) { const q = ctx.intestatari[i] || {}; r.push(q.nome || '', q.via || '', q.cap || '', q.citta || '', q.nascita || '', q.natoA || '', q.natoIl || '', q.cf || '', q.titolo || '', q.quota || ''); }
         for (let i = 0; i < N; i++) { const x = ctx.particelle[i] || {}; r.push(x.comune || '', x.fg || '', x.mappale || '', x.haareca || '', x.sup || '', x.rd || '', x.ra || '', x.espr || '', x.servTot || '', x.occ || ''); }
         r.push(ctx.tot); R.push(r);
       });
