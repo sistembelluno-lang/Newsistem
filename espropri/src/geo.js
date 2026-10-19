@@ -44,6 +44,14 @@
   G.intersezione = (a, b) => (vuoto(a) || vuoto(b) ? [] : sicuro((x, y) => PC().intersection(x, y), [a, b], () => []));
   G.differenza = (a, ...b) => { b = b.filter(m => !vuoto(m)); if (vuoto(a)) return []; if (!b.length) return a; return sicuro((x, ...y) => PC().difference(x, ...y), [a, ...b], () => a); };
 
+  // Poligono con buchi → poligoni senza buchi con la stessa area complessiva: si taglia in verticale sul centro di un
+  // buco e si ripete sulle due metà (serve ai formati che hanno solo contorni chiusi, come il DXF per il CAD)
+  G.senzaBuchi = (P, prof = 0) => {
+    if (P.length <= 1 || prof > 14) return [P[0]];
+    const hb = G.bboxPts(P[1]), xc = (hb[0] + hb[2]) / 2, b = G.bboxPts(P[0]);
+    const sx = [[[b[0] - 1, b[1] - 1], [xc, b[1] - 1], [xc, b[3] + 1], [b[0] - 1, b[3] + 1]]], dx = [[[xc, b[1] - 1], [b[2] + 1, b[1] - 1], [b[2] + 1, b[3] + 1], [xc, b[3] + 1]]];
+    return [sx, dx].flatMap(r => G.intersezione([P], [r]).flatMap(q => G.senzaBuchi(q, prof + 1)));
+  };
   // Punto interno dove scrivere l'etichetta: il baricentro se cade dentro, altrimenti il centro del tratto interno più largo
   G.puntoEtichetta = P => {
     const r = P[0]; let A = 0, cx = 0, cy = 0;

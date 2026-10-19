@@ -190,11 +190,17 @@
     A.TIPI.forEach(t => {
       const Z = (geo.pezzi || []).filter(z => z.tipo === t); if (!Z.length) return;
       const sciolte = Z.filter(z => z.k && z.da !== 'catasto' || !z.k), cat = Z.filter(z => !sciolte.includes(z));
-      let U2 = cat.length ? G.unione(cat.map(z => z.mp)) : [];
-      if (U2.some(P => P.length > 1)) U2 = [].concat(...cat.map(z => z.mp));
-      U2.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; });
+      // i fori interni si tolgono tagliando l'area in pezzi senza fori (il DXF ha solo contorni chiusi);
+      // le schegge (meno di 0,05 m²) e i doppioni si scartano
+      const visti = new Set(), metti = (P, testo, h) => G.senzaBuchi(P).forEach(r => {
+        const a = Math.abs(G.areaAnello(r)); if (a < 0.05) return;
+        const b = G.bboxPts(r), k = t + b.map(v => Math.round(v * 20)).join(',') + ':' + Math.round(a * 20); if (visti.has(k)) return; visti.add(k);
+        anello(r, L[t][0]);
+        if (testo) { const [x, y] = G.puntoEtichetta([r]); testi.push({ layer: L[t][0], x, y, t: testo, h, centro: true }); }
+      });
+      (cat.length ? G.unione(cat.map(z => z.mp)) : []).forEach(P => metti(P));
       // Aree fuori dalle particelle disegnate (o assegnate a mano): ognuna con il suo numero scritto dentro
-      sciolte.forEach(z => z.mp.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; if (z.map) { const [x, y] = G.puntoEtichetta(P); testi.push({ layer: L[t][0], x, y, t: etichetta(z), h: hT(z.a) * 0.8, centro: true }); } }));
+      sciolte.forEach(z => z.mp.forEach(P => metti(P, z.map ? etichetta(z) : '', hT(z.a) * 0.8)));
     });
     (geo.sfondo || []).forEach(l => { if (l.pts && l.pts.length > 1) poli.push({ layer: L.sfondo[0], pts: l.pts, chiusa: !!l.chiusa }); });
     const layers = {}; Object.values(L).forEach(([n, c]) => { layers[n] = c; });

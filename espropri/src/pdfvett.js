@@ -595,7 +595,9 @@
     // I buchi con dentro una scritta sono il riquadro bianco dell'etichetta («p.lla 62»): fanno parte dell'area
     const conScritta = h => { const b = bbox(h); return pagina.testi.some(t => t.x > b[0] && t.x < b[2] && t.y > b[1] && t.y < b[3] && G.inAnello(t.x, t.y, h)); };
     const areeColore = col => cacheAree[col] || (cacheAree[col] = unisci((L => L.length > 60000 ? (avvisi.push(`Il colore ${col} è usato da ${L.length} elementi (la mappa stessa?): non è stato preso come area`), []) : L)(pagina.poli.filter(p => p.area && p.colore === col && p.pts.length >= 3 && nelDisegno(p))).map(p => p.pts))
-      .map(Pol => [Pol[0], ...Pol.slice(1).filter(h => !conScritta(h))]));
+      .map(Pol => [Pol[0], ...Pol.slice(1).filter(h => !conScritta(h))])
+      // bordi delle campiture disegnati come rettangolini pieni (spessore di una linea): non sono aree
+      .filter(Pol => { const A = Math.abs(G.areaPoly(Pol)), per = Pol.reduce((s2, r) => s2 + r.reduce((t, q, j) => t + Math.hypot(q[0] - r[(j + 1) % r.length][0], q[1] - r[(j + 1) % r.length][1]), 0), 0); return per > 0 && 2 * A / per >= 1.1; }));
     voci.forEach((v, i) => {
       if (!v.ruolo) return;
       const nome = 'Legenda ' + (i + 1) + ': ' + v.testo;

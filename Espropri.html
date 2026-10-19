@@ -1136,6 +1136,14 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
   G.intersezione = (a, b) => (vuoto(a) || vuoto(b) ? [] : sicuro((x, y) => PC().intersection(x, y), [a, b], () => []));
   G.differenza = (a, ...b) => { b = b.filter(m => !vuoto(m)); if (vuoto(a)) return []; if (!b.length) return a; return sicuro((x, ...y) => PC().difference(x, ...y), [a, ...b], () => a); };
 
+  // Poligono con buchi → poligoni senza buchi con la stessa area complessiva: si taglia in verticale sul centro di un
+  // buco e si ripete sulle due metà (serve ai formati che hanno solo contorni chiusi, come il DXF per il CAD)
+  G.senzaBuchi = (P, prof = 0) => {
+    if (P.length <= 1 || prof > 14) return [P[0]];
+    const hb = G.bboxPts(P[1]), xc = (hb[0] + hb[2]) / 2, b = G.bboxPts(P[0]);
+    const sx = [[[b[0] - 1, b[1] - 1], [xc, b[1] - 1], [xc, b[3] + 1], [b[0] - 1, b[3] + 1]]], dx = [[[xc, b[1] - 1], [b[2] + 1, b[1] - 1], [b[2] + 1, b[3] + 1], [xc, b[3] + 1]]];
+    return [sx, dx].flatMap(r => G.intersezione([P], [r]).flatMap(q => G.senzaBuchi(q, prof + 1)));
+  };
   // Punto interno dove scrivere l'etichetta: il baricentro se cade dentro, altrimenti il centro del tratto interno più largo
   G.puntoEtichetta = P => {
     const r = P[0]; let A = 0, cx = 0, cy = 0;
@@ -1432,11 +1440,17 @@ var ES = (typeof globalThis !== 'undefined' ? globalThis : window).ES = (typeof 
     A.TIPI.forEach(t => {
       const Z = (geo.pezzi || []).filter(z => z.tipo === t); if (!Z.length) return;
       const sciolte = Z.filter(z => z.k && z.da !== 'catasto' || !z.k), cat = Z.filter(z => !sciolte.includes(z));
-      let U2 = cat.length ? G.unione(cat.map(z => z.mp)) : [];
-      if (U2.some(P => P.length > 1)) U2 = [].concat(...cat.map(z => z.mp));
-      U2.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; });
+      // i fori interni si tolgono tagliando l'area in pezzi senza fori (il DXF ha solo contorni chiusi);
+      // le schegge (meno di 0,05 m²) e i doppioni si scartano
+      const visti = new Set(), metti = (P, testo, h) => G.senzaBuchi(P).forEach(r => {
+        const a = Math.abs(G.areaAnello(r)); if (a < 0.05) return;
+        const b = G.bboxPts(r), k = t + b.map(v => Math.round(v * 20)).join(',') + ':' + Math.round(a * 20); if (visti.has(k)) return; visti.add(k);
+        anello(r, L[t][0]);
+        if (testo) { const [x, y] = G.puntoEtichetta([r]); testi.push({ layer: L[t][0], x, y, t: testo, h, centro: true }); }
+      });
+      (cat.length ? G.unione(cat.map(z => z.mp)) : []).forEach(P => metti(P));
       // Aree fuori dalle particelle disegnate (o assegnate a mano): ognuna con il suo numero scritto dentro
-      sciolte.forEach(z => z.mp.forEach(P => { anello(P[0], L[t][0]); buchi += P.length - 1; if (z.map) { const [x, y] = G.puntoEtichetta(P); testi.push({ layer: L[t][0], x, y, t: etichetta(z), h: hT(z.a) * 0.8, centro: true }); } }));
+      sciolte.forEach(z => z.mp.forEach(P => metti(P, z.map ? etichetta(z) : '', hT(z.a) * 0.8)));
     });
     (geo.sfondo || []).forEach(l => { if (l.pts && l.pts.length > 1) poli.push({ layer: L.sfondo[0], pts: l.pts, chiusa: !!l.chiusa }); });
     const layers = {}; Object.values(L).forEach(([n, c]) => { layers[n] = c; });
@@ -4572,7 +4586,9 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
     // I buchi con dentro una scritta sono il riquadro bianco dell'etichetta («p.lla 62»): fanno parte dell'area
     const conScritta = h => { const b = bbox(h); return pagina.testi.some(t => t.x > b[0] && t.x < b[2] && t.y > b[1] && t.y < b[3] && G.inAnello(t.x, t.y, h)); };
     const areeColore = col => cacheAree[col] || (cacheAree[col] = unisci((L => L.length > 60000 ? (avvisi.push(`Il colore ${col} è usato da ${L.length} elementi (la mappa stessa?): non è stato preso come area`), []) : L)(pagina.poli.filter(p => p.area && p.colore === col && p.pts.length >= 3 && nelDisegno(p))).map(p => p.pts))
-      .map(Pol => [Pol[0], ...Pol.slice(1).filter(h => !conScritta(h))]));
+      .map(Pol => [Pol[0], ...Pol.slice(1).filter(h => !conScritta(h))])
+      // bordi delle campiture disegnati come rettangolini pieni (spessore di una linea): non sono aree
+      .filter(Pol => { const A = Math.abs(G.areaPoly(Pol)), per = Pol.reduce((s2, r) => s2 + r.reduce((t, q, j) => t + Math.hypot(q[0] - r[(j + 1) % r.length][0], q[1] - r[(j + 1) % r.length][1]), 0), 0); return per > 0 && 2 * A / per >= 1.1; }));
     voci.forEach((v, i) => {
       if (!v.ruolo) return;
       const nome = 'Legenda ' + (i + 1) + ': ' + v.testo;
