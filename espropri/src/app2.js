@@ -171,17 +171,33 @@
     const html = await htmlStampa(p);
     const titolo = titoloDoc(m), oggi = U.oggi();
     if (!(window.desktop && window.desktop.pdfDati && APP.FS.ok)) { $('#print').innerHTML = html(docs); window.print(); return; }
+    // Un PDF per documento (ogni intestatario o ditta), poi uniti: la numerazione riparte da 1 a ogni documento
+    // e dopo un documento con un numero dispari di pagine si aggiunge un foglio bianco (stampa fronte/retro)
+    const pezzi = [];
+    for (const d of docs) { $('#print').innerHTML = html([d]); pezzi.push(await window.desktop.pdfDati({})); }
     const files = [];
-    $('#print').innerHTML = html(docs);
-    files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}) });
+    files.push({ rel: APP.FS.dirGenerale(p) + '/' + titolo + (m.ambito === 'pratica' ? '' : ' - TUTTE LE DITTE') + ' (' + oggi + ').pdf', dati: await APP.unisciPdfNumerati(pezzi) });
     if (m.ambito !== 'pratica' && opt.perDitta !== false) for (const [id, L] of perDitta(docs)) {
-      const d = p.ditte.find(x => x.id === id); $('#print').innerHTML = html(L);
-      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await window.desktop.pdfDati({}), ditta: id });
+      const d = p.ditte.find(x => x.id === id);
+      files.push({ rel: APP.FS.dirDitta(p, d) + '/' + titolo + ' - Ditta ' + d.n + ' (' + oggi + ').pdf', dati: await APP.unisciPdfNumerati(L.map(x => pezzi[docs.indexOf(x)])), ditta: id });
     }
     await APP.salvaFile(p, files, titolo);
     logDoc(p, files, k, m.nome, opt);
     if (registra(p, opt)) APP.render();
     APP.salva();
+  };
+  // Unisce più PDF: «Pag. n di N» in basso a destra che riparte a ogni documento, foglio bianco dopo i documenti dispari
+  APP.unisciPdfNumerati = async (lista, opt = {}) => {
+    const L = window.PDFLib, out = await L.PDFDocument.create(), font = await out.embedFont(L.StandardFonts.Helvetica);
+    for (const dati of lista) {
+      const src = await L.PDFDocument.load(dati), pag = await out.copyPages(src, src.getPageIndices()), N = pag.length;
+      pag.forEach((pg, i) => {
+        out.addPage(pg);
+        if (opt.numeri !== false) { const t = 'Pag. ' + (i + 1) + ' di ' + N, sz = 8, { width } = pg.getSize(); pg.drawText(t, { x: width - 42 - font.widthOfTextAtSize(t, sz), y: 16, size: sz, font, color: L.rgb(0.25, 0.25, 0.25) }); }
+      });
+      if (N % 2 && opt.fronteRetro !== false) { const { width, height } = pag[N - 1].getSize(); out.addPage([width, height]); }
+    }
+    return out.save();
   };
   // Compatibilità: stampa di un modello (es. elenco ditte dal piano particellare)
   APP.stampaModello = (k, ambito, ditteSel, nelFascicolo) => APP.pdfTutti(APP.pr(), k, { ditte: ditteSel, perDitta: false, _fasc: nelFascicolo });
