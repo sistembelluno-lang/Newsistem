@@ -5450,6 +5450,11 @@ ${senza.length ? tabSenza(senza) : ''}`;
 <div id="cdit" class="ban" style="margin-top:8px"></div>
 ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" checked> Applica a tutto il mappale (${n} poligon${n === 1 ? 'o' : 'i'} di particella, ${np} aree d'intervento)</label>` : ''}`, [{ t: 'Annulla', v: '' }, { t: 'Applica', v: 'ok', p: true }], b => {
       // riscontro immediato con l'elenco ditte mentre si scrive
+      // aree d'intervento che cadono su questa particella, per tipo (vanno tutte alla stessa particella e alla stessa ditta)
+      const suQui = (geo.pezzi || []).filter(z => (k0 && z.k === k0) || z === sel.pezzo || (!k0 && sel.part && (lp => lp && sel.part.mp.some(P => ES.geo.inPoly(lp[0], lp[1], P)))(ES.geo.puntoEtichettaMP(z.mp))));
+      const perTipo = {}; suQui.forEach(z => { perTipo[z.tipo] = (perTipo[z.tipo] || 0) + z.a; });
+      const righe = A.TIPI.filter(t => perTipo[t]).map(t => `<span class="tag ${tagTipo(t)}">${A.RUOLI[t]} ${U.fmt(perTipo[t], 0)} mq</span>`).join(' ');
+      if (righe) b.querySelector('#cdit').insertAdjacentHTML('beforebegin', `<p style="margin:8px 0 0">Aree su questa particella: ${righe} <span class="mu">– una sola particella, superfici separate per tipo nella ditta</span></p>`);
       const mostra = () => {
         const fg = b.querySelector('#cfg').value.trim(), map = b.querySelector('#cmap').value.trim(), sub = b.querySelector('#csub').value.trim(), el = b.querySelector('#cdit');
         const m = APP.particellaDiChiave(p, fg, map, sub);

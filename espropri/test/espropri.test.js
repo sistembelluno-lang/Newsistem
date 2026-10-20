@@ -385,3 +385,25 @@ test('Mother File System: esporta, rilegge senza modifiche, accetta una correzio
   const O = JSON.parse(JSON.stringify(MF.esporta(pr))); const fo = O.find(f => f.nome === 'INTESTATARI'); [fo.righe[1], fo.righe[2]] = [fo.righe[2], fo.righe[1]];
   assert.ok(!MF.leggi(pr, await leggi(O)).ok);
 });
+
+test('una particella con tre aree di tipo diverso: una sola particella, superfici separate per la ditta', () => {
+  const G = ES.geo, R = (x0, y0, x1, y1) => [[[x0, y0], [x1, y0], [x1, y1], [x0, y1]]];
+  // particella 100 di 40×30 m con esproprio 10×30, servitù 10×30 e occupazione 10×30 affiancati
+  const dxf = { poli: [
+    { layer: 'PARTICELLE', pts: R(0, 0, 40, 30)[0], chiusa: true },
+    { layer: 'ESPROPRIO', pts: R(0, 0, 10, 30)[0], chiusa: true },
+    { layer: 'SERVITU_FASCIA', pts: R(10, 0, 20, 30)[0], chiusa: true },
+    { layer: 'OCCUPAZIONE_TEMPORANEA', pts: R(20, 0, 30, 30)[0], chiusa: true }
+  ], testi: [{ layer: 'PARTICELLE_NUMERI', x: 35, y: 15, t: '100', h: 1 }], layers: {} };
+  const geo = ES.analisi.importaDxf(dxf, { fg: '1' });
+  assert.strictEqual(geo.part.length, 1);
+  assert.ok(geo.pezzi.every(z => z.k === '1|100'), 'tutte le aree sulla particella 100');
+  const S = ES.analisi.superfici(geo)['1|100'];
+  assert.strictEqual(Math.round(S.espr), 300); assert.strictEqual(Math.round(S.serv), 300); assert.strictEqual(Math.round(S.occ), 300);
+  const d = { id: 'd1', n: '1', intest: [{ id: 'o1', nome: 'ROSSI MARIO', titolo: "Proprieta'", quota: '1/1' }], ev: {} };
+  const pr = { nome: 'P', ente: {}, impost: { procedura: 'art22' }, valori: [], geo, ditte: [d], particelle: [{ id: 'x1', ct: 'T', fg: '1', map: '100', sub: '', sup: 1200, qual: 'PRATO', cls: '1', man: {}, nuovo: {}, ditta: 'd1' }], iter: {} };
+  const c = ES.stima.calcola(pr), a = c.perP.get('x1').aree;
+  assert.deepStrictEqual([a.espr, a.serv, a.occ], [300, 300, 300]);
+  const D = c.perD.get('d1').aree;
+  assert.deepStrictEqual([D.espr, D.serv, D.occ], [300, 300, 300]);
+});
