@@ -20,7 +20,14 @@ Dalla pagina *Releases* del repository (o dagli *Artifacts* del workflow **Build
 - `TRITAPROJECT-<versione>-setup.exe`: installazione normale;
 - `TRITAPROJECT-<versione>-portable.exe`: si avvia senza installare.
 
-Serve Windows 10 o 11 a 64 bit. L'eseguibile non è firmato: al primo avvio Windows può dire «Ulteriori informazioni → Esegui comunque».
+| PC | File |
+|---|---|
+| Windows 10 / 11 a 64 bit | `TRITAPROJECT-<versione>-setup.exe` o `-portable.exe` |
+| Windows 7 / 8 (anche 32 bit) | `TRITAPROJECT-<versione>-Windows7-32bit-setup.exe` o `-portable.exe` |
+
+La versione per Windows 7 usa Electron 22, l'ultimo che supporta Windows 7. Ha le stesse funzioni, ma sulle tavole molto grandi e su PC vecchi è più lenta, e può usare al massimo 2-4 GB di memoria. Il visore 3D si apre nel browser predefinito: su Windows 7 conviene Chrome 109 o Firefox ESR 115.
+
+Gli eseguibili non sono firmati: al primo avvio Windows può dire «Ulteriori informazioni → Esegui comunque».
 
 ## Primo avvio: la chiave di Claude
 
@@ -100,7 +107,7 @@ Si apre con **📁 Cartella**.
 cd tritaproject
 npm install
 npm start                    # avvia l'app
-npm test                     # prova delle funzioni di tavole e DXF
+npm test                     # prove di tavole/DXF e del collegamento con Claude (finto server locale)
 xvfb-run -a npx electron --no-sandbox test/prova-electron.js <cartella uscita> <pdf o dxf…>
                              # prova completa senza Claude: carica i file, usa tutti gli strumenti, fotografa l'interfaccia
 ```

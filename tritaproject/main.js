@@ -1,3 +1,4 @@
+require('./compat');
 const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage, Menu } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -47,7 +48,9 @@ function createWindow() {
 
 async function renderer() {
   if (renderWin && !renderWin.isDestroyed()) return renderWin;
-  renderWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false } });
+  // offscreen: per Chromium la pagina è «visibile», quindi non viene rallentata come le finestre nascoste
+  // (su Electron 22, versione per Windows 7, una finestra nascosta disegna le tavole a scatti di un secondo)
+  renderWin = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, backgroundThrottling: false, offscreen: true } });
   await renderWin.loadFile(path.join(__dirname, 'ui', 'render.html'));
   return renderWin;
 }

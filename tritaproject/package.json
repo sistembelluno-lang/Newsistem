@@ -1,7 +1,7 @@
 {
   "name": "tritaproject",
   "productName": "TRITAPROJECT",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TRITAPROJECT: legge gli allegati di un progetto, risponde alle domande e genera relazioni, schemi e tavole",
   "main": "main.js",
   "author": "sistembelluno",
@@ -9,15 +9,17 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node test/prova-elaborati.js",
+    "test": "node test/prova-elaborati.js && node test/prova-sdk.js",
     "dist:win": "electron-builder --win --publish never",
-    "dist:linux": "electron-builder --linux --publish never"
+    "dist:linux": "electron-builder --linux --publish never",
+    "dist:win7": "electron-builder --win --publish never -c electron-builder-win7.json"
   },
   "build": {
     "appId": "it.sistembelluno.tritaproject",
     "productName": "TRITAPROJECT",
     "files": [
       "main.js",
+      "compat.js",
       "preload.js",
       "ai.js",
       "elaborati.js",
@@ -57,7 +59,8 @@
     "fflate": "^0.8.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "3.11.174",
-    "polygon-clipping": "^0.15.7"
+    "polygon-clipping": "^0.15.7",
+    "undici": "^5.29.0"
   },
   "devDependencies": {
     "electron": "^44.5.1",

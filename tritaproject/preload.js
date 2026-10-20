@@ -13,7 +13,8 @@ contextBridge.exposeInMainWorld('tp', {
   cartella: (id, sotto) => ipcRenderer.invoke('prog:cartella', id, sotto),
   scegliFile: (cartella) => ipcRenderer.invoke('doc:scegli', cartella),
   aggiungi: (id, files) => ipcRenderer.invoke('doc:aggiungi', id, files),
-  percorso: (file) => webUtils.getPathForFile(file),
+  // webUtils c'è da Electron 29; nella versione per Windows 7 (Electron 22) il percorso è in file.path
+  percorso: (file) => (webUtils ? webUtils.getPathForFile(file) : file.path),
   rimuovi: (id, docId) => ipcRenderer.invoke('doc:rimuovi', id, docId),
   rileggi: (id) => ipcRenderer.invoke('doc:rileggi', id),
   anteprima: (id, docId, pagina) => ipcRenderer.invoke('doc:anteprima', id, docId, pagina),

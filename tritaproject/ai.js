@@ -1,5 +1,6 @@
 // Il «cervello» di TRITAPROJECT: Claude legge gli allegati, li riassume in schede, risponde e genera elaborati
 // usando gli strumenti definiti qui sotto (eseguiti da main.js).
+require('./compat');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -28,28 +29,46 @@ function messaggioErrore(e) {
 // - ripiego: se un filtro di sicurezza blocca per errore la risposta, l'API la ripete su un altro modello;
 // - compattazione: nelle conversazioni molto lunghe la parte vecchia viene riassunta dal server;
 // - web: ricerca e lettura di pagine web.
-const facoltative = { ripiego: true, compattazione: true, web: true };
+// - legame del ragionamento: se un blocco di ragionamento di un turno precedente non corrisponde più alla conversazione
+//   (es. dopo un cambio di modello), l'API lo scarta invece di rifiutare la richiesta.
+const facoltative = { ripiego: true, compattazione: true, web: true, legame: true };
 
 function richiesta(base, { compatta = false, web = false } = {}) {
   const r = { ...base }, betas = [];
   if (facoltative.ripiego) { betas.push('server-side-fallback-2026-07-01'); r.fallbacks = 'default'; }
   if (compatta && facoltative.compattazione) { betas.push('compact-2026-01-12'); r.context_management = { edits: [{ type: 'compact_20260112' }] }; }
   if (web && facoltative.web) r.tools = [...r.tools, ...STRUMENTI_WEB];
+  if (compatta && facoltative.legame) { betas.push('thinking-binding-controls-2026-08-01'); r.thinking = { type: 'adaptive', block_binding: { prefix_mismatch_behavior: 'drop_block' } }; }
   if (betas.length) r.betas = betas;
   return r;
 }
 
-async function conRipiego(crea) {
+// ripara: se l'API rifiuta blocchi di ragionamento legati a una conversazione diversa, li toglie e si riprova una volta.
+async function conRipiego(crea, { ripara } = {}) {
+  let riparato = false;
   for (;;) {
     try {
       return await crea();
     } catch (e) {
       if (!(e instanceof Anthropic.BadRequestError)) throw e;
       const m = String(e.message).toLowerCase();
-      const k = /fallback/.test(m) ? 'ripiego' : /compact|context_management/.test(m) ? 'compattazione' : /web_search|web_fetch/.test(m) ? 'web' : null;
+      if (/bound to a different conversation/.test(m)) {
+        if (!ripara || riparato) throw e;
+        ripara(); riparato = true; continue;
+      }
+      const k = /fallback/.test(m) ? 'ripiego' : /compact|context_management/.test(m) ? 'compattazione' : /web_search|web_fetch/.test(m) ? 'web' : /block_binding|thinking-binding/.test(m) ? 'legame' : null;
       if (!k || !facoltative[k]) throw e;
       facoltative[k] = false;
     }
+  }
+}
+
+// Toglie i blocchi di ragionamento dalla cronologia (si usa solo per riparare conversazioni rifiutate dall'API).
+function togliRagionamenti(messaggi) {
+  for (const m of messaggi) {
+    if (m.role !== 'assistant' || !Array.isArray(m.content)) continue;
+    const resto = m.content.filter((b) => b.type !== 'thinking' && b.type !== 'redacted_thinking');
+    if (resto.length !== m.content.length) m.content = resto.length ? resto : [{ type: 'text', text: '…' }];
   }
 }
 
@@ -98,12 +117,9 @@ async function schedaDocumento(cl, cfg, progetto, doc, contenuto) {
 
 // ---------- Conversazione ----------
 
-function promptSistema(p) {
-  const indice = p.documenti.map((d) => {
-    const parti = d.parti.length > 1 ? ` — parti: ${d.parti.map((x, i) => `${i + 1}) pag. ${x.da}-${x.a}`).join(', ')}` : '';
-    return `### ${d.id} · ${d.nome} (${d.tipo === 'application/pdf' ? `${d.pagine} pag.` : d.tipo === 'application/dxf' ? 'DXF' : 'immagine/testo'}${parti})\n${d.scheda || '(scheda non ancora disponibile)'}`;
-  }).join('\n\n');
-  return `Sei TRITAPROJECT, l'assistente tecnico di uno studio di ingegneria. Lavori sul progetto «${p.nome}» e conosci i suoi allegati attraverso le schede qui sotto.
+// Istruzioni di sistema FISSE: non devono mai cambiare durante una conversazione, altrimenti l'API rifiuta i blocchi
+// di ragionamento dei turni precedenti. Nome, note e schede del progetto arrivano nei messaggi (vedi «contesto»).
+const SISTEMA = `Sei TRITAPROJECT, l'assistente tecnico di uno studio di ingegneria. Lavori su un progetto e conosci i suoi allegati attraverso le schede che ricevi nel blocco <contesto_progetto> dei messaggi dell'utente; quando ne arriva uno nuovo, sostituisce i precedenti.
 
 Come lavori:
 - Rispondi in italiano, con il linguaggio di un ingegnere progettista: preciso, concreto, con numeri e unità di misura.
@@ -129,7 +145,15 @@ Quadro normativo di riferimento (verifica sempre il testo vigente prima di citar
 - Opere pubbliche: Codice dei contratti, D.Lgs. 31 marzo 2023 n. 36, modificato dal correttivo D.Lgs. 209/2024. Art. 41 e Allegato I.7: la progettazione ha DUE livelli, il progetto di fattibilità tecnico-economica (PFTE) e il progetto esecutivo, preceduti dal documento di indirizzo alla progettazione (DIP) redatto dalla stazione appaltante. Il progetto definitivo non esiste più. Il PFTE contiene, tra l'altro, relazione generale e tecnica con indagini e studi, verifica preventiva dell'interesse archeologico, relazione di sostenibilità, rilievi, elaborati grafici, computo estimativo, quadro economico, cronoprogramma, prime indicazioni per la sicurezza, piano preliminare di manutenzione, piano particellare di esproprio quando serve, capitolato informativo se c'è il BIM. L'esecutivo sviluppa tutto al dettaglio costruttivo: relazioni specialistiche, calcoli esecutivi di strutture e impianti, elaborati grafici esecutivi, piano di manutenzione, PSC e quadro di incidenza della manodopera, elenco prezzi e analisi, computo metrico estimativo, quadro economico, schema di contratto e capitolato speciale d'appalto, cronoprogramma. Per la manutenzione ordinaria e straordinaria il correttivo consente, a certe condizioni, di omettere un livello (art. 41, commi 5 e 5-bis). C'è poi la verifica della progettazione (art. 42) prima della validazione.
 - Progetti redatti prima del 1° luglio 2023 (D.Lgs. 50/2016 e D.P.R. 207/2010): i livelli erano tre, preliminare/PFTE, definitivo ed esecutivo. Nei codici degli elaborati di solito PF = PFTE, PD = definitivo, PE = esecutivo.
 - Strutture: NTC 2018 (D.M. 17 gennaio 2018) con la Circolare C.S.LL.PP. n. 7/2019; zonazione sismica regionale. Edilizia privata: D.P.R. 380/2001 (titoli edilizi, stato legittimo), regolamenti edilizi e strumenti urbanistici comunali, vincoli (D.Lgs. 42/2004). Sicurezza nei cantieri: D.Lgs. 81/2008, Titolo IV. Opere ferroviarie: anche i manuali e le specifiche RFI/Italferr.
-- Quando la domanda riguarda la normativa, le procedure o i contenuti obbligatori di un elaborato, usa la ricerca web e preferisci le fonti ufficiali (normattiva.it, gazzettaufficiale.it, mit.gov.it, cslp.mit.gov.it, anticorruzione.it, siti di regioni ed enti, manuali di progettazione degli enti gestori). Cita la fonte con il collegamento.
+- Quando la domanda riguarda la normativa, le procedure o i contenuti obbligatori di un elaborato, usa la ricerca web e preferisci le fonti ufficiali (normattiva.it, gazzettaufficiale.it, mit.gov.it, cslp.mit.gov.it, anticorruzione.it, siti di regioni ed enti, manuali di progettazione degli enti gestori). Cita la fonte con il collegamento.`;
+
+// Contesto del progetto (nome, note, schede degli allegati), inviato in coda alla conversazione quando cambia.
+function contesto(p) {
+  const indice = p.documenti.map((d) => {
+    const parti = d.parti.length > 1 ? ` — parti: ${d.parti.map((x, i) => `${i + 1}) pag. ${x.da}-${x.a}`).join(', ')}` : '';
+    return `### ${d.id} · ${d.nome} (${d.tipo === 'application/pdf' ? `${d.pagine} pag.` : d.tipo === 'application/dxf' ? 'DXF' : 'immagine/testo'}${parti})\n${d.scheda || '(scheda non ancora disponibile)'}`;
+  }).join('\n\n');
+  return `Progetto: «${p.nome}»
 
 ## Note del progetto
 ${p.note || '(nessuna)'}
@@ -313,7 +337,12 @@ function controllaInput(nome, input) {
 // Una risposta completa: Claude ragiona, usa gli strumenti quante volte serve e alla fine risponde.
 // p.messaggi si allunga soltanto (mai modificato a ritroso), così il ragionamento e la cache restano validi.
 async function conversa({ cl, cfg, progetto: p, testo, esegui, evento, salva, segnale }) {
-  p.messaggi.push({ role: 'user', content: testo });
+  // la conversazione cresce solo in coda: se note o schede sono cambiate, il nuovo contesto va in questo messaggio
+  const ctx = contesto(p);
+  if (ctx !== p.contestoInviato) {
+    p.messaggi.push({ role: 'user', content: [{ type: 'text', text: `<contesto_progetto>\n${ctx}\n</contesto_progetto>` }, { type: 'text', text: testo }] });
+    p.contestoInviato = ctx;
+  } else p.messaggi.push({ role: 'user', content: testo });
   salva();
   for (let giro = 0; giro < MAX_GIRI; giro++) {
     if (segnale.interrotto) throw new Anthropic.APIUserAbortError();
@@ -324,7 +353,7 @@ async function conversa({ cl, cfg, progetto: p, testo, esegui, evento, salva, se
         max_tokens: 64000,
         output_config: { effort: cfg.impegno || 'high' },
         cache_control: { type: 'ephemeral' },
-        system: [{ type: 'text', text: promptSistema(p), cache_control: { type: 'ephemeral' } }],
+        system: [{ type: 'text', text: SISTEMA, cache_control: { type: 'ephemeral' } }],
         tools: STRUMENTI,
         messages: p.messaggi,
       }, { compatta: true, web: cfg.web !== false }));
@@ -338,9 +367,11 @@ async function conversa({ cl, cfg, progetto: p, testo, esegui, evento, salva, se
         else if (b.type === 'compaction') evento({ tipo: 'stato', testo: 'Riassumo la conversazione per fare spazio…' });
       });
       return stream.finalMessage();
-    });
+    }, { ripara: () => { togliRagionamenti(p.messaggi); salva(); } });
     segnale.stream = null;
     p.messaggi.push({ role: 'assistant', content: msg.content });
+    // dopo una compattazione il contesto del progetto può essere finito nel riassunto: al prossimo turno si rimanda
+    if (msg.content.some((b) => b.type === 'compaction')) p.contestoInviato = '';
     salva();
     if (msg.stop_reason === 'refusal') { evento({ tipo: 'testo', testo: '\n\n_(Claude non può rispondere a questa richiesta.)_' }); return; }
     if (msg.stop_reason === 'pause_turn') continue;
