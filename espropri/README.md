@@ -66,6 +66,9 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    tratteggio costruite dai capi delle linee (bordi obliqui e curvi senza scalini), con i tratteggi a trattini
    ricomposti e i vertici agganciati alle linee di contorno; foglio riconosciuto anche da «FDM … 45A», «Foglio di
    mappa 7», «… – Foglio 12»; nelle mappe a immagine il contorno passa per il centro della linea di confine.
+   **Novità 1.18.2**: numeri sotto tratteggi, zigrinature e puntini: nelle tavole vettoriali lo sfondo a motivo
+   non «attacca» più le cifre ai confini (le cifre restano scritte e si leggono); nelle mappe a immagine prima
+   di cercare i numeri si tolgono le linee lunghe e sottili del tratteggio e i puntini.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli

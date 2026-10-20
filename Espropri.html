@@ -4513,9 +4513,38 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
   // Numeri scritti nella mappa a pixel, cercati come li cerca un tecnico: gruppi di segni piccoli e staccati dalle linee
   // (le cifre), della stessa altezza e allineati. Restituisce i riquadri delle parole in pixel della mappa
   // {c0, r0, c1, r1, n} (righe dal basso, come la mappa): poi l'OCR legge ogni parola da sola.
+  // Sfondo da togliere prima di cercare i numeri (come fa l'occhio): le linee lunghe e sottili (tratteggi, zigrinature,
+  // confini) e i puntini. Un pixel è di una linea se in una delle 8 direzioni fa parte di un tratto più lungo di
+  // lungMax pixel (una cifra non è mai così lunga) e la linea lì è sottile; i gruppi minuscoli (puntini) si tolgono.
+  P.pulisciMaschera = (mr, lungMax, spessMax) => {
+    const { W, H, mask } = mr, N = W * H, linea = new Uint8Array(N);
+    const DIR = [[1, 0], [2, 1], [1, 1], [1, 2], [0, 1], [-1, 2], [-1, 1], [-2, 1]];
+    const run = new Uint16Array(N);
+    for (const [dx, dy] of DIR) {
+      const d = dy * W + dx;
+      // lunghezza del tratto in avanti e indietro lungo la direzione
+      run.fill(0);
+      for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) { const i = r * W + c; if (!mask[i]) continue; const c0 = c - dx, r0 = r - dy; run[i] = (c0 >= 0 && c0 < W && r0 >= 0 && mask[i - d]) ? Math.min(65000, run[i - d] + 1) : 1; }
+      for (let r = H - 1; r >= 0; r--) for (let c = W - 1; c >= 0; c--) { const i = r * W + c; if (!mask[i]) continue; const c1 = c + dx, r1 = r + dy; if (c1 >= 0 && c1 < W && r1 < H && mask[i + d] && run[i + d] > run[i]) run[i] = run[i + d]; }
+      // run[i] = lunghezza dell'intero tratto che passa per i (in passi lungo la direzione)
+      const passo = Math.hypot(dx, dy), lim = lungMax / passo;
+      for (let i = 0; i < N; i++) if (run[i] >= lim) linea[i] = 1;
+    }
+    // si toglie la linea solo dove è sottile (dentro una cifra più spessa resta il tratto della cifra)
+    const out = new Uint8Array(mask);
+    for (let r = 1; r < H - 1; r++) for (let c = 1; c < W - 1; c++) {
+      const i = r * W + c; if (!linea[i]) continue;
+      let sp = 0; for (let k = -spessMax; k <= spessMax; k++) { const rr = r + k; if (rr >= 0 && rr < H && mask[rr * W + c]) sp++; }
+      let sp2 = 0; for (let k = -spessMax; k <= spessMax; k++) { const cc = c + k; if (cc >= 0 && cc < W && mask[r * W + cc]) sp2++; }
+      if (Math.min(sp, sp2) <= spessMax) out[i] = 0;
+    }
+    return out;
+  };
   P.paroleRaster = (mr, opt = {}) => {
-    const { px, W, H, mask } = mr, mmPx = 72 / 25.4 / px;
+    const { px, W, H } = mr, mmPx = 72 / 25.4 / px;
     const hMin = Math.max(6, (opt.hMinMm || 0.9) * mmPx), hMax = (opt.hMaxMm || 4.5) * mmPx;
+    // maschera senza lo sfondo (tratteggi, zigrinature, puntini), calcolata una volta per la pagina
+    const mask = mr._pulita || (mr._pulita = P.pulisciMaschera(mr, Math.round(hMax * 1.25), Math.max(2, Math.round(0.25 * mmPx))));
     const lab = new Int32Array(W * H), st = new Int32Array(1 << 16), blob = [];
     let id = 0;
     for (let i0 = 0; i0 < W * H; i0++) {
@@ -4604,7 +4633,18 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
   P.glifi = pagina => {
     if (pagina._glifi) return pagina._glifi;
     // (si guarda tutta la pagina: un attacco a una linea qualsiasi basta a dire che non è una scritta)
-    const L = pagina.poli.filter(p => !p.area && p.pts.length >= 2 && !/^#f{6}$/i.test(p.colore));
+    const L0 = pagina.poli.filter(p => !p.area && p.pts.length >= 2 && !/^#f{6}$/i.test(p.colore));
+    // Sfondi a motivo (tratteggi, zigrinature, puntini) non sono confini: sopra un numero non lo «attaccano» a niente.
+    // Tratteggio = segmenti paralleli a passo regolare; puntini = trattini minuscoli; zigrinatura = spezzate lunghe a dente
+    // di sega (molti vertici con piccoli cambi di direzione alternati)
+    const seg2 = L0.map((p, i) => [p, i]).filter(([p]) => p.pts.length === 2), trS = P.tratteggi(seg2.map(([p]) => p.pts), 14, seg2.map(([p]) => p.colore));
+    const motivo = new Set(); seg2.forEach(([p], j) => { if (trS.has(j)) motivo.add(p); });
+    L0.forEach(p => {
+      const b = bbox(p.pts), dmax = Math.max(b[2] - b[0], b[3] - b[1]);
+      if (dmax < 0.6) { motivo.add(p); return; }
+      if (p.pts.length >= 10) { let lun = 0, giri = 0; for (let j = 1; j < p.pts.length; j++) { const a = p.pts[j - 1], q = p.pts[j]; lun += Math.hypot(q[0] - a[0], q[1] - a[1]); if (j >= 2) { const o = p.pts[j - 2], z = (a[0] - o[0]) * (q[1] - a[1]) - (a[1] - o[1]) * (q[0] - a[0]); if (j >= 3) { const o2 = p.pts[j - 3], z0 = (o[0] - o2[0]) * (a[1] - o[1]) - (o[1] - o2[1]) * (a[0] - o[0]); if (z * z0 < 0) giri++; } } } if (giri >= p.pts.length * 0.6 && lun / (p.pts.length - 1) < 6) motivo.add(p); }
+    });
+    const L = L0.filter(p => !motivo.has(p));
     const par = L.map((_, i) => i), trova = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
     const vert = new Map(), K = q => Math.round(q[0] * 4) + ',' + Math.round(q[1] * 4);
     L.forEach((p, i) => p.pts.forEach(q => { const k = K(q), j = vert.get(k); if (j == null) vert.set(k, i); else par[trova(i)] = trova(j); }));
@@ -4614,9 +4654,10 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
     // segmenti delle componenti grandi (confini), su una griglia, per riconoscere gli attacchi a «T»
     const grandi = new Set(); comp.forEach(c => { if (!piccoli.includes(c)) c.ii.forEach(i => grandi.add(i)); });
     const G = new Map(), CELLA = 8, cella = (x, y) => Math.floor(x / CELLA) + ',' + Math.floor(y / CELLA);
-    grandi.forEach(i => { const p = L[i]; for (let j = 0; j + 1 < p.pts.length; j++) { const a = p.pts[j], b = p.pts[j + 1]; const x0 = Math.floor(Math.min(a[0], b[0]) / CELLA), x1 = Math.floor(Math.max(a[0], b[0]) / CELLA), y0 = Math.floor(Math.min(a[1], b[1]) / CELLA), y1 = Math.floor(Math.max(a[1], b[1]) / CELLA); if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) continue; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const k = x + ',' + y; (G.get(k) || G.set(k, []).get(k)).push([a, b]); } } });
+    grandi.forEach(i => { const p = L[i]; for (let j = 0; j + 1 < p.pts.length; j++) { const a = p.pts[j], b = p.pts[j + 1], col = p.colore; const x0 = Math.floor(Math.min(a[0], b[0]) / CELLA), x1 = Math.floor(Math.max(a[0], b[0]) / CELLA), y0 = Math.floor(Math.min(a[1], b[1]) / CELLA), y1 = Math.floor(Math.max(a[1], b[1]) / CELLA); if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) continue; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const k = x + ',' + y; (G.get(k) || G.set(k, []).get(k)).push([a, b, col]); } } });
     const dSeg = (q, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1e-12, t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)); return Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy); };
-    const attaccata = c => c.ii.some(i => { const p = L[i]; return [p.pts[0], p.pts[p.pts.length - 1]].some(q => (G.get(cella(q[0], q[1])) || []).some(([a, b]) => dSeg(q, a, b) < 0.3)); });
+    // attaccata a un confine: un capo su una linea dello stesso colore (un retino colorato sopra il numero non conta)
+    const attaccata = c => c.ii.some(i => { const p = L[i]; return [p.pts[0], p.pts[p.pts.length - 1]].some(q => (G.get(cella(q[0], q[1])) || []).some(([a, b, col]) => col === p.colore && dSeg(q, a, b) < 0.3)); });
     let glifi = piccoli.filter(c => !attaccata(c));
     // Una particella minuscola (cabina, pozzetto) può essere un rettangolino chiuso isolato dentro un'altra particella:
     // è una scritta solo se fa parte di una parola (più caratteri vicini della stessa grandezza) oppure se la tavola non

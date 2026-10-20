@@ -123,3 +123,18 @@ test('scritte disegnate a linee: riconosciute e tolte dai confini, le particelle
   const pv = ES.pdfv.paroleVettoriali(gl);
   assert.strictEqual(pv.parole.filter(w => w.n === 2).length >= 1, true, 'una parola di due caratteri');
 });
+
+test('numeri disegnati sotto tratteggi, zigrinature e puntini: restano scritte', () => {
+  const L = (pts, colore = '#000000') => ({ pts, colore, area: false, chiusa: false, oc: 'PARTICELLE' });
+  const poli = [L([[0, 0], [200, 0]]), L([[200, 0], [200, 100]]), L([[200, 100], [0, 100]]), L([[0, 100], [0, 0]])];
+  const uno = L([[40, 50], [40, 56]]), otto = L([[43, 50], [46, 50], [46, 56], [43, 56], [43, 50]]), mezzo = L([[43, 53], [46, 53]]);
+  poli.push(uno, otto, mezzo);
+  // tratteggio rosso obliquo che passa per i capi delle cifre
+  for (let k = -40; k <= 40; k++) poli.push(L([[20 + k * 2, 30], [40 + k * 2, 50]], '#ff0000'));
+  // zigrinatura nera che passa proprio sul capo del «1»
+  const zz = []; for (let x = 0; x <= 120; x += 2) zz.push([x, 56 + (x / 2 % 2 ? 1 : 0)]); zz[20] = [40, 56]; poli.push(L(zz));
+  // puntini
+  for (let k = 0; k < 30; k++) poli.push(L([[38 + k * 0.3, 55], [38.2 + k * 0.3, 55]]));
+  const gl = ES.pdfv.glifi({ poli, testi: [] });
+  assert.ok(gl.set.has(uno) && gl.set.has(otto), 'le cifre sotto lo sfondo sono riconosciute come scritte');
+});
