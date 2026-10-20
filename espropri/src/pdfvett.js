@@ -20,8 +20,15 @@
   // Curva di Bézier cubica approssimata con 4 tratti (archi, cerchi dei richiami, confini curvi)
   const bez = (cur, c1, c2, e) => {
     const p0 = cur.pts[cur.pts.length - 1];
-    for (const t of [0.25, 0.5, 0.75]) { const u = 1 - t; cur.pts.push([u * u * u * p0[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * e[0], u * u * u * p0[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * e[1]]); }
-    cur.pts.push(e);
+    // suddivisione adattiva: la curva si spezza finché i segmenti si discostano dalla curva meno di 0,05 punti
+    // (circa 2 cm a 1:1000), così archi e curve stradali restano fedeli
+    const piatta = (a, b, c, d) => { const ux = 3 * b[0] - 2 * a[0] - d[0], uy = 3 * b[1] - 2 * a[1] - d[1], vx = 3 * c[0] - a[0] - 2 * d[0], vy = 3 * c[1] - a[1] - 2 * d[1]; return Math.max(ux * ux, vx * vx) + Math.max(uy * uy, vy * vy) <= 16 * 0.05 * 0.05; };
+    const div = (a, b, c, d, n) => {
+      if (n > 12 || piatta(a, b, c, d)) { cur.pts.push(d); return; }
+      const m = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2], ab = m(a, b), bc = m(b, c), cd = m(c, d), abc = m(ab, bc), bcd = m(bc, cd), x = m(abc, bcd);
+      div(a, ab, abc, x, n + 1); div(x, bcd, cd, d, n + 1);
+    };
+    div(p0, c1, c2, e, 0);
   };
 
   // Nome di colore leggibile per i layer proposti
@@ -269,16 +276,47 @@
       const L = []; ang.forEach(a => { const d = Math.min(Math.abs(a - a0), 180 - Math.abs(a - a0)); if (d <= 2 && !usati.has(a)) { usati.add(a); L.push(...gruppi[a]); } });
       if (L.length < 4) return;
       const th = a0 * Math.PI / 180, c = Math.cos(th), sn = Math.sin(th);
-      const R = L.map(s => { const u = q => [q[0] * c + q[1] * sn, -q[0] * sn + q[1] * c]; const p = u(s[0]), q = u(s[1]); return { y: (p[1] + q[1]) / 2, x1: Math.min(p[0], q[0]), x2: Math.max(p[0], q[0]) }; }).sort((p, q) => p.y - q.y);
+      const R0 = L.map(s => { const u = q => [q[0] * c + q[1] * sn, -q[0] * sn + q[1] * c]; const p = u(s[0]), q = u(s[1]); return { y: (p[1] + q[1]) / 2, x1: Math.min(p[0], q[0]), x2: Math.max(p[0], q[0]) }; }).sort((p, q) => p.y - q.y || p.x1 - q.x1);
+      // Tratteggi a linee spezzate (trattini sfalsati): i trattini sulla stessa retta si ricompongono in una linea
+      // intera, da contorno a contorno (le interruzioni del motivo non sono contorni)
+      const lun = R0.map(r => r.x2 - r.x1).sort((a, b) => a - b), trat = lun[Math.floor(lun.length / 2)] || 0;
+      const R = [];
+      for (let i = 0; i < R0.length;) {
+        let j = i; while (j + 1 < R0.length && R0[j + 1].y - R0[i].y < 0.2) j++;
+        const riga = R0.slice(i, j + 1).sort((a, b) => a.x1 - b.x1);
+        let cur = { ...riga[0] };
+        for (let m = 1; m < riga.length; m++) { const o = riga[m]; if (o.x1 - cur.x2 <= Math.max(trat * 2.5, 1)) cur.x2 = Math.max(cur.x2, o.x2); else { R.push(cur); cur = { ...o }; } }
+        R.push(cur); i = j + 1;
+      }
       // passo del tratteggio: mediana delle distanze tra linee consecutive che si sovrappongono
       const d = []; for (let i = 1; i < R.length; i++) { const dy = R[i].y - R[i - 1].y; if (dy > 1e-6 && R[i].x1 < R[i - 1].x2 && R[i - 1].x1 < R[i].x2) d.push(dy); }
       if (!d.length) return;
       d.sort((p, q) => p - q); const passo = d[Math.floor(d.length / 2)];
       const ruota = (x, y) => [x * c - y * sn, x * sn + y * c];
-      // ogni linea vale una striscia larga un passo: nei tratteggi CAD la prima e l'ultima linea cadono in media
-      // a mezzo passo dal contorno, quindi le strisce ricompongono la figura senza errore sistematico
-      const mz = passo * 0.52; // un filo più di mezzo passo: le strisce vicine si sovrappongono e non lasciano fessure
-      const strisce = R.map(r => [[ruota(r.x1, r.y - mz), ruota(r.x2, r.y - mz), ruota(r.x2, r.y + mz), ruota(r.x1, r.y + mz)]]);
+      // I capi delle linee di un tratteggio stanno sul contorno vero dell'area: tra una linea e quella successiva
+      // si prende il trapezio che unisce i loro capi, così i bordi obliqui e curvi seguono il disegno (non a scalini).
+      // Solo oltre la prima e l'ultima linea (che cadono in media a mezzo passo dal contorno) si aggiunge mezzo passo.
+      const mz = passo * 0.5, strisce = [];
+      const sopra = R.map(() => false), sotto = R.map(() => false), su = R.map(() => -1), giu = R.map(() => -1);
+      R.forEach((r, i) => {
+        let best = -1, ov = 0;
+        for (let j = i + 1; j < R.length && R[j].y - r.y <= passo * 1.6; j++) { const o = R[j]; if (o.y - r.y < passo * 0.4) continue; const v = Math.min(r.x2, o.x2) - Math.max(r.x1, o.x1); if (v > ov) { ov = v; best = j; } }
+        if (best >= 0) { su[i] = best; if (giu[best] < 0) giu[best] = i; sopra[i] = true; sotto[best] = true; }
+      });
+      // Tratteggio a trattini: l'ultimo trattino di una riga può fermarsi prima del contorno. Le rientranze rispetto
+      // alle due righe vicine (non più lunghe di un trattino con il suo intervallo) si riempiono, come ripassando il bordo.
+      const spezzato = R.length < R0.length * 0.8, lim = spezzato ? Math.max(trat * 2.5, 1) : 0;
+      if (lim) for (let it = 0; it < 2; it++) R.forEach((r, i) => {
+        const a2 = su[i], b2 = giu[i]; if (a2 < 0 || b2 < 0) return;
+        const t2 = (R[a2].x2 + R[b2].x2) / 2, t1 = (R[a2].x1 + R[b2].x1) / 2;
+        if (t2 > r.x2 && t2 - r.x2 <= lim) r.x2 = t2;
+        if (t1 < r.x1 && r.x1 - t1 <= lim) r.x1 = t1;
+      });
+      R.forEach((r, i) => { if (su[i] >= 0) { const o = R[su[i]]; strisce.push([[ruota(r.x1, r.y), ruota(r.x2, r.y), ruota(o.x2, o.y), ruota(o.x1, o.y)]]); } });
+      R.forEach((r, i) => {
+        if (!sopra[i]) strisce.push([[ruota(r.x1, r.y), ruota(r.x2, r.y), ruota(r.x2, r.y + mz), ruota(r.x1, r.y + mz)]]);
+        if (!sotto[i]) strisce.push([[ruota(r.x1, r.y - mz), ruota(r.x2, r.y - mz), ruota(r.x2, r.y), ruota(r.x1, r.y)]]);
+      });
       // unione a blocchi per non appesantire la libreria
       // (coordinate arrotondate e, se la libreria non regge una geometria degenere, unione a gruppi più piccoli)
       const r3 = v => Math.round(v * 1000) / 1000;
@@ -294,6 +332,26 @@
     });
     return out;
   };
+
+  // Indice a griglia di segmenti, per trovare in fretta il segmento più vicino a un punto
+  P.indiceSegmenti = (S, cella = 8) => {
+    const g = new Map();
+    S.forEach((s, i) => { const x0 = Math.floor(Math.min(s[0][0], s[1][0]) / cella), x1 = Math.floor(Math.max(s[0][0], s[1][0]) / cella), y0 = Math.floor(Math.min(s[0][1], s[1][1]) / cella), y1 = Math.floor(Math.max(s[0][1], s[1][1]) / cella); if ((x1 - x0 + 1) * (y1 - y0 + 1) > 2500) return; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const k = x + ',' + y; (g.get(k) || g.set(k, []).get(k)).push(i); } });
+    return { S, g, cella };
+  };
+  // Punto più vicino sui segmenti dell'indice entro tol, o null
+  const vicino = (ix, q, tol) => {
+    let best = null, bd = tol;
+    const cx = Math.floor(q[0] / ix.cella), cy = Math.floor(q[1] / ix.cella), r = Math.ceil(tol / ix.cella), visti = new Set();
+    for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) (ix.g.get(x + ',' + y) || []).forEach(i => {
+      if (visti.has(i)) return; visti.add(i);
+      const [a, b] = ix.S[i], dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1e-12, t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)), px = a[0] + t * dx, py = a[1] + t * dy, d = Math.hypot(q[0] - px, q[1] - py);
+      if (d < bd) { bd = d; best = [px, py]; }
+    });
+    return best;
+  };
+  // Aggancio dei vertici di un poligono (anelli) alle linee vere: ogni vertice va sul punto più vicino entro tol
+  P.aggancia = (Pol, ix, tol) => Pol.map(r => { const out = []; r.forEach(q => { const v = vicino(ix, q, tol) || q; const u = out[out.length - 1]; if (!u || Math.hypot(u[0] - v[0], u[1] - v[1]) > 1e-3) out.push(v); }); return out.length >= 3 ? out : r; });
 
   // ---- Mappa catastale «a pixel» (immagine scritta nel PDF come righe di rettangolini scuri) ----
   // Un tecnico legge i numeri e segue le linee: qui le righe di pixel diventano una bitmap, e da ogni numero di
@@ -685,6 +743,14 @@
     const seg2 = pagina.poli.filter(p => !p.area && p.pts.length === 2 && nelDisegno(p));
     const trSet = P.tratteggi(seg2.map(p => p.pts), 14, seg2.map(p => p.colore));
     const trattDi = col => seg2.filter((p, i) => trSet.has(i) && p.colore === col);
+    // Linee di contorno della tavola (spezzate e segmenti lunghi, non i trattini dei tratteggi), su una griglia
+    let _cont = null;
+    const contorni = () => {
+      if (_cont) return _cont;
+      const S = [];
+      pagina.poli.forEach(p => { if (p.area || /^#f{6}$/i.test(p.colore) || !nelDisegno(p)) return; let L = 0; for (let j = 1; j < p.pts.length; j++) L += Math.hypot(p.pts[j][0] - p.pts[j - 1][0], p.pts[j][1] - p.pts[j - 1][1]); if (L < 12) return; for (let j = 1; j < p.pts.length; j++) S.push([p.pts[j - 1], p.pts[j]]); });
+      return (_cont = P.indiceSegmenti(S));
+    };
     // Aree per colore di riempimento, unite (molti CAD esportano i riempimenti a triangoli)
     const cacheAree = {};
     // I buchi con dentro una scritta sono il riquadro bianco dell'etichetta («p.lla 62»): fanno parte dell'area
@@ -722,6 +788,8 @@
         // e solo quelle che si ripetono parallele a passo regolare (via segmenti sparsi dello stesso colore)
         const reg = P.tratteggi(segm, 14); for (let j = segm.length - 1; j >= 0; j--) if (!reg.has(j)) segm.splice(j, 1);
         const A = P.areeTratteggio(segm);
+        // i vertici dell'area si agganciano alla linea di contorno vera disegnata nella tavola (entro meno di un passo)
+        if (A.length) { const cont = contorni(); A.forEach(x => { x.poly = P.aggancia(x.poly, cont, Math.min(x.passo * 0.8, 3)); }); }
         perVoce.push({ v, M: A.map(x => x.poly) });
         A.forEach(x => taglia([x.poly]).forEach(Pol => senzaBuchi(Pol).forEach(r => metti(nome, r, true))));
         if (!A.length) avvisi.push(`«${v.testo}»: tratteggio non trovato nel disegno`);
@@ -809,8 +877,9 @@
       if (fin && !(t.x >= fin.b[0] && t.x <= fin.b[2] && t.y >= fin.b[1] && t.y <= fin.b[3])) return; // cartiglio, tabelle, note
       if (inCerchio(t)) { nCerchi++; out.testi.push({ ...t, layer: 'richiami cerchiati', x: t.x * k, y: t.y * k, h: t.h * k }); return; }
       if (leg.zona && t.x >= leg.zona[0] && t.x <= leg.zona[2] && t.y >= leg.zona[1] && t.y <= leg.zona[3]) return;
-      const m = /^\s*f(?:oglio|g)\.?\s*(?:n\.?\s*)?(\d+)\s*(?:(?:sez(?:ione)?\.?|sez\.)\s*([a-z]))?\s*$/i.exec(t.t);
-      if (m && (!fin || (t.x >= fin.b[0] && t.x <= fin.b[2] && t.y >= fin.b[1] && t.y <= fin.b[3]))) fogli.push({ x: t.x * k, y: t.y * k, fg: m[1], sez: (m[2] || '').toUpperCase() });
+      // «Foglio 12», «Fg. 12 sez. A», «FOGLIO DI MAPPA 12», «FDM LONGARONE 45A», «Comune di … – Foglio 12 All. B»
+      const m = /(?:^|[\s\-–(])(?:foglio(?:\s+di\s+mappa)?|f\.?\s?d\.?\s?m\.?|fg)\.?\s*(?:n\.?\s*|n°\s*)?(?:(?:[a-zà-ù'’]{2,}\s+){1,3})?(\d{1,4})\s*([a-z])?(?:\s*(?:sez(?:ione)?|all(?:egato|\.)?)\.?\s*([a-z]))?\s*(?:$|[\s\-–)])/i.exec(t.t);
+      if (m && !/mapp|p\.?\s?lla|partic|\bsub\b/i.test(t.t) && (!fin || (t.x >= fin.b[0] && t.x <= fin.b[2] && t.y >= fin.b[1] && t.y <= fin.b[3]))) fogli.push({ x: t.x * k, y: t.y * k, fg: m[1], sez: (m[3] || m[2] || '').toUpperCase() });
       else out.testi.push({ ...t, layer: 'testi', x: t.x * k, y: t.y * k, h: t.h * k, w: (t.w || 0) * k });
     });
     // Senza confini di particella, un'etichetta messa a cavallo del bordo di un'area (riquadro sul margine) vale per l'area più vicina
