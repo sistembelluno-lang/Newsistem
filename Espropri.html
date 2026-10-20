@@ -267,6 +267,7 @@ main>h2:first-child,main>.row:first-child h2{font-size:21px;font-weight:800;lett
 .gc select,.gc textarea,.gc input{width:100%;font-family:inherit;font-size:12.5px}
 .gc textarea{resize:vertical;min-height:44px}
 .gal-fm{display:flex;gap:6px}.gal-fm[hidden]{display:none}.gal-fm input{min-width:0}
+.ban.ok-ban{border-color:var(--ok);background:rgba(19,128,79,.08)}
 
 
 </style>
@@ -5432,17 +5433,42 @@ ${senza.length ? tabSenza(senza) : ''}`;
     parti.forEach(metti); pezzi.filter(Boolean).forEach(z => { metti(z); if (z.da !== 'catasto') z.da = 'a mano'; });
     return parti.length + pezzi.length;
   };
+  // La particella dell'elenco ditte con quel foglio, mappale (e sub): {x, d} o null
+  APP.particellaDiChiave = (p, fg, map, sub) => {
+    if (!map) return null;
+    const k = A.chiave(fg, map, sub), k0 = A.chiave(fg, map, '');
+    const x = p.particelle.find(q => A.chiave(q.fg, q.map, q.sub) === k) || p.particelle.find(q => A.chiave(q.fg, q.map, '') === k0) || (!fg ? p.particelle.find(q => A.chiave('', q.map, q.sub) === A.chiave('', map, sub)) : null);
+    return x ? { x, d: p.ditte.find(dd => dd.id === x.ditta) } : null;
+  };
   APP.correggiParticella = async (p, geo, sel, dopo) => {
     const o = sel.part || sel.pezzo, k0 = o.k || null;
     const n = k0 ? geo.part.filter(q => q.k === k0).length : 0, np = k0 ? (geo.pezzi || []).filter(z => z.k === k0).length : 0;
     const fogli = [...new Set(p.particelle.map(x => x.fg).filter(Boolean))].sort(U.cmp);
     const r = await APP.dlg(k0 ? 'Particella Fg. ' + (o.fg || '?') + ' mapp. ' + o.map : 'Particella senza numero', `<p class="mu">Correggi il foglio catastale (ad es. particelle vicine su fogli diversi: Fg. 10 e Fg. 22) e il numero letto dal disegno.</p>
-<div class="g"><label>Foglio<input id="cfg" value="${E(o.fg || '')}" list="cfgl"><datalist id="cfgl">${fogli.map(f => `<option value="${E(f)}">`).join('')}</datalist></label><label>Mappale<input id="cmap" value="${E(o.map || '')}"></label><label>Sub<input id="csub" value="${E(o.sub || '')}"></label></div>
-${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" checked> Applica a tutto il mappale (${n} poligon${n === 1 ? 'o' : 'i'} di particella, ${np} aree d'intervento)</label>` : ''}`, [{ t: 'Annulla', v: '' }, { t: 'Applica', v: 'ok', p: true }]);
+<div class="g"><label>Foglio<input id="cfg" value="${E(o.fg || '')}" list="cfgl"><datalist id="cfgl">${fogli.map(f => `<option value="${E(f)}">`).join('')}</datalist></label><label>Mappale<input id="cmap" list="cmapl" value="${E(o.map || '')}"></label><label>Sub<input id="csub" value="${E(o.sub || '')}"></label></div>
+<datalist id="cmapl">${[...new Set(p.particelle.map(x => String(x.map)))].sort(U.cmp).map(v => `<option value="${E(v)}">`).join('')}</datalist>
+<div id="cdit" class="ban" style="margin-top:8px"></div>
+${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" checked> Applica a tutto il mappale (${n} poligon${n === 1 ? 'o' : 'i'} di particella, ${np} aree d'intervento)</label>` : ''}`, [{ t: 'Annulla', v: '' }, { t: 'Applica', v: 'ok', p: true }], b => {
+      // riscontro immediato con l'elenco ditte mentre si scrive
+      const mostra = () => {
+        const fg = b.querySelector('#cfg').value.trim(), map = b.querySelector('#cmap').value.trim(), sub = b.querySelector('#csub').value.trim(), el = b.querySelector('#cdit');
+        const m = APP.particellaDiChiave(p, fg, map, sub);
+        if (!map) { el.className = 'ban'; el.innerHTML = 'Scrivi il mappale: il programma cerca la ditta che ha questa particella nell\'elenco.'; return; }
+        if (m && m.d) { el.className = 'ban ok-ban'; el.innerHTML = `✅ <b>Ditta ${E(m.d.n)}</b> – ${E(m.d.intest.map(q => q.nome).join(', '))}<br><span class="mu">Fg. ${E(m.x.fg)} mapp. ${E(C.mappale(m.x))}${m.x.sup ? ' · sup. catastale ' + U.mq(m.x.sup) + ' mq' : ''}: le superfici disegnate passano a questa ditta.</span>`; return; }
+        const stessi = p.particelle.filter(q => String(q.map).replace(/^0+/, '') === map.replace(/^0+/, ''));
+        el.className = 'ban err'; el.innerHTML = `⚠ Nessuna ditta dell'elenco ha Fg. ${E(fg || '?')} mapp. ${E(map)}.` + (stessi.length ? ` Il mappale ${E(map)} c'è sul foglio ${stessi.map(q => '<b>' + E(q.fg) + '</b>').join(', ')}: controlla il foglio.` : ' Puoi applicarlo lo stesso (resta fra i «problemi da risolvere») o correggere il numero.');
+      };
+      ['#cfg', '#cmap', '#csub'].forEach(id => b.querySelector(id).addEventListener('input', mostra)); mostra();
+    });
     if (r !== 'ok') return;
     const tut = $('#ctut'), nuovo = { fg: $('#cfg').value.trim(), map: $('#cmap').value.trim(), sub: $('#csub').value.trim() };
     const c = rinumera(geo, k0, nuovo, sel, tut ? tut.checked : true);
-    APP.salva(); toast(c + ' elementi aggiornati' + (nuovo.map ? ': Fg. ' + (nuovo.fg || '?') + ' mapp. ' + nuovo.map : '')); if (dopo) dopo();
+    // il numero corretto si collega alla ditta che ha la particella: confini ricalcolati se mancano
+    const m = APP.particellaDiChiave(p, nuovo.fg, nuovo.map, nuovo.sub);
+    if (m && geo === p.geo && !m.x.confini) m.x.confini = A.confini(p.geo, A.chiave(m.x.fg, m.x.map, m.x.sub)) || '';
+    APP.salva();
+    toast(nuovo.map ? `Fg. ${nuovo.fg || '?'} mapp. ${nuovo.map}: ` + (m && m.d ? `collegata alla Ditta ${m.d.n} (${m.d.intest.map(q => q.nome).join(', ').slice(0, 60)})` : 'non presente nell\'elenco ditte') + ` · ${c} elementi aggiornati` : c + ' elementi aggiornati', 6000);
+    if (dopo) dopo();
   };
   // Tabella delle particelle ricostruite dal disegno: foglio e mappale sempre modificabili
   function tabParticelle(g) {
@@ -5739,20 +5765,25 @@ ${impPdf.mappaImg ? `<div class="ban" style="margin-top:10px">🔎 <b>Numeri del
     const X = x => (x / k - z[0]) * sc, Y = y => (z[3] - y / k) * sc, col = { espr: '#d62828', servop: '#7b2cbf', serv: '#1d70b8', occ: '#e07a00' };
     const path = M => M.map(P => P.map(r => 'M' + r.map(q => X(q[0]).toFixed(1) + ' ' + Y(q[1]).toFixed(1)).join('L') + 'Z').join('')).join('');
     let s = `<svg viewBox="0 0 ${cv.width} ${cv.height}" style="position:absolute;inset:0;width:100%;height:100%">`;
+    // particelle ricostruite: contorno sottile e numero (verde se collegato a una ditta, rosso se no); clic per correggerle
+    const pr = APP.pr(), visti = new Set();
+    (g.part || []).forEach((q, i) => { const bb = ES.geo.bboxMP(q.mp); if (bb[2] < b[0] - mg * k || bb[0] > b[2] + mg * k || bb[3] < b[1] - mg * k || bb[1] > b[3] + mg * k) return; s += `<path data-opp="${i}" style="cursor:pointer" d="${path(q.mp)}" fill="#000" fill-opacity="0" pointer-events="all" stroke="#0a8a3a" stroke-width="${Math.max(1, cv.width / 1400)}"><title>${q.k ? 'Fg. ' + E(q.fg || '?') + ' mapp. ' + E(q.map) : 'particella senza numero'} – clic per correggere</title></path>`; });
+    (g.part || []).forEach(q => { if (!q.k || visti.has(q.k)) return; visti.add(q.k); const lp = ES.geo.puntoEtichettaMP(q.mp); if (!lp || X(lp[0]) < 0 || X(lp[0]) > cv.width || Y(lp[1]) < 0 || Y(lp[1]) > cv.height) return; const ok = pr && APP.particellaDiChiave(pr, q.fg, q.map, q.sub); s += `<text x="${X(lp[0]).toFixed(1)}" y="${Y(lp[1]).toFixed(1)}" font-size="${Math.max(11, cv.width / 130)}" text-anchor="middle" fill="${ok ? '#0a7a34' : '#c1121f'}" stroke="#fff" stroke-width="3" paint-order="stroke" font-weight="700" pointer-events="none">${E(q.map)}</text>`; });
     g.pezzi.forEach(p => { s += `<path data-opz="${p.id}" style="cursor:pointer" d="${path(p.mp)}" fill="${p.k ? col[p.tipo] : '#ff0000'}" fill-opacity="${p.k ? .12 : .3}" stroke="${col[p.tipo]}" stroke-width="${Math.max(1.5, cv.width / 900)}"><title>${E(A.RUOLI[p.tipo])} ${U.fmt(p.a, 1)} mq${p.map ? ' – mapp. ' + E(p.map) : ' – senza particella'}</title></path>`; });
     g.pezzi.forEach(p => { const lp = ES.geo.puntoEtichettaMP(p.mp); if (!lp) return; const t = (p.map || '?') + ' · ' + U.fmt(p.a, 0); s += `<text x="${X(lp[0]).toFixed(1)}" y="${Y(lp[1]).toFixed(1)}" font-size="${Math.max(12, cv.width / 110)}" text-anchor="middle" font-family="Arial" font-weight="700" fill="${col[p.tipo]}" stroke="#fff" stroke-width="3" paint-order="stroke">${E(t)}</text>`; });
     s += '</svg>';
     cv.style.cssText = 'width:100%;height:auto;display:block';
     el.innerHTML = ''; el.appendChild(cv); el.insertAdjacentHTML('beforeend', s);
     // clic su un'area: foglio e mappale a mano (le aree senza particella sono in rosso pieno)
-    el.querySelectorAll('[data-opz]').forEach(q => q.addEventListener('click', async () => {
+    const rifai = () => { const ir = document.querySelector('#ires'); if (ir) risultatoDxf(ir, APP.pr()); };
+    el.querySelectorAll('[data-opz]').forEach(q => q.addEventListener('click', e => {
+      e.stopPropagation();
       const z = g.pezzi.find(x => x.id === q.dataset.opz); if (!z) return;
-      const r = await APP.dlg('Area ' + A.RUOLI[z.tipo] + ' – ' + U.fmt(z.a, 1) + ' mq', `<p class="mu">Indica la particella su cui cade quest'area (come la leggi sulla tavola).</p><div class="g"><label>Foglio<input id="ozfg" value="${E(z.fg || '')}"></label><label>Mappale<input id="ozmap" value="${E(z.map || '')}"></label><label>Sub<input id="ozsub" value="${E(z.sub || '')}"></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Assegna', v: 'ok', p: true }]);
-      if (r !== 'ok') return;
-      const fg = $('#ozfg').value.trim(), map = $('#ozmap').value.trim(), sub = $('#ozsub').value.trim();
-      Object.assign(z, { fg, map, sub, k: map ? A.chiave(fg, map, sub) : null, da: 'a mano' });
-      const ir = document.querySelector('#ires'); if (ir) risultatoDxf(ir, APP.pr());
+      // l'area cade su una particella ricostruita? si corregge la particella (e le aree con lei), altrimenti solo l'area
+      const lp = ES.geo.puntoEtichettaMP(z.mp), pc = lp && (g.part || []).find(pp => pp.mp.some(P => ES.geo.inPoly(lp[0], lp[1], P)));
+      APP.correggiParticella(APP.pr(), g, pc ? { part: pc, pezzo: z } : { pezzo: z }, rifai);
     }));
+    el.querySelectorAll('[data-opp]').forEach(q => q.addEventListener('click', () => { const pc = g.part[+q.dataset.opp]; if (pc) APP.correggiParticella(APP.pr(), g, { part: pc }, rifai); }));
   }
   // Anteprima della lettura: solo la zona delle aree d'intervento
   function anteprimaPdf(g, p) {

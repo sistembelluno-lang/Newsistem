@@ -69,6 +69,11 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    **Novità 1.18.2**: numeri sotto tratteggi, zigrinature e puntini: nelle tavole vettoriali lo sfondo a motivo
    non «attacca» più le cifre ai confini (le cifre restano scritte e si leggono); nelle mappe a immagine prima
    di cercare i numeri si tolgono le linee lunghe e sottili del tratteggio e i puntini.
+   **Novità 1.18.3**: correzione di foglio e mappale sulla mappa (tavola grafica e confronto con il PDF
+   all'importazione, dove ora anche le particelle sono cliccabili e numerate): mentre si scrive si vede la ditta
+   dell'elenco che ha quella particella (o l'avviso se manca, con il foglio giusto se il mappale è altrove); il
+   numero sostituisce quello letto, le superfici passano alla ditta, i confini si calcolano e la mappa riporta il
+   numero corretto.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli

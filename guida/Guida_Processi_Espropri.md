@@ -1,6 +1,6 @@
 # ESPROPRI_SISTEM – Guida dei processi
 
-Versione 1.18.2. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
+Versione 1.18.3. Guida generata dal programma: percorsi, passi, termini e documenti sono quelli che il programma usa. I termini sono promemoria del D.P.R. 327/2001 (TUES) e della L. 241/1990: vanno sempre verificati sul testo vigente e sugli atti della pratica.
 
 ## 1. Il lavoro in breve
 
@@ -217,6 +217,7 @@ Per ogni documento il programma produce il file generale (tutte le ditte) in `00
 - **Area d'intervento più grande della superficie catastale** (es. 210 mq su una particella di 200 mq, per gli errori della mappa): il programma lo segnala e l'operatore sceglie, d'accordo con la committenza, se usare la superficie catastale (le superfici dal disegno si riducono in proporzione) o tenere la misura.
 - Banner dei controlli sulle ditte: codice fiscale mancante o errato, quote che non tornano o non indicate, indirizzo mancante.
 - Particelle del disegno non presenti nell'elenco ditte e particelle dell'elenco senza superfici: segnalate nella scheda Importa.
+- **Correzione sulla mappa**: cliccando una particella (tavola grafica, o confronto con il PDF all'importazione) e scrivendo foglio e mappale, il programma mostra subito la ditta dell'elenco che ha quella particella (o avvisa se manca, indicando il foglio giusto se il mappale è su un altro foglio); confermando, il numero sostituisce quello letto su tutti i poligoni e le aree della particella, le superfici passano alla ditta e la mappa riporta il nuovo numero (verde se collegato a una ditta, rosso se no).
 - **Foglio e mappale delle particelle ricostruite** sempre modificabili: nella tabella «Particelle ricostruite» del risultato dell'importazione e con un clic sulla tavola grafica (✏️ Foglio / mappale), per le particelle vicine su fogli diversi (es. Fg. 10 e Fg. 22).
 - **Esporta DXF da correggere in CAD**: la planimetria ricostruita con i layer del programma (PARTICELLE, PARTICELLE_NUMERI, ESPROPRIO, SERVITU_INGOMBRO_OPERE, SERVITU_FASCIA, OCCUPAZIONE_TEMPORANEA, SFONDO_CARTOGRAFIA) in metri; corretta in CAD si reimporta da Importa › Disegno e resta allineata.
 - Scadenze: in rosso i termini scaduti, in arancio quelli entro 15 giorni.

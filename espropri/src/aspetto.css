@@ -53,3 +53,4 @@ main>h2:first-child,main>.row:first-child h2{font-size:21px;font-weight:800;lett
 .gc select,.gc textarea,.gc input{width:100%;font-family:inherit;font-size:12.5px}
 .gc textarea{resize:vertical;min-height:44px}
 .gal-fm{display:flex;gap:6px}.gal-fm[hidden]{display:none}.gal-fm input{min-width:0}
+.ban.ok-ban{border-color:var(--ok);background:rgba(19,128,79,.08)}
