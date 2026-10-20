@@ -105,3 +105,21 @@ test('mappa a pixel: tutte le zone chiuse, anche tagliate dal bordo, e piccole i
   assert.strictEqual(R.length, 4, 'quattro zone: ' + R.length);
   R.forEach(z => assert.ok(z.bordo));
 });
+
+test('scritte disegnate a linee: riconosciute e tolte dai confini, le particelle piccole restano', () => {
+  const L = (pts, colore = '#000000') => ({ pts, colore, area: false, chiusa: false, oc: 'PARTICELLE' });
+  const poli = [
+    // due particelle grandi 100×100 pt
+    L([[0, 0], [200, 0]]), L([[200, 0], [200, 100]]), L([[200, 100], [0, 100]]), L([[0, 100], [0, 0]]), L([[100, 0], [100, 100]]),
+    // particella piccolissima (4×4 pt) attaccata a «T» al confine di destra
+    L([[200, 50], [204, 50], [204, 54], [200, 54]]),
+    // numero «18» disegnato a tratti dentro la prima particella
+    L([[40, 50], [40, 56]]), L([[43, 50], [46, 50], [46, 56], [43, 56], [43, 50]]), L([[43, 53], [46, 53]])
+  ];
+  const gl = ES.pdfv.glifi({ poli });
+  assert.ok(gl.set.has(poli[6]) && gl.set.has(poli[7]) && gl.set.has(poli[8]), 'cifre riconosciute');
+  assert.ok(!gl.set.has(poli[5]), 'la particella piccola non è una scritta');
+  assert.ok(!poli.slice(0, 5).some(p => gl.set.has(p)));
+  const pv = ES.pdfv.paroleVettoriali(gl);
+  assert.strictEqual(pv.parole.filter(w => w.n === 2).length >= 1, true, 'una parola di due caratteri');
+});

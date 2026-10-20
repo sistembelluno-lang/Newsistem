@@ -151,7 +151,7 @@
   // le voci «non più interessate» e gli elementi esistenti non sono aree d'intervento)
   P.ruoloTesto = s => {
     let n = ES.U.norm(s);
-    if (/non piu interessat|fascia di rispetto strad|corsi d acqua|strade pubbl|^ferrovi/.test(n)) return null;
+    if (/non piu interessat|fascia di rispetto strad|corsi d acqua|strade pubbl|^ferrovi|sede strad\w* (statal|provincial|comunal|esistent|pubblic|attual)|^(strad[ae]|viabilita) esistent/.test(n)) return null;
     // campitura dell'intera particella per dire che è interessata (la fascia d'intervento è un'altra voce)
     if (/^(particell[ae]|propriet[ae]|ditt[ae]|fond[io]|mappal[ei])\b.*\b(interessat|coinvolt|oggetto)/.test(n) && !/\b(fascia|area|aree|superfic)/.test(n)) return null;
     const v = /variat[ao] in (.*)$/.exec(n);
@@ -168,7 +168,15 @@
   // colori: colore di ciascun segmento (un tratteggio è di un colore solo: un confine nero non fa parte di un tratteggio arancio)
   P.tratteggi = (segm, passoMax = 14, colori) => {
     const gruppi = {}, out = new Set();
-    segm.forEach((s, i) => { const dx = s[1][0] - s[0][0], dy = s[1][1] - s[0][1]; if (Math.hypot(dx, dy) < 1e-6) return; let a = Math.round(Math.atan2(dy, dx) * 180 / Math.PI); a = ((a % 180) + 180) % 180; const c = colori ? colori[i] : ''; (gruppi[c] = gruppi[c] || {}); (gruppi[c][a] = gruppi[c][a] || []).push(i); });
+    // Segmenti che fanno parte di una spezzata (cerchietti dei numeri di piano, contorni disegnati a segmenti):
+    // entrambi i capi coincidono con il capo di un altro segmento dello stesso colore che va in un'altra direzione.
+    // Le linee di un tratteggio hanno i capi liberi (o proseguono dritte, se spezzate da un incrocio).
+    const capo = q => Math.round(q[0] * 20) + ',' + Math.round(q[1] * 20), dir = s => Math.atan2(s[1][1] - s[0][1], s[1][0] - s[0][0]);
+    const capi = new Map();
+    segm.forEach((s, i) => { const c = colori ? colori[i] : ''; [s[0], s[1]].forEach(q => { const k = c + '|' + capo(q); (capi.get(k) || capi.set(k, []).get(k)).push(i); }); });
+    const piega = (i, q) => { const c = colori ? colori[i] : '', a = dir(segm[i]); return (capi.get(c + '|' + capo(q)) || []).some(j => { if (j === i) return false; let d = Math.abs(dir(segm[j]) - a) % Math.PI; d = Math.min(d, Math.PI - d); return d > 0.05; }); };
+    const catena = new Set(); segm.forEach((s, i) => { if (piega(i, s[0]) && piega(i, s[1])) catena.add(i); });
+    segm.forEach((s, i) => { if (catena.has(i)) return; const dx = s[1][0] - s[0][0], dy = s[1][1] - s[0][1]; if (Math.hypot(dx, dy) < 1e-6) return; let a = Math.round(Math.atan2(dy, dx) * 180 / Math.PI); a = ((a % 180) + 180) % 180; const c = colori ? colori[i] : ''; (gruppi[c] = gruppi[c] || {}); (gruppi[c][a] = gruppi[c][a] || []).push(i); });
     Object.keys(gruppi).forEach(col => Object.keys(gruppi[col]).forEach(a0 => {
       const a = +a0, L = [].concat(...[a - 1, a, a + 1].map(x => gruppi[col][((x % 180) + 180) % 180] || []));
       if (L.length < 3) return;
@@ -512,6 +520,82 @@
     });
   };
 
+  // ---- Scritte disegnate a linee (testi CAD esplosi, font SHX): i numeri delle particelle come trattini ----
+  // Un tecnico le riconosce subito: gruppi di trattini piccoli, staccati dalle linee della mappa. Una particella vera,
+  // anche minuscola, è attaccata ai confini vicini (capi in comune o a «T» su un altro confine).
+  // Restituisce l'insieme delle spezzate che sono lettere, da togliere dai confini e da leggere con l'OCR.
+  P.glifi = pagina => {
+    if (pagina._glifi) return pagina._glifi;
+    // (si guarda tutta la pagina: un attacco a una linea qualsiasi basta a dire che non è una scritta)
+    const L = pagina.poli.filter(p => !p.area && p.pts.length >= 2 && !/^#f{6}$/i.test(p.colore));
+    const par = L.map((_, i) => i), trova = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+    const vert = new Map(), K = q => Math.round(q[0] * 4) + ',' + Math.round(q[1] * 4);
+    L.forEach((p, i) => p.pts.forEach(q => { const k = K(q), j = vert.get(k); if (j == null) vert.set(k, i); else par[trova(i)] = trova(j); }));
+    const comp = new Map(); L.forEach((p, i) => { const r = trova(i); const b = bbox(p.pts), c = comp.get(r); if (!c) comp.set(r, { b, ii: [i] }); else { c.b = [Math.min(c.b[0], b[0]), Math.min(c.b[1], b[1]), Math.max(c.b[2], b[2]), Math.max(c.b[3], b[3])]; c.ii.push(i); } });
+    const MAXG = 12; // un carattere non supera ~4 mm
+    const piccoli = [...comp.values()].filter(c => Math.max(c.b[2] - c.b[0], c.b[3] - c.b[1]) <= MAXG && Math.max(c.b[2] - c.b[0], c.b[3] - c.b[1]) >= 0.8);
+    // segmenti delle componenti grandi (confini), su una griglia, per riconoscere gli attacchi a «T»
+    const grandi = new Set(); comp.forEach(c => { if (!piccoli.includes(c)) c.ii.forEach(i => grandi.add(i)); });
+    const G = new Map(), CELLA = 8, cella = (x, y) => Math.floor(x / CELLA) + ',' + Math.floor(y / CELLA);
+    grandi.forEach(i => { const p = L[i]; for (let j = 0; j + 1 < p.pts.length; j++) { const a = p.pts[j], b = p.pts[j + 1]; const x0 = Math.floor(Math.min(a[0], b[0]) / CELLA), x1 = Math.floor(Math.max(a[0], b[0]) / CELLA), y0 = Math.floor(Math.min(a[1], b[1]) / CELLA), y1 = Math.floor(Math.max(a[1], b[1]) / CELLA); if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) continue; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const k = x + ',' + y; (G.get(k) || G.set(k, []).get(k)).push([a, b]); } } });
+    const dSeg = (q, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1e-12, t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)); return Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy); };
+    const attaccata = c => c.ii.some(i => { const p = L[i]; return [p.pts[0], p.pts[p.pts.length - 1]].some(q => (G.get(cella(q[0], q[1])) || []).some(([a, b]) => dSeg(q, a, b) < 0.3)); });
+    const glifi = piccoli.filter(c => !attaccata(c));
+    const set = new Set(); glifi.forEach(c => c.ii.forEach(i => set.add(L[i])));
+    return (pagina._glifi = { set, comp: glifi.map(c => ({ b: c.b, poli: c.ii.map(i => L[i]) })) });
+  };
+
+  // Parole fatte di caratteri disegnati: caratteri vicini in orizzontale, della stessa altezza e alla stessa quota.
+  // Ogni parola e ogni carattere diventano una piccola bitmap (px punti per pixel) per l'OCR (APP.ocrParole).
+  P.paroleVettoriali = (gl, px = 0.08, zona) => {
+    const bb = pts => pts.reduce((z, q) => [Math.min(z[0], q[0]), Math.min(z[1], q[1]), Math.max(z[2], q[0]), Math.max(z[3], q[1])], [Infinity, Infinity, -Infinity, -Infinity]);
+    // solo dentro la mappa (zona: [x0, y0, x1, y1] in punti), fuori da legenda e cartiglio
+    const comp0 = gl.comp.filter(c => (c.b[3] - c.b[1] >= 0.8 || c.b[2] - c.b[0] >= 0.8) && (!zona || zona(c.b)));
+    // caratteri disegnati due volte (stessa scritta su due livelli, o ripassata): se ne tiene uno
+    const visti = new Map(), comp = comp0.filter(c => { const s2 = Math.max(c.b[2] - c.b[0], c.b[3] - c.b[1]), k = Math.round((c.b[0] + c.b[2]) / 2 / Math.max(0.6, s2 * 0.3)) + ',' + Math.round((c.b[1] + c.b[3]) / 2 / Math.max(0.6, s2 * 0.3)) + ',' + Math.round(s2 * 2); if (visti.has(k)) return false; visti.set(k, 1); return true; });
+    const disegna = (poli, f, b, spess) => {
+      const ww = Math.ceil((b[2] - b[0]) / px) + 1, hh = Math.ceil((b[3] - b[1]) / px) + 1, bits = new Uint8Array(ww * hh), r = Math.max(1, Math.round(spess / px / 2));
+      const pun = (x, y) => { for (let dy = -r + 1; dy < r; dy++) for (let dx = -r + 1; dx < r; dx++) { const c = x + dx, rr = y + dy; if (c >= 0 && rr >= 0 && c < ww && rr < hh) bits[rr * ww + c] = 1; } };
+      poli.forEach(p => { const P2 = p.pts.map(f); for (let j = 0; j + 1 < P2.length; j++) { const a = P2[j], q = P2[j + 1], n = Math.ceil(Math.hypot(q[0] - a[0], q[1] - a[1]) / px) + 1; for (let k = 0; k <= n; k++) pun(Math.round((a[0] + (q[0] - a[0]) * k / n - b[0]) / px), Math.round((a[1] + (q[1] - a[1]) * k / n - b[1]) / px)); } });
+      return { w: ww, h: hh, bits };
+    };
+    const parola = (g, f, gruppo, rot) => {
+      const b = g.reduce((z, c) => [Math.min(z[0], c.b[0]), Math.min(z[1], c.b[1]), Math.max(z[2], c.b[2]), Math.max(z[3], c.b[3])], [Infinity, Infinity, -Infinity, -Infinity]);
+      const spess = Math.max(0.25, (b[3] - b[1]) * 0.09), poli = g.flatMap(c => comp[c.i].poli), tutto = disegna(poli, f, b, spess);
+      const o = bb(poli.flatMap(p => p.pts)); // ingombro sulla tavola
+      return { c0: 0, c1: tutto.w - 1, r0: 0, r1: tutto.h - 1, h: tutto.h, n: g.length, bits: tutto.bits, segni: g.map(c => disegna(comp[c.i].poli, f, c.b, spess)), cx: (o[0] + o[2]) / 2, cy: (o[1] + o[3]) / 2, pw: o[2] - o[0], ph: o[3] - o[1], gruppo, rot };
+    };
+    // Caratteri vicini e della stessa grandezza formano una parola, a qualsiasi inclinazione (i numeri seguono spesso
+    // l'orientamento della particella): l'inclinazione è la retta che passa per i centri dei caratteri
+    const info = comp.map(c => { const w = c.b[2] - c.b[0], h = c.b[3] - c.b[1]; return { s: Math.max(w, h), x: (c.b[0] + c.b[2]) / 2, y: (c.b[1] + c.b[3]) / 2 }; });
+    const par = comp.map((_, i) => i), trova = i => { while (par[i] !== i) i = par[i] = par[par[i]]; return i; };
+    const CEL = 12, gr = new Map(); info.forEach((o, i) => { const k = Math.floor(o.x / CEL) + ',' + Math.floor(o.y / CEL); (gr.get(k) || gr.set(k, []).get(k)).push(i); });
+    info.forEach((o, i) => { if (o.s < 1 || o.s > 12) return; const cx = Math.floor(o.x / CEL), cy = Math.floor(o.y / CEL); for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) (gr.get((cx + dx) + ',' + (cy + dy)) || []).forEach(j => { if (j <= i) return; const q = info[j]; if (q.s < 1 || q.s > 12 || Math.max(o.s, q.s) > Math.min(o.s, q.s) * 1.7) return; if (Math.hypot(o.x - q.x, o.y - q.y) <= Math.max(o.s, q.s) * 1.15) par[trova(i)] = trova(j); }); });
+    const G = new Map(); comp.forEach((_, i) => { if (info[i].s < 1 || info[i].s > 12) return; const r = trova(i); (G.get(r) || G.set(r, []).get(r)).push(i); });
+    const parole = []; let ng = 0;
+    const gruppoA = (idx, ang) => { const cs = Math.cos(-ang), sn = Math.sin(-ang), f = q => [q[0] * cs - q[1] * sn, q[0] * sn + q[1] * cs]; return { f, g: idx.map(i => { const b = bb(comp[i].poli.flatMap(p => p.pts.map(f))); return { i, b, h: b[3] - b[1] }; }).sort((a, b) => a.b[0] - b.b[0]) }; };
+    const sizes = [];
+    G.forEach(idx => {
+      if (idx.length < 2 || idx.length > 6) return;
+      // retta dei centri (componente principale)
+      const mx = idx.reduce((t, i) => t + info[i].x, 0) / idx.length, my = idx.reduce((t, i) => t + info[i].y, 0) / idx.length;
+      let sxx = 0, syy = 0, sxy = 0; idx.forEach(i => { const dx = info[i].x - mx, dy = info[i].y - my; sxx += dx * dx; syy += dy * dy; sxy += dx * dy; });
+      let ang = 0.5 * Math.atan2(2 * sxy, sxx - syy);
+      const { f, g } = gruppoA(idx, ang);
+      // una cifra è più alta che larga: se i caratteri raddrizzati sono larghi, la parola non è un numero
+      if (g.some(c => c.b[2] - c.b[0] > c.h * 1.15)) return;
+      const id = ng++, deg = ang * 180 / Math.PI;
+      parole.push(parola(g, f, id, Math.round(deg)));
+      g.forEach(c => sizes.push(c.h));
+      // il verso: se il testo non è quasi dritto si prova anche capovolto
+      if (Math.abs(deg) > 25) { const r2 = gruppoA(idx, ang + Math.PI); parole.push(parola(r2.g, r2.f, id, Math.round(deg + 180))); }
+    });
+    // caratteri soli (particelle con numero di una cifra): solo se alti come i numeri trovati, letti dritti
+    sizes.sort((a, b) => a - b); const hMed = sizes.length ? sizes[Math.floor(sizes.length / 2)] : 0;
+    if (hMed) G.forEach(idx => { if (idx.length !== 1) return; const { f, g } = gruppoA(idx, 0); const c = g[0]; if (Math.abs(c.h - hMed) <= hMed * 0.2 && c.b[2] - c.b[0] <= c.h * 1.05) parole.push(parola(g, f, ng++, 0)); });
+    return { px, x0: 0, y0: 0, W: Infinity, H: Infinity, mask: null, parole };
+  };
+
   // Particelle ricostruite dalla mappa a pixel: una per numero letto (testi del PDF o letti con l'OCR).
   // numeri: [{x, y, t}] in punti PDF. Restituisce [{pts, t}] senza sovrapposizioni (le particelle interne si tolgono).
   P.particelleRaster = (mr, numeri) => {
@@ -618,8 +702,14 @@
         if (!M.length) assenti.push(v.testo);
       } else {
         const segm = [];
-        pagina.poli.filter(p => !p.area && p.colore === v.simbolo.colore && (!v.simbolo.oc || p.oc === v.simbolo.oc) && nelDisegno(p))
-          .forEach(p => { for (let j = 0; j + 1 < p.pts.length; j++) segm.push([p.pts[j], p.pts[j + 1]]); });
+        // il livello CAD del simbolo conta solo se è un livello vero e nella mappa ci sono linee su quel livello
+        // (spesso la legenda è sul livello «0» e il tratteggio della mappa su «_Esproprio definitivo»)
+        ((L0, oc) => (oc && !/^(0|defpoints|legend\w*)$/i.test(oc) && L0.filter(p => p.oc === oc).length >= 12 ? L0.filter(p => p.oc === oc) : L0))(pagina.poli.filter(p => !p.area && p.colore === v.simbolo.colore && nelDisegno(p)), v.simbolo.oc)
+          // solo linee dritte (una spezzata che gira, come il cerchietto di un numero di piano, non è un tratteggio)
+          .filter(p => { const a = p.pts[0], b = p.pts[p.pts.length - 1], L = Math.hypot(b[0] - a[0], b[1] - a[1]); return L > 1e-6 && p.pts.every(q => Math.abs((b[0] - a[0]) * (a[1] - q[1]) - (a[0] - q[0]) * (b[1] - a[1])) / L < 0.3); })
+          .forEach(p => segm.push([p.pts[0], p.pts[p.pts.length - 1]]));
+        // e solo quelle che si ripetono parallele a passo regolare (via segmenti sparsi dello stesso colore)
+        const reg = P.tratteggi(segm, 14); for (let j = segm.length - 1; j >= 0; j--) if (!reg.has(j)) segm.splice(j, 1);
         const A = P.areeTratteggio(segm);
         perVoce.push({ v, M: A.map(x => x.poly) });
         A.forEach(x => taglia([x.poly]).forEach(Pol => senzaBuchi(Pol).forEach(r => metti(nome, r, true))));
@@ -628,7 +718,9 @@
     });
     // Particelle: livelli CAD con nome da particelle/confini/strade; se il PDF non ha livelli utili, le linee scure
     // del disegno che non sono tratteggi né contorni di simboli della legenda
-    const perLivello = pagina.poli.filter(p => !p.area && /partic|confin|strad|limite|mappa/i.test(p.oc) && !/tratteg|fabbric|scritt|testi|^z_/i.test(p.oc) && nelDisegno(p));
+    // scritte disegnate a linee (numeri delle particelle esplosi in trattini): non sono confini
+    const gl = P.glifi(pagina);
+    const perLivello = pagina.poli.filter(p => !p.area && /partic|confin|strad|limite|mappa/i.test(p.oc) && !/tratteg|fabbric|scritt|testi|^z_|esprop|asserv|occup|servit|vincol/i.test(p.oc) && nelDisegno(p) && !gl.set.has(p));
     // Mappa catastale «a pixel»: particelle ricostruite dai numeri (testi del PDF e numeri letti con l'OCR)
     const mr = pagina._mr === undefined ? (pagina._mr = P.mappaRaster(pagina)) : pagina._mr;
     const inLeg = t => leg.zona && t.x >= leg.zona[0] && t.x <= leg.zona[2] && t.y >= leg.zona[1] && t.y <= leg.zona[3];
@@ -660,7 +752,7 @@
     else {
       const colLeg = new Set(voci.map(v => v.simbolo.colore));
       const tr = new Set(seg2.filter((p, i) => trSet.has(i)));
-      const lin = pagina.poli.filter(p => !p.area && scuro(p.colore) && !colLeg.has(p.colore) && !tr.has(p) && nelDisegno(p));
+      const lin = pagina.poli.filter(p => !p.area && scuro(p.colore) && !colLeg.has(p.colore) && !tr.has(p) && nelDisegno(p) && !gl.set.has(p));
       // Poche linee oblique = la mappa catastale è un'immagine sotto le aree colorate: niente confini da ricostruire,
       // ogni area prende il numero di particella scritto al suo interno
       const obl = lin.filter(p => p.pts.some((q, i) => i && Math.abs(q[0] - p.pts[i - 1][0]) > 0.5 && Math.abs(q[1] - p.pts[i - 1][1]) > 0.5)).length;

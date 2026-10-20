@@ -457,9 +457,10 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
     // celle: ogni parola ingrandita ad almeno 32 pixel di altezza (l'OCR legge meglio)
     const celle = []; let x = 0, y = 0, hRiga = 0;
     parole.forEach(w => {
-      const k = Math.max(1, Math.min(3, 32 / (w.r1 - w.r0 + 1))), cw = Math.ceil((w.c1 - w.c0 + 1 + PAD * 2) * k), ch = Math.ceil((w.r1 - w.r0 + 1 + PAD * 2) * k);
-      if (x + cw > LARGH) { x = 0; y += hRiga + 16; hRiga = 0; }
-      celle.push({ w, k, x, y, cw, ch }); x += cw + 28; hRiga = Math.max(hRiga, ch);
+      // tutte le parole alla stessa altezza (circa 36 pixel), ben distanziate: l'OCR non le unisce
+      const k = Math.max(0.3, Math.min(3, 36 / (w.r1 - w.r0 + 1))), pad = Math.ceil(10 / k), cw = Math.ceil((w.c1 - w.c0 + 1 + pad * 2) * k), ch = Math.ceil((w.r1 - w.r0 + 1 + pad * 2) * k);
+      if (x + cw > LARGH) { x = 0; y += hRiga + 24; hRiga = 0; }
+      celle.push({ w, k, pad, x, y, cw, ch }); x += cw + 60; hRiga = Math.max(hRiga, ch);
     });
     const blocco = 1800; // fogli di al massimo 1800 pixel di altezza
     for (let b0 = 0; b0 <= y; b0 += blocco) {
@@ -469,7 +470,7 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
       C.forEach(c => {
         const { w, k } = c;
         for (let yy = 0; yy < c.ch; yy++) for (let xx = 0; xx < c.cw; xx++) {
-          const sc = Math.floor(xx / k - PAD), sr = Math.floor(w.r1 - w.r0 + PAD - yy / k), ww = w.c1 - w.c0 + 1; // righe dal basso
+          const sc = Math.floor(xx / k - c.pad), sr = Math.floor(w.r1 - w.r0 + c.pad - yy / k), ww = w.c1 - w.c0 + 1; // righe dal basso
           if (sc < 0 || sr < 0 || sc >= ww || sr > w.r1 - w.r0 || !(w.bits ? w.bits[sr * ww + sc] : mask[(w.r0 + sr) * W + w.c0 + sc])) continue;
           const o = ((c.y - b0 + 10 + yy) * cv.width + (c.x + 20 + xx)) * 4; im.data[o] = im.data[o + 1] = im.data[o + 2] = 0;
         }
@@ -489,9 +490,13 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
     celle.forEach((c, i) => {
       const l = fin[i]; if (!l || !/^\d{1,5}(\/\d{1,5})?$/.test(l.t)) return;
       const w = c.w;
-      out.push({ t: l.t, c: l.c, da: l.da, x: x0 + (w.c0 + w.c1 + 1) / 2 * px, y: y0 + (w.r0 + w.r1 + 1) / 2 * px, w: (w.c1 - w.c0 + 1) * px, h: (w.r1 - w.r0 + 1) * px, rot: 0 });
+      // parole di caratteri disegnati: posizione sulla tavola già nota (cx, cy), anche se lette ruotate
+      if (w.cx != null) out.push({ t: l.t, c: l.c, da: l.da, x: w.cx, y: w.cy, w: w.pw, h: w.ph, rot: w.rot || 0, gruppo: w.gruppo });
+      else out.push({ t: l.t, c: l.c, da: l.da, x: x0 + (w.c0 + w.c1 + 1) / 2 * px, y: y0 + (w.r0 + w.r1 + 1) / 2 * px, w: (w.c1 - w.c0 + 1) * px, h: (w.r1 - w.r0 + 1) * px, rot: 0 });
     });
-    return out;
+    // della stessa parola letta nei due versi si tiene la lettura più sicura
+    const meglio = new Map(); out.forEach(o => { if (o.gruppo == null) return; const m = meglio.get(o.gruppo); if (!m || o.c > m.c) meglio.set(o.gruppo, o); });
+    return out.filter(o => o.gruppo == null || meglio.get(o.gruppo) === o);
   };
   // Lettura dei numeri della mappa a immagine: dalla mappa senza i colori sopra (se il PDF la contiene a righe di pixel)
   // e dalla pagina disegnata; i doppioni si tolgono, i numeri che coincidono con testi del PDF pure.
@@ -500,6 +505,15 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
     try {
       let tutti = [];
       const mr = pagina._mr === undefined ? (pagina._mr = P.mappaRaster(pagina)) : pagina._mr;
+      // numeri scritti come disegno (testi CAD esplosi in trattini): si leggono parola per parola, anche ruotati
+      const gl = P.glifi(pagina);
+      if (gl.comp.length >= 10) {
+        stato('Lettura dei numeri disegnati a tratti…');
+        await new Promise(r => setTimeout(r, 30));
+        const vv = P.vista(pagina), lz = P.legenda(pagina).zona, fuori = b => lz && b[0] >= lz[0] - 2 && b[2] <= lz[2] + 2 && b[1] >= lz[1] - 2 && b[3] <= lz[3] + 2;
+        const pv = P.paroleVettoriali(gl, 0.08, b => (!vv || (b[0] >= vv.b[0] && b[2] <= vv.b[2] && b[1] >= vv.b[1] && b[3] <= vv.b[3])) && !fuori(b));
+        tutti = tutti.concat(await APP.ocrParole(pv, pv.parole, f => stato('Lettura dei numeri disegnati a tratti… ' + Math.round(f * 100) + '%')));
+      }
       if (mr) {
         // come un tecnico: si cercano i gruppi di cifre staccati dalle linee e si leggono uno per uno
         stato('Ricerca dei numeri nella mappa catastale…');
@@ -508,7 +522,7 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
         tutti = tutti.concat(await APP.ocrParole(mr, parole, f => stato('Lettura dei numeri dalla mappa catastale… ' + Math.round(f * 100) + '%')));
       }
       // la pagina disegnata (numeri visibili nella tavola): serve se la mappa non è a pixel o se lì si è letto poco
-      if (!mr || tutti.length < 20) {
+      if ((!mr && gl.comp.length < 10) || tutti.length < 20) {
         const v = P.vista(pagina), z = v ? v.b : [0, 0, pagina.w, pagina.h];
         const pg = await impPdf.r.doc.getPage(pagina.n), base = pg.getViewport({ scale: 1 });
         const sc = Math.min(300 / 72, Math.sqrt(36e6 / Math.max(1, (z[2] - z[0]) * (z[3] - z[1]))));
@@ -565,7 +579,7 @@ ${k0 && (n > 1 || np) ? `<label class="chk"><input type="checkbox" id="ctut" che
     if (impPdf.mappaImg === undefined) {
       // mappa catastale come immagine (righe di pixel nel PDF, o immagine sotto il disegno con pochi numeri scritti)
       const numTesti = pg.testi.filter(t => ES.analisi.etichetta(t.t)).length;
-      impPdf.mappaImg = !!(pg._mr === undefined ? (pg._mr = P.mappaRaster(pg)) : pg._mr) || numTesti < 15;
+      impPdf.mappaImg = !!(pg._mr === undefined ? (pg._mr = P.mappaRaster(pg)) : pg._mr) || numTesti < 15 || P.glifi(pg).comp.length >= 30;
     }
     if (!impPdf.leg) {
       impPdf.leg = P.legenda(pg); impPdf.voci = impPdf.leg.voci.map(v => ({ ...v }));
