@@ -62,6 +62,10 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    tratteggi su livelli diversi da quello della legenda; strade esistenti e linee di limite non scambiate per aree o
    confini; bordi delle campiture non presi come aree; particelle minuscole (cabine, pozzetti) conservate. Foto ed
    estratti con trascina e rilascia, foglio/mappale e didascalia per ogni immagine.
+   **Novità 1.18.1**: curve del PDF fedeli (suddivise con scarto di 0,05 punti, prima 4 segmenti); aree dal
+   tratteggio costruite dai capi delle linee (bordi obliqui e curvi senza scalini), con i tratteggi a trattini
+   ricomposti e i vertici agganciati alle linee di contorno; foglio riconosciuto anche da «FDM … 45A», «Foglio di
+   mappa 7», «… – Foglio 12»; nelle mappe a immagine il contorno passa per il centro della linea di confine.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
