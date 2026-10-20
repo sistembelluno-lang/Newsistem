@@ -16,6 +16,8 @@
   // Ruolo proposto in base al nome del layer
   A.ruoloAuto = nome => {
     const n = U.norm(nome);
+    // livelli di servizio della tavola (richiami delle ditte, cartiglio, legenda, quote, toponimi, note): non si leggono
+    if (/richiam|cartigl|legend|^quot|toponim|^note?\b|annotaz|cornice/.test(n)) return 'ignora';
     if (/espr|esprop|acquisiz/.test(n)) return 'espr';
     if (/ingombr|sedime|manufatt|pozzett|ingombro/.test(n)) return 'servop';
     if (/serv|asserv/.test(n)) return 'serv';
@@ -43,7 +45,15 @@
   A.chiave = (fg, map, sub) => nk(fg) + '|' + nk(map) + (nk(sub) ? '|' + nk(sub) : '');
 
   // opt: {ruoli:{layer:ruolo}, fg (foglio predefinito), comune, fgMap, sottrai (true), scheggia (mq, 0.5), poligonizza (true)}
+  // Scritte «FOGLIO 10» (anche «Fg. 10», «Foglio di mappa 10 sez. A») sparse nel disegno: {x, y, fg}
+  A.scritteFoglio = testi => (testi || []).map(t => {
+    if (/mapp|p\.?\s?lla|partic|\bsub\b/i.test(t.t)) return null;
+    const m = /(?:^|[\s\-–(])(?:foglio(?:\s+di\s+mappa)?|f\.?\s?d\.?\s?m\.?|fg)\.?\s*(?:n\.?\s*|n°\s*)?(?:(?:[a-zà-ù'’]{2,}\s+){1,3})?(\d{1,4})\s*([a-z])?(?:\s*(?:sez(?:ione)?|all(?:egato|\.)?)\.?\s*([a-z]))?\s*(?:$|[\s\-–)])/i.exec(t.t);
+    return m ? { x: t.x, y: t.y, fg: m[1] } : null;
+  }).filter(Boolean);
   A.importaDxf = function (dxf, opt) {
+    // il foglio delle particelle senza foglio nell'etichetta: dalla scritta «FOGLIO n» più vicina
+    if (!opt.fgDa) { const F = A.scritteFoglio(dxf.testi); if (F.length) opt = { ...opt, fgDa: (x, y) => F.reduce((b, f) => (Math.hypot(f.x - x, f.y - y) < Math.hypot(b.x - x, b.y - y) ? f : b)).fg }; }
     opt = Object.assign({ sottrai: true, scheggia: 0.5, poligonizza: true, tol: 0.01 }, opt || {});
     const ruolo = l => (opt.ruoli && opt.ruoli[l]) || A.ruoloAuto(l);
     const avvisi = [];
@@ -74,7 +84,8 @@
     }
 
     // Testi: a ogni testo il poligono più piccolo che lo contiene, per ciascun gruppo
-    const testi = dxf.testi.filter(t => ruolo(t.layer) !== 'ignora');
+    // (le scritte «FOGLIO n» danno il foglio, non sono numeri di particella)
+    const testi = dxf.testi.filter(t => ruolo(t.layer) !== 'ignora' && !A.scritteFoglio([t]).length);
     const assegna = (polys, filtro) => {
       polys.forEach(p => { p.b = G.bboxPts(p.poly[0]); p.a = G.areaPoly(p.poly); p.testi = []; });
       testi.forEach(t => {

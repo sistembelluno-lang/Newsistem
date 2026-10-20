@@ -74,6 +74,11 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    dell'elenco che ha quella particella (o l'avviso se manca, con il foglio giusto se il mappale è altrove); il
    numero sostituisce quello letto, le superfici passano alla ditta, i confini si calcolano e la mappa riporta il
    numero corretto.
+   **Novità 1.19**: **Standard DXF del piano particellare** (in ogni release e da Importa › «Standard DXF»): modello
+   R12 in metri con layer, colori, tipi di linea, stile dei testi, cornice A3 1:1000, cartiglio, legenda e un esempio
+   di svincolo a rotatoria (strada esistente in curva, rami in curva, particelle su due fogli, case, esproprio,
+   occupazione, condotta in servitù con pozzetti, richiami delle ditte), con la sua guida in PDF e HTML. Il programma
+   legge anche le scritte «FOGLIO n» dei DXF e ignora i layer di servizio (richiami, cartiglio, legenda, quote).
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli

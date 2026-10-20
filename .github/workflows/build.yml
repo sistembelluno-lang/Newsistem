@@ -75,7 +75,7 @@ jobs:
       # Guide in PDF dalle pagine HTML (Chrome è già installato sul runner)
       - name: Guide in PDF
         run: |
-          for f in Guida_Processi_Espropri Normativa_Espropri; do
+          for f in Guida_Processi_Espropri Normativa_Espropri Standard_DXF_Piano_Particellare; do
             google-chrome --headless=new --no-sandbox --disable-gpu --no-pdf-header-footer --print-to-pdf="$PWD/guida/$f.pdf" "file://$PWD/guida/$f.html"
             test -s "guida/$f.pdf"
           done
@@ -92,6 +92,9 @@ jobs:
             guida/Guida_Processi_Espropri.html
             guida/Normativa_Espropri.pdf
             guida/Normativa_Espropri.html
+            guida/Standard_Piano_Particellare.dxf
+            guida/Standard_DXF_Piano_Particellare.pdf
+            guida/Standard_DXF_Piano_Particellare.html
           body: |
             **ESPROPRI_SISTEM** – gestione delle procedure di esproprio, asservimento e occupazione temporanea (D.P.R. 327/2001).
 
@@ -105,3 +108,4 @@ jobs:
             Per leggere i DWG installare il convertitore gratuito «ODA File Converter»; in alternativa salvare il disegno come DXF.
             **Guida dei processi** di questa versione (percorsi art. 20, 22, 22-bis, 42-bis, 49 e cessione, passi, termini, documenti): `Guida_Processi_Espropri.pdf` o `.html`.
             **Studio della normativa**: `Normativa_Espropri.pdf` o `.html`.
+            **Standard DXF per i piani particellari**: modello `Standard_Piano_Particellare.dxf` (layer, colori, testi, cornice A3 1:1000, cartiglio, legenda, esempio) e la sua guida `Standard_DXF_Piano_Particellare.pdf` o `.html`.

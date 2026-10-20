@@ -289,7 +289,7 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
   let impDxf = null, impGeo = null, impTab = null, impPdf = null;
   APP.viste.importa = (m, p) => {
     m.innerHTML = `<h2>📥 Importa</h2>
-<div class="card"><h3 style="margin-top:0">1 · Disegno DXF / DWG / PDF</h3>
+<div class="card"><div class="row"><h3 style="margin:0" class="grow">1 · Disegno DXF / DWG / PDF</h3><button class="s" id="istd" title="Modello DXF con i layer, i testi e le regole che il programma legge senza correzioni">⬇ Standard DXF del piano particellare</button></div>
 <p class="mu">Il disegno può contenere le <b>aree d'intervento già tagliate</b> sui limiti di particella con dentro il numero della particella originaria (es. «100», «Fg.1 100»), oppure il <b>layer delle particelle catastali</b> con i numeri e le aree d'intervento intere: il programma divide da solo per particella. Le sovrapposizioni si tolgono per priorità: esproprio, servitù ingombro opere, servitù fascia, occupazione.</p>
 <p class="mu">Se la tavola c'è solo in <b>PDF</b> (esportato dal CAD, non scansionato) il programma la legge «a occhio»: cerca la legenda e i suoi simboli (colori, tratteggi), riconosce le aree con lo stesso aspetto, i confini e i numeri delle particelle, la scala e i fogli. È una <b>proposta da verificare</b>: le superfici dedotte si correggono poi nel piano particellare con quelle misurate.</p>
 <div class="row"><button class="p" id="idxf">Scegli DXF, DWG o PDF…</button><span class="mu" id="idxfn">${impPdf ? E(impPdf.nome) : impDxf ? E(impDxf.nome) : ''}</span></div>
@@ -299,6 +299,11 @@ ${I.FASI.map(f => { const x = p.iter[f.k] || {}; return `<tr><td>${E(f.nome)}</t
 <div class="row"><button class="p" id="itab">Scegli Excel o CSV…</button><span class="mu" id="itabn">${impTab ? E(impTab.nome) : ''}</span></div>
 <div id="itabv"></div></div>
 <div class="card"><h3 style="margin-top:0">Situazione della pratica</h3>${riepilogoImport(p)}</div>`;
+    m.querySelector('#istd').onclick = () => {
+      APP.scarica('Standard_Piano_Particellare.dxf', ES.standard.dxf(), 'application/dxf');
+      APP.scarica('Standard_DXF_Piano_Particellare.html', ES.standard.guidaHtml(), 'text/html');
+      APP.dlg('Standard DXF del piano particellare', `<p>Scaricati il modello <b>Standard_Piano_Particellare.dxf</b> e la sua guida.</p><ul style="margin:6px 0 8px 18px"><li>Unità in <b>metri</b>, cornice A3 in scala 1:1000, cartiglio e legenda.</li><li>Layer: ${ES.standard.LAYER.slice(0, 7).map(l => '<code>' + l[0] + '</code>').join(', ')} e i layer di servizio (richiami, toponimi, quote, legenda, cartiglio).</li><li>Particelle e aree sempre <b>polilinee chiuse</b>; il numero dentro la particella; «FOGLIO n» dentro ogni foglio.</li></ul><p class="mu">Cancella l'esempio, disegna il piano e importalo qui con unità «metri»: si legge senza correzioni.</p>`, [{ t: 'OK', v: 'ok', p: true }]);
+    };
     m.querySelector('#idxf').onclick = async () => {
       const [f] = await APP.scegliFile('.dxf,.dwg,.pdf'); if (!f) return;
       if (/\.pdf$/i.test(f.nome)) { await apriPdf(f); return; }

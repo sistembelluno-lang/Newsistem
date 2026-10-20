@@ -407,3 +407,20 @@ test('una particella con tre aree di tipo diverso: una sola particella, superfic
   const D = c.perD.get('d1').aree;
   assert.deepStrictEqual([D.espr, D.serv, D.occ], [300, 300, 300]);
 });
+
+test('standard DXF del piano particellare (svincolo a rotatoria): si legge senza correzioni', () => {
+  const G = ES.geo, ex = ES.standard.esempio(), dxf = ES.dxf.leggi(ES.standard.dxf());
+  const g = ES.analisi.importaDxf(dxf, {});
+  // tutte le particelle lette, numerate e con il foglio giusto (scritte «FOGLIO 10» e «FOGLIO 11»)
+  assert.strictEqual(g.part.length, ex.parti.length);
+  const atteso = ex.parti.map(q => q.fg + '|' + q.num).sort(), letto = g.part.map(p => p.k).sort();
+  assert.deepStrictEqual(letto, atteso);
+  // nessuna area senza particella; superfici lette uguali a quelle disegnate (servitù al netto dei pozzetti)
+  assert.ok(!g.pezzi.some(z => !z.k));
+  const tot = {}; g.pezzi.forEach(z => { tot[z.tipo] = (tot[z.tipo] || 0) + z.a; });
+  const area = L => L.reduce((s2, r) => s2 + Math.abs(G.areaAnello(r)), 0);
+  const ok = (a, b) => assert.ok(Math.abs(a - b) <= Math.max(1, b * 0.005), a + ' ≠ ' + b);
+  ok(tot.espr, area(ex.espr)); ok(tot.occ, area(ex.occ)); ok(tot.servop, area(ex.servop)); ok(tot.serv, area(ex.serv) - area(ex.servop));
+  // le scritte di servizio (richiami, cartiglio, legenda, toponimi, quote) non diventano numeri
+  assert.ok(g.part.every(p => /^1[01]\|\d+$/.test(p.k)));
+});

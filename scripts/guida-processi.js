@@ -173,4 +173,7 @@ fs.writeFileSync(path.join(dir, 'Guida_Processi_Espropri.html'), pagina('ESPROPR
 // La guida della normativa (scritta a mano) esce anche in HTML
 const norm = fs.readFileSync(path.join(dir, 'Normativa_Espropri.md'), 'utf8');
 fs.writeFileSync(path.join(dir, 'Normativa_Espropri.html'), pagina('ESPROPRI_SISTEM – Normativa', mdHtml(norm)));
-console.log('scritte le guide (processi e normativa)', versione);
+// Standard DXF per i piani particellari: il modello e la sua guida (stessa fonte dei layer letti dal programma)
+fs.writeFileSync(path.join(dir, 'Standard_Piano_Particellare.dxf'), ES.standard.dxf());
+fs.writeFileSync(path.join(dir, 'Standard_DXF_Piano_Particellare.html'), ES.standard.guidaHtml());
+console.log('scritte le guide (processi e normativa) e lo standard DXF', versione);
