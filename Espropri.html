@@ -4543,7 +4543,18 @@ Indennità complessive: esproprio {{tot.espr}} – servitù {{tot.serv}} – occ
     grandi.forEach(i => { const p = L[i]; for (let j = 0; j + 1 < p.pts.length; j++) { const a = p.pts[j], b = p.pts[j + 1]; const x0 = Math.floor(Math.min(a[0], b[0]) / CELLA), x1 = Math.floor(Math.max(a[0], b[0]) / CELLA), y0 = Math.floor(Math.min(a[1], b[1]) / CELLA), y1 = Math.floor(Math.max(a[1], b[1]) / CELLA); if ((x1 - x0 + 1) * (y1 - y0 + 1) > 400) continue; for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const k = x + ',' + y; (G.get(k) || G.set(k, []).get(k)).push([a, b]); } } });
     const dSeg = (q, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy || 1e-12, t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / l2)); return Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy); };
     const attaccata = c => c.ii.some(i => { const p = L[i]; return [p.pts[0], p.pts[p.pts.length - 1]].some(q => (G.get(cella(q[0], q[1])) || []).some(([a, b]) => dSeg(q, a, b) < 0.3)); });
-    const glifi = piccoli.filter(c => !attaccata(c));
+    let glifi = piccoli.filter(c => !attaccata(c));
+    // Una particella minuscola (cabina, pozzetto) può essere un rettangolino chiuso isolato dentro un'altra particella:
+    // è una scritta solo se fa parte di una parola (più caratteri vicini della stessa grandezza) oppure se la tavola non
+    // ha numeri scritti come testo e la forma non è un semplice quadrilatero chiuso; con un numero di testo accanto è una particella
+    const num = (pagina.testi || []).filter(t => /^\s*\.?\d+(\/\d+)?\s*$/.test(t.t));
+    const dim = c => Math.max(c.b[2] - c.b[0], c.b[3] - c.b[1]), centro = c => [(c.b[0] + c.b[2]) / 2, (c.b[1] + c.b[3]) / 2];
+    const quadrilatero = c => c.ii.length === 1 && (q => { const P2 = q.pts, chiusa = Math.hypot(P2[0][0] - P2[P2.length - 1][0], P2[0][1] - P2[P2.length - 1][1]) < 0.3; return chiusa && P2.length <= 6; })(L[c.ii[0]]);
+    const conTesto = c => num.some(t => t.x >= c.b[0] - dim(c) && t.x <= c.b[2] + dim(c) && t.y >= c.b[1] - dim(c) && t.y <= c.b[3] + dim(c));
+    const inParola = c => { const [x, y] = centro(c), s0 = dim(c); return glifi.some(o => o !== c && Math.max(dim(o), s0) <= Math.min(dim(o), s0) * 1.7 && Math.hypot(centro(o)[0] - x, centro(o)[1] - y) <= Math.max(dim(o), s0) * 1.15); };
+    // la tavola scrive i numeri a tratti se le parole disegnate sono molte più dei numeri di testo
+    const parola = new Set(glifi.filter(inParola)), senzaTesti = num.length < 15 || parola.size > num.length * 3;
+    glifi = glifi.filter(c => !conTesto(c) && (parola.has(c) || (senzaTesti && !quadrilatero(c))));
     const set = new Set(); glifi.forEach(c => c.ii.forEach(i => set.add(L[i])));
     return (pagina._glifi = { set, comp: glifi.map(c => ({ b: c.b, poli: c.ii.map(i => L[i]) })) });
   };

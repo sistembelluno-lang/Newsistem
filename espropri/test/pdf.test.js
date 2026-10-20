@@ -116,7 +116,7 @@ test('scritte disegnate a linee: riconosciute e tolte dai confini, le particelle
     // numero «18» disegnato a tratti dentro la prima particella
     L([[40, 50], [40, 56]]), L([[43, 50], [46, 50], [46, 56], [43, 56], [43, 50]]), L([[43, 53], [46, 53]])
   ];
-  const gl = ES.pdfv.glifi({ poli });
+  const gl = ES.pdfv.glifi({ poli, testi: [] });
   assert.ok(gl.set.has(poli[6]) && gl.set.has(poli[7]) && gl.set.has(poli[8]), 'cifre riconosciute');
   assert.ok(!gl.set.has(poli[5]), 'la particella piccola non è una scritta');
   assert.ok(!poli.slice(0, 5).some(p => gl.set.has(p)));

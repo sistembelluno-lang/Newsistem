@@ -56,6 +56,12 @@ fascicolo), i modelli e le funzioni si allargheranno nelle prossime versioni.
    protetti; all'importazione controlli rigorosi (file rifiutato se la struttura è stata alterata), anteprima delle
    modifiche e annullamento dell'ultima importazione. Grafica rinnovata: menu a sezioni e **percorso guidato** nella
    scheda Pratica con lo stato di ogni passo.
+   **Novità 1.18**: tavole PDF complesse lette meglio: numeri delle particelle disegnati a tratti (testi CAD
+   esplosi) riconosciuti come scritte e letti con l'OCR a qualsiasi inclinazione invece di diventare quadratini;
+   tratteggi solo dalle linee parallele a passo regolare (niente aree «a stella» dai cerchietti dei numeri di piano);
+   tratteggi su livelli diversi da quello della legenda; strade esistenti e linee di limite non scambiate per aree o
+   confini; bordi delle campiture non presi come aree; particelle minuscole (cabine, pozzetti) conservate. Foto ed
+   estratti con trascina e rilascia, foglio/mappale e didascalia per ogni immagine.
 3. **Importa Excel/CSV delle ditte** (visure): una riga per particella con foglio, mappale («1706 ex 1367» = mappale
    derivato da frazionamento), qualità («PRATO», «BOSCO ARB»…), classe, superficie (mq o ha/are/ca), redditi,
    intestatari in colonne separate o tutti in una cella come nelle visure. **La ditta è formata dalle particelle con gli
