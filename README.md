@@ -1,5 +1,7 @@
 # CONTROLLO_SISTEM e INSERT_SISTEM
 
+Nella cartella `tritaproject/` c'è anche **TRITAPROJECT**, il lettore ed elaboratore di progetti (PDF/DXF → domande, relazioni, tavole PDF e DXF, modello 3D): istruzioni in [tritaproject/README.md](tritaproject/README.md).
+
 Due programmi a pagina singola, impacchettati come applicazioni desktop con Electron:
 - **CONTROLLO_SISTEM** (`Controllo_Lavori.html`, ex Controllo Lavori): il gestionale dell'amministratore;
 - **INSERT_SISTEM** (`Ore_Dipendenti.html`, ex Ore Dipendenti): ogni dipendente, entrando con il proprio PIN, inserisce ore (ufficio / cantiere / trasferta), km (auto aziendale o propria), spese per tipologia (generiche, pasti, hotel, minuteria), ferie, permessi, malattia e note; nella sezione «Ferie e permessi» chiede giorni di ferie o permessi a ore, che l'amministratore approva.

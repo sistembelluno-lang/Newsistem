@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:">
+<title>TRITAPROJECT</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<aside id="lato">
+  <div id="logo">TRITA<span>PROJECT</span><small>Leggi, interroga e rielabora i tuoi progetti</small></div>
+  <button id="nuovo" class="primario">＋ Nuovo progetto</button>
+  <div id="elenco"></div>
+  <div id="piede"><button id="b-imp">⚙ Impostazioni</button></div>
+</aside>
+
+<main id="main">
+  <div id="trascina">Rilascia qui gli allegati del progetto</div>
+  <section id="benvenuto" class="pannello attivo">
+    <div id="vuoto">
+      <h2>Benvenuto in TRITAPROJECT</h2>
+      <p>Crea un progetto e caricaci tutti gli allegati (PDF di tavole e relazioni, immagini). TRITAPROJECT li legge, ne fa una scheda per ciascuno e poi puoi:</p>
+      <ul>
+        <li><b>interrogare il progetto</b>: misure, materiali, quantità, fasi, normativa, con il riferimento all'elaborato;</li>
+        <li><b>chiedere chiarimenti</b> e far emergere incongruenze tra tavole e relazioni;</li>
+        <li><b>generare nuove relazioni</b> (PDF e HTML apribile in Word), <b>tabelle e computi</b> (CSV per Excel);</li>
+        <li><b>ridisegnare parti</b> del progetto o creare <b>nuove tavole</b> in scala (DXF per il CAD e PDF con cartiglio);</li>
+        <li>creare <b>schemi, fasi, cronoprogrammi e immagini</b> (PNG, PDF) e ricevere <b>spunti e proposte</b>.</li>
+      </ul>
+      <p class="aiuto">Per iniziare inserisci la chiave API di Claude in ⚙ Impostazioni (si crea su console.anthropic.com).</p>
+    </div>
+  </section>
+
+  <div id="progetto" style="display:none; flex:1; flex-direction:column; min-height:0">
+    <div id="testa">
+      <div id="titolo"></div>
+      <button id="b-cartella" title="Apri la cartella del progetto">📁 Cartella</button>
+      <button id="b-elimina" title="Elimina il progetto">🗑</button>
+    </div>
+    <nav id="schede">
+      <button data-p="chat" class="attiva">💬 Chat</button>
+      <button data-p="doc">📄 Documenti <span id="n-doc"></span></button>
+      <button data-p="el">📐 Elaborati <span id="n-el"></span></button>
+      <button data-p="note">📝 Note</button>
+    </nav>
+
+    <section id="p-chat" class="pannello attivo">
+      <div id="messaggi"></div>
+      <div id="rapide"></div>
+      <div id="scrivi">
+        <textarea id="testo" rows="2" placeholder="Chiedi qualcosa sul progetto, o chiedi una relazione, una tavola, uno schema… (Invio per inviare, Maiusc+Invio per andare a capo)"></textarea>
+        <button id="b-invia" class="primario">Invia</button>
+        <button id="b-ferma" style="display:none">■ Ferma</button>
+      </div>
+    </section>
+
+    <section id="p-doc" class="pannello">
+      <div class="barra">
+        <button id="b-aggiungi" class="primario">＋ Aggiungi file o ZIP</button>
+        <button id="b-cartella-lavoro" title="Carica tutti i PDF di una cartella e delle sue sottocartelle">📂 Aggiungi cartella</button>
+        <button id="b-rileggi" title="Ricarica i file e rifà tutte le schede">↻ Rileggi tutto</button>
+        <span class="sp"></span>
+        <span class="aiuto">Puoi anche trascinare nella finestra file, cartelle intere o archivi ZIP.</span>
+      </div>
+      <div id="docs"></div>
+    </section>
+
+    <section id="p-el" class="pannello">
+      <div class="barra"><button id="b-cartella-el">📁 Apri la cartella degli elaborati</button><span class="sp"></span><span class="aiuto">Relazioni, tavole, schemi e tabelle create da TRITAPROJECT.</span></div>
+      <div id="els" class="griglia"></div>
+    </section>
+
+    <section id="p-note" class="pannello">
+      <p class="aiuto">Informazioni che TRITAPROJECT tiene sempre presenti per questo progetto (committente, obiettivi, decisioni prese, dati verificati). Si salvano da sole.</p>
+      <textarea id="note"></textarea>
+    </section>
+  </div>
+</main>
+
+<div class="modale" id="m-imp">
+  <div class="finestra">
+    <h3>⚙ Impostazioni</h3>
+    <label>Chiave API di Claude <span id="imp-stato"></span></label>
+    <input id="imp-chiave" type="password" placeholder="sk-ant-…  (lascia vuoto per non cambiarla)" autocomplete="off">
+    <p class="aiuto">Si crea su <a href="https://console.anthropic.com/settings/keys">console.anthropic.com</a>. Viene salvata cifrata su questo PC; l'uso si paga a consumo sul tuo account Anthropic.</p>
+    <label>Modello</label>
+    <select id="imp-modello"></select>
+    <label>Accuratezza</label>
+    <select id="imp-impegno">
+      <option value="medium">Rapida (costa meno)</option>
+      <option value="high">Approfondita (consigliata)</option>
+      <option value="xhigh">Molto approfondita</option>
+      <option value="max">Massima (lenta, costa di più)</option>
+    </select>
+    <label style="display:flex;gap:8px;align-items:center;color:var(--testo)"><input id="imp-web" type="checkbox" style="width:auto"> Consenti ricerche sul web (normativa, enti, manuali di progettazione)</label>
+    <label>Firma negli elaborati (facoltativa)</label>
+    <input id="imp-autore" placeholder="es. Ing. Mario Rossi – SISTEM SRL STP">
+    <p class="aiuto" id="imp-cartella"></p>
+    <div class="bottoni">
+      <button id="imp-prova">🔌 Prova collegamento</button>
+      <span style="flex:1"></span>
+      <button id="imp-annulla">Annulla</button>
+      <button id="imp-salva" class="primario">Salva</button>
+    </div>
+  </div>
+</div>
+
+<div class="modale" id="m-nuovo">
+  <div class="finestra">
+    <h3>Nuovo progetto</h3>
+    <label>Nome del progetto</label>
+    <input id="nuovo-nome" placeholder="es. Sostituzione ponte km 108+929">
+    <div class="bottoni"><button id="nuovo-annulla">Annulla</button><button id="nuovo-ok" class="primario">Crea</button></div>
+  </div>
+</div>
+
+<div class="modale" id="m-ant">
+  <div class="finestra larga">
+    <div class="barra"><b id="ant-titolo"></b><span class="sp"></span><button id="ant-prec">◀</button><span id="ant-pag"></span><button id="ant-succ">▶</button><label style="margin:0;color:var(--tenue);white-space:nowrap">scala 1:</label><input id="ant-scala" type="number" min="1" placeholder="es. 50" style="width:80px"><button id="ant-dxf" class="primario" title="Converte i vettori di questa pagina in DXF, in scala reale">⇩ DXF</button><button id="ant-chiudi">Chiudi</button></div>
+    <div class="barra" style="margin:-4px 0 10px">
+      <button id="mis-dist" title="Clic sui punti della tavola: lunghezza della spezzata">📏 Distanza</button>
+      <button id="mis-area" title="Clic sui vertici del contorno: area e perimetro">▭ Area</button>
+      <button id="mis-zero">✕ Azzera</button>
+      <b id="mis-esito" style="margin-left:6px"></b><span class="sp"></span>
+      <button id="mis-chat" title="Scrive la misura nella chat">↳ In chat</button>
+    </div>
+    <div id="ant-box"><img id="ant-img" alt=""><svg id="ant-sopra"></svg></div>
+    <p class="aiuto">Per misurare indica la scala della vista (es. 100 per 1:100) e clicca i punti; senza scala le misure sono in mm sulla carta.</p>
+  </div>
+</div>
+
+<div id="avviso"></div>
+<script src="md.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

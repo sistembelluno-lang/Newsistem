@@ -1,0 +1,40 @@
+{
+  "nome_file": "Muro argine - pianta sezione dettaglio", "titolo": "Muro d'argine: pianta, sezione tipo e dettaglio", "unita": "m", "formato": "A2",
+  "cartiglio": { "numero": "T02", "data": "20/10/2026" },
+  "layer": [ { "nome": "CLS", "colore": 7 }, { "nome": "QUOTE", "colore": 3 }, { "nome": "TESTI", "colore": 5 }, { "nome": "ASSI", "colore": 1 }, { "nome": "ARMATURE", "colore": 1 } ],
+  "viste": [
+    { "titolo": "Pianta", "scala": 100, "entita": [
+      { "tipo": "polilinea", "layer": "CLS", "chiusa": true, "punti": [[0,0],[20,0],[20,2.6],[0,2.6]] },
+      { "tipo": "polilinea", "layer": "CLS", "chiusa": true, "punti": [[0,1.0],[20,1.0],[20,1.4],[0,1.4]] },
+      { "tipo": "campitura", "motivo": "cls", "punti": [[0,1.0],[20,1.0],[20,1.4],[0,1.4]] },
+      { "tipo": "linea", "layer": "ASSI", "tipo_linea": "asse", "punti": [[-1,1.2],[21,1.2]] },
+      { "tipo": "linea", "layer": "CLS", "tipo_linea": "tratteggiata", "punti": [[10,0],[10,2.6]] },
+      { "tipo": "quota", "layer": "QUOTE", "da": [0,0], "a": [20,0], "offset": -1 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [0,0], "a": [10,0], "offset": -0.5 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [20,0], "a": [20,2.6], "offset": -1 },
+      { "tipo": "testo", "layer": "TESTI", "pos": [10,3.2], "testo": "GIUNTO DI DILATAZIONE", "altezza_mm": 2.5, "allinea": "centro" }
+    ]},
+    { "titolo": "Sezione A-A", "scala": 25, "entita": [
+      { "tipo": "polilinea", "layer": "CLS", "chiusa": true, "punti": [[0,0],[2.6,0],[2.6,0.6],[1.4,0.6],[1.4,3.6],[1.0,3.6],[1.0,0.6],[0,0.6]] },
+      { "tipo": "campitura", "motivo": "cls", "punti": [[0,0],[2.6,0],[2.6,0.6],[1.4,0.6],[1.4,3.6],[1.0,3.6],[1.0,0.6],[0,0.6]] },
+      { "tipo": "campitura", "motivo": "terreno", "contorno": false, "punti": [[1.4,0.6],[3.4,0.6],[3.4,3.2],[1.4,3.2]] },
+      { "tipo": "linea", "layer": "TERRENO", "punti": [[1.4,3.2],[3.4,3.2]] },
+      { "tipo": "linea", "layer": "ASSI", "tipo_linea": "asse", "punti": [[1.2,-0.3],[1.2,3.9]] },
+      { "tipo": "quota", "layer": "QUOTE", "da": [0,0], "a": [2.6,0], "offset": -0.35 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [0,0], "a": [0,0.6], "offset": 0.35 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [1.4,0.6], "a": [1.4,3.6], "offset": -1.6 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [1.0,3.6], "a": [1.4,3.6], "offset": 0.25 },
+      { "tipo": "testo", "layer": "TESTI", "pos": [-0.2,2.2], "testo": "Cls C32/40 XC4", "altezza_mm": 2.5, "allinea": "destra" }
+    ]},
+    { "titolo": "Dettaglio 1 – testa del muro", "scala": 10, "entita": [
+      { "tipo": "polilinea", "layer": "CLS", "chiusa": true, "punti": [[0,0],[0.4,0],[0.4,0.6],[0,0.6]] },
+      { "tipo": "campitura", "motivo": "cls", "punti": [[0,0],[0.4,0],[0.4,0.6],[0,0.6]] },
+      { "tipo": "polilinea", "layer": "ARMATURE", "spessore_mm": 0.5, "punti": [[0.05,0],[0.05,0.55],[0.35,0.55],[0.35,0]] },
+      { "tipo": "cerchio", "layer": "ARMATURE", "centro": [0.05,0.3], "raggio": 0.008 },
+      { "tipo": "cerchio", "layer": "ARMATURE", "centro": [0.35,0.3], "raggio": 0.008 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [0,0.6], "a": [0.4,0.6], "offset": 0.08 },
+      { "tipo": "quota", "layer": "QUOTE", "da": [0.4,0], "a": [0.4,0.6], "offset": -0.08 },
+      { "tipo": "testo", "layer": "TESTI", "pos": [0.45,0.3], "testo": "Staffe Ø10/20 – copriferro 4 cm", "altezza_mm": 2.5 }
+    ]}
+  ]
+}

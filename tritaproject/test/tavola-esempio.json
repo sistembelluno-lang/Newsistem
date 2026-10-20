@@ -1,0 +1,18 @@
+{
+  "nome_file": "Sezione tipo muro", "titolo": "Sezione tipo muro d'argine", "unita": "m", "formato": "A3", "scala": 25,
+  "cartiglio": { "numero": "T01", "data": "20/10/2026" },
+  "layer": [ { "nome": "CLS", "colore": 7 }, { "nome": "QUOTE", "colore": 3 }, { "nome": "TESTI", "colore": 5 }, { "nome": "TERRENO", "colore": 8 } ],
+  "entita": [
+    { "tipo": "polilinea", "layer": "CLS", "chiusa": true, "punti": [[0,0],[2.6,0],[2.6,0.6],[1.1,0.6],[1.1,3.6],[0.7,3.6],[0.7,0.6],[0,0.6]] },
+    { "tipo": "linea", "layer": "TERRENO", "punti": [[-0.8,0.6],[0,0.6]] },
+    { "tipo": "polilinea", "layer": "TERRENO", "punti": [[1.1,3.2],[2.0,3.2],[3.4,3.2]] },
+    { "tipo": "cerchio", "layer": "CLS", "centro": [1.85,-0.5], "raggio": 0.1 },
+    { "tipo": "arco", "layer": "CLS", "centro": [0.9,3.6], "raggio": 0.2, "inizio": 0, "fine": 180 },
+    { "tipo": "quota", "layer": "QUOTE", "da": [0,0], "a": [2.6,0], "offset": -0.4 },
+    { "tipo": "quota", "layer": "QUOTE", "da": [0,0], "a": [0,0.6], "offset": 0.4 },
+    { "tipo": "quota", "layer": "QUOTE", "da": [1.1,0.6], "a": [1.1,3.6], "offset": -0.5 },
+    { "tipo": "quota", "layer": "QUOTE", "da": [0.7,3.6], "a": [1.1,3.6], "offset": 0.3 },
+    { "tipo": "testo", "layer": "TESTI", "pos": [1.4,1.6], "testo": "Cls C32/40 XC4 - B450C", "altezza_mm": 3 },
+    { "tipo": "testo", "layer": "TESTI", "pos": [-0.6,2.0], "testo": "LATO BINARI", "altezza_mm": 3, "rotazione": 90 }
+  ]
+}

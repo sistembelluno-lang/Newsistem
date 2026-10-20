@@ -1,0 +1,17 @@
+{
+  "nome": "Casa di prova",
+  "elementi": [
+    { "tipo": "blocco", "materiale": "cls", "contorno": [[-0.3,-0.3],[10.3,-0.3],[10.3,8.3],[-0.3,8.3]], "z0": -0.8, "z1": 0 },
+    { "tipo": "muro", "da": [0,0], "a": [10,0], "spessore": 0.4, "z0": 0, "altezza": 6, "aperture": [ { "da": 1.5, "larghezza": 1.2, "davanzale": 0.9, "altezza": 1.4 }, { "da": 4.4, "larghezza": 1.2, "davanzale": 0, "altezza": 2.4 }, { "da": 7.3, "larghezza": 1.2, "davanzale": 0.9, "altezza": 1.4 }, { "da": 1.5, "larghezza": 1.2, "davanzale": 3.9, "altezza": 1.4 }, { "da": 7.3, "larghezza": 1.2, "davanzale": 3.9, "altezza": 1.4 } ] },
+    { "tipo": "muro", "da": [10,0], "a": [10,8], "spessore": 0.4, "altezza": 6, "aperture": [ { "da": 3.4, "larghezza": 1.2, "davanzale": 0.9, "altezza": 1.4 } ] },
+    { "tipo": "muro", "da": [10,8], "a": [0,8], "spessore": 0.4, "altezza": 6, "aperture": [ { "da": 2, "larghezza": 2.4, "davanzale": 0, "altezza": 2.4 } ] },
+    { "tipo": "muro", "da": [0,8], "a": [0,0], "spessore": 0.4, "altezza": 6 },
+    { "tipo": "muro", "da": [5,0.2], "a": [5,7.8], "spessore": 0.25, "altezza": 2.75, "aperture": [ { "da": 3, "larghezza": 0.9, "davanzale": 0, "altezza": 2.1 } ] },
+    { "tipo": "solaio", "contorno": [[0,0],[10,0],[10,8],[0,8]], "quota": 3.0, "spessore": 0.25 },
+    { "tipo": "solaio", "contorno": [[0,0],[10,0],[10,8],[0,8]], "quota": 6.0, "spessore": 0.25 },
+    { "tipo": "blocco", "materiale": "muratura", "contorno": [[-0.2,-0.2],[10.2,-0.2],[10.2,0.2],[-0.2,0.2]], "z0": 6, "z1": 6.01 },
+    { "tipo": "falda", "spessore": 0.3, "punti": [[-0.6,-0.6,5.8],[10.6,-0.6,5.8],[10.6,4,8.2],[-0.6,4,8.2]] },
+    { "tipo": "falda", "spessore": 0.3, "punti": [[-0.6,8.6,5.8],[-0.6,4,8.2],[10.6,4,8.2],[10.6,8.6,5.8]] },
+    { "tipo": "pilastro", "centro": [12,4], "lati": [0.3,0.3], "z0": 0, "z1": 2.7 }
+  ]
+}

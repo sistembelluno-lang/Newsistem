@@ -1,0 +1,66 @@
+{
+  "name": "tritaproject",
+  "productName": "TRITAPROJECT",
+  "version": "1.0.0",
+  "description": "TRITAPROJECT: legge gli allegati di un progetto, risponde alle domande e genera relazioni, schemi e tavole",
+  "main": "main.js",
+  "author": "sistembelluno",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/prova-elaborati.js",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:linux": "electron-builder --linux --publish never"
+  },
+  "build": {
+    "appId": "it.sistembelluno.tritaproject",
+    "productName": "TRITAPROJECT",
+    "files": [
+      "main.js",
+      "preload.js",
+      "ai.js",
+      "elaborati.js",
+      "progetti.js",
+      "modello3d.js",
+      "dxfletto.js",
+      "ui/**"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "TRITAPROJECT-${version}-portable.exe"
+    },
+    "nsis": {
+      "artifactName": "TRITAPROJECT-${version}-setup.exe",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "TRITAPROJECT-${version}.${ext}"
+    }
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
+    "dxf-parser": "^1.1.2",
+    "fflate": "^0.8.2",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "3.11.174",
+    "polygon-clipping": "^0.15.7"
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}
