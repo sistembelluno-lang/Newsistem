@@ -255,6 +255,18 @@ main>h2:first-child,main>.row:first-child h2{font-size:21px;font-weight:800;lett
 .mfs-tab td.v del{color:var(--ko)}.mfs-tab td.v ins{color:var(--ok);text-decoration:none;font-weight:600}
 .mfs-err{margin:0;padding-left:18px;max-height:46vh;overflow:auto}.mfs-err li{margin:3px 0}
 @media (max-width:640px){.appbar .mfs span{display:none}.guida{grid-template-columns:1fr 1fr}}
+/* Galleria di immagini della ditta (foto dello stato di consistenza, estratti di mappa) */
+.gal-drop{border:2px dashed var(--bd);border-radius:14px;padding:16px;text-align:center;background:var(--hd);color:var(--tx);transition:border-color .15s,background-color .15s;outline:none}
+.gal-drop:focus,.gal-drop.su{border-color:var(--ac);background:rgba(36,87,214,.08)}
+.gal-bar{margin:10px 0 6px}
+.gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:8px}
+.gc{margin:0;display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--bd);border-radius:14px;background:var(--card);box-shadow:var(--sh)}
+.gc .gi{position:relative;border-radius:10px;overflow:hidden;background:#f2f4f7;aspect-ratio:4/3}
+.gc .gi img{width:100%;height:100%;object-fit:contain;cursor:zoom-in;display:block}
+.gc .gn{position:absolute;left:6px;top:6px;background:rgba(15,27,45,.72);color:#fff;font-size:11px;font-weight:700;border-radius:99px;padding:1px 8px}
+.gc select,.gc textarea,.gc input{width:100%;font-family:inherit;font-size:12.5px}
+.gc textarea{resize:vertical;min-height:44px}
+.gal-fm{display:flex;gap:6px}.gal-fm[hidden]{display:none}.gal-fm input{min-width:0}
 
 
 </style>
@@ -5765,7 +5777,7 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
       let png = null;
       if (e.data) png = Uint8Array.from(atob(e.data.split(',')[1]), ch => ch.charCodeAt(0));
       else if (e.file && APP.FS.ok) png = await APP.FS.leggi(e.file);
-      if (png && png.length) L.push({ png, w: e.w, h: e.h, nome: e.nome, src: e.data || 'data:image/png;base64,' + b64(png) });
+      if (png && png.length) L.push({ png, w: e.w, h: e.h, nome: e.nome, o: e, src: e.data || 'data:image/png;base64,' + b64(png) });
     }
     return L;
   };
@@ -5786,7 +5798,11 @@ ${tipi.map(t => `<tr><td><span class="tag ${tagTipo(t)}">${A.RUOLI[t]}</span></t
         const L = b.t === 'img' && b.ditta && (b.ref === 'planimetria' || b.ref === 'tagli') ? est.get(b.ditta) : null;
         if (!L || !L.length) return [b];
         if (b.ref === 'tagli' && conPlan.has(b.ditta)) return [];
-        return L.map(e => (perWord ? { t: 'img', ref: 'utente', png: e.png, w: e.w, h: e.h, mm: 165 } : { t: 'img', ref: 'utente', src: e.src, mm: 170 }));
+        return L.flatMap((e, j) => {
+          const img = perWord ? { t: 'img', ref: 'utente', png: e.png, w: e.w, h: e.h, mm: 165 } : { t: 'img', ref: 'utente', src: e.src, mm: 170 };
+          const dd = APP.didascaliaImg(p, e.o, L.length > 1 ? j + 1 : 0, 'Estratto di mappa');
+          return [img, { t: 'p', align: 'center', after: 160, runs: [{ text: dd, i: true, size: 18 }] }];
+        });
       });
     }
     // [[tagli]]: un'immagine per ogni particella della ditta (schema del piano particellare)
@@ -5996,13 +6012,13 @@ ${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|res
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
-<div class="card"><div class="row"><h3 style="margin:0" class="grow">🗺️ Estratti di mappa della ditta</h3><button id="dest">＋ Carica estratti di mappa</button></div>
+<div class="card"><div class="row"><h3 style="margin:0" class="grow">🗺️ Estratti di mappa della ditta</h3></div>
 <p class="mu">Immagini (png, jpg…) degli stralci di mappa con le occupazioni della ditta, anche più di una. ${p.geo ? 'Se ne carichi, <b>sostituiscono l\'estratto automatico</b> dalla planimetria in tutti i documenti; togliendole torna quello automatico.' : 'Senza planimetria di base sono le immagini usate nei documenti dove è prevista la planimetria.'}</p>
-<div class="foto" id="destl"></div></div>
+<div id="destl"></div></div>
 <div class="card"><h3 style="margin-top:0">Stato di consistenza: foto e verbale firmato</h3>
 <p class="mu">1) Genera il verbale (passo «Stato di consistenza»), stampalo e fallo firmare in sito. 2) Carica le foto con la didascalia. 3) Carica la scansione PDF del verbale firmato. 4) Crea il PDF finale (verbale firmato + documentazione fotografica) nella cartella della ditta.</p>
-<div class="row"><button id="dfoto">＋ Carica foto</button><button id="dscan">Carica verbale firmato (PDF)</button><span class="mu" id="dscann">${d.scan ? '📎 ' + E(d.scan.nome) : ''}</span><span class="grow"></span><button class="p" id="dpdf" ${d.foto.length || d.scan ? '' : 'disabled'}>Crea PDF finale</button></div>
-<div class="foto" id="dft" style="margin-top:10px"></div></div>
+<div class="row"><button id="dscan">Carica verbale firmato (PDF)</button><span class="mu" id="dscann">${d.scan ? '📎 ' + E(d.scan.nome) : ''}</span><span class="grow"></span><button class="p" id="dpdf" ${d.foto.length || d.scan ? '' : 'disabled'}>Crea PDF finale</button></div>
+<div id="dft" style="margin-top:10px"></div></div>
 <div class="card"><h3 style="margin-top:0">Documenti nel fascicolo</h3><div id="dfiles" class="files mu">${APP.FS.ok ? 'Lettura…' : 'Nel browser i documenti vengono scaricati; il fascicolo con le cartelle è disponibile nel programma installato.'}</div></div>`;
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
@@ -6123,51 +6139,40 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
   // Foto: ridotte a 1600 px; nel programma installato vanno nella cartella della ditta, nel browser restano nella pratica
   function estrattiUI(m, p, d) {
     d.estratti = d.estratti || [];
-    const box = m.querySelector('#destl');
-    const disegna = async () => {
-      const L = await APP.estrattiDitta(p, d);
-      box.innerHTML = d.estratti.map((e, i) => `<figure><img src="${L[i] ? L[i].src : ''}" alt="" style="object-fit:contain;background:#fff"><div class="mu" style="font-size:12px;word-break:break-all">${E(e.nome)}</div><div class="row" style="margin-top:4px"><button class="s" data-eu="${i}">↑</button><button class="s" data-edn="${i}">↓</button><span class="grow"></span><button class="s d" data-ex="${i}">✕</button></div></figure>`).join('') || '<span class="mu">Nessun estratto caricato' + (p.geo ? ': nei documenti si usa quello generato dalla planimetria.' : '.') + '</span>';
-      const sp = (i, j) => { [d.estratti[i], d.estratti[j]] = [d.estratti[j], d.estratti[i]]; APP.salva(); disegna(); };
-      box.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { d.estratti.splice(+b.dataset.ex, 1); APP.salva(); disegna(); });
-      box.querySelectorAll('[data-eu]').forEach(b => b.onclick = () => { const i = +b.dataset.eu; if (i) sp(i - 1, i); });
-      box.querySelectorAll('[data-edn]').forEach(b => b.onclick = () => { const i = +b.dataset.edn; if (i < d.estratti.length - 1) sp(i, i + 1); });
-    };
-    disegna();
-    m.querySelector('#dest').onclick = async () => {
-      const F = await APP.scegliFile('image/*,.png,.jpg,.jpeg,.gif,.bmp,.webp', true);
-      for (const f of F) {
-        let im; try { im = await inPng(f.buf, f.tipo); } catch (e) { APP.toast(f.nome + ': ' + e.message); continue; }
-        const o = { id: U.id(), nome: f.nome, w: im.w, h: im.h };
-        if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Estratti di mappa/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.png'; await window.desktop.fsScrivi(o.file, im.png); }
-        else o.data = 'data:image/png;base64,' + b64(im.png);
-        d.estratti.push(o);
+    const parts = p.particelle.filter(x => x.ditta === d.id);
+    APP.galleria(m.querySelector('#destl'), p, {
+      lista: d.estratti, parts, nome: 'estratto', salva: APP.salva,
+      src: async o => o.data || (o.file && APP.FS.ok ? URL.createObjectURL(new Blob([await APP.FS.leggi(o.file) || new Uint8Array()], { type: 'image/png' })) : ''),
+      aggiungi: async F => {
+        const out = [];
+        for (const f of F) {
+          let im; try { im = await inPng(f.buf, f.tipo); } catch (e) { APP.toast(f.nome + ': ' + e.message); continue; }
+          const o = { id: U.id(), nome: f.nome, w: im.w, h: im.h };
+          if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Estratti di mappa/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.png'; await window.desktop.fsScrivi(o.file, im.png); }
+          else o.data = 'data:image/png;base64,' + b64(im.png);
+          out.push(o);
+        }
+        return out;
       }
-      if (F.length) { APP.salva(); disegna(); APP.toast('Estratti di mappa caricati: nei documenti della ditta si useranno questi'); }
-    };
+    });
   }
   function fotoUI(m, p, d) {
-    const box = m.querySelector('#dft'), parts = p.particelle.filter(x => x.ditta === d.id);
-    const disegna = async () => {
-      box.innerHTML = d.foto.map((f, i) => `<figure><img data-fi="${i}" alt=""><select data-fp="${i}"><option value="">(particella)</option>${parts.map(x => `<option value="${x.id}" ${f.part === x.id ? 'selected' : ''}>Fg.${E(x.fg)} Mapp.${E(C.mappale(x))}</option>`).join('')}</select><input data-fd="${i}" value="${E(f.did || '')}" placeholder="Didascalia"><div class="row" style="margin-top:4px"><button class="s" data-fu="${i}">↑</button><button class="s" data-fdn="${i}">↓</button><span class="grow"></span><button class="s d" data-fx="${i}">✕</button></div></figure>`).join('');
-      for (const [i, f] of d.foto.entries()) { const im = box.querySelector(`[data-fi="${i}"]`); im.src = f.data || (f.file ? URL.createObjectURL(new Blob([await APP.FS.leggi(f.file) || new Uint8Array()], { type: 'image/jpeg' })) : ''); }
-      box.querySelectorAll('[data-fp]').forEach(s => s.onchange = () => { d.foto[+s.dataset.fp].part = s.value; APP.salva(); });
-      box.querySelectorAll('[data-fd]').forEach(s => s.onchange = () => { d.foto[+s.dataset.fd].did = s.value; APP.salva(); });
-      box.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { d.foto.splice(+b.dataset.fx, 1); APP.salva(); disegna(); });
-      box.querySelectorAll('[data-fu]').forEach(b => b.onclick = () => { const i = +b.dataset.fu; if (i) { [d.foto[i - 1], d.foto[i]] = [d.foto[i], d.foto[i - 1]]; APP.salva(); disegna(); } });
-      box.querySelectorAll('[data-fdn]').forEach(b => b.onclick = () => { const i = +b.dataset.fdn; if (i < d.foto.length - 1) { [d.foto[i + 1], d.foto[i]] = [d.foto[i], d.foto[i + 1]]; APP.salva(); disegna(); } });
-    };
-    disegna();
-    m.querySelector('#dfoto').onclick = async () => {
-      const L = await APP.scegliFile('image/*', true);
-      for (const f of L) {
-        const jpg = await riduci(f.buf, f.tipo);
-        const o = { id: U.id(), nome: f.nome, did: '', part: parts.length === 1 ? parts[0].id : '' };
-        if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Stato di consistenza/Foto/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.jpg'; await window.desktop.fsScrivi(o.file, jpg); }
-        else o.data = 'data:image/jpeg;base64,' + b64(jpg);
-        d.foto.push(o);
+    const parts = p.particelle.filter(x => x.ditta === d.id);
+    APP.galleria(m.querySelector('#dft'), p, {
+      lista: d.foto, parts, nome: 'foto', salva: APP.salva,
+      dopo: () => { const b = m.querySelector('#dpdf'); if (b) b.disabled = !(d.foto.length || d.scan); },
+      src: async o => o.data || (o.file && APP.FS.ok ? URL.createObjectURL(new Blob([await APP.FS.leggi(o.file) || new Uint8Array()], { type: 'image/jpeg' })) : ''),
+      aggiungi: async F => {
+        const out = [];
+        for (const f of F) {
+          const jpg = await riduci(f.buf, f.tipo), o = { id: U.id(), nome: f.nome, did: '' };
+          if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Stato di consistenza/Foto/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.jpg'; await window.desktop.fsScrivi(o.file, jpg); }
+          else o.data = 'data:image/jpeg;base64,' + b64(jpg);
+          out.push(o);
+        }
+        return out;
       }
-      APP.salva(); APP.render();
-    };
+    });
     m.querySelector('#dscan').onclick = async () => {
       const [f] = await APP.scegliFile('.pdf'); if (!f) return;
       d.scan = { nome: f.nome };
@@ -6204,7 +6209,7 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
       const maxW = W - 2 * mg, maxH = 330, k = Math.min(maxW / im.width, maxH / im.height), w = im.width * k, h = im.height * k;
       pg.drawImage(im, { x: mg + (maxW - w) / 2, y: y - h, width: w, height: h });
       const x = parts.get(f.part); n++;
-      const did = 'Figura ' + n + (x ? '_Fg. ' + x.fg + ' Mapp.' + C.mappale(x) : '') + (f.did ? ' – ' + f.did : '');
+      const fm = APP.fgMapImg(p, f), did = 'Figura ' + n + (fm ? '_Fg. ' + fm.fg + ' Mapp.' + fm.map : '') + (f.did ? ' – ' + f.did : '');
       pg.drawText(did.replace(/[^\x20-\x7E -ÿ]/g, '-').slice(0, 110), { x: mg + (maxW - w) / 2, y: y - h - 12, size: 8.5, font });
       y -= h + 30;
     }
@@ -6857,6 +6862,85 @@ ${btn('insertHorizontalRule', '―', 'Linea orizzontale')}${btn('removeFormat', 
       if (!await APP.conferma(propria ? 'Svuotare la carta intestata di questa pratica?' : def ? 'Togliere la carta predefinita per tutte le pratiche?' : 'Svuotare?', 'Svuota')) return;
       clearTimeout(timer); if (propria) delete p.carta; else delete DB.carta; APP.salva(); APP.render();
     };
+  };
+})();
+
+/* ---- galleria.js ---- */
+// ESPROPRI_SISTEM · galleria di immagini della ditta (foto dello stato di consistenza, estratti di mappa caricati):
+// trascina e rilascia o incolla, anteprime grandi, per ogni immagine foglio e mappale (dalle particelle della ditta o
+// scritti a mano) e la didascalia che compare sotto l'immagine nei documenti e nel PDF.
+(function () {
+  'use strict';
+  const U = ES.U, E = U.esc, C = ES.cat, APP = window.APP;
+
+  // Foglio e mappale di un'immagine: dalla particella collegata o scritti a mano
+  APP.fgMapImg = (p, o) => {
+    const x = o.part && p.particelle.find(q => q.id === o.part);
+    if (x) return { fg: x.fg, map: C.mappale(x) };
+    return o.fg || o.map ? { fg: o.fg || '', map: o.map || '' } : null;
+  };
+  APP.didascaliaImg = (p, o, n, pre) => {
+    const fm = APP.fgMapImg(p, o);
+    return [pre ? pre + (n ? ' ' + n : '') : '', fm ? 'Fg. ' + (fm.fg || '?') + ' mapp. ' + (fm.map || '?') : '', o.did || ''].filter(Boolean).join(' – ');
+  };
+
+  // Scelta della particella: le particelle della ditta, oppure foglio e mappale scritti a mano
+  const scelta = (parts, o, k) => `<select data-${k}p class="gal-p"><option value="">(foglio e mappale)</option>${parts.map(x => `<option value="${x.id}" ${o.part === x.id ? 'selected' : ''}>Fg. ${E(x.fg)} mapp. ${E(C.mappale(x))}</option>`).join('')}<option value="*" ${!o.part && (o.fg || o.map) ? 'selected' : ''}>altra: scrivo foglio e mappale…</option></select>
+<span class="gal-fm" ${!o.part && (o.fg || o.map) ? '' : 'hidden'}><input data-${k}fg placeholder="Fg." value="${E(o.fg || '')}"><input data-${k}map placeholder="Mapp." value="${E(o.map || '')}"></span>`;
+
+  // opt: {lista, parts, nome ('foto'|'estratto'), aggiungi(files) → [nuovi oggetti], src(o) → url, salva(), dopo()}
+  APP.galleria = (box, p, opt) => {
+    const L = opt.lista, parts = opt.parts, plur = opt.nome === 'foto' ? 'foto' : 'estratti di mappa';
+    const disegna = async () => {
+      box.innerHTML = `<div class="gal-drop" tabindex="0">📥 <b>Trascina qui ${plur}</b>, incollale con Ctrl+V oppure <button type="button" class="s p" data-gsc>scegli i file…</button><span class="mu"> · png, jpg, anche più di una alla volta</span></div>
+${L.length ? `<div class="row gal-bar"><span class="mu grow">${L.length} ${L.length === 1 ? (opt.nome === 'foto' ? 'foto' : 'estratto') : plur}${(n => n ? ` · <b class="wa">${n} senza foglio e mappale</b>` : '')(L.filter(o => !APP.fgMapImg(p, o)).length)}</span>${parts.length > 1 && L.length > 1 ? '<button type="button" class="s" data-gord>Ordina per particella</button>' : ''}</div>` : ''}
+<div class="gal">${L.map((o, i) => `<figure class="gc"><div class="gi"><img data-gi="${i}" alt="" title="Clic per ingrandire"><span class="gn">${i + 1}</span></div>
+${scelta(parts, o, 'g')}
+<textarea data-gd="${i}" rows="2" placeholder="Didascalia (compare sotto ${opt.nome === 'foto' ? 'la foto' : 'l\'immagine'})">${E(o.did || '')}</textarea>
+<div class="row"><button type="button" class="s" data-gu="${i}" title="Sposta prima">↑</button><button type="button" class="s" data-gdn="${i}" title="Sposta dopo">↓</button><span class="grow mu" style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${E(o.nome || '')}">${E(o.nome || '')}</span><button type="button" class="s d" data-gx="${i}" title="Togli">✕</button></div></figure>`).join('')}</div>`;
+      // anteprime (dal fascicolo o incorporate)
+      for (const [i, o] of L.entries()) { const im = box.querySelector(`[data-gi="${i}"]`); if (im) im.src = await opt.src(o); }
+      box.querySelectorAll('.gc').forEach((fc, i) => {
+        const o = L[i], sel = fc.querySelector('[data-gp]'), fm = fc.querySelector('.gal-fm');
+        sel.onchange = () => { if (sel.value === '*') { o.part = ''; fm.hidden = false; fm.querySelector('input').focus(); } else { o.part = sel.value; delete o.fg; delete o.map; fm.hidden = true; } opt.salva(); };
+        fc.querySelector('[data-gfg]').onchange = e => { o.fg = e.target.value.trim(); opt.salva(); };
+        fc.querySelector('[data-gmap]').onchange = e => { o.map = e.target.value.trim(); opt.salva(); };
+        fc.querySelector('[data-gd]').onchange = e => { o.did = e.target.value.trim(); opt.salva(); };
+        fc.querySelector('[data-gi]').onclick = e => APP.dlg(APP.didascaliaImg(p, o, i + 1, opt.nome === 'foto' ? 'Foto' : 'Estratto') || o.nome, `<div style="text-align:center"><img src="${e.target.src}" style="max-width:100%;max-height:75vh"></div>`, [{ t: 'Chiudi', v: '', p: true }]);
+      });
+      const sp = (i, j) => { [L[i], L[j]] = [L[j], L[i]]; opt.salva(); disegna(); };
+      box.querySelectorAll('[data-gx]').forEach(b => b.onclick = async () => { if (await APP.conferma('Togliere questa immagine?', 'Togli')) { L.splice(+b.dataset.gx, 1); opt.salva(); disegna(); if (opt.dopo) opt.dopo(); } });
+      box.querySelectorAll('[data-gu]').forEach(b => b.onclick = () => { const i = +b.dataset.gu; if (i) sp(i - 1, i); });
+      box.querySelectorAll('[data-gdn]').forEach(b => b.onclick = () => { const i = +b.dataset.gdn; if (i < L.length - 1) sp(i, i + 1); });
+      const ord = box.querySelector('[data-gord]'); if (ord) ord.onclick = () => { const k = o => { const fm = APP.fgMapImg(p, o); return fm ? String(fm.fg).padStart(6, '0') + '|' + String(fm.map).padStart(8, '0') : '~'; }; L.sort((a, b) => U.cmp(k(a), k(b))); opt.salva(); disegna(); };
+      // caricamento: pulsante, trascina e rilascia, incolla
+      const drop = box.querySelector('.gal-drop');
+      box.querySelector('[data-gsc]').onclick = async () => carica(await APP.scegliFile('image/*,.png,.jpg,.jpeg,.gif,.bmp,.webp', true));
+      drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('su'); });
+      drop.addEventListener('dragleave', () => drop.classList.remove('su'));
+      drop.addEventListener('drop', async e => { e.preventDefault(); drop.classList.remove('su'); carica(await daFile([...e.dataTransfer.files])); });
+      drop.addEventListener('paste', async e => { const F = [...(e.clipboardData.files || [])]; if (F.length) { e.preventDefault(); carica(await daFile(F)); } });
+    };
+    const daFile = async F => { const out = []; for (const f of F.filter(x => /^image\//.test(x.type))) out.push({ nome: f.name || 'immagine.png', buf: await f.arrayBuffer(), tipo: f.type }); return out; };
+    // dopo la scelta dei file: a quale particella si riferiscono (per tutte le immagini caricate insieme) e didascalia comune
+    const carica = async F => {
+      if (!F || !F.length) return;
+      const o0 = { part: parts.length === 1 ? parts[0].id : '' };
+      const r = await APP.dlg(F.length === 1 ? '1 immagine' : F.length + ' immagini', `<p class="mu">${F.slice(0, 8).map(f => E(f.nome)).join(', ')}${F.length > 8 ? '…' : ''}</p>
+<div class="g"><label class="f">Foglio e mappale ${opt.nome === 'foto' ? 'delle foto' : 'degli estratti'} (si possono cambiare poi una per una)<span class="row">${scelta(parts, o0, 'n')}</span></label>
+<label class="f">Didascalia comune (facoltativa)<input id="gndid" placeholder="${opt.nome === 'foto' ? 'es. vista da nord, recinzione in rete metallica' : 'es. stralcio di mappa con l\'area di esproprio'}"></label></div>`, [{ t: 'Annulla', v: '' }, { t: 'Carica', v: 'ok', p: true }], b => {
+        const s = b.querySelector('[data-np]'), fm = b.querySelector('.gal-fm'); s.onchange = () => { fm.hidden = s.value !== '*'; };
+      });
+      if (r !== 'ok') return;
+      const sel = $('[data-np]').value, comune = { part: sel === '*' ? '' : sel, fg: sel === '*' ? $('[data-nfg]').value.trim() : '', map: sel === '*' ? $('[data-nmap]').value.trim() : '', did: $('#gndid').value.trim() };
+      APP.toast('Caricamento di ' + F.length + (F.length === 1 ? ' immagine…' : ' immagini…'));
+      const nuovi = await opt.aggiungi(F);
+      nuovi.forEach(o => { o.part = comune.part; if (comune.fg) o.fg = comune.fg; if (comune.map) o.map = comune.map; if (comune.did) o.did = comune.did; L.push(o); });
+      opt.salva(); disegna(); if (opt.dopo) opt.dopo();
+      APP.toast(nuovi.length + (nuovi.length === 1 ? ' immagine caricata' : ' immagini caricate'));
+    };
+    const $ = s => document.querySelector(s);
+    disegna();
   };
 })();
 

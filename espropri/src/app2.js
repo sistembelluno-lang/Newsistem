@@ -41,7 +41,7 @@
       let png = null;
       if (e.data) png = Uint8Array.from(atob(e.data.split(',')[1]), ch => ch.charCodeAt(0));
       else if (e.file && APP.FS.ok) png = await APP.FS.leggi(e.file);
-      if (png && png.length) L.push({ png, w: e.w, h: e.h, nome: e.nome, src: e.data || 'data:image/png;base64,' + b64(png) });
+      if (png && png.length) L.push({ png, w: e.w, h: e.h, nome: e.nome, o: e, src: e.data || 'data:image/png;base64,' + b64(png) });
     }
     return L;
   };
@@ -62,7 +62,11 @@
         const L = b.t === 'img' && b.ditta && (b.ref === 'planimetria' || b.ref === 'tagli') ? est.get(b.ditta) : null;
         if (!L || !L.length) return [b];
         if (b.ref === 'tagli' && conPlan.has(b.ditta)) return [];
-        return L.map(e => (perWord ? { t: 'img', ref: 'utente', png: e.png, w: e.w, h: e.h, mm: 165 } : { t: 'img', ref: 'utente', src: e.src, mm: 170 }));
+        return L.flatMap((e, j) => {
+          const img = perWord ? { t: 'img', ref: 'utente', png: e.png, w: e.w, h: e.h, mm: 165 } : { t: 'img', ref: 'utente', src: e.src, mm: 170 };
+          const dd = APP.didascaliaImg(p, e.o, L.length > 1 ? j + 1 : 0, 'Estratto di mappa');
+          return [img, { t: 'p', align: 'center', after: 160, runs: [{ text: dd, i: true, size: 18 }] }];
+        });
       });
     }
     // [[tagli]]: un'immagine per ogni particella della ditta (schema del piano particellare)
@@ -272,13 +276,13 @@ ${passi.map((ps, i) => { const e = d.ev[ps.k] || {}; const imm = /immissione|res
 <div class="g" style="margin-top:6px"><label>Data<input type="date" data-f="ev.${ps.k}.data"></label><label>Notifica / ricevimento<input type="date" data-f="ev.${ps.k}.notifica"></label><label>Protocollo<input data-f="ev.${ps.k}.prot"></label><label>Mezzo<select data-f="ev.${ps.k}.mezzo"><option value=""></option><option>Raccomandata A/R</option><option>PEC</option><option>Messo notificatore</option><option>Ufficiale giudiziario</option><option>A mano</option></select></label>${ps.k === 'immissione' || ps.k === 'restituzione' ? `<label>Ora<input data-f="ev.${ps.k}.ora" placeholder="10.30"></label><label>Luogo di ritrovo<input data-f="ev.${ps.k}.luogo"></label>` : ''}<label class="f2">Note<input data-f="ev.${ps.k}.note"></label></div>
 ${(ps.t || []).map(t => { const s = scad.find(x => x.cosa === t.nome && x.fase === ps.nome); return s ? `<div class="mu">⏰ ${E(t.nome)}: <b class="${I.statoScad(s) === 'scaduta' ? 'ko' : ''}">${U.dataIt(s.data)}</b></div>` : ''; }).join('')}${imm ? '' : ''}</div></div>`; }).join('')}
 </div></div>
-<div class="card"><div class="row"><h3 style="margin:0" class="grow">🗺️ Estratti di mappa della ditta</h3><button id="dest">＋ Carica estratti di mappa</button></div>
+<div class="card"><div class="row"><h3 style="margin:0" class="grow">🗺️ Estratti di mappa della ditta</h3></div>
 <p class="mu">Immagini (png, jpg…) degli stralci di mappa con le occupazioni della ditta, anche più di una. ${p.geo ? 'Se ne carichi, <b>sostituiscono l\'estratto automatico</b> dalla planimetria in tutti i documenti; togliendole torna quello automatico.' : 'Senza planimetria di base sono le immagini usate nei documenti dove è prevista la planimetria.'}</p>
-<div class="foto" id="destl"></div></div>
+<div id="destl"></div></div>
 <div class="card"><h3 style="margin-top:0">Stato di consistenza: foto e verbale firmato</h3>
 <p class="mu">1) Genera il verbale (passo «Stato di consistenza»), stampalo e fallo firmare in sito. 2) Carica le foto con la didascalia. 3) Carica la scansione PDF del verbale firmato. 4) Crea il PDF finale (verbale firmato + documentazione fotografica) nella cartella della ditta.</p>
-<div class="row"><button id="dfoto">＋ Carica foto</button><button id="dscan">Carica verbale firmato (PDF)</button><span class="mu" id="dscann">${d.scan ? '📎 ' + E(d.scan.nome) : ''}</span><span class="grow"></span><button class="p" id="dpdf" ${d.foto.length || d.scan ? '' : 'disabled'}>Crea PDF finale</button></div>
-<div class="foto" id="dft" style="margin-top:10px"></div></div>
+<div class="row"><button id="dscan">Carica verbale firmato (PDF)</button><span class="mu" id="dscann">${d.scan ? '📎 ' + E(d.scan.nome) : ''}</span><span class="grow"></span><button class="p" id="dpdf" ${d.foto.length || d.scan ? '' : 'disabled'}>Crea PDF finale</button></div>
+<div id="dft" style="margin-top:10px"></div></div>
 <div class="card"><h3 style="margin-top:0">Documenti nel fascicolo</h3><div id="dfiles" class="files mu">${APP.FS.ok ? 'Lettura…' : 'Nel browser i documenti vengono scaricati; il fascicolo con le cartelle è disponibile nel programma installato.'}</div></div>`;
     APP.lega(m, d, el => { if (/^ev\.|procedura|cessione|^n$/.test(el.dataset.f)) APP.render(); });
     m.querySelector('#dback').onclick = () => APP.vai('ditte');
@@ -399,51 +403,40 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
   // Foto: ridotte a 1600 px; nel programma installato vanno nella cartella della ditta, nel browser restano nella pratica
   function estrattiUI(m, p, d) {
     d.estratti = d.estratti || [];
-    const box = m.querySelector('#destl');
-    const disegna = async () => {
-      const L = await APP.estrattiDitta(p, d);
-      box.innerHTML = d.estratti.map((e, i) => `<figure><img src="${L[i] ? L[i].src : ''}" alt="" style="object-fit:contain;background:#fff"><div class="mu" style="font-size:12px;word-break:break-all">${E(e.nome)}</div><div class="row" style="margin-top:4px"><button class="s" data-eu="${i}">↑</button><button class="s" data-edn="${i}">↓</button><span class="grow"></span><button class="s d" data-ex="${i}">✕</button></div></figure>`).join('') || '<span class="mu">Nessun estratto caricato' + (p.geo ? ': nei documenti si usa quello generato dalla planimetria.' : '.') + '</span>';
-      const sp = (i, j) => { [d.estratti[i], d.estratti[j]] = [d.estratti[j], d.estratti[i]]; APP.salva(); disegna(); };
-      box.querySelectorAll('[data-ex]').forEach(b => b.onclick = () => { d.estratti.splice(+b.dataset.ex, 1); APP.salva(); disegna(); });
-      box.querySelectorAll('[data-eu]').forEach(b => b.onclick = () => { const i = +b.dataset.eu; if (i) sp(i - 1, i); });
-      box.querySelectorAll('[data-edn]').forEach(b => b.onclick = () => { const i = +b.dataset.edn; if (i < d.estratti.length - 1) sp(i, i + 1); });
-    };
-    disegna();
-    m.querySelector('#dest').onclick = async () => {
-      const F = await APP.scegliFile('image/*,.png,.jpg,.jpeg,.gif,.bmp,.webp', true);
-      for (const f of F) {
-        let im; try { im = await inPng(f.buf, f.tipo); } catch (e) { APP.toast(f.nome + ': ' + e.message); continue; }
-        const o = { id: U.id(), nome: f.nome, w: im.w, h: im.h };
-        if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Estratti di mappa/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.png'; await window.desktop.fsScrivi(o.file, im.png); }
-        else o.data = 'data:image/png;base64,' + b64(im.png);
-        d.estratti.push(o);
+    const parts = p.particelle.filter(x => x.ditta === d.id);
+    APP.galleria(m.querySelector('#destl'), p, {
+      lista: d.estratti, parts, nome: 'estratto', salva: APP.salva,
+      src: async o => o.data || (o.file && APP.FS.ok ? URL.createObjectURL(new Blob([await APP.FS.leggi(o.file) || new Uint8Array()], { type: 'image/png' })) : ''),
+      aggiungi: async F => {
+        const out = [];
+        for (const f of F) {
+          let im; try { im = await inPng(f.buf, f.tipo); } catch (e) { APP.toast(f.nome + ': ' + e.message); continue; }
+          const o = { id: U.id(), nome: f.nome, w: im.w, h: im.h };
+          if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Estratti di mappa/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.png'; await window.desktop.fsScrivi(o.file, im.png); }
+          else o.data = 'data:image/png;base64,' + b64(im.png);
+          out.push(o);
+        }
+        return out;
       }
-      if (F.length) { APP.salva(); disegna(); APP.toast('Estratti di mappa caricati: nei documenti della ditta si useranno questi'); }
-    };
+    });
   }
   function fotoUI(m, p, d) {
-    const box = m.querySelector('#dft'), parts = p.particelle.filter(x => x.ditta === d.id);
-    const disegna = async () => {
-      box.innerHTML = d.foto.map((f, i) => `<figure><img data-fi="${i}" alt=""><select data-fp="${i}"><option value="">(particella)</option>${parts.map(x => `<option value="${x.id}" ${f.part === x.id ? 'selected' : ''}>Fg.${E(x.fg)} Mapp.${E(C.mappale(x))}</option>`).join('')}</select><input data-fd="${i}" value="${E(f.did || '')}" placeholder="Didascalia"><div class="row" style="margin-top:4px"><button class="s" data-fu="${i}">↑</button><button class="s" data-fdn="${i}">↓</button><span class="grow"></span><button class="s d" data-fx="${i}">✕</button></div></figure>`).join('');
-      for (const [i, f] of d.foto.entries()) { const im = box.querySelector(`[data-fi="${i}"]`); im.src = f.data || (f.file ? URL.createObjectURL(new Blob([await APP.FS.leggi(f.file) || new Uint8Array()], { type: 'image/jpeg' })) : ''); }
-      box.querySelectorAll('[data-fp]').forEach(s => s.onchange = () => { d.foto[+s.dataset.fp].part = s.value; APP.salva(); });
-      box.querySelectorAll('[data-fd]').forEach(s => s.onchange = () => { d.foto[+s.dataset.fd].did = s.value; APP.salva(); });
-      box.querySelectorAll('[data-fx]').forEach(b => b.onclick = () => { d.foto.splice(+b.dataset.fx, 1); APP.salva(); disegna(); });
-      box.querySelectorAll('[data-fu]').forEach(b => b.onclick = () => { const i = +b.dataset.fu; if (i) { [d.foto[i - 1], d.foto[i]] = [d.foto[i], d.foto[i - 1]]; APP.salva(); disegna(); } });
-      box.querySelectorAll('[data-fdn]').forEach(b => b.onclick = () => { const i = +b.dataset.fdn; if (i < d.foto.length - 1) { [d.foto[i + 1], d.foto[i]] = [d.foto[i], d.foto[i + 1]]; APP.salva(); disegna(); } });
-    };
-    disegna();
-    m.querySelector('#dfoto').onclick = async () => {
-      const L = await APP.scegliFile('image/*', true);
-      for (const f of L) {
-        const jpg = await riduci(f.buf, f.tipo);
-        const o = { id: U.id(), nome: f.nome, did: '', part: parts.length === 1 ? parts[0].id : '' };
-        if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Stato di consistenza/Foto/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.jpg'; await window.desktop.fsScrivi(o.file, jpg); }
-        else o.data = 'data:image/jpeg;base64,' + b64(jpg);
-        d.foto.push(o);
+    const parts = p.particelle.filter(x => x.ditta === d.id);
+    APP.galleria(m.querySelector('#dft'), p, {
+      lista: d.foto, parts, nome: 'foto', salva: APP.salva,
+      dopo: () => { const b = m.querySelector('#dpdf'); if (b) b.disabled = !(d.foto.length || d.scan); },
+      src: async o => o.data || (o.file && APP.FS.ok ? URL.createObjectURL(new Blob([await APP.FS.leggi(o.file) || new Uint8Array()], { type: 'image/jpeg' })) : ''),
+      aggiungi: async F => {
+        const out = [];
+        for (const f of F) {
+          const jpg = await riduci(f.buf, f.tipo), o = { id: U.id(), nome: f.nome, did: '' };
+          if (APP.FS.ok) { o.file = APP.FS.dirDitta(p, d) + '/Stato di consistenza/Foto/' + san(f.nome.replace(/\.\w+$/, '')) + '-' + o.id + '.jpg'; await window.desktop.fsScrivi(o.file, jpg); }
+          else o.data = 'data:image/jpeg;base64,' + b64(jpg);
+          out.push(o);
+        }
+        return out;
       }
-      APP.salva(); APP.render();
-    };
+    });
     m.querySelector('#dscan').onclick = async () => {
       const [f] = await APP.scegliFile('.pdf'); if (!f) return;
       d.scan = { nome: f.nome };
@@ -480,7 +473,7 @@ ${R.map((r, i) => (APP._isolo && (r.o.via || r.o.pec)) ? '' : `<tr><td>${r.ditte
       const maxW = W - 2 * mg, maxH = 330, k = Math.min(maxW / im.width, maxH / im.height), w = im.width * k, h = im.height * k;
       pg.drawImage(im, { x: mg + (maxW - w) / 2, y: y - h, width: w, height: h });
       const x = parts.get(f.part); n++;
-      const did = 'Figura ' + n + (x ? '_Fg. ' + x.fg + ' Mapp.' + C.mappale(x) : '') + (f.did ? ' – ' + f.did : '');
+      const fm = APP.fgMapImg(p, f), did = 'Figura ' + n + (fm ? '_Fg. ' + fm.fg + ' Mapp.' + fm.map : '') + (f.did ? ' – ' + f.did : '');
       pg.drawText(did.replace(/[^\x20-\x7E -ÿ]/g, '-').slice(0, 110), { x: mg + (maxW - w) / 2, y: y - h - 12, size: 8.5, font });
       y -= h + 30;
     }

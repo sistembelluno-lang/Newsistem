@@ -34,7 +34,7 @@ const ocrEng = fs.readFileSync(path.join(root, 'node_modules', '@tesseract.js-da
 // Il «worker» di pdf.js resta come testo nella pagina e parte da un Blob (niente file esterni)
 const worker = lib('pdfjs-dist/legacy/build/pdf.worker.min.js');
 const ordine = JSON.parse(leggi(path.join(src, 'ordine.json')));
-let moduli = ordine.concat(['normativa.js', 'app.js', 'app2.js', 'ricerca.js', 'carta.js']).map(f => '/* ---- ' + f + ' ---- */\n' + leggi(path.join(src, f))).join('\n')
+let moduli = ordine.concat(['normativa.js', 'app.js', 'app2.js', 'ricerca.js', 'carta.js', 'galleria.js']).map(f => '/* ---- ' + f + ' ---- */\n' + leggi(path.join(src, f))).join('\n')
   .replace(/^if \(typeof module !== 'undefined'\) module\.exports = ES;$/m, '');
 const demo = process.argv.indexOf('--demo');
 if (demo > 0) {
