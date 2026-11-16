@@ -92,3 +92,24 @@ test('registro dei moduli: ruoli e ordine (pronto per la Direzione Lavori)', () 
   assert.throws(() => registra({ id: 'a', titolo: 'A', ruolo: 'cse', disegna }), /già registrato/);
   assert.throws(() => registra({ id: 'z', titolo: 'Z', ruolo: 'boh', disegna }), /Ruolo sconosciuto/);
 });
+
+test('verbali creati su due dispositivi: file diversi e numeri doppi segnalati', async () => {
+  const { nomeFileVerbale, numeriDoppi } = await import('../www/js/servizi/verbali.js');
+  const a = nuovoVerbaleSopralluogo([]);
+  const b = nuovoVerbaleSopralluogo([]);
+  assert.equal(a.numero, b.numero);
+  assert.notEqual(nomeFileVerbale(a), nomeFileVerbale(b));
+  assert.match(nomeFileVerbale(a), /^Verbale 001_/);
+  assert.deepEqual(numeriDoppi([a, b, { numero: 2 }]), [1]);
+});
+
+test('verbale stampato: righe di firma per i presenti e per il CSE', () => {
+  const cant = nuovoCantiere({ codice: 'C', denominazione: 'X', comune: 'Belluno', cse: { nome: 'Ing. Bianchi' } });
+  const v = { ...nuovoVerbaleSopralluogo([]), presenti: [{ nome: 'Mario Rossi', qualifica: 'Capocantiere', impresa: 'Edil Rossi' }] };
+  const html = htmlVerbale(cant, v);
+  assert.match(html, /Letto, confermato e sottoscritto/);
+  assert.match(html, /Mario Rossi<\/td><td>Capocantiere<\/td><td>Edil Rossi<\/td><td><\/td>/);
+  assert.match(html, /Coordinatore per l'esecuzione<br>Ing\. Bianchi/);
+  // senza presenti: righe vuote da compilare in cantiere
+  assert.equal((htmlVerbale(cant, nuovoVerbaleSopralluogo([])).match(/<tr><td><\/td><td><\/td><td><\/td><td><\/td><\/tr>/g) || []).length, 5);
+});

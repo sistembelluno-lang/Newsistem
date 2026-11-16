@@ -13,7 +13,7 @@ import { importaFoto, perGiorno } from '../servizi/foto.js';
 import { timbraFoto } from '../servizi/timbro.js';
 import { nuovaVerifica, esitoProposto, prescrizioniProposte, situazionePos } from '../servizi/pos.js';
 import { nomeFileVoce, nuovaVoce, ordinaVoci } from '../servizi/giornale.js';
-import { nuovoVerbaleSopralluogo } from '../servizi/verbali.js';
+import { nuovoVerbaleSopralluogo, nomeFileVerbale, numeriDoppi } from '../servizi/verbali.js';
 import { htmlVerbale, htmlVerificaPos } from '../servizi/stampa.js';
 import { CONTENUTI_POS, ESITI_VERIFICA_POS, ESITI_VOCE_POS } from '../servizi/normativa.js';
 
@@ -229,12 +229,16 @@ registra({
         onclick: async () => {
           const v = nuovoVerbaleSopralluogo(verbali, { imprese });
           v.lavorazioniInCorso = prompt('Lavorazioni in corso') || '';
-          const salvato = await ctx.archivio.salvaRegistrazione(cod, 'verbali', v, `Verbale ${String(v.numero).padStart(3, '0')}.json`);
+          const salvato = await ctx.archivio.salvaRegistrazione(cod, 'verbali', v, nomeFileVerbale(v));
           await salvaPdf(ctx, htmlVerbale(ctx.cantiere, salvato, { imprese }),
             percorso(cartellaSezione(cod, 'verbali'), `Verbale ${String(v.numero).padStart(3, '0')} del ${v.data}.pdf`));
           ctx.ricarica();
         },
       }, 'Nuovo verbale…'),
+      numeriDoppi(verbali).length
+        ? h('p', { class: 'avviso-testo' }, `Attenzione: numeri usati due volte (${numeriDoppi(verbali).join(', ')}), `,
+          'probabilmente verbali creati su due dispositivi prima della sincronizzazione. Rinumerarli prima di chiuderli.')
+        : null,
       h('ul', { class: 'elenco' }, verbali.map((v) => h('li', {}, `n. ${v.numero} del ${dataIt(v.data)}${v.chiuso ? ' (chiuso)' : ''}`))));
   },
 });

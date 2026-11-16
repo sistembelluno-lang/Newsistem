@@ -107,12 +107,44 @@ ipcMain.handle('cse:pdfDaHtml', async (_e, html, p) => {
   }
 });
 
+/**
+ * Cartelle di Google Drive per desktop presenti sul PC: di solito un disco
+ * virtuale "G:\\Il mio Drive" (o "My Drive"), nelle versioni vecchie una
+ * cartella "Google Drive" nella cartella dell'utente.
+ */
+function cartelleGoogleDrive() {
+  const candidati = [];
+  for (const l of 'DEFGHIJKLMNOPQRSTUVWXYZ') {
+    for (const nome of ['Il mio Drive', 'My Drive', 'Mein Ablage', 'Mi unidad']) candidati.push(`${l}:\\${nome}`);
+  }
+  const casa = app.getPath('home');
+  candidati.push(path.join(casa, 'Google Drive'), path.join(casa, 'Google Drive', 'Il mio Drive'), path.join(casa, 'Il mio Drive'));
+  return candidati.filter((c) => {
+    try {
+      return fs.statSync(c).isDirectory();
+    } catch {
+      return false;
+    }
+  });
+}
+
+function usaCartella(p) {
+  if (!fs.statSync(p).isDirectory()) throw new Error(`Cartella non trovata: ${p}`);
+  salvaImpostazioni({ ...impostazioni(), cartellaDati: p });
+  return p;
+}
+
 ipcMain.handle('cse:cartellaDati', () => base());
+ipcMain.handle('cse:cartelleGoogleDrive', () => cartelleGoogleDrive());
+ipcMain.handle('cse:usaCartellaDati', (_e, p) => usaCartella(String(p)));
 ipcMain.handle('cse:scegliCartellaDati', async (e) => {
-  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { properties: ['openDirectory', 'createDirectory'] });
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), {
+    title: 'Cartella in cui tenere i cantieri (es. la cartella di Google Drive)',
+    defaultPath: cartelleGoogleDrive()[0] || base(),
+    properties: ['openDirectory', 'createDirectory'],
+  });
   if (r.canceled) return null;
-  salvaImpostazioni({ ...impostazioni(), cartellaDati: r.filePaths[0] });
-  return r.filePaths[0];
+  return usaCartella(r.filePaths[0]);
 });
 
 function creaFinestra() {

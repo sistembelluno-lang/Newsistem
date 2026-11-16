@@ -17,4 +17,6 @@ contextBridge.exposeInMainWorld('cseNative', {
   pdfDaHtml: chiama('pdfDaHtml'),
   cartellaDati: chiama('cartellaDati'),
   scegliCartellaDati: chiama('scegliCartellaDati'),
+  cartelleGoogleDrive: chiama('cartelleGoogleDrive'),
+  usaCartellaDati: chiama('usaCartellaDati'),
 });

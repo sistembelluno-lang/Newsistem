@@ -4,6 +4,22 @@ import { nuovoVerbale } from '../core/modelli.js';
 import { CONTROLLI_SOPRALLUOGO } from './normativa.js';
 import { confronta } from '../core/date.js';
 
+/**
+ * Nome del file del verbale: numero e identificativo. Due dispositivi che
+ * creano un verbale prima che Google Drive li abbia sincronizzati non si
+ * sovrascrivono (al massimo i numeri risultano doppi, vedi numeriDoppi).
+ */
+export function nomeFileVerbale(v) {
+  return `Verbale ${String(v.numero).padStart(3, '0')}_${v.id}.json`;
+}
+
+/** Numeri usati da più di un verbale (da rinumerare prima di chiuderli). */
+export function numeriDoppi(verbali) {
+  const visti = new Map();
+  for (const v of verbali) visti.set(v.numero, (visti.get(v.numero) || 0) + 1);
+  return [...visti].filter(([, n]) => n > 1).map(([numero]) => numero).sort((a, b) => a - b);
+}
+
 /** Prossimo numero progressivo dei verbali del cantiere. */
 export function prossimoNumero(verbali) {
   return verbali.reduce((m, v) => Math.max(m, Number(v.numero) || 0), 0) + 1;

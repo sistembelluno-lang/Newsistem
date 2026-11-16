@@ -26,6 +26,33 @@ come un fascicolo. Ogni registrazione (voce di giornale, verifica, verbale,
 scheda di una foto) è un **file separato**: due dispositivi che lavorano sullo
 stesso cantiere non si sovrascrivono.
 
+### Cartella su Google Drive
+
+I cantieri stanno in una cartella `CSE_SISTEM` dentro la **cartella di Google
+Drive**, così PC e telefono vedono gli stessi dati:
+
+- **Windows 10/11**: con «Google Drive per desktop» Drive diventa un disco
+  (es. `G:\Il mio Drive`). In *Impostazioni* il programma trova da solo le
+  cartelle di Drive del PC: basta «Usa questa». Le scritture sono sicure
+  (prima un file temporaneo, poi la sostituzione), quindi Drive non carica mai
+  file scritti a metà.
+- **Android**: i cantieri stanno in `Documenti/CSE_SISTEM`; un'app di
+  sincronizzazione (es. *Autosync per Google Drive* o *FolderSync*) tiene
+  allineata quella cartella con la stessa cartella di Drive. All'app
+  CSE_SISTEM va dato una volta il permesso «Accesso a tutti i file».
+  Possibile sviluppo: accesso a Drive direttamente dall'app.
+
+Ogni registrazione è un file a sé, quindi lavorare da due dispositivi non fa
+perdere dati. I verbali hanno nel nome anche un identificativo: se due
+dispositivi creano un verbale con lo stesso numero prima della
+sincronizzazione, nessuno si perde e il programma segnala i numeri doppi.
+
+### Verbali
+
+Si compilano nel programma e si **stampano per la firma su carta**: righe di
+firma per ogni presente (o righe vuote da compilare in cantiere) e per il CSE,
+con la formula «letto, confermato e sottoscritto».
+
 ### Foto
 
 - la **data di scatto** si legge dai dati EXIF (DateTimeOriginal); se manca si
@@ -41,7 +68,7 @@ stesso cantiere non si sovrascrivono.
 Una sola base di codice in HTML/JavaScript (moduli ES, nessuna libreria
 esterna nella logica):
 
-- **Windows**: Electron (`electron/`), come le altre app SISTEM;
+- **Windows 10/11**: Electron (`electron/`), come le altre app SISTEM;
 - **Android**: Capacitor, che impacchetta le stesse pagine `www/` e dà accesso
   a fotocamera e file.
 
@@ -90,7 +117,6 @@ esegue i test e prepara l'eseguibile Windows e l'APK Android.
 ## Da fare
 
 - grafica definitiva e moduli completi (persone, imprese, presenti, firme);
-- sincronizzazione tra telefono e PC (cartella condivisa o server);
+- (eventuale) accesso a Google Drive direttamente dall'app Android;
 - modelli di stampa definitivi (verbale, verifica POS, registro fotografico);
-- versione Windows 7 (Electron 22), se serve;
 - Direzione Lavori.

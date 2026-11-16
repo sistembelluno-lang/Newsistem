@@ -28,5 +28,8 @@ export function serviziElectron(nativo = globalThis.cseNative) {
     pdfDaHtml: (html, percorsoPdf) => nativo.pdfDaHtml(html, percorsoPdf),
     cartellaDati: () => nativo.cartellaDati(),
     scegliCartellaDati: () => nativo.scegliCartellaDati(),
+    /** Cartelle di Google Drive per desktop trovate sul PC. */
+    cartelleGoogleDrive: () => nativo.cartelleGoogleDrive(),
+    usaCartellaDati: (p) => nativo.usaCartellaDati(p),
   };
 }

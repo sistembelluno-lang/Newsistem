@@ -18,6 +18,9 @@ function pagina(titolo, corpo) {
   table { border-collapse: collapse; width: 100%; } td, th { border: 1px solid #bbb; padding: 3px 5px; vertical-align: top; text-align: left; }
   th { background: #eee; } .intest td { border: none; padding: 1px 0; } .firme td { border: none; padding-top: 18mm; width: 50%; }
   .rif { color: #555; font-size: 9pt; }
+  .blocco-firme { page-break-inside: avoid; break-inside: avoid; }
+  .righe-firma td { height: 11mm; }
+  tr { page-break-inside: avoid; }
 </style></head><body>${corpo}</body></html>`;
 }
 
@@ -59,8 +62,25 @@ ${verbale.sospensione ? `<h2>Sospensione delle lavorazioni (art. 92 c. 1 lett. f
 <p>Lavorazioni sospese: ${esc(verbale.sospensione.lavorazioni)}<br>Motivo: ${esc(verbale.sospensione.motivo)}<br>Dal: ${dataOraIt(verbale.sospensione.dal)}</p>` : ''}
 ${verbale.segnalazioneCommittente ? `<p><b>Segnalazione al committente / responsabile dei lavori (art. 92 c. 1 lett. e)</b> delle inosservanze riscontrate.</p>` : ''}
 ${verbale.note ? `<h2>Note</h2><p>${esc(verbale.note)}</p>` : ''}
-<table class="firme"><tr><td>Il Coordinatore per l'esecuzione<br>${persona(cantiere.cse)}</td><td>Per le imprese presenti</td></tr></table>`;
+${firmeVerbale(cantiere, verbale)}`;
   return pagina(`Verbale ${verbale.numero}`, corpo);
+}
+
+/**
+ * Firme del verbale, da apporre a mano sulla copia stampata: una riga per
+ * ogni presente (con spazio sufficiente) e il CSE. Se l'elenco dei presenti è
+ * vuoto si lasciano righe in bianco da compilare in cantiere.
+ */
+function firmeVerbale(cantiere, verbale) {
+  const presenti = verbale.presenti?.length ? verbale.presenti : Array.from({ length: 5 }, () => ({}));
+  return `<div class="blocco-firme">
+<h2>Letto, confermato e sottoscritto</h2>
+<p>${dataIt(verbale.data)}, ${esc(cantiere.comune) || '__________'}</p>
+<table class="righe-firma"><tr><th style="width:30%">Nome e cognome</th><th style="width:20%">Qualifica</th><th style="width:20%">Impresa</th><th>Firma</th></tr>
+${presenti.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifica)}</td><td>${esc(p.impresa)}</td><td></td></tr>`).join('')}
+</table>
+<table class="firme"><tr><td></td><td>Il Coordinatore per l'esecuzione<br>${persona(cantiere.cse)}<br><br>______________________________</td></tr></table>
+</div>`;
 }
 
 /** HTML della verifica di idoneità del POS. */
