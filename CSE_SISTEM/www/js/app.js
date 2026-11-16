@@ -46,6 +46,9 @@ async function paginaCantieri() {
   return h('div', { class: 'pagina' },
     testata('Cantieri', cantieri.length ? `${cantieri.length} cantier${cantieri.length === 1 ? 'e' : 'i'} nella cartella dei dati` : '', nuovo),
     p.tipo === 'prova' ? nota('Modalità di prova nel browser: i dati restano in memoria e spariscono chiudendo la pagina.', 'info') : null,
+    p.tipo === 'android' && !(await p.servizi.permessoFile().catch(() => true))
+      ? nota(h('span', {}, 'Per vedere i cantieri sincronizzati da Google Drive concedi «Accesso a tutti i file»: ', h('a', { href: '#/impostazioni' }, 'vai alle Impostazioni'), '.'))
+      : null,
     cantieri.length
       ? h('div', { class: 'cantieri' }, cantieri.map((c) => {
         const [st, tipo] = STATI[c.stato] || STATI.in_corso;
@@ -88,6 +91,20 @@ async function paginaImpostazioni() {
       ],
     }));
   } else if (p.tipo === 'android') {
+    const concesso = await p.servizi.permessoFile().catch(() => true);
+    parti.push(scheda({
+      titolo: 'Accesso ai file', ico: 'lucchetto',
+      corpo: concesso
+        ? h('p', { style: 'margin:0' }, pill('Concesso', 'ok'), ' CSE_SISTEM legge anche i file portati da Google Drive.')
+        : [nota('Manca il permesso «Accesso a tutti i file»: senza, i cantieri sincronizzati da Google Drive non si vedono.'),
+          bottone('lucchetto', 'Concedi il permesso', async () => {
+            await p.servizi.apriPermessoFile();
+            // al ritorno dalle impostazioni di Android si ridisegna la pagina
+            document.addEventListener('visibilitychange', function rientro() {
+              if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', rientro); disegna(); }
+            });
+          }, 'p')],
+    }));
     parti.push(scheda({
       titolo: 'Cartella dei cantieri', ico: 'cartella',
       corpo: [

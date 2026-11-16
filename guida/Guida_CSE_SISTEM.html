@@ -1,0 +1,202 @@
+<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Guida CSE_SISTEM</title><style>
+:root{--tx:#0f1b2d;--mu:#5d6b82;--bd:#dfe5ef;--hd:#f3f6fb;--ac:#2457d6;--sc:#0b1f4b;--at:#b45309}
+*{box-sizing:border-box}body{margin:0;background:#fff;color:var(--tx);font:14.5px/1.55 "Segoe UI",Inter,system-ui,-apple-system,Roboto,sans-serif}
+header{background:linear-gradient(110deg,#0b1f4b 0%,#1d3f9e 58%,#4a3ad1 100%);color:#fff;padding:14px 18px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.brand{max-width:880px;margin:0 auto;display:flex;gap:12px;align-items:center}
+.logo{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;background:linear-gradient(140deg,#38bdf8,#3b82f6 45%,#7c3aed)}
+.logo svg{width:26px;height:26px}.az{display:block;font-size:11px;font-weight:700;letter-spacing:.2em;opacity:.85}.brand b{font-size:20px;letter-spacing:.03em}
+main{max-width:880px;margin:0 auto;padding:10px 18px 40px}
+h1{font-size:29px;margin:26px 0 4px;color:var(--sc)}h1+p{font-size:16px;color:var(--mu);margin:0 0 18px}
+h2{font-size:20px;margin:30px 0 10px;padding-top:10px;border-top:2px solid var(--ac);color:var(--ac);break-after:avoid}
+h3{font-size:16px;margin:18px 0 6px;color:var(--sc);break-after:avoid}
+a{color:var(--ac)}code{background:var(--hd);border:1px solid var(--bd);padding:0 5px;border-radius:5px;font-size:.92em}
+table{border-collapse:collapse;width:100%;margin:10px 0 14px;font-size:13.5px}th,td{border:1px solid var(--bd);padding:6px 8px;text-align:left;vertical-align:top}th{background:var(--hd)}
+li{margin:3px 0}ol.passi>li{margin:6px 0}
+figure{margin:14px 0 18px;text-align:center;break-inside:avoid}figure img{max-width:100%;border:1px solid var(--bd);border-radius:10px;box-shadow:0 2px 10px rgba(15,27,45,.08)}
+figure.md img{max-width:80%}figure.sm img{max-width:46%}figcaption{font-size:12.5px;color:var(--mu);margin-top:6px}
+.duo{display:flex;gap:16px;align-items:flex-start;break-inside:avoid}.duo figure{flex:1;margin:8px 0}.duo figure img{max-height:520px}
+.box{border:1px solid var(--bd);border-radius:12px;padding:8px 14px;margin:12px 0;background:#f8faff;break-inside:avoid}
+.box.att{border-color:#f3c99a;background:#fff8ef}.box.ok{border-color:#9fd3a9;background:#f2fbf4}.box b.t{display:block;margin-bottom:2px}
+.indice{columns:2;column-gap:30px;font-size:14px;padding-left:18px}
+.pill{display:inline-block;padding:0 8px;border-radius:99px;font-size:12px;font-weight:650;background:#e9eefb;color:var(--ac)}
+pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.45;overflow:auto}
+@page{size:A4;margin:14mm 14mm 16mm}
+@media print{header{border-radius:10px}main{padding:0}h2{break-before:auto}.salto{break-before:page}}
+</style></head><body>
+<header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
+<main>
+<h1>Guida a CSE_SISTEM</h1>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.3.</p>
+
+<div class="box"><b class="t">In breve</b>
+CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
+
+<ol class="indice">
+<li>Scaricare e installare</li><li>Cartella dei dati e Google Drive</li><li>La finestra in breve</li><li>Nuovo cantiere e anagrafica</li>
+<li>Progetto, PSC e notifica</li><li>Imprese, POS e verifica di idoneità</li><li>Giornale dei lavori</li><li>Registro fotografico</li>
+<li>Verbali di sopralluogo</li><li>Stampa e PDF</li><li>Dove stanno i file</li><li>Problemi frequenti</li>
+</ol>
+
+<h2>1. Scaricare e installare</h2>
+<p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
+<table><tr><th>File</th><th>Per</th><th>Note</th></tr>
+<tr><td><code>CSE_SISTEM-0.3.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.3.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
+<tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
+
+<h3>Windows</h3>
+<ol class="passi">
+<li>Scarica <code>CSE_SISTEM-0.3.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
+<li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
+</ol>
+
+<h3>Android</h3>
+<ol class="passi">
+<li>Apri dal telefono la pagina della versione e tocca <code>CSE_SISTEM.apk</code> per scaricarlo.</li>
+<li>Apri il file scaricato (dalla notifica o da <i>File › Download</i>). Android chiede di consentire l'installazione di app da questa fonte: tocca <b>Impostazioni</b>, attiva <b>Consenti da questa fonte</b>, torna indietro e tocca <b>Installa</b>.</li>
+<li>Se compare Play Protect («app non riconosciuta»), tocca <b>Altri dettagli › Installa comunque</b>: è normale per le app che non vengono dal Play Store.</li>
+<li>Apri CSE_SISTEM e consenti l'uso della <b>fotocamera</b> quando lo chiede (serve per le foto).</li>
+<li>Vai in <b>Impostazioni</b> (rotella in alto a destra) e tocca <b>Concedi il permesso</b>: si apre la pagina di Android dove attivare <b>Accesso a tutti i file</b> per CSE_SISTEM. Serve per vedere i cantieri portati da Google Drive.</li>
+</ol>
+<div class="box ok"><b class="t">Aggiornamenti</b>Le nuove versioni si installano sopra le vecchie (Windows: si sostituisce l'.exe; Android: si installa il nuovo APK). I cantieri non si toccano: stanno nella cartella dei dati, non dentro il programma.</div>
+
+<h2>2. Cartella dei dati e Google Drive</h2>
+<p>Ogni cantiere è una cartella dentro <code>CSE_SISTEM</code>. Mettendo questa cartella su Google Drive, PC e telefono lavorano sugli stessi cantieri.</p>
+<h3>Sul PC (Google Drive per desktop)</h3>
+<ol class="passi">
+<li>Installa <b>Google Drive per desktop</b> (se non c'è già) e accedi con l'account aziendale: compare un disco, di solito <code>G:\Il mio Drive</code>.</li>
+<li>In CSE_SISTEM apri <b>Impostazioni</b>: il programma trova da solo le cartelle di Drive. Clicca <b>Usa questa</b>.</li>
+<li>Da quel momento i cantieri stanno in <code>G:\Il mio Drive\CSE_SISTEM</code> e Drive li sincronizza.</li>
+</ol>
+<figure class="md"><img src="img/cse_impostazioni.jpg" alt=""><figcaption>Impostazioni su Windows (nella prova nel browser compare solo la nota della modalità di prova)</figcaption></figure>
+
+<h3>Sul telefono (app di sincronizzazione)</h3>
+<p>L'app Google Drive di Android non crea una cartella sincronizzata sul telefono, quindi serve un'app che lo faccia. Consigliata: <b>Autosync per Google Drive</b> (MetaCtrl) oppure <b>FolderSync</b>.</p>
+<ol class="passi">
+<li>Apri CSE_SISTEM almeno una volta: crea la cartella <code>Documenti/CSE_SISTEM</code>.</li>
+<li>Installa Autosync dal Play Store e accedi con lo stesso account Google del PC.</li>
+<li>Crea una coppia di cartelle: sul telefono <code>Documenti/CSE_SISTEM</code>, su Drive <code>Il mio Drive/CSE_SISTEM</code>, sincronizzazione <b>in due direzioni</b>.</li>
+<li>Controlla che CSE_SISTEM abbia <b>Accesso a tutti i file</b> (Impostazioni del programma).</li>
+</ol>
+<div class="box att"><b class="t">Lavorare da due dispositivi</b>
+Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quindi non si perde nulla. Conviene però aspettare che la sincronizzazione sia finita prima di passare dal telefono al PC. Se due dispositivi creano un verbale con lo stesso numero prima di essersi sincronizzati, li tiene entrambi e segnala «numeri usati due volte»: cambia il numero di uno dei due prima di chiuderlo.</div>
+
+<h2 class="salto">3. La finestra in breve</h2>
+<figure><img src="img/cse_riepilogo.jpg" alt=""><figcaption>Riepilogo di un cantiere</figcaption></figure>
+<ul>
+<li><b>Barra in alto</b>: il marchio riporta all'elenco dei cantieri; la rotella apre le Impostazioni.</li>
+<li><b>Menu a sinistra</b>: le funzioni del cantiere. Il numero arancione indica cose da sistemare (imprese senza POS idoneo, prescrizioni aperte).</li>
+<li><b>Riepilogo</b>: indicatori (imprese operative, prescrizioni aperte o scadute, verbali, giornale, foto) e l'elenco <b>Da fare</b>; ogni riga porta alla pagina dove sistemarla.</li>
+<li>I pulsanti in <b>blu/viola</b> sono l'azione principale della pagina. Nei moduli lunghi la barra con <b>Salva</b> resta sempre in basso.</li>
+<li>Il tema <b>scuro</b> si attiva da solo se Windows o il telefono sono in modalità scura.</li>
+</ul>
+<div class="duo">
+<figure><img src="img/cse_tel_riepilogo.jpg" alt=""><figcaption>Sul telefono il menu diventa una fila di pulsanti da scorrere</figcaption></figure>
+<figure><img src="img/cse_tel_foto.jpg" alt=""><figcaption>Registro fotografico sul telefono</figcaption></figure>
+</div>
+
+<h2>4. Nuovo cantiere e anagrafica</h2>
+<ol class="passi">
+<li>Nell'elenco dei cantieri clicca <b>Nuovo cantiere</b>.</li>
+<li>Scrivi il <b>codice</b> (es. <code>2026-015</code>): diventa il nome della cartella e non si cambia più. Poi denominazione, comune e indirizzo.</li>
+<li>Si apre l'<b>Anagrafica</b>: completa i dati della notifica preliminare (Allegato XII), divisi in gruppi: l'opera; i soggetti (committenti, responsabile dei lavori, CSP, CSE, direttore dei lavori, ognuno con recapiti, PEC e codice fiscale); notifica, tempi e importi. Premi <b>Salva</b>.</li>
+</ol>
+<figure class="md"><img src="img/cse_nuovo.jpg" alt=""><figcaption>Nuovo cantiere</figcaption></figure>
+<p>Il nome del CSE e il comune compaiono nei verbali stampati: compilali prima del primo sopralluogo. Lo <b>stato</b> del cantiere (in corso, sospeso, concluso) si cambia nel gruppo «L'opera».</p>
+
+<h2>5. Progetto, PSC e notifica</h2>
+<p>Nelle tre pagine si caricano i documenti: <b>Carica documenti</b>, scegli uno o più file, poi per ognuno indica titolo, revisione, data e autore. Il file viene <b>copiato</b> nella cartella del cantiere (l'originale resta dov'è); le revisioni precedenti restano in elenco. Clicca una riga per aprire il documento con il programma del PC o del telefono.</p>
+
+<h2 class="salto">6. Imprese, POS e verifica di idoneità</h2>
+<figure><img src="img/cse_imprese.jpg" alt=""><figcaption>Situazione delle imprese: chi può lavorare e cosa resta da fare</figcaption></figure>
+<ol class="passi">
+<li><b>Nuova impresa</b>: ragione sociale, impresa o lavoratore autonomo, ruolo (affidataria, esecutrice, subappaltatrice) e, per i subappalti, l'impresa affidataria.</li>
+<li>Nella <b>scheda dell'impresa</b> completa i dati richiesti dal POS (datore di lavoro, direttore tecnico, capocantiere, RSPP, medico competente, RLS, lavorazioni, date di ingresso e uscita).</li>
+<li><b>Carica POS</b>: scegli il PDF ricevuto e indica revisione, data e data di ricezione.</li>
+<li><b>Verifica ora</b>: per ognuno dei contenuti minimi dell'Allegato XV punto 3.2.1 scegli <i>Presente</i>, <i>Incompleto</i>, <i>Mancante</i> o <i>Non pertinente</i>, con eventuali note. Il programma propone l'esito (una voce mancante = non idoneo, una incompleta = idoneo con prescrizioni) e, con <b>Proponi dalle voci</b>, il testo delle integrazioni da chiedere.</li>
+<li><b>Salva e crea PDF</b>: la verifica va in <code>05_Verifiche_POS</code>. Quando trasmetti l'esito all'impresa, scrivi la data in «Esito trasmesso all'impresa il».</li>
+</ol>
+<figure><img src="img/cse_verificapos.jpg" alt=""><figcaption>Verifica del POS voce per voce</figcaption></figure>
+<p>Finché il POS non è idoneo l'impresa compare in rosso e il riepilogo ricorda cosa fare (richiedere il POS, verificarlo, chiederne la revisione, trasmettere l'esito). Quando arriva una revisione si carica come nuovo POS e si verifica di nuovo.</p>
+
+<h2>7. Giornale dei lavori</h2>
+<p><b>Voce di oggi</b> apre la scheda del giorno: orari di arrivo e partenza, meteo, lavorazioni in corso, osservazioni, disposizioni impartite. C'è una voce per giorno; tocca una voce per modificarla. Se quel giorno sono state fatte foto, la voce lo indica con un collegamento.</p>
+<figure class="md"><img src="img/cse_giornale.jpg" alt=""><figcaption>Giornale a linea del tempo</figcaption></figure>
+
+<h2 class="salto">8. Registro fotografico</h2>
+<ul>
+<li>Sul telefono: <b>Scatta foto</b> (la foto resta anche nella galleria) oppure <b>Carica foto</b> dalla galleria. Sul PC: <b>Carica foto</b> (file JPEG).</li>
+<li>La <b>data di scatto</b> si legge dalla foto stessa (dati EXIF). Le foto sono <b>ordinate per data di scatto</b> e raggruppate per giorno, anche se caricate in un altro momento.</li>
+<li>Su ogni foto la data e l'ora di scatto vengono stampate <b>in basso a destra</b>. L'originale resta intatto in <code>originali</code>; la copia con la data è in <code>timbrate</code>.</li>
+<li>Una foto senza data di scatto (per esempio inviata con WhatsApp) prende la data del file e viene segnata con <span class="pill">!</span>: verificala.</li>
+<li>Tocca una foto per vederla in grande e aggiungere <b>didascalia</b> e <b>posizione in cantiere</b>.</li>
+</ul>
+<figure><img src="img/cse_foto.jpg" alt=""><figcaption>Foto raggruppate per giorno di scatto</figcaption></figure>
+
+<h2 class="salto">9. Verbali di sopralluogo</h2>
+<ol class="passi">
+<li><b>Nuovo verbale</b> (dalla pagina Verbali o dal Riepilogo). Il verbale è già precompilato: numero progressivo, ora di inizio, imprese con POS idoneo, elenco dei controlli e prescrizioni dei verbali precedenti ancora aperte.</li>
+<li><b>Sopralluogo</b>: data, orari, lavorazioni in corso, imprese presenti (quelle senza POS idoneo sono segnalate).</li>
+<li><b>Presenti</b>: nome, qualifica e impresa di chi partecipa. Se non li scrivi, nella stampa restano righe vuote da compilare a mano in cantiere.</li>
+<li><b>Prescrizioni dei verbali precedenti</b>: per ognuna scegli <i>Risolta</i> o <i>Non risolta</i>. Quelle risolte spariscono dalle prescrizioni aperte.</li>
+<li><b>Verifiche effettuate</b>: per ogni controllo, divisi per gruppo, scegli <i>Conforme</i>, <i>Non conforme</i> o <i>Non verificato</i>, con note.</li>
+<li><b>Non conformità</b> e <b>Prescrizioni</b> (con impresa e scadenza «entro il»). Le prescrizioni scadute compaiono in rosso nel riepilogo.</li>
+<li><b>Provvedimenti</b>: sospensione delle singole lavorazioni (art. 92 c. 1 lett. f) e segnalazione al committente o al responsabile dei lavori (art. 92 c. 1 lett. e).</li>
+</ol>
+<figure><img src="img/cse_verbale1.jpg" alt=""><figcaption>Inizio del verbale</figcaption></figure>
+<figure><img src="img/cse_verbale2.jpg" alt=""><figcaption>Verifiche effettuate, divise per gruppo</figcaption></figure>
+<h3>Salvare, stampare, chiudere</h3>
+<table><tr><th>Pulsante</th><th>Cosa fa</th></tr>
+<tr><td><b>Salva</b></td><td>salva il verbale in bozza; si può riprendere e modificare</td></tr>
+<tr><td><b>Stampa</b></td><td>salva e prepara la stampa (vedi capitolo 10), per esempio per una bozza</td></tr>
+<tr><td><b>Chiudi</b></td><td>salva, prepara la stampa da firmare e <b>blocca</b> il verbale: non si modifica più, per correzioni si fa un nuovo verbale</td></tr>
+<tr><td><b>Elimina</b></td><td>(solo su PC, solo per le bozze) cancella il verbale</td></tr></table>
+<p>Il verbale stampato termina con «Letto, confermato e sottoscritto», la data e il comune, una riga di firma per ogni presente e la firma del CSE. Si firma <b>su carta</b>.</p>
+<figure class="md"><img style="max-height:215mm" src="img/cse_stampa.jpg" alt=""><figcaption>Il verbale stampato</figcaption></figure>
+
+<h2 class="salto">10. Stampa e PDF</h2>
+<h3>Windows</h3>
+<p>Verbali e verifiche dei POS vengono salvati come <b>PDF</b> nella cartella del cantiere (<code>08_Verbali_sopralluogo</code>, <code>05_Verifiche_POS</code>) e aperti subito con il lettore PDF: da lì si stampa con <b>Ctrl+P</b>.</p>
+<h3>Android</h3>
+<p>Si apre la <b>finestra di stampa del telefono</b>, con l'anteprima del documento:</p>
+<ul>
+<li>per stampare: in alto scegli la <b>stampante</b> (stampanti Wi-Fi o il servizio di stampa installato, per esempio HP, Canon, Epson o Mopria) e tocca il pulsante di stampa;</li>
+<li>per avere il PDF: in alto scegli <b>Salva come PDF</b>, tocca il pulsante <b>PDF</b> e scegli la cartella. Per averlo anche su Drive salvalo in <code>Documenti/CSE_SISTEM/&lt;cantiere&gt;/08_Verbali_sopralluogo</code>.</li>
+</ul>
+<p>Il formato è sempre A4.</p>
+
+<h2>11. Dove stanno i file</h2>
+<p>Ogni cantiere si può consultare anche senza il programma, come un fascicolo:</p>
+<pre>CSE_SISTEM\
+  2026-015\
+    cantiere.json                anagrafica
+    01_Progetto\                 elaborati di progetto
+    02_PSC\
+    03_Notifica_preliminare\
+    04_Imprese_e_POS\Edil Rossi S.r.l\POS\
+    05_Verifiche_POS\            verifiche (.json) e PDF
+    06_Giornale_lavori\          una voce al giorno
+    07_Registro_fotografico\
+       originali\                foto così come scattate
+       timbrate\                 foto con la data in basso a destra
+       schede\                   didascalie e dati delle foto
+    08_Verbali_sopralluogo\      verbali (.json) e PDF</pre>
+<div class="box att"><b class="t">Attenzione</b>I file <code>.json</code> sono i dati del programma: non modificarli né rinominarli a mano. I PDF, le foto e i documenti si possono invece copiare e inviare liberamente.</div>
+
+<h2 class="salto">12. Problemi frequenti</h2>
+<table><tr><th>Problema</th><th>Cosa fare</th></tr>
+<tr><td>Windows non avvia il programma («Windows ha protetto il PC»)</td><td><b>Ulteriori informazioni › Esegui comunque</b> (capitolo 1).</td></tr>
+<tr><td>Il telefono non installa l'APK</td><td>Consenti l'installazione da quella fonte (browser o File); se c'è già una versione con firma diversa, disinstallala prima: i cantieri in Documenti restano.</td></tr>
+<tr><td>Sul telefono non vedo i cantieri del PC</td><td>Controlla che Autosync abbia sincronizzato e che CSE_SISTEM abbia <b>Accesso a tutti i file</b> (Impostazioni del programma).</td></tr>
+<tr><td>Sul PC non vedo i cantieri del telefono</td><td>In Impostazioni deve essere in uso la cartella di Google Drive; attendi la sincronizzazione di Drive per desktop.</td></tr>
+<tr><td>«Numeri usati due volte» nei verbali</td><td>Due verbali creati su dispositivi diversi prima della sincronizzazione: apri uno dei due, cambia il numero e salva.</td></tr>
+<tr><td>Una foto ha il segno <span class="pill">!</span></td><td>La foto non conteneva la data di scatto (foto inoltrate, screenshot): verifica la data.</td></tr>
+<tr><td>Il calendario mostra le date all'inglese</td><td>Su Android dipende dalla lingua del telefono; impostala in italiano.</td></tr>
+<tr><td>Non trovo la stampante sul telefono</td><td>Installa dal Play Store il servizio di stampa della marca della stampante (o «Mopria Print Service»), oppure salva il PDF e stampalo dal PC.</td></tr></table>
+
+<div class="box"><b class="t">Versione di prova</b>
+Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.3 · SISTEM SRL STP</p>
+</main></body></html>

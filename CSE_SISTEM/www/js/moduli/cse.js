@@ -75,6 +75,9 @@ async function salvaPdf(ctx, html, p) {
     await ctx.servizi.pdfDaHtml(html, p);
     avviso(`PDF salvato: ${p.split('/').pop()}`);
     await apri(ctx, p);
+  } else if (ctx.servizi.stampa) {
+    // Android: finestra di stampa del telefono (stampante o «Salva come PDF»)
+    await ctx.servizi.stampa(html, p.split('/').pop().replace(/\.pdf$/i, ''));
   } else {
     const w = window.open('', '_blank');
     if (!w) return avviso('Stampa non disponibile su questo dispositivo', 'errore');

@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.2**: logica e dati provati, interfaccia nello **stile
+Stato: versione **0.3** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -74,6 +74,14 @@ Si compilano nel programma e si **stampano per la firma su carta**: righe di
 firma per ogni presente (o righe vuote da compilare in cantiere) e per il CSE,
 con la formula «letto, confermato e sottoscritto».
 
+### Stampa e PDF
+
+- **Windows**: verbali e verifiche dei POS diventano PDF nella cartella del
+  cantiere e si aprono subito per la stampa;
+- **Android**: si apre la finestra di stampa del telefono (stampante oppure
+  «Salva come PDF»), con il plugin nativo `android-extra/DispositivoPlugin.java`
+  che dà anche il permesso «Accesso a tutti i file».
+
 ### Foto
 
 - la **data di scatto** si legge dai dati EXIF (DateTimeOriginal); se manca si
@@ -129,15 +137,20 @@ con ruolo `'dl'` e, se servono, nuove sezioni in `core/cartelle.js`.
 npm test                    # test della logica (Node 22, nessuna installazione)
 npm install && npm start    # programma su Windows/Linux/Mac (Electron)
 npm run dist:win            # eseguibile per Windows (cartella dist/)
-npx cap add android && node scripts/android-permessi.mjs && npm run android:apk
+npx cap add android && node scripts/android-permessi.mjs && node scripts/android-prepara.mjs && npm run android:apk
 ```
 
 La compilazione automatica su GitHub (`.github/workflows/cse_sistem.yml`)
-esegue i test e prepara l'eseguibile Windows e l'APK Android.
+esegue i test, prepara l'eseguibile Windows e l'APK Android e pubblica la
+versione da scaricare (`cse-sistem-v<versione>`) con la guida
+`guida/Guida_CSE_SISTEM.pdf`. Il progetto Android si genera ogni volta
+(`npx cap add android`) e si completa con `scripts/android-permessi.mjs` e
+`scripts/android-prepara.mjs` (plugin nativo, icone, versione); l'APK è firmato
+con la chiave di prova `android-extra/debug.keystore`, sempre la stessa, così
+le nuove versioni si installano sopra le vecchie.
 
 ## Da fare
 
-- icona dell'app Android (oggi quella standard) e stampa PDF su Android;
 - elenco dei controlli del sopralluogo personalizzabile;
 - (eventuale) accesso a Google Drive direttamente dall'app Android;
 - modelli di stampa definitivi (verbale, verifica POS, registro fotografico);

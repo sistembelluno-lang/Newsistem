@@ -80,6 +80,21 @@ export function discoCapacitor(cap = globalThis.Capacitor) {
 /** Altre funzioni del sistema su Android. */
 export function serviziCapacitor(cap = globalThis.Capacitor) {
   return {
+    /**
+     * Stampa un documento HTML con il servizio di stampa di Android: si
+     * sceglie la stampante oppure «Salva come PDF» (plugin nativo "Dispositivo").
+     */
+    async stampa(html, nome) {
+      await plugin('Dispositivo', cap).stampa({ html, nome });
+    },
+    /** true se l'app può leggere tutti i file di Documenti/CSE_SISTEM. */
+    async permessoFile() {
+      return (await plugin('Dispositivo', cap).permessoFile()).concesso;
+    },
+    /** Apre le impostazioni di Android per concedere «Accesso a tutti i file». */
+    async apriPermessoFile() {
+      await plugin('Dispositivo', cap).apriPermessoFile();
+    },
     /** Scatta una foto con la fotocamera: { nome, byte, modificato }. */
     async scatta() {
       const foto = await plugin('Camera', cap).getPhoto({

@@ -7,6 +7,7 @@ on:
     # CSE_SISTEM ha la sua compilazione (cse_sistem.yml)
     paths-ignore:
       - 'CSE_SISTEM/**'
+      - 'guida/Guida_CSE_SISTEM*'
       - '.github/workflows/cse_sistem.yml'
   workflow_dispatch:
 

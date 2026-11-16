@@ -5,6 +5,7 @@ on:
     branches: ['**']
     paths:
       - 'CSE_SISTEM/**'
+      - 'guida/Guida_CSE_SISTEM*'
       - '.github/workflows/cse_sistem.yml'
   workflow_dispatch:
 
@@ -69,12 +70,55 @@ jobs:
       # il progetto Android si genera ogni volta dalle pagine in www/
       - run: npx cap add android
       - run: node scripts/android-permessi.mjs
+      - run: node scripts/android-prepara.mjs
       - run: npx cap sync android
+      # firma di prova sempre uguale: le nuove versioni si installano sopra le vecchie
+      - run: mkdir -p ~/.android && cp android-extra/debug.keystore ~/.android/debug.keystore
       - run: ./gradlew assembleDebug
         working-directory: CSE_SISTEM/android
-      - run: cp android/app/build/outputs/apk/debug/app-debug.apk CSE_SISTEM-debug.apk
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk CSE_SISTEM.apk
       - uses: actions/upload-artifact@v4
         with:
           name: CSE_SISTEM-Android
-          path: CSE_SISTEM/CSE_SISTEM-debug.apk
+          path: CSE_SISTEM/CSE_SISTEM.apk
           if-no-files-found: error
+
+  # versione da scaricare: eseguibili Windows, APK Android e guida in PDF
+  release:
+    needs: [windows, android]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: CSE_SISTEM-*
+          merge-multiple: true
+          path: out
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: cse-sistem-v${{ steps.v.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: CSE_SISTEM ${{ steps.v.outputs.version }}
+          make_latest: false
+          prerelease: true
+          files: |
+            out/CSE_SISTEM-${{ steps.v.outputs.version }}-portable.exe
+            out/CSE_SISTEM-${{ steps.v.outputs.version }}-setup.exe
+            out/CSE_SISTEM.apk
+            guida/Guida_CSE_SISTEM.pdf
+          body: |
+            **CSE_SISTEM**: documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008)
+            su Windows 10/11 e Android: anagrafica di cantiere, progetto, PSC, notifica preliminare, imprese e POS
+            con verifica di idoneità, giornale dei lavori, registro fotografico con data di scatto sulle foto,
+            verbali di sopralluogo da stampare e firmare.
+
+            Versione di prova. File da scaricare:
+            - `CSE_SISTEM-${{ steps.v.outputs.version }}-portable.exe`: Windows, si avvia senza installazione;
+            - `CSE_SISTEM-${{ steps.v.outputs.version }}-setup.exe`: Windows, con installazione;
+            - `CSE_SISTEM.apk`: Android (8.0 o successivo);
+            - `Guida_CSE_SISTEM.pdf`: istruzioni.

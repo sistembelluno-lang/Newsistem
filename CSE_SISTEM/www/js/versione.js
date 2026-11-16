@@ -1,2 +1,2 @@
 // Versione del programma (tenerla uguale a package.json).
-export const VERSIONE = '0.2.0';
+export const VERSIONE = '0.3.0';
