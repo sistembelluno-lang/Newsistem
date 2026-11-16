@@ -31,5 +31,23 @@ export function serviziElectron(nativo = globalThis.cseNative) {
     /** Cartelle di Google Drive per desktop trovate sul PC. */
     cartelleGoogleDrive: () => nativo.cartelleGoogleDrive(),
     usaCartellaDati: (p) => nativo.usaCartellaDati(p),
+    /** Claude per la verifica dei POS (servizi/claude.js prepara la richiesta). */
+    claude: {
+      stato: () => nativo.claudeStato(),
+      salvaChiave: (k) => nativo.claudeSalvaChiave(k),
+      prova: (modello) => nativo.claudeProva(modello),
+      annulla: () => nativo.claudeAnnulla(),
+      async verifica(richiesta, avanzamento = () => {}) {
+        const smetti = nativo.suClaudeAvanzamento(avanzamento);
+        try {
+          return await nativo.claudeVerifica(richiesta);
+        } catch (e) {
+          // l'errore arriva dal processo principale con un prefisso tecnico: si toglie
+          throw new Error(String(e.message || e).replace(/^Error invoking remote method '[^']+': (Error: )?/, ''));
+        } finally {
+          smetti();
+        }
+      },
+    },
   };
 }

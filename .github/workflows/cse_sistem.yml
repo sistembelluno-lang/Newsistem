@@ -114,8 +114,9 @@ jobs:
           body: |
             **CSE_SISTEM**: documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008)
             su Windows 10/11 e Android: anagrafica di cantiere, progetto, PSC, notifica preliminare, imprese e POS
-            con verifica di idoneità, giornale dei lavori, registro fotografico con data di scatto sulle foto,
-            verbali di sopralluogo da stampare e firmare.
+            con verifica di idoneità (check list SISTEM, lettera di richiesta integrazioni, verifica con Claude
+            su Windows), giornale dei lavori, registro fotografico con data di scatto sulle foto,
+            verbali di sopralluogo con foto da stampare e firmare.
 
             Versione di prova. File da scaricare:
             - `CSE_SISTEM-${{ steps.v.outputs.version }}-portable.exe`: Windows, si avvia senza installazione;

@@ -32,6 +32,63 @@ export const CONTENUTI_POS = [
   { codice: 'l', lettera: 'l', testo: 'Documentazione sull’informazione e la formazione fornite ai lavoratori' },
 ];
 
+/**
+ * Check list di verifica del POS e dell'idoneità tecnico-professionale
+ * (modello SISTEM): A contenuti minimi del POS, B idoneità tecnico-
+ * professionale (All. XVII), C ulteriori adempimenti del Titolo IV.
+ * la: richiesta anche ai lavoratori autonomi (All. XVII p. 2).
+ * affidataria: voce che riguarda solo l'impresa affidataria.
+ */
+export const SEZIONI_CHECKLIST = {
+  A: 'A — CONTENUTI MINIMI DEL POS (art. 89 c.1 lett. h e art. 96 c.1 lett. g; All. XV punto 3.2.1)',
+  B: 'B — IDONEITÀ TECNICO-PROFESSIONALE (art. 90 c. 9; art. 97 c. 2; All. XVII) — LA = richiesto anche ai lavoratori autonomi (All. XVII p. 2)',
+  C: 'C — ULTERIORI ADEMPIMENTI (Titolo IV)',
+};
+
+export const CHECKLIST_POS = [
+  { codice: '1', sezione: 'A', testo: 'Nominativo del datore di lavoro, gli indirizzi ed i riferimenti telefonici della sede legale e degli uffici di cantiere', rif: 'All. XV p. 3.2.1 lett. a) n.1' },
+  { codice: '2', sezione: 'A', testo: "Specifica attività e le singole lavorazioni svolte in cantiere dall'impresa esecutrice e dai lavoratori autonomi sub affidatari", rif: 'All. XV p. 3.2.1 lett. a) n.2' },
+  { codice: '3', sezione: 'A', testo: 'Nominativi', rif: 'All. XV p. 3.2.1 lett. a) nn.3-6' },
+  { codice: '3.a', sezione: 'A', sotto: true, testo: 'Direttore tecnico di cantiere', rif: 'All. XV p. 3.2.1 lett. a) n.6' },
+  { codice: '3.b', sezione: 'A', sotto: true, testo: 'Capocantiere', rif: 'All. XV p. 3.2.1 lett. a) n.6' },
+  { codice: '3.c', sezione: 'A', sotto: true, testo: 'Responsabile del servizio di prevenzione e protezione', rif: 'All. XV p. 3.2.1 lett. a) n.5' },
+  { codice: '3.d', sezione: 'A', sotto: true, testo: 'Addetti al pronto soccorso', rif: 'All. XV p. 3.2.1 lett. a) n.3' },
+  { codice: '3.e', sezione: 'A', sotto: true, testo: 'Addetti antincendio ed evacuazione dei lavoratori e, comunque, della gestione emergenze in cantiere', rif: 'All. XV p. 3.2.1 lett. a) n.3' },
+  { codice: '3.f', sezione: 'A', sotto: true, testo: 'Del rappresentante dei lavoratori per la sicurezza, aziendale o territoriale, ove eletto o designato', rif: 'All. XV p. 3.2.1 lett. a) n.3' },
+  { codice: '3.g', sezione: 'A', sotto: true, testo: 'Del medico competente, ove previsto', rif: 'All. XV p. 3.2.1 lett. a) n.4' },
+  { codice: '3.h', sezione: 'A', sotto: true, testo: 'Del/dei preposto/i per l’attività svolta in cantiere (da indicare espressamente al committente)', rif: 'art. 26 c. 8-bis D.Lgs 81/08 (L. 215/2021); Interpello n. 4/2024' },
+  { codice: '4', sezione: 'A', testo: "Numero e le relative qualifiche dei lavoratori dipendenti dell'impresa esecutrice e dei lavoratori autonomi operanti in cantiere per conto della stessa impresa", rif: 'All. XV p. 3.2.1 lett. a) n.7' },
+  { codice: '5', sezione: 'A', testo: "Specifiche mansioni, inerenti la sicurezza, svolte in cantiere da ogni figura nominata allo scopo dall'impresa esecutrice", rif: 'All. XV p. 3.2.1 lett. b)' },
+  { codice: '6', sezione: 'A', testo: "Descrizione dell'attività di cantiere, delle modalità organizzative e dei turni di lavoro", rif: 'All. XV p. 3.2.1 lett. c)' },
+  { codice: '7', sezione: 'A', testo: 'Elenco dei ponteggi, dei ponti su ruote a torre e di altre opere provvisionali di notevole importanza, delle macchine e degli impianti utilizzati nel cantiere', rif: 'All. XV p. 3.2.1 lett. d)' },
+  { codice: '8', sezione: 'A', testo: 'Elenco delle sostanze e preparati pericolosi utilizzati nel cantiere con le relative schede di sicurezza', rif: 'All. XV p. 3.2.1 lett. e)' },
+  { codice: '9', sezione: 'A', testo: 'Esito del rapporto di valutazione del rumore', rif: 'All. XV p. 3.2.1 lett. f); artt. 190-192' },
+  { codice: '10', sezione: 'A', testo: 'Individuazione delle misure preventive e protettive, integrative rispetto a quelle contenute nel PSC quando previsto, adottate in relazione ai rischi connessi alle proprie lavorazioni in cantiere', rif: 'All. XV p. 3.2.1 lett. g)' },
+  { codice: '11', sezione: 'A', testo: 'Procedure complementari e di dettaglio, richieste dal PSC quando previsto', rif: 'All. XV p. 3.2.1 lett. h)' },
+  { codice: '12', sezione: 'A', testo: 'Elenco dei dispositivi di protezione individuale forniti ai lavoratori occupati in cantiere con documento di consegna al lavoratore sottoscritto', rif: 'All. XV p. 3.2.1 lett. i)' },
+  { codice: '13', sezione: 'A', testo: "Documentazione in merito all'informazione ed alla formazione fornite ai lavoratori occupati in cantiere", rif: 'All. XV p. 3.2.1 lett. l); artt. 36-37; Accordo Stato-Regioni 17/04/2025' },
+  { codice: '14', sezione: 'A', testo: 'Abilitazioni degli operatori per le attrezzature che richiedono specifica abilitazione (es. macchine movimento terra, gru, PLE, trattori, carrelli)', rif: 'art. 73 c. 5; Accordo Stato-Regioni 17/04/2025' },
+  { codice: '15', sezione: 'A', testo: 'Addestramento all’uso dei DPI di III categoria e dei DPI otoprotettori (es. anticaduta)', rif: 'art. 77 c. 5' },
+  { codice: '16', sezione: 'A', testo: "Valutazione dei rischi per le singole fasi di lavorazione in relazione alla probabilità di accadimento di un evento per la gravità del danno", rif: '' },
+  { codice: '17', sezione: 'B', la: true, testo: 'Iscrizione alla camera di commercio, industria ed artigianato con oggetto sociale inerente alla tipologia dell’appalto', rif: 'All. XVII p. 1 lett. a) e p. 2 lett. a)' },
+  { codice: '18', sezione: 'B', testo: 'Documento di valutazione dei rischi (anche redatto secondo le procedure standardizzate)', rif: 'All. XVII p. 1 lett. b); art. 17 c.1 lett. a); art. 29 cc. 5-6 — l’autocertificazione non è più ammessa dal 31/05/2013' },
+  { codice: '19', sezione: 'B', la: true, testo: 'DURC documento unico di regolarità contributiva', rif: 'All. XVII p. 1 lett. c) e p. 2 lett. e); art. 90 c. 9' },
+  { codice: '20', sezione: 'B', testo: 'Dichiarazione di non essere oggetto di provvedimenti di sospensione o interdittivi di cui all’art. 14 del D.lgs. n. 81/2008 seguita da copia del documento di identità del datore di lavoro, in corso di validità', rif: 'All. XVII p. 1 lett. d); art. 38 DPR 445/2000 (copia documento)' },
+  { codice: '21', sezione: 'B', la: true, testo: 'Patente a crediti in corso di validità (o attestazione SOA in classifica pari o superiore alla III)', rif: 'art. 27 D.Lgs 81/08 come modificato da D.L. 19/2024 e D.L. 159/2025' },
+  { codice: '22', sezione: 'B', testo: 'Dichiarazione dell’organico medio annuo distinto per qualifica, estremi delle denunce INPS, INAIL e Cassa Edile, contratto collettivo applicato', rif: 'art. 90 c. 9 lett. b)' },
+  { codice: '23', sezione: 'B', la: true, testo: 'Fotocopia delle dichiarazioni di conformità CE delle macchine ed attrezzature', rif: 'All. XVII p. 2 lett. b)' },
+  { codice: '24', sezione: 'B', testo: 'Ponteggi: copia dell’autorizzazione ministeriale e PiMUS (se presenti ponteggi)', rif: '' },
+  { codice: '25', sezione: 'B', la: true, testo: 'Copia dei certificati di idoneità medico-sanitaria in riferimento alla mansione', rif: '' },
+  { codice: '26', sezione: 'C', affidataria: true, testo: 'Impresa affidataria: nominativo del soggetto incaricato dell’assolvimento dei compiti di cui all’art. 97 e relative mansioni', rif: 'All. XVII p. 01; art. 97' },
+  { codice: '27', sezione: 'C', affidataria: true, testo: 'Impresa affidataria: attestati di formazione del datore di lavoro, dei dirigenti e dei preposti per i compiti di cui all’art. 97', rif: 'art. 97 c. 3-ter' },
+  { codice: '28', sezione: 'C', affidataria: true, testo: 'Impresa affidataria: verifica di congruenza dei POS delle imprese esecutrici/subappaltatrici rispetto al proprio prima della trasmissione al CSE', rif: 'art. 97 c. 3 lett. b); art. 101 c. 3' },
+  { codice: '29', sezione: 'C', testo: 'Consultazione del RLS prima dell’accettazione del PSC e delle sue modifiche significative', rif: 'art. 102; art. 100 c. 4' },
+  { codice: '30', sezione: 'C', la: true, testo: 'Tessera di riconoscimento con fotografia, generalità del lavoratore, indicazione del datore di lavoro e data di assunzione (per autonomi: generalità e committente)', rif: 'art. 18 c. 1 lett. u); art. 26 c. 8; art. 21 c. 1 lett. c); badge di cantiere con codice anticontraffazione (D.L. 159/2025, art. 3) operativo dopo il decreto attuativo' },
+];
+
+/** Esiti di una voce della check list (colonne SI / NO / NON PREVISTO). */
+export const ESITI_CHECKLIST = { si: 'Sì', no: 'No', np: 'Non previsto' };
+
 /** Controlli tipici del sopralluogo (voci del verbale), modificabili dall’utente. */
 export const CONTROLLI_SOPRALLUOGO = [
   { codice: 'S01', gruppo: 'Organizzazione', testo: 'Recinzione, accessi e segnaletica di cantiere' },

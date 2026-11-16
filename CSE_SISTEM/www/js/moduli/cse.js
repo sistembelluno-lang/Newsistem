@@ -5,7 +5,7 @@
 
 import { registra } from '../core/registro.js';
 import { CAMPI_ANAGRAFICA, GRUPPI_ANAGRAFICA, nuovaImpresa, nuovoPos } from '../core/modelli.js';
-import { SEZIONI, cartellaSezione, percorso } from '../core/cartelle.js';
+import { SEZIONI, cartellaSezione, nomeSicuro, percorso } from '../core/cartelle.js';
 import { confronta, dataIt, dataOraIt, isoLocale, oggi } from '../core/date.js';
 import { nuovoId } from '../core/id.js';
 import { h, avviso, bottone, campi, chiedi, conferma, finestra, nota, pill, scheda, tabella, testata, vuoto } from '../ui/dom.js';
@@ -14,11 +14,15 @@ import { indirizzo, vai } from '../ui/router.js';
 import { caricaDocumento, elencoDocumenti, percorsoDocumento } from '../servizi/documenti.js';
 import { importaFoto, ordinaFoto, perGiorno } from '../servizi/foto.js';
 import { timbraFoto } from '../servizi/timbro.js';
-import { nuovaVerifica, esitoProposto, prescrizioniProposte, situazionePos } from '../servizi/pos.js';
+import {
+  applicaProposta, completaVerifica, descriviDocumentazione, documentiDaEsaminare, esitoProposto, idoneitaProposta, integrazioniProposte,
+  letteraProposta, nuovaVerifica, posInOrdine, situazionePos, verificaDelPos,
+} from '../servizi/pos.js';
+import { controllaRisposta, MODELLO_CLAUDE, richiestaVerifica } from '../servizi/claude.js';
 import { fotoDelGiorno, nomeFileVoce, nuovaVoce, ordinaVoci } from '../servizi/giornale.js';
 import { chiudi, nomeFileVerbale, numeriDoppi, nuovoVerbaleSopralluogo, prescrizioniAperte } from '../servizi/verbali.js';
-import { htmlVerbale, htmlVerificaPos } from '../servizi/stampa.js';
-import { CONTENUTI_POS, CONTROLLI_SOPRALLUOGO, ESITI_CONTROLLO, ESITI_VERIFICA_POS, ESITI_VOCE_POS } from '../servizi/normativa.js';
+import { htmlChecklistPos, htmlLetteraPos, htmlVerbale } from '../servizi/stampa.js';
+import { CHECKLIST_POS, CONTROLLI_SOPRALLUOGO, ESITI_CHECKLIST, ESITI_CONTROLLO, ESITI_VERIFICA_POS, SEZIONI_CHECKLIST } from '../servizi/normativa.js';
 
 // ================================================================== aiuti
 
@@ -98,7 +102,7 @@ const prova = (f) => async (...a) => {
 };
 
 const TIPO_ESITO_POS = { idoneo: 'ok', idoneo_con_prescrizioni: 'at', non_idoneo: 'ko' };
-const TIPO_VOCE_POS = { si: 'ok', parziale: 'at', no: 'ko', nd: '' };
+const TIPO_VOCE_POS = { si: 'ok', no: 'ko', np: '' };
 const TIPO_CONTROLLO = { conforme: 'ok', non_conforme: 'ko', nv: '' };
 const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 const giorno = (data) => GIORNI[new Date(`${data}T12:00`).getDay()];
@@ -277,6 +281,7 @@ const CAMPI_IMPRESA = (altre) => [
   { chiave: 'sede', etichetta: 'Sede', tipo: 'testo', largo: true },
   { chiave: 'telefono', etichetta: 'Telefono', tipo: 'testo' },
   { chiave: 'pec', etichetta: 'PEC', tipo: 'testo' },
+  { chiave: 'email', etichetta: 'E-mail', tipo: 'testo' },
   { chiave: 'datoreLavoro', etichetta: 'Datore di lavoro', tipo: 'testo', rif: 'All. XV 3.2.1 a.1' },
   { chiave: 'direttoreTecnico', etichetta: 'Direttore tecnico di cantiere', tipo: 'testo', rif: 'a.6' },
   { chiave: 'capocantiere', etichetta: 'Capocantiere / preposto', tipo: 'testo', rif: 'a.6' },
@@ -296,6 +301,8 @@ function pillSituazione(x) {
   return pill('POS mancante', 'ko');
 }
 
+const ACCETTA_DOC = '.pdf,application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png';
+
 async function caricaPos(ctx, impresa, posImpresa) {
   const [f] = await scegliFile(ctx, { accetta: '.pdf,application/pdf', multipli: false });
   if (!f) return false;
@@ -311,9 +318,64 @@ async function caricaPos(ctx, impresa, posImpresa) {
   if (!dati) return false;
   const cart = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
   const nome = await ctx.archivio.salvaFile(cart, f.nome, f.byte);
-  await ctx.archivio.scriviJson(percorso(cart, `${nome}.json`), nuovoPos({ impresa: impresa.id, file: nome, ...dati }));
+  const pos = { ...nuovoPos({ impresa: impresa.id, file: nome, ...dati }), _file: `${nome}.json` };
+  await ctx.archivio.scriviJson(percorso(cart, pos._file), pos);
+  if (await conferma('Allegati del POS', 'Sono arrivati anche allegati (attestati di formazione, idoneità sanitarie, DURC, visura, DVR, dichiarazioni, ...)? Puoi aggiungerli anche dopo, dalla scheda dell’impresa.', 'Carica gli allegati')) {
+    await caricaAllegati(ctx, impresa, pos);
+  }
   avviso('POS caricato: ora va verificato');
   return true;
+}
+
+/** Aggiunge allegati a una revisione del POS (nella cartella «Allegati rev N»). */
+async function caricaAllegati(ctx, impresa, pos) {
+  const files = await scegliFile(ctx, { accetta: ACCETTA_DOC, multipli: true });
+  if (!files.length) return 0;
+  const dati = await chiedi({
+    titolo: `Allegati al POS rev. ${pos.revisione}`,
+    testo: files.length === 1 ? files[0].nome : `${files.length} file`,
+    ok: 'Carica',
+    campi: [{ chiave: 'data', etichetta: 'Ricevuti il', tipo: 'data', obbligatorio: true }],
+    valori: { data: oggi() },
+  });
+  if (!dati) return 0;
+  const cartPos = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
+  const sotto = `Allegati rev ${nomeSicuro(pos.revisione, '0')}`;
+  pos.allegati = pos.allegati || [];
+  for (const f of files) {
+    const nome = await ctx.archivio.salvaFile(percorso(cartPos, sotto), f.nome, f.byte);
+    pos.allegati.push({ file: `${sotto}/${nome}`, titolo: nome.replace(/\.[^.]+$/, ''), data: dati.data });
+  }
+  await ctx.archivio.scriviJson(percorso(cartPos, pos._file || `${pos.file}.json`), pos);
+  avviso(files.length === 1 ? 'Allegato caricato' : `${files.length} allegati caricati`);
+  return files.length;
+}
+
+/** Finestra con gli allegati di una revisione: apri, togli, aggiungi. */
+function finestraAllegati(ctx, impresa, pos) {
+  const cartPos = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
+  const corpo = h('div');
+  let cambiato = false;
+  const disegna = () => corpo.replaceChildren(pos.allegati?.length
+    ? h('div', { class: 'tw', style: 'box-shadow:none' }, tabella(['Allegato', 'Ricevuto', ''], pos.allegati.map((a, i) => h('tr', {},
+      h('td', {}, h('b', {}, a.titolo), h('span', { class: 'sotto' }, a.file.split('/').pop())),
+      h('td', { class: 'stretta' }, dataIt(a.data)),
+      h('td', { class: 'az' },
+        bottone('apri', 'Apri', () => apri(ctx, percorso(cartPos, a.file)), 'sm'),
+        bottone('cestino', '', prova(async () => {
+          if (!(await conferma('Togliere l’allegato?', `${a.titolo}: il file viene eliminato dalla cartella del cantiere.`, 'Togli', true))) return;
+          await ctx.archivio.disco.elimina(percorso(cartPos, a.file));
+          pos.allegati.splice(i, 1);
+          await ctx.archivio.scriviJson(percorso(cartPos, pos._file || `${pos.file}.json`), pos);
+          cambiato = true;
+          disegna();
+        }), 'q sm icona', { title: 'Togli' }))))))
+    : vuoto('carica', 'Nessun allegato', 'Attestati di formazione, idoneità sanitarie, DURC, visura camerale, DVR, dichiarazioni: quello che l’impresa ha mandato con il POS o dopo.'));
+  disegna();
+  const { dlg } = finestra(`Allegati al POS rev. ${pos.revisione} – ${impresa.ragioneSociale}`, corpo, [
+    bottone('carica', 'Aggiungi allegati', prova(async () => { if (await caricaAllegati(ctx, impresa, pos)) { cambiato = true; disegna(); } }), 'p'),
+  ], 'grande');
+  dlg.addEventListener('close', () => { if (cambiato) ctx.ricarica(); });
 }
 
 registra({
@@ -340,7 +402,7 @@ registra({
       s.situazione.length
         ? h('div', { class: 'tw' }, tabella(['Impresa', 'POS', 'Verifica', 'Da fare'], s.situazione.map((x) => h('tr', { class: 'cliccabile', onclick: () => vai(indirizzo(cod, 'impresa', x.impresa.id)) },
           h('td', {}, h('b', {}, x.impresa.ragioneSociale), h('span', { class: 'sotto' }, ruolo(x.impresa))),
-          h('td', {}, x.pos ? `rev. ${x.pos.revisione}` : '—', x.pos ? h('span', { class: 'sotto' }, `ricevuto il ${dataIt(x.pos.dataRicezione)}`) : null),
+          h('td', {}, x.pos ? `rev. ${x.pos.revisione}` : '—', x.pos ? h('span', { class: 'sotto' }, `ricevuto il ${dataIt(x.pos.dataRicezione)}${x.pos.allegati?.length ? ` · ${x.pos.allegati.length} allegati` : ''}`) : null),
           h('td', {}, pillSituazione(x), x.verifica?.data ? h('span', { class: 'sotto' }, dataIt(x.verifica.data)) : null),
           h('td', {}, x.daFare || h('span', { class: 'mu' }, '—'))))))
         : scheda({ corpo: vuoto('imprese', 'Nessuna impresa', 'Aggiungi le imprese affidatarie, esecutrici e i lavoratori autonomi: per ognuna si caricano il POS e la verifica.', bottone('piu', 'Nuova impresa', nuova, 'p')) }));
@@ -356,37 +418,131 @@ registra({
     const imp = s.imprese.find((i) => i.id === ctx.resto[0]);
     if (!imp) throw new Error('Impresa non trovata');
     const f = campi(CAMPI_IMPRESA(s.imprese.filter((i) => i.id !== imp.id)), imp);
-    const posImpresa = s.pos.filter((p) => p.impresa === imp.id).sort((a, b) => confronta(b.dataRicezione, a.dataRicezione) || confronta(b.creato, a.creato));
+    const posImpresa = posInOrdine(s.pos, imp.id).reverse();
     const x = s.situazione.find((y) => y.impresa.id === imp.id);
     const salva = prova(async () => {
       await ctx.archivio.salvaImpresa(cod, { ...imp, ...f.leggi() });
       avviso('Impresa salvata');
       ctx.ricarica();
     });
-    const caricaBtn = bottone('carica', 'Carica POS', prova(async () => { if (await caricaPos(ctx, imp, posImpresa)) ctx.ricarica(); }), posImpresa.length ? 'sm' : 'p sm');
+    const caricaBtn = bottone('carica', posImpresa.length ? 'Nuova revisione' : 'Carica POS', prova(async () => { if (await caricaPos(ctx, imp, posImpresa)) ctx.ricarica(); }), posImpresa.length ? 'sm' : 'p sm');
     return h('div', {},
       testata(imp.ragioneSociale, x.daFare ? `Da fare: ${x.daFare}` : 'POS verificato e trasmesso', pillSituazione(x),
         h('a', { class: 'bottone', href: indirizzo(cod, 'imprese') }, icona('indietro'), 'Imprese')),
       h('div', { class: 'pila' },
         scheda({
-          titolo: 'Piano operativo di sicurezza', ico: 'psc', azioni: [caricaBtn],
-          tabella: posImpresa.length ? tabella(['Revisione', 'Ricevuto', 'Verifica', ''], posImpresa.map((p) => {
-            const v = s.verifiche.filter((y) => y.pos === p.id).sort((a, b) => confronta(a.data, b.data)).pop();
-            return h('tr', {},
-              h('td', {}, h('b', {}, `rev. ${p.revisione}`), h('span', { class: 'sotto' }, p.file)),
+          titolo: 'Piano operativo di sicurezza: revisioni e allegati', ico: 'psc', azioni: [caricaBtn],
+          tabella: posImpresa.length ? tabella(['Revisione', 'Ricevuto', 'Allegati', 'Verifica', ''], posImpresa.map((p, i) => {
+            const v = verificaDelPos(s.verifiche, p.id);
+            return h('tr', { class: i ? 'superata' : '' },
+              h('td', {}, h('b', {}, `rev. ${p.revisione}`), i ? [' ', pill('superata')] : null, h('span', { class: 'sotto' }, p.file, p.dataPos ? ` · del ${dataIt(p.dataPos)}` : '')),
               h('td', {}, dataIt(p.dataRicezione)),
+              h('td', {}, bottone('carica', p.allegati?.length ? `${p.allegati.length}` : 'Aggiungi', () => finestraAllegati(ctx, imp, p), 'q sm', { title: 'Allegati di questa revisione' }),
+                p.allegati?.length ? h('span', { class: 'sotto' }, `ultimo ${dataIt(p.allegati.map((a) => a.data).sort().at(-1))}`) : null),
               h('td', {}, v?.esito ? pill(ESITI_VERIFICA_POS[v.esito], TIPO_ESITO_POS[v.esito]) : pill('Da verificare', 'at'),
-                v?.trasmessaIl ? h('span', { class: 'sotto' }, `trasmessa il ${dataIt(v.trasmessaIl)}`) : null),
+                v?.trasmessaIl ? h('span', { class: 'sotto' }, `trasmessa il ${dataIt(v.trasmessaIl)}`) : v?.data ? h('span', { class: 'sotto' }, dataIt(v.data)) : null),
               h('td', { class: 'az' },
                 bottone('apri', 'Apri', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, imp), p.file)), 'sm'),
-                bottone('psc', v ? 'Verifica' : 'Verifica ora', () => vai(indirizzo(cod, 'verifica', imp.id, p.id)), v ? 'sm' : 'p sm')));
+                bottone('psc', v ? 'Verifica' : 'Verifica ora', () => vai(indirizzo(cod, 'verifica', imp.id, p.id)), v || i ? 'sm' : 'p sm')));
           })) : null,
-          corpo: posImpresa.length ? null : vuoto('psc', 'POS non ancora ricevuto', 'Carica il PDF del POS ricevuto dall’impresa: poi si fa la verifica di idoneità.'),
+          corpo: posImpresa.length ? null : vuoto('psc', 'POS non ancora ricevuto', 'Carica il PDF del POS ricevuto dall’impresa e i suoi allegati: poi si fa la verifica di idoneità. Gli aggiornamenti si caricano come nuove revisioni.'),
         }),
         scheda({ titolo: 'Dati dell’impresa', ico: 'imprese', corpo: f.el })),
       barraSalva(`Ultima modifica ${dataOraIt(imp.modificato)}`, bottone('salva', 'Salva', salva, 'p')));
   },
 });
+
+// ------------------------------------------------------------------ verifica del POS
+const bozzeVerifica = new Map(); // id del POS -> verifica proposta da Claude, non ancora salvata
+
+/** Campo di testo legato a una proprietà di un oggetto. */
+function testoLegato(obj, chiave, { righe = 0, suggerimento = '', bloccato = false } = {}) {
+  const aggiorna = (e) => { obj[chiave] = e.target.value; };
+  return righe
+    ? h('textarea', { rows: righe, placeholder: suggerimento, readonly: bloccato, oninput: aggiorna }, obj[chiave] || '')
+    : h('input', { type: 'text', value: obj[chiave] || '', placeholder: suggerimento, readonly: bloccato, oninput: aggiorna });
+}
+
+/** Editor delle integrazioni richieste: titolo e testo, aggiungi e togli. */
+function editorIntegrazioni(v, onCambia = () => {}) {
+  const el = h('div', { class: 'integrazioni' });
+  const disegna = () => el.replaceChildren(
+    v.integrazioni.length ? h('ol', {}, v.integrazioni.map((it, i) => h('li', {},
+      h('div', { class: 'riga-int' }, testoLegato(it, 'titolo', { suggerimento: 'Titolo (es. DURC, Primo soccorso e antincendio)' }),
+        bottone('cestino', '', () => { v.integrazioni.splice(i, 1); disegna(); onCambia(); }, 'q sm icona', { title: 'Togli' })),
+      testoLegato(it, 'testo', { righe: 3, suggerimento: 'Cosa trasmettere o fare; righe che iniziano con «- » diventano un elenco' }))))
+      : h('p', { class: 'mu', style: 'margin:0' }, 'Nessuna integrazione: il POS è completo.'),
+    h('div', { class: 'azioni', style: 'margin-top:10px;justify-content:flex-start' },
+      bottone('piu', 'Aggiungi', () => { v.integrazioni.push({ titolo: '', testo: '' }); disegna(); onCambia(); el.querySelector('li:last-child input')?.focus(); }, 'sm'),
+      bottone('', 'Proponi dalle voci «No»', () => { v.integrazioni.push(...integrazioniProposte(v.voci)); disegna(); onCambia(); }, 'q sm')));
+  disegna();
+  return el;
+}
+
+/** Foto ridotte e lette come data URL per la stampa. */
+async function immagineStampa(ctx, p, lato = 1400) {
+  const byte = await ctx.archivio.disco.leggiByte(p);
+  const img = await createImageBitmap(new Blob([byte], { type: 'image/jpeg' }));
+  const k = Math.min(1, lato / Math.max(img.width, img.height));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.width * k);
+  c.height = Math.round(img.height * k);
+  c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+  img.close?.();
+  return c.toDataURL('image/jpeg', 0.82);
+}
+
+/** Verifica con Claude: scelta dei documenti, invio, proposta da controllare. */
+async function verificaConClaude(ctx, { s, impresa, pos, posImpresa, v }) {
+  const claude = ctx.servizi.claude;
+  if (!(await claude.stato()).chiave) {
+    if (await conferma('Manca la chiave API di Claude', 'Per la verifica con Claude serve una chiave API di Anthropic (console.anthropic.com). Si inserisce una volta sola in Impostazioni.', 'Vai alle Impostazioni')) vai('#/impostazioni');
+    return;
+  }
+  const cod = ctx.cantiere.codice;
+  const psc = s.documenti.psc[0] || null;
+  const docs = documentiDaEsaminare({
+    cartellaPos: ctx.archivio.cartellaPos(cod, impresa), posImpresa, pos, psc, percorsoPsc: psc ? percorsoDocumento(cod, psc) : null,
+  });
+  const elenco = h('div', { class: 'pila', style: 'gap:6px' }, docs.map((d) => h('label', { class: 'spunta' },
+    h('input', { type: 'checkbox', checked: d.scelto, onchange: (e) => { d.scelto = e.target.checked; } }),
+    h('span', {}, d.titolo, h('span', { class: 'rif' }, ` · ${{ pos: 'POS', allegato: 'allegato', psc: 'piano di sicurezza e coordinamento' }[d.tipo]}`)))));
+  const ok = await chiedi({
+    titolo: 'Verifica con Claude',
+    testo: 'Claude legge i documenti scelti, compila la check list voce per voce, propone l’esito, le integrazioni e i testi della lettera. Controlla tutto prima di firmare: la responsabilità della verifica resta del CSE.',
+    ok: 'Avvia la verifica',
+    contenuto: [elenco, nota(psc ? 'Con il PSC la verifica è più completa ma più lunga e costosa (fino a 600 pagine in tutto per richiesta).' : 'Nessun PSC caricato nel cantiere: Claude non potrà controllare la coerenza con il PSC.', 'info')],
+  });
+  if (!ok) return;
+  const scelti = docs.filter((d) => d.scelto);
+  if (!scelti.some((d) => d.tipo === 'pos')) return avviso('Scegli almeno il POS', 'errore');
+
+  const testo = h('p', { style: 'margin:0' }, 'Preparazione…');
+  const inizio = Date.now();
+  const orologio = h('p', { class: 'mu piccolo' });
+  const timer = setInterval(() => { orologio.textContent = `${Math.round((Date.now() - inizio) / 1000)} secondi`; }, 1000);
+  const { dlg, chiudi: chiudiF } = finestra('Verifica con Claude in corso', [h('div', { class: 'caricamento', style: 'min-height:60px' }), testo, orologio],
+    [bottone('chiudi', 'Interrompi', () => claude.annulla(), 'q d')]);
+  dlg.addEventListener('cancel', (e) => e.preventDefault());
+  try {
+    const verifichePrecedenti = posImpresa.filter((p) => p.id !== pos.id).map((p) => verificaDelPos(s.verifiche, p.id)).filter(Boolean);
+    const r = await claude.verifica(richiestaVerifica({ cantiere: ctx.cantiere, impresa, imprese: s.imprese, pos, verifica: v, documenti: scelti, verifichePrecedenti }),
+      (t) => { testo.textContent = t; });
+    const proposta = applicaProposta(v, controllaRisposta(r.dati), { modello: r.modello || MODELLO_CLAUDE, documenti: scelti });
+    // oggetto della lettera: si aggiorna se non è stato scritto a mano
+    const auto = [letteraProposta(ctx.cantiere, impresa, s.imprese, pos).oggetto, letteraProposta(ctx.cantiere, impresa, s.imprese, pos, { integrazioni: [1] }).oggetto];
+    if (!proposta.lettera.oggetto || auto.includes(proposta.lettera.oggetto)) proposta.lettera.oggetto = letteraProposta(ctx.cantiere, impresa, s.imprese, pos, proposta).oggetto;
+    bozzeVerifica.set(pos.id, proposta);
+    chiudiF();
+    avviso('Verifica compilata da Claude: controllala e salva');
+    ctx.ricarica();
+  } catch (e) {
+    chiudiF();
+    avviso(e.message, 'errore');
+  } finally {
+    clearInterval(timer);
+  }
+}
 
 // verifica di un POS (aperta dalla scheda dell'impresa)
 registra({
@@ -396,64 +552,135 @@ registra({
     const [impresaId, posId] = ctx.resto;
     const s = await stato(ctx);
     const impresa = s.imprese.find((i) => i.id === impresaId);
-    const pos = s.pos.find((p) => p.id === posId);
+    const posImpresa = posInOrdine(s.pos, impresaId);
+    const pos = posImpresa.find((p) => p.id === posId);
     if (!impresa || !pos) throw new Error('POS non trovato');
-    const precedente = s.verifiche.filter((v) => v.pos === posId).sort((a, b) => confronta(a.data, b.data) || confronta(a.creato, b.creato)).pop();
-    const verifica = precedente ? structuredClone(precedente) : nuovaVerifica(impresaId, posId);
-    for (const c of CONTENUTI_POS) if (!verifica.voci.find((v) => v.codice === c.codice)) verifica.voci.push({ codice: c.codice, esito: '', note: '' });
+    const salvata = verificaDelPos(s.verifiche, posId);
+    const indice = posImpresa.indexOf(pos);
+    const revPrecedente = posImpresa.slice(0, indice).reverse().map((p) => verificaDelPos(s.verifiche, p.id)).find(Boolean) || null;
+    const bozza = bozzeVerifica.get(posId);
+    const v = bozza ? structuredClone(bozza) : salvata ? completaVerifica(salvata, impresa) : nuovaVerifica(impresa, posId, { precedente: revPrecedente });
+    // campi della lettera ancora vuoti: si propongono dai dati del cantiere
+    const proposta = letteraProposta(ctx.cantiere, impresa, s.imprese, pos, v);
+    for (const [k, val] of Object.entries(proposta)) if (!v.lettera[k]) v.lettera[k] = val;
+    if (!v.documentazione) v.documentazione = descriviDocumentazione(impresa, pos);
 
+    // ---- check list
+    const testi = new Map(CHECKLIST_POS.map((c) => [c.codice, c]));
     const proposto = h('span');
-    const sceltaEsito = h('select', { onchange: (e) => { verifica.esito = e.target.value; } }, h('option', { value: '' }, 'Da completare'),
-      Object.entries(ESITI_VERIFICA_POS).map(([k, t]) => h('option', { value: k, selected: verifica.esito === k }, t)));
-    const testoPrescr = h('textarea', { rows: 4, oninput: (e) => { verifica.prescrizioni = e.target.value; } }, verifica.prescrizioni || '');
-    let sceltoAMano = !!precedente?.esito;
-    sceltaEsito.addEventListener('change', () => { sceltoAMano = true; });
+    let mostraNascoste = false;
+    const sceltaEsito = h('select', { onchange: (e) => { v.esito = e.target.value; sceltoAMano = true; } }, h('option', { value: '' }, 'Da completare'),
+      Object.entries(ESITI_VERIFICA_POS).map(([k, t]) => h('option', { value: k, selected: v.esito === k }, t)));
+    const sceltaTP = h('select', { onchange: (e) => { v.idoneitaTP = e.target.value; tpAMano = true; } }, h('option', { value: '' }, 'Da stabilire'),
+      h('option', { value: 'si', selected: v.idoneitaTP === 'si' }, 'Sì'), h('option', { value: 'no', selected: v.idoneitaTP === 'no' }, 'No'));
+    let sceltoAMano = !!v.esito;
+    let tpAMano = !!v.idoneitaTP;
     const aggiornaProposto = () => {
-      const e = esitoProposto(verifica.voci);
-      proposto.replaceChildren(e ? pill(`Proposto: ${ESITI_VERIFICA_POS[e]}`, TIPO_ESITO_POS[e]) : pill(`${verifica.voci.filter((v) => !v.esito).length} voci da compilare`));
-      if (e && !sceltoAMano) { verifica.esito = e; sceltaEsito.value = e; }
+      const e = esitoProposto(v.voci, v.integrazioni);
+      const daFare = v.voci.filter((x) => !x.esito && !x.nascosta).length;
+      proposto.replaceChildren(e ? pill(`Proposto: ${ESITI_VERIFICA_POS[e]}`, TIPO_ESITO_POS[e]) : pill(`${daFare} voci da compilare`));
+      if (e && !sceltoAMano) { v.esito = e; sceltaEsito.value = e; }
+      const tp = idoneitaProposta(v.voci);
+      if (tp && !tpAMano) { v.idoneitaTP = tp; sceltaTP.value = tp; }
     };
+    const corpoTab = h('tbody');
+    const contaNascoste = h('span');
+    const disegnaVoci = () => {
+      const righe = [];
+      let sezione = '';
+      for (const voce of v.voci) {
+        const c = testi.get(voce.codice);
+        if (!c || (voce.nascosta && !mostraNascoste)) continue;
+        if (c.sezione !== sezione) { sezione = c.sezione; righe.push(h('tr', { class: 'gr' }, h('td', { colspan: 3 }, SEZIONI_CHECKLIST[sezione]))); }
+        righe.push(h('tr', { class: voce.nascosta ? 'nascosta' : '' },
+          h('td', { class: 'stretta', style: 'vertical-align:top;padding-top:14px' }, h('b', {}, c.codice)),
+          h('td', {},
+            h('div', { class: 'controllo' },
+              h('div', { style: `padding-top:5px${c.sotto ? ';padding-left:14px' : ''}` }, c.testo, c.la ? h('span', { class: 'rif' }, ' · LA') : null, c.rif ? h('span', { class: 'rif', style: 'display:block' }, c.rif) : null),
+              seg(ESITI_CHECKLIST, voce.esito, (k) => { voce.esito = k; aggiornaProposto(); }, TIPO_VOCE_POS)),
+            h('textarea', { rows: 1, class: 'nota-voce', placeholder: 'Nota (stampata sotto la voce)', oninput: (e) => { voce.note = e.target.value; } }, voce.note || '')),
+          h('td', { class: 'stretta', style: 'vertical-align:top;padding-top:10px' },
+            bottone(voce.nascosta ? 'occhio' : 'nascosto', '', () => { voce.nascosta = !voce.nascosta; disegnaVoci(); aggiornaProposto(); }, 'q sm icona',
+              { title: voce.nascosta ? 'Mostra di nuovo la voce (e stampala)' : 'Nascondi la voce: non compare nella stampa' }))));
+      }
+      corpoTab.replaceChildren(...righe);
+      const n = v.voci.filter((x) => x.nascosta).length;
+      contaNascoste.replaceChildren(n ? bottone(mostraNascoste ? 'nascosto' : 'occhio', mostraNascoste ? 'Togli le nascoste' : `Mostra nascoste (${n})`, () => { mostraNascoste = !mostraNascoste; disegnaVoci(); }, 'q sm') : '');
+    };
+    disegnaVoci();
     aggiornaProposto();
 
-    const corpoTab = h('tbody', {}, CONTENUTI_POS.map((c) => {
-      const voce = verifica.voci.find((v) => v.codice === c.codice);
-      return h('tr', {},
-        h('td', { class: 'stretta', style: 'vertical-align:top;padding-top:14px' }, h('b', {}, c.codice)),
-        h('td', {},
-          h('div', { class: 'controllo' }, h('div', { style: 'padding-top:5px' }, c.testo), seg(ESITI_VOCE_POS, voce.esito, (k) => { voce.esito = k; aggiornaProposto(); }, TIPO_VOCE_POS)),
-          h('input', { type: 'text', value: voce.note || '', placeholder: 'Note', oninput: (e) => { voce.note = e.target.value; } })));
-    }));
     const f = campi([
       { chiave: 'data', etichetta: 'Data della verifica', tipo: 'data' },
       { chiave: 'trasmessaIl', etichetta: 'Esito trasmesso all’impresa il', tipo: 'data' },
-    ], verifica);
+    ], v);
+    const adeguati = h('textarea', { rows: 4, placeholder: 'Un aspetto per riga, es. «dati dell’impresa e organigramma della sicurezza;»', oninput: (e) => { v.adeguati = e.target.value.split('\n').map((x) => x.trim()).filter(Boolean); } }, (v.adeguati || []).join('\n'));
+    const l = v.lettera;
+    const campoL = (etichetta, chiave, righe = 0, largo = true) => h('label', { class: largo ? 'largo' : '' }, etichetta, testoLegato(l, chiave, { righe }));
 
-    const salva = async (pdf) => {
-      Object.assign(verifica, f.leggi());
-      const salvata = await ctx.archivio.salvaRegistrazione(cod, 'verifichePos', verifica);
-      avviso('Verifica salvata');
-      if (pdf) {
-        await salvaPdf(ctx, htmlVerificaPos(ctx.cantiere, impresa, pos, salvata),
-          percorso(cartellaSezione(cod, 'verifichePos'), `Verifica POS ${impresa._cartella} rev ${pos.revisione}.pdf`));
-      }
-      vai(indirizzo(cod, 'impresa', impresa.id));
+    const salva = async () => {
+      Object.assign(v, f.leggi());
+      const { partitaDa, avvisiAi, vecchieVoci, ...dati } = v;
+      const ok = await ctx.archivio.salvaRegistrazione(cod, 'verifichePos', { ...dati, _file: salvata?._file });
+      bozzeVerifica.delete(posId);
+      return ok;
     };
+    const nomeBase = `${nomeSicuro(impresa.ragioneSociale)} rev ${nomeSicuro(pos.revisione, '0')} del ${v.data || oggi()}`;
+    const pdf = (tipo) => prova(async () => {
+      const ok = await salva();
+      avviso('Verifica salvata');
+      const html = tipo === 'lettera' ? htmlLetteraPos(ctx.cantiere, impresa, pos, ok) : htmlChecklistPos(ctx.cantiere, impresa, pos, ok);
+      await salvaPdf(ctx, html, percorso(cartellaSezione(cod, 'verifichePos'), `${tipo === 'lettera' ? (ok.integrazioni?.length ? 'Richiesta integrazioni POS' : 'Esito verifica POS') : 'Check list POS'} ${nomeBase}.pdf`));
+      ctx.ricarica();
+    });
+
+    const claudeBtn = ctx.servizi.claude
+      ? bottone('claude', 'Verifica con Claude', prova(() => verificaConClaude(ctx, { s, impresa, pos, posImpresa, v })), 'p')
+      : null;
+    const docAllegati = (pos.allegati || []).length;
     return h('div', {},
-      testata(`Verifica del POS – ${impresa.ragioneSociale}`, `Revisione ${pos.revisione} ricevuta il ${dataIt(pos.dataRicezione)} · contenuti minimi Allegato XV punto 3.2.1`,
-        bottone('apri', 'Apri il POS', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, impresa), pos.file)))),
+      testata(`Verifica del POS – ${impresa.ragioneSociale}`,
+        `Revisione ${pos.revisione} ricevuta il ${dataIt(pos.dataRicezione)}${docAllegati ? ` · ${docAllegati} allegati` : ''} · check list POS e idoneità tecnico-professionale`,
+        bottone('apri', 'Apri il POS', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, impresa), pos.file))),
+        bottone('carica', 'Allegati', () => finestraAllegati(ctx, impresa, pos)),
+        claudeBtn),
+      bozza ? nota(h('span', {}, h('b', {}, 'Proposta di Claude non ancora salvata. '), `Compilata il ${dataIt(bozza.ai?.data)} leggendo: ${(bozza.ai?.documenti || []).join('; ')}. Controlla ogni voce, correggi dove serve e salva.`), 'info') : null,
+      bozza?.avvisiAi?.length ? nota(h('div', {}, h('b', {}, 'Da controllare di persona:'), h('ul', { style: 'margin:4px 0 0' }, bozza.avvisiAi.map((a) => h('li', {}, a))))) : null,
+      !bozza && v.ai ? nota(`Compilata con il supporto di Claude il ${dataIt(v.ai.data)} e controllata dal CSE.`, 'info') : null,
+      !salvata && !bozza && v.partitaDa ? nota('Verifica nuova partita dalla verifica della revisione precedente: aggiorna le voci con i documenti nuovi.', 'info') : null,
+      !ctx.servizi.claude ? nota('La verifica con il supporto di Claude si fa dal PC (Windows).', 'info') : null,
       h('div', { class: 'pila' },
-        scheda({ titolo: 'Contenuti minimi', ico: 'psc', azioni: [proposto], tabella: h('table', { class: 't' }, corpoTab) }),
+        scheda({ titolo: 'Documentazione ditta', ico: 'notifica', corpo: h('label', { class: 'campo' }, 'Come compare in testa alla check list', testoLegato(v, 'documentazione')) }),
+        scheda({ titolo: 'Check list', ico: 'psc', azioni: [contaNascoste, proposto], tabella: h('table', { class: 't' }, corpoTab) }),
         scheda({
           titolo: 'Esito', ico: 'ok',
           corpo: [
-            h('div', { class: 'campi' }, h('label', {}, 'Esito della verifica', sceltaEsito), ...f.el.children),
-            h('label', { class: 'campo', style: 'margin-top:12px' }, h('span', { style: 'display:flex;align-items:center;gap:8px' }, 'Prescrizioni / integrazioni richieste',
-              bottone('', 'Proponi dalle voci', () => { testoPrescr.value = verifica.prescrizioni = prescrizioniProposte(verifica.voci); }, 'q sm')), testoPrescr),
+            h('div', { class: 'campi' },
+              h('label', {}, 'Idoneità tecnico-professionale (All. XVII)', sceltaTP),
+              h('label', {}, 'POS (art. 92 c. 1 lett. b)', sceltaEsito),
+              ...f.el.children,
+              h('label', { class: 'largo' }, 'POS non idoneo perché', testoLegato(v, 'motivo')),
+              h('label', { class: 'largo' }, 'Da integrare (in breve, sotto l’esito)', testoLegato(v, 'daIntegrare'))),
           ],
+        }),
+        scheda({ titolo: 'Integrazioni richieste', ico: 'attenzione', corpo: [h('p', { class: 'mu', style: 'margin-top:0' }, 'Vanno nell’allegato della check list e nella lettera all’impresa.'), editorIntegrazioni(v, aggiornaProposto)] }),
+        scheda({
+          titolo: 'Lettera all’impresa', ico: 'verbali',
+          corpo: h('div', { class: 'campi' },
+            campoL('Mittente', 'mittente'),
+            campoL('Destinatari (uno per riga)', 'destinatari', 3),
+            campoL('Per conoscenza (uno per riga)', 'epc', 2),
+            campoL('Oggetto', 'oggetto', 2),
+            campoL('Esito della verifica (testo della lettera)', 'esitoTesto', 2),
+            h('label', { class: 'largo' }, 'Risultano adeguati (uno per riga)', adeguati),
+            campoL('Termini e modalità', 'termini', 3),
+            campoL('Luogo', 'luogo', 0, false)),
         })),
-      barraSalva(precedente ? `Verifica del ${dataIt(precedente.data)}` : 'Nuova verifica',
-        bottone('salva', 'Salva', prova(() => salva(false))),
-        bottone('stampa', 'Salva e crea PDF', prova(() => salva(true)), 'p')));
+      barraSalva(bozza ? 'Proposta da salvare' : salvata ? `Verifica del ${dataIt(salvata.data)}` : 'Nuova verifica',
+        bozza ? bottone('chiudi', 'Scarta la proposta', () => { bozzeVerifica.delete(posId); ctx.ricarica(); }, 'q d') : null,
+        bottone('salva', 'Salva', prova(async () => { await salva(); avviso('Verifica salvata'); vai(indirizzo(cod, 'impresa', impresa.id)); })),
+        bottone('stampa', 'Check list PDF', pdf('checklist')),
+        bottone('stampa', 'Lettera PDF', pdf('lettera'), 'p')));
   },
 });
 
@@ -516,8 +743,8 @@ async function leggiFoto(ctx, p) {
 
 const percorsoFoto = (ctx, f) => percorso(cartellaSezione(ctx.cantiere.codice, 'foto'), 'timbrate', f.timbrata);
 
-function miniatura(ctx, f) {
-  const el = h('button', { type: 'button', class: 'foto', onclick: () => apriFoto(ctx, f), title: f.didascalia || dataOraIt(f.scattata) },
+function miniatura(ctx, f, alClic = null) {
+  const el = h('button', { type: 'button', class: 'foto', onclick: () => (alClic ? alClic() : apriFoto(ctx, f)), title: f.didascalia || dataOraIt(f.scattata) },
     h('span', { class: 'attesa' }, icona('foto')),
     h('span', { class: 'ora' }, String(f.scattata).slice(11, 16)),
     f.fonteData !== 'exif' ? h('span', { class: 'attenz pill at', title: 'Data di scatto non presente nella foto: è la data del file' }, '!') : null);
@@ -683,16 +910,96 @@ registra({
       { chiave: 'entro', etichetta: 'Entro il', tipo: 'data' },
     ], { nuova: () => ({ id: nuovoId(), descrizione: '', impresa: '', entro: '' }), testoAggiungi: 'Aggiungi', bloccato: blocco });
 
+    // controlli: quelli nascosti non si vedono (se non si chiede) e non si stampano
     const gruppiControlli = [...new Set(CONTROLLI_SOPRALLUOGO.map((c) => c.gruppo))];
-    const controlli = h('tbody', {}, gruppiControlli.map((g) => [
-      h('tr', { class: 'gr' }, h('td', {}, g)),
-      CONTROLLI_SOPRALLUOGO.filter((c) => c.gruppo === g).map((c) => {
-        let voce = v.verifiche.find((x) => x.codice === c.codice);
-        if (!voce) v.verifiche.push(voce = { codice: c.codice, esito: 'nv', note: '' });
-        return h('tr', {}, h('td', {},
-          h('div', { class: 'controllo' }, h('div', { style: 'padding-top:5px' }, c.testo), seg(ESITI_CONTROLLO, voce.esito, (k) => { voce.esito = k; }, TIPO_CONTROLLO, blocco)),
-          h('input', { type: 'text', value: voce.note || '', readonly: blocco, placeholder: 'Note', oninput: (e) => { voce.note = e.target.value; } })));
-      })]));
+    for (const c of CONTROLLI_SOPRALLUOGO) if (!v.verifiche.find((x) => x.codice === c.codice)) v.verifiche.push({ codice: c.codice, esito: 'nv', note: '' });
+    const controlli = h('tbody');
+    const contaNascosti = h('span');
+    let mostraNascosti = false;
+    const disegnaControlli = () => {
+      controlli.replaceChildren(...gruppiControlli.flatMap((g) => {
+        const qui = CONTROLLI_SOPRALLUOGO.filter((c) => c.gruppo === g)
+          .map((c) => [c, v.verifiche.find((x) => x.codice === c.codice)])
+          .filter(([, voce]) => mostraNascosti || !voce.nascosta);
+        if (!qui.length) return [];
+        return [h('tr', { class: 'gr' }, h('td', { colspan: 2 }, g)), ...qui.map(([c, voce]) => h('tr', { class: voce.nascosta ? 'nascosta' : '' },
+          h('td', {},
+            h('div', { class: 'controllo' }, h('div', { style: 'padding-top:5px' }, c.testo), seg(ESITI_CONTROLLO, voce.esito, (k) => { voce.esito = k; }, TIPO_CONTROLLO, blocco)),
+            h('input', { type: 'text', value: voce.note || '', readonly: blocco, placeholder: 'Note', oninput: (e) => { voce.note = e.target.value; } })),
+          h('td', { class: 'stretta', style: 'vertical-align:top;padding-top:10px' }, blocco ? null
+            : bottone(voce.nascosta ? 'occhio' : 'nascosto', '', () => { voce.nascosta = !voce.nascosta; disegnaControlli(); }, 'q sm icona',
+              { title: voce.nascosta ? 'Mostra di nuovo il controllo (e stampalo)' : 'Nascondi il controllo: non compare nel verbale stampato' }))))];
+      }));
+      const n = v.verifiche.filter((x) => x.nascosta).length;
+      contaNascosti.replaceChildren(n ? bottone(mostraNascosti ? 'nascosto' : 'occhio', mostraNascosti ? 'Togli i nascosti' : `Mostra nascosti (${n})`, () => { mostraNascosti = !mostraNascosti; disegnaControlli(); }, 'q sm') : '');
+    };
+    disegnaControlli();
+
+    // foto del verbale: scelte dal registro fotografico, oppure scattate / caricate adesso
+    v.foto = (v.foto || []).filter((id) => s.foto.some((f) => f.id === id));
+    const grigliaFoto = h('div', { class: 'foto-griglia' });
+    const disegnaFoto = () => grigliaFoto.replaceChildren(...(v.foto.length
+      ? v.foto.map((id) => {
+        const f = s.foto.find((x) => x.id === id);
+        // aprendo la foto (per la didascalia) la pagina si ricarica: prima si salva il verbale
+        const el = miniatura(ctx, f, blocco ? null : prova(async () => { await salva(); apriFoto(ctx, f); }));
+        if (!blocco) {
+          el.append(h('span', {
+            class: 'togli', role: 'button', title: 'Togli dal verbale (resta nel registro)',
+            onclick: (e) => { e.stopPropagation(); v.foto = v.foto.filter((x) => x !== id); disegnaFoto(); },
+          }, icona('chiudi')));
+        }
+        if (f.didascalia) el.append(h('span', { class: 'dida' }, f.didascalia));
+        return el;
+      })
+      : [h('p', { class: 'mu', style: 'margin:0' }, blocco ? 'Nessuna foto' : 'Nessuna foto: sceglile dal registro fotografico o scattale adesso. Nel PDF vanno dopo le firme, due per riga, con data e didascalia.')]));
+    disegnaFoto();
+    const aggiungiFoto = (schede) => {
+      for (const f of schede) {
+        if (!s.foto.some((x) => x.id === f.id)) s.foto.push(f);
+        if (!v.foto.includes(f.id)) v.foto.push(f.id);
+      }
+      disegnaFoto();
+    };
+    const importa = prova(async (files) => {
+      files = (files || []).filter(Boolean);
+      if (!files.length) return;
+      const attesa = avviso(files.length === 1 ? 'Importazione della foto…' : `Importazione di ${files.length} foto…`);
+      const nuove = [];
+      try {
+        for (const f of files) nuove.push(await importaFoto(ctx.archivio, cod, f, timbraFoto));
+      } finally {
+        attesa.remove();
+      }
+      aggiungiFoto(nuove);
+      await salva(); // le foto sono già nel registro: il verbale si salva subito
+      avviso(nuove.length === 1 ? 'Foto aggiunta al verbale e al registro' : `${nuove.length} foto aggiunte al verbale e al registro`);
+    });
+    const scegliDalRegistro = () => {
+      const scelte = new Set(v.foto);
+      const gruppi = perGiorno(s.foto).reverse().sort((a, b) => (b.giorno === v.data) - (a.giorno === v.data));
+      const corpo = gruppi.length ? gruppi.map((g) => h('div', { class: 'giorno-foto' },
+        h('h3', {}, icona('calendario'), `${giorno(g.giorno)} ${dataIt(g.giorno)}`, g.giorno === v.data ? pill('giorno del verbale', 'ac') : null),
+        h('div', { class: 'foto-griglia' }, g.foto.map((f) => {
+          const el = miniatura(ctx, f, () => { el.classList.toggle('scelta'); if (scelte.has(f.id)) scelte.delete(f.id); else scelte.add(f.id); });
+          if (scelte.has(f.id)) el.classList.add('scelta');
+          el.append(h('span', { class: 'spunta-foto' }, icona('ok')));
+          return el;
+        }))))
+        : vuoto('foto', 'Registro fotografico vuoto', 'Scatta o carica le foto: vanno nel registro e nel verbale.');
+      const { chiudi: chiudiF } = finestra('Foto dal registro fotografico', corpo, [
+        bottone('ok', 'Usa le foto scelte', () => {
+          v.foto = [...v.foto.filter((id) => scelte.has(id)), ...[...scelte].filter((id) => !v.foto.includes(id))];
+          disegnaFoto();
+          chiudiF();
+        }, 'p'),
+      ], 'grande');
+    };
+    const azioniFoto = blocco ? [] : [
+      bottone('foto', 'Dal registro', scegliDalRegistro, 'sm'),
+      ctx.servizi.scatta ? bottone('scatta', 'Scatta', prova(async () => importa([await ctx.servizi.scatta()])), 'sm') : null,
+      bottone('carica', 'Carica', prova(async () => importa(ctx.servizi.scegliFoto ? await ctx.servizi.scegliFoto() : await scegliFile(ctx, { accetta: 'image/jpeg' }))), 'sm'),
+    ];
 
     const daVerificare = v.prescrizioniDaVerificare?.length ? scheda({
       titolo: 'Prescrizioni dei verbali precedenti', ico: 'attenzione',
@@ -728,7 +1035,23 @@ registra({
       v._file = salvato._file;
       return salvato;
     };
-    const stampa = () => salvaPdf(ctx, htmlVerbale(ctx.cantiere, v, { imprese: s.imprese }), nomePdf());
+    const stampa = async () => {
+      const foto = [];
+      if (v.foto.length) {
+        const attesa = avviso('Preparazione delle foto per la stampa…');
+        try {
+          for (const id of v.foto) {
+            const f = s.foto.find((x) => x.id === id);
+            try {
+              foto.push({ src: await immagineStampa(ctx, percorsoFoto(ctx, f)), scattata: f.scattata, didascalia: f.didascalia, luogo: f.luogo });
+            } catch { /* file della foto non ancora sincronizzato */ }
+          }
+        } finally {
+          attesa.remove();
+        }
+      }
+      await salvaPdf(ctx, htmlVerbale(ctx.cantiere, v, { imprese: s.imprese, foto }), nomePdf());
+    };
 
     const pulsanti = blocco
       ? [bottone('stampa', 'Stampa / PDF', prova(stampa), 'p')]
@@ -759,10 +1082,11 @@ registra({
         scheda({ titolo: 'Sopralluogo', ico: 'calendario', corpo: [generali, impresePresenti] }),
         scheda({ titolo: 'Presenti', ico: 'persone', azioni: [presenti.aggiungi], tabella: presenti.tabella }),
         daVerificare,
-        scheda({ titolo: 'Verifiche effettuate', ico: 'ok', tabella: h('table', { class: 't' }, controlli) }),
+        scheda({ titolo: 'Verifiche effettuate', ico: 'ok', azioni: [contaNascosti], tabella: h('table', { class: 't' }, controlli) }),
         scheda({ titolo: 'Non conformità rilevate', ico: 'attenzione', azioni: [nc.aggiungi], tabella: nc.tabella }),
         scheda({ titolo: 'Prescrizioni', ico: 'verbali', azioni: [prescr.aggiungi], tabella: prescr.tabella }),
         scheda({ titolo: 'Provvedimenti', ico: 'psc', corpo: provvedimenti }),
+        scheda({ titolo: `Foto del verbale${v.foto.length ? ` (${v.foto.length})` : ''}`, ico: 'foto', azioni: azioniFoto, corpo: grigliaFoto }),
         scheda({ titolo: 'Note', corpo: lega('note', 'testo_lungo', 'Altre annotazioni') })),
       barraSalva(blocco ? 'Da firmare su carta' : `Salvato ${dataOraIt(letto.modificato)}`, pulsanti));
   },

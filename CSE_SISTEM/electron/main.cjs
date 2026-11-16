@@ -5,10 +5,11 @@
 // alla cartella dei dati (Documenti, oppure quella scelta dall'utente: anche
 // una cartella sul server o sincronizzata con il cloud) e non possono uscirne.
 
-const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } = require('electron');
 const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
+const { creaClaude } = require('./claude.cjs');
 
 // date, numeri e calendario sempre in italiano (gg/mm/aaaa), qualunque sia la lingua di Windows
 app.commandLine.appendSwitch('lang', 'it-IT');
@@ -96,10 +97,25 @@ ipcMain.handle('cse:scegliFile', async (e, opzioni = {}) => {
   })));
 });
 
+// ------------------------------------------------------------ Claude (verifica dei POS)
+let claude = null;
+const conClaude = () => (claude ||= creaClaude({ cartellaUtente: app.getPath('userData'), safeStorage }));
+ipcMain.handle('cse:claudeStato', () => conClaude().stato());
+ipcMain.handle('cse:claudeSalvaChiave', (_e, k) => conClaude().salvaChiave(k));
+ipcMain.handle('cse:claudeProva', (_e, modello) => conClaude().prova(modello));
+ipcMain.handle('cse:claudeAnnulla', () => conClaude().annulla());
+ipcMain.handle('cse:claudeVerifica', (e, richiesta) => conClaude().verifica(richiesta, {
+  assoluto,
+  avanzamento: (testo) => { if (!e.sender.isDestroyed()) e.sender.send('cse:claudeAvanzamento', testo); },
+}));
+
 ipcMain.handle('cse:pdfDaHtml', async (_e, html, p) => {
   const win = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
+  // file temporaneo invece di un indirizzo data: (che non regge le pagine con le foto, oltre 2 MB)
+  const tmp = path.join(app.getPath('temp'), `cse-stampa-${process.pid}-${Date.now()}.html`);
   try {
-    await win.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    await fsp.writeFile(tmp, html, 'utf8');
+    await win.loadFile(tmp);
     const pdf = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true });
     const a = assoluto(p);
     await fsp.mkdir(path.dirname(a), { recursive: true });
@@ -107,6 +123,7 @@ ipcMain.handle('cse:pdfDaHtml', async (_e, html, p) => {
     return p;
   } finally {
     win.destroy();
+    fsp.rm(tmp, { force: true }).catch(() => {});
   }
 });
 

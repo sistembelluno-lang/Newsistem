@@ -26,7 +26,7 @@ pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:1
 <header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
 <main>
 <h1>Guida a CSE_SISTEM</h1>
-<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.3.</p>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.4.</p>
 
 <div class="box"><b class="t">In breve</b>
 CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
@@ -40,14 +40,14 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <h2>1. Scaricare e installare</h2>
 <p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
 <table><tr><th>File</th><th>Per</th><th>Note</th></tr>
-<tr><td><code>CSE_SISTEM-0.3.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
-<tr><td><code>CSE_SISTEM-0.3.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM-0.4.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.4.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
 <tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
 <tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
 
 <h3>Windows</h3>
 <ol class="passi">
-<li>Scarica <code>CSE_SISTEM-0.3.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Scarica <code>CSE_SISTEM-0.4.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
 <li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
 <li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
 </ol>
@@ -113,13 +113,51 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <figure><img src="img/cse_imprese.jpg" alt=""><figcaption>Situazione delle imprese: chi può lavorare e cosa resta da fare</figcaption></figure>
 <ol class="passi">
 <li><b>Nuova impresa</b>: ragione sociale, impresa o lavoratore autonomo, ruolo (affidataria, esecutrice, subappaltatrice) e, per i subappalti, l'impresa affidataria.</li>
-<li>Nella <b>scheda dell'impresa</b> completa i dati richiesti dal POS (datore di lavoro, direttore tecnico, capocantiere, RSPP, medico competente, RLS, lavorazioni, date di ingresso e uscita).</li>
-<li><b>Carica POS</b>: scegli il PDF ricevuto e indica revisione, data e data di ricezione.</li>
-<li><b>Verifica ora</b>: per ognuno dei contenuti minimi dell'Allegato XV punto 3.2.1 scegli <i>Presente</i>, <i>Incompleto</i>, <i>Mancante</i> o <i>Non pertinente</i>, con eventuali note. Il programma propone l'esito (una voce mancante = non idoneo, una incompleta = idoneo con prescrizioni) e, con <b>Proponi dalle voci</b>, il testo delle integrazioni da chiedere.</li>
-<li><b>Salva e crea PDF</b>: la verifica va in <code>05_Verifiche_POS</code>. Quando trasmetti l'esito all'impresa, scrivi la data in «Esito trasmesso all'impresa il».</li>
+<li>Nella <b>scheda dell'impresa</b> completa i dati (sede, PEC, e-mail, datore di lavoro, direttore tecnico, capocantiere, RSPP, medico competente, RLS, lavorazioni, date di ingresso e uscita). Sede, PEC ed e-mail finiscono nei destinatari della lettera.</li>
+<li><b>Carica POS</b>: scegli il PDF ricevuto e indica revisione, data e data di ricezione. Subito dopo il programma chiede se sono arrivati anche gli <b>allegati</b> (attestati di formazione, idoneità sanitarie, DURC, visura, DVR, dichiarazioni): sceglili tutti insieme e indica la data di ricezione.</li>
+<li>Quando l'impresa manda un <b>aggiornamento</b>: se è un POS nuovo usa <b>Nuova revisione</b>; se manda solo documenti (es. gli attestati mancanti) aggiungili alla revisione con il pulsante della colonna <b>Allegati</b>. Le revisioni vecchie restano in elenco come «superata».</li>
 </ol>
-<figure><img src="img/cse_verificapos.jpg" alt=""><figcaption>Verifica del POS voce per voce</figcaption></figure>
-<p>Finché il POS non è idoneo l'impresa compare in rosso e il riepilogo ricorda cosa fare (richiedere il POS, verificarlo, chiederne la revisione, trasmettere l'esito). Quando arriva una revisione si carica come nuovo POS e si verifica di nuovo.</p>
+<figure><img src="img/cse_impresa.jpg" alt=""><figcaption>Scheda dell'impresa: revisioni del POS, allegati e verifiche</figcaption></figure>
+<figure class="md"><img src="img/cse_allegati.jpg" alt=""><figcaption>Allegati di una revisione: si aprono, si tolgono, se ne aggiungono altri</figcaption></figure>
+
+<h3>La check list</h3>
+<p><b>Verifica ora</b> apre la check list SISTEM, la stessa del modello cartaceo: <b>A</b> contenuti minimi del POS (Allegato XV 3.2.1), <b>B</b> idoneità tecnico-professionale (Allegato XVII), <b>C</b> ulteriori adempimenti (Titolo IV). Per ogni voce scegli <i>Sì</i>, <i>No</i> o <i>Non previsto</i> e scrivi la nota che verrà stampata sotto la voce (es. «Regolare, scadenza 11/02/2027.»).</p>
+<ul>
+<li>Le voci 26-28 riguardano l'impresa affidataria: per le altre sono già «Non previsto».</li>
+<li>Con l'<b>occhio barrato</b> a destra di una voce la <b>nascondi</b>: non compare nella stampa e non conta per l'esito. «Mostra nascoste» le fa rivedere per rimetterle.</li>
+<li>Il programma propone l'<b>esito</b> (un «No» nella sezione A = non idoneo; un «No» nelle sezioni B e C o delle integrazioni = idoneo con prescrizioni) e l'<b>idoneità tecnico-professionale</b>. Puoi cambiarli.</li>
+<li>Le <b>integrazioni richieste</b> (titolo e testo) vanno nell'allegato della check list e nella lettera. «Proponi dalle voci «No»» le crea dalle voci mancanti. Nel testo, le righe che iniziano con «- » diventano un elenco puntato.</li>
+<li>Per una revisione nuova la verifica <b>riparte da quella della revisione precedente</b>: si aggiorna solo quello che è cambiato.</li>
+</ul>
+
+<h3>Verifica con Claude (su PC)</h3>
+<p><b>Verifica con Claude</b> fa leggere a Claude il POS, i suoi allegati (anche quelli delle revisioni precedenti) e il PSC del cantiere. Prima scegli quali documenti mandare; dopo qualche minuto la check list è compilata voce per voce con le note, l'esito, le integrazioni con le condizioni operative e i testi della lettera.</p>
+<figure class="md"><img src="img/cse_claude_documenti.jpg" alt=""><figcaption>Scelta dei documenti da far leggere a Claude</figcaption></figure>
+<figure><img src="img/cse_verificapos.jpg" alt=""><figcaption>La proposta di Claude, da controllare e salvare</figcaption></figure>
+<div class="box att"><b class="t">La proposta va controllata</b>Finché non premi <b>Salva</b> (o uno dei PDF) la proposta non è salvata; con <b>Scarta la proposta</b> torni alla verifica di prima. Leggi i punti segnalati «Da controllare di persona» (documenti illeggibili, dubbi). La responsabilità della verifica resta del CSE.</div>
+<ul>
+<li>Documenti accettati: <b>PDF</b> e <b>immagini</b> (JPG, PNG). Un file firmato <code>.p7m</code> va prima aperto e salvato in PDF.</li>
+<li>Limite: circa 600 pagine in tutto per verifica. Con un PSC molto lungo togli la spunta al PSC.</li>
+<li>I documenti già mandati non si rimandano: una seconda verifica dello stesso POS è più veloce.</li>
+<li>Serve la <b>chiave API</b> di Claude, da inserire una volta in <b>Impostazioni</b> (vedi sotto). Sul telefono la verifica con Claude non c'è: la check list si compila a mano.</li>
+</ul>
+<figure class="md"><img src="img/cse_integrazioni.jpg" alt=""><figcaption>Integrazioni richieste e lettera all'impresa</figcaption></figure>
+
+<h3>Check list e lettera in PDF</h3>
+<ul>
+<li><b>Check list PDF</b>: destinatari in alto a destra, «Lavori di» e CSE ripetuti su ogni pagina, le voci con le X nelle colonne SI / NO / NON PREVISTO e le note, l'esito con «no perché» e «da integrare», data e firma; in fondo l'<b>Allegato – integrazioni ancora mancanti</b>.</li>
+<li><b>Lettera PDF</b>: «Richiesta integrazioni POS» (o «Esito della verifica del POS» se non ce ne sono) con mittente, destinatari, per conoscenza, oggetto, esito, aspetti adeguati, integrazioni, termini e firma. I campi della lettera si correggono nella scheda <b>Lettera all'impresa</b>.</li>
+<li>I PDF vanno in <code>05_Verifiche_POS</code>. Quando trasmetti l'esito, scrivi la data in «Esito trasmesso all'impresa il».</li>
+</ul>
+<div class="duo"><figure><img src="img/cse_checklist1.jpg" alt=""><figcaption>Check list: prima pagina</figcaption></figure><figure><img src="img/cse_lettera.jpg" alt=""><figcaption>Lettera all'impresa</figcaption></figure></div>
+<p>Finché il POS non è idoneo l'impresa compare in rosso e il riepilogo ricorda cosa fare (richiedere il POS, verificarlo, chiederne la revisione, trasmettere l'esito).</p>
+
+<h3>Impostare Claude</h3>
+<ol class="passi">
+<li>Su <a href="https://console.anthropic.com">console.anthropic.com</a> entra con l'account dello studio, carica il credito e crea una chiave in <b>API keys</b> (inizia con <code>sk-ant-</code>).</li>
+<li>In CSE_SISTEM apri <b>Impostazioni</b> (l'ingranaggio in alto a destra), incolla la chiave in <b>Claude: verifica dei POS</b> e premi <b>Salva la chiave</b>: il programma prova subito il collegamento.</li>
+</ol>
+<figure class="md"><img src="img/cse_impostazioni_claude.jpg" alt=""><figcaption>La chiave resta sul PC, cifrata con il portachiavi di Windows</figcaption></figure>
 
 <h2>7. Giornale dei lavori</h2>
 <p><b>Voce di oggi</b> apre la scheda del giorno: orari di arrivo e partenza, meteo, lavorazioni in corso, osservazioni, disposizioni impartite. C'è una voce per giorno; tocca una voce per modificarla. Se quel giorno sono state fatte foto, la voce lo indica con un collegamento.</p>
@@ -144,7 +182,11 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <li><b>Verifiche effettuate</b>: per ogni controllo, divisi per gruppo, scegli <i>Conforme</i>, <i>Non conforme</i> o <i>Non verificato</i>, con note.</li>
 <li><b>Non conformità</b> e <b>Prescrizioni</b> (con impresa e scadenza «entro il»). Le prescrizioni scadute compaiono in rosso nel riepilogo.</li>
 <li><b>Provvedimenti</b>: sospensione delle singole lavorazioni (art. 92 c. 1 lett. f) e segnalazione al committente o al responsabile dei lavori (art. 92 c. 1 lett. e).</li>
+<li><b>Foto del verbale</b>: <b>Dal registro</b> fa scegliere le foto già scattate (quelle del giorno del verbale sono in cima: tocca per scegliere, tocca di nuovo per togliere); <b>Scatta</b> (telefono) o <b>Carica</b> aggiungono foto nuove, che vanno anche nel registro fotografico. La × toglie la foto dal verbale ma non dal registro. Toccando una foto si scrive la didascalia.</li>
 </ol>
+<h3>Nascondere i controlli che non servono</h3>
+<p>Nelle <b>Verifiche effettuate</b> l'<b>occhio barrato</b> accanto a un controllo lo nasconde: non compare nel verbale stampato (per esempio i ponteggi in un cantiere che non li ha). «Mostra nascosti» li fa rivedere. Il verbale successivo li tiene già nascosti.</p>
+<figure class="md"><img src="img/cse_verbale_foto.jpg" alt=""><figcaption>Foto scelte per il verbale</figcaption></figure>
 <figure><img src="img/cse_verbale1.jpg" alt=""><figcaption>Inizio del verbale</figcaption></figure>
 <figure><img src="img/cse_verbale2.jpg" alt=""><figcaption>Verifiche effettuate, divise per gruppo</figcaption></figure>
 <h3>Salvare, stampare, chiudere</h3>
@@ -153,7 +195,7 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <tr><td><b>Stampa</b></td><td>salva e prepara la stampa (vedi capitolo 10), per esempio per una bozza</td></tr>
 <tr><td><b>Chiudi</b></td><td>salva, prepara la stampa da firmare e <b>blocca</b> il verbale: non si modifica più, per correzioni si fa un nuovo verbale</td></tr>
 <tr><td><b>Elimina</b></td><td>(solo su PC, solo per le bozze) cancella il verbale</td></tr></table>
-<p>Il verbale stampato termina con «Letto, confermato e sottoscritto», la data e il comune, una riga di firma per ogni presente e la firma del CSE. Si firma <b>su carta</b>.</p>
+<p>Il verbale stampato termina con «Letto, confermato e sottoscritto», la data e il comune, una riga di firma per ogni presente e la firma del CSE. Si firma <b>su carta</b>. Dopo le firme c'è la <b>documentazione fotografica</b>: due foto per riga, con numero, data e ora di scatto e didascalia.</p>
 <figure class="md"><img style="max-height:215mm" src="img/cse_stampa.jpg" alt=""><figcaption>Il verbale stampato</figcaption></figure>
 
 <h2 class="salto">10. Stampa e PDF</h2>
@@ -176,6 +218,8 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
     02_PSC\
     03_Notifica_preliminare\
     04_Imprese_e_POS\Edil Rossi S.r.l\POS\
+                    POS (una revisione per file) e
+                    Allegati rev 0\, Allegati rev 1\, ...
     05_Verifiche_POS\            verifiche (.json) e PDF
     06_Giornale_lavori\          una voce al giorno
     07_Registro_fotografico\
@@ -194,9 +238,13 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <tr><td>«Numeri usati due volte» nei verbali</td><td>Due verbali creati su dispositivi diversi prima della sincronizzazione: apri uno dei due, cambia il numero e salva.</td></tr>
 <tr><td>Una foto ha il segno <span class="pill">!</span></td><td>La foto non conteneva la data di scatto (foto inoltrate, screenshot): verifica la data.</td></tr>
 <tr><td>Il calendario mostra le date all'inglese</td><td>Su Android dipende dalla lingua del telefono; impostala in italiano.</td></tr>
+<tr><td>«Manca la chiave API di Claude» o «Chiave non valida»</td><td>Inserisci o sostituisci la chiave in <b>Impostazioni › Claude: verifica dei POS</b> e premi <b>Prova il collegamento</b>.</td></tr>
+<tr><td>«Credito esaurito» o «troppe richieste»</td><td>Controlla il credito su console.anthropic.com; altrimenti attendi un minuto e riprova.</td></tr>
+<tr><td>«Formato non leggibile da Claude»</td><td>Claude legge PDF e immagini: apri il file (es. <code>.p7m</code>, <code>.docx</code>) e salvalo in PDF, poi caricalo di nuovo come allegato.</td></tr>
+<tr><td>La verifica con Claude dura molto</td><td>Con POS, molti allegati e PSC può volerci qualche minuto. Con <b>Interrompi</b> la fermi; riprova senza il PSC.</td></tr>
 <tr><td>Non trovo la stampante sul telefono</td><td>Installa dal Play Store il servizio di stampa della marca della stampante (o «Mopria Print Service»), oppure salva il PDF e stampalo dal PC.</td></tr></table>
 
 <div class="box"><b class="t">Versione di prova</b>
 Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
-<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.3 · SISTEM SRL STP</p>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.4 · SISTEM SRL STP</p>
 </main></body></html>

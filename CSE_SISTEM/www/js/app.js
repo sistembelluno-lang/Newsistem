@@ -9,6 +9,7 @@ import { h, avviso, bottone, chiedi, testata, scheda, vuoto, pill, nota } from '
 import { icona, marchio } from './ui/icone.js';
 import { leggiIndirizzo, indirizzo, vai } from './ui/router.js';
 import { VERSIONE } from './versione.js';
+import { MODELLO_CLAUDE } from './servizi/claude.js';
 import './moduli/cse.js'; // i moduli si registrano da soli
 
 const p = piattaforma();
@@ -63,6 +64,38 @@ async function paginaCantieri() {
       : scheda({ corpo: vuoto('elmetto', 'Nessun cantiere', 'Crea il primo cantiere: il programma prepara la cartella con progetto, PSC, notifica, imprese e POS, giornale, foto e verbali.', bottone('piu', 'Nuovo cantiere', nuovoCantiereDialogo, 'p')) }));
 }
 
+/** Impostazioni di Claude (solo Windows): chiave API e prova del collegamento. */
+async function schedaClaude() {
+  const claude = p.servizi.claude;
+  const st = await claude.stato();
+  const campoChiave = h('input', { type: 'password', placeholder: st.chiave ? 'Chiave già inserita: scrivi qui per sostituirla' : 'sk-ant-…', autocomplete: 'off' });
+  const esito = h('div');
+  const prova = async () => {
+    esito.replaceChildren(h('p', { class: 'mu' }, 'Prova del collegamento…'));
+    const r = await claude.prova(MODELLO_CLAUDE);
+    esito.replaceChildren(nota(r.testo, r.ok ? 'info' : 'ko'));
+  };
+  return scheda({
+    titolo: 'Claude: verifica dei POS', ico: 'claude',
+    corpo: [
+      h('p', {}, 'Chiave API ', st.chiave ? pill(st.daAmbiente ? 'Presa da ANTHROPIC_API_KEY' : 'Inserita', 'ok') : pill('Da inserire', 'at')),
+      h('p', { class: 'mu' }, 'Con la chiave API di Anthropic (console.anthropic.com › API keys) Claude legge POS, allegati e PSC e compila la check list e la lettera. La chiave resta su questo PC, cifrata con il portachiavi di Windows; il costo delle verifiche è addebitato sull’account della chiave.'),
+      h('label', { class: 'campo' }, 'Chiave API', campoChiave),
+      h('div', { class: 'azioni', style: 'margin-top:12px;justify-content:flex-start' },
+        bottone('salva', 'Salva la chiave', async () => {
+          if (!campoChiave.value.trim()) return avviso('Scrivi la chiave', 'errore');
+          await claude.salvaChiave(campoChiave.value);
+          const r = await claude.prova(MODELLO_CLAUDE);
+          avviso(r.ok ? `Chiave salvata. ${r.testo}` : `Chiave salvata, ma: ${r.testo}`, r.ok ? 'info' : 'errore');
+          disegna();
+        }, 'p'),
+        st.chiave ? bottone('', 'Prova il collegamento', prova) : null,
+        st.chiave && !st.daAmbiente ? bottone('cestino', 'Togli la chiave', async () => { await claude.salvaChiave(''); avviso('Chiave tolta'); disegna(); }, 'q d') : null),
+      esito,
+    ],
+  });
+}
+
 async function paginaImpostazioni() {
   const parti = [];
   if (p.tipo === 'windows') {
@@ -90,6 +123,7 @@ async function paginaImpostazioni() {
         }),
       ],
     }));
+    parti.push(await schedaClaude());
   } else if (p.tipo === 'android') {
     const concesso = await p.servizi.permessoFile().catch(() => true);
     parti.push(scheda({

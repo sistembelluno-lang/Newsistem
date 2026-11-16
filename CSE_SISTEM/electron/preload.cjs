@@ -19,4 +19,15 @@ contextBridge.exposeInMainWorld('cseNative', {
   scegliCartellaDati: chiama('scegliCartellaDati'),
   cartelleGoogleDrive: chiama('cartelleGoogleDrive'),
   usaCartellaDati: chiama('usaCartellaDati'),
+  claudeStato: chiama('claudeStato'),
+  claudeSalvaChiave: chiama('claudeSalvaChiave'),
+  claudeProva: chiama('claudeProva'),
+  claudeAnnulla: chiama('claudeAnnulla'),
+  claudeVerifica: chiama('claudeVerifica'),
+  /** Messaggi di avanzamento della verifica con Claude: restituisce la funzione per smettere di ascoltarli. */
+  suClaudeAvanzamento: (f) => {
+    const ascolta = (_e, testo) => f(testo);
+    ipcRenderer.on('cse:claudeAvanzamento', ascolta);
+    return () => ipcRenderer.removeListener('cse:claudeAvanzamento', ascolta);
+  },
 });

@@ -4,7 +4,9 @@
 // La grafica definitiva dei modelli verrà dopo: qui c'è la struttura.
 
 import { dataIt, dataOraIt } from '../core/date.js';
-import { CONTROLLI_SOPRALLUOGO, CONTENUTI_POS, ESITI_CONTROLLO, ESITI_VERIFICA_POS, ESITI_VOCE_POS, OBBLIGHI_CSE } from './normativa.js';
+import {
+  CHECKLIST_POS, CONTROLLI_SOPRALLUOGO, CONTENUTI_POS, ESITI_CONTROLLO, ESITI_VERIFICA_POS, ESITI_VOCE_POS, OBBLIGHI_CSE, SEZIONI_CHECKLIST,
+} from './normativa.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const persona = (p) => (p?.nome ? `${esc(p.nome)}${p.qualifica ? `, ${esc(p.qualifica)}` : ''}` : '—');
@@ -21,6 +23,11 @@ function pagina(titolo, corpo) {
   .blocco-firme { page-break-inside: avoid; break-inside: avoid; }
   .righe-firma td { height: 11mm; }
   tr { page-break-inside: avoid; }
+  .foto-v { break-before: page; page-break-before: always; }
+  .griglia-foto { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 5mm; }
+  .griglia-foto figure { margin: 0; break-inside: avoid; page-break-inside: avoid; }
+  .griglia-foto img { width: 100%; height: 62mm; object-fit: contain; background: #f2f2f2; display: block; }
+  .griglia-foto figcaption { font-size: 9pt; margin-top: 1.5mm; }
 </style></head><body>${corpo}</body></html>`;
 }
 
@@ -34,7 +41,7 @@ function intestazione(cantiere) {
 }
 
 /** HTML del verbale di sopralluogo. */
-export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO } = {}) {
+export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO, foto = [] } = {}) {
   const nomeImpresa = (id) => esc(imprese.find((i) => i.id === id)?.ragioneSociale || id);
   const testoControllo = new Map(controlli.map((c) => [c.codice, c.testo]));
   const righe = (lista, f) => (lista?.length ? lista.map(f).join('') : '<tr><td colspan="9">Nessuna</td></tr>');
@@ -51,7 +58,7 @@ ${righe(verbale.presenti, (p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifi
 <h2>Lavorazioni in corso</h2><p>${esc(verbale.lavorazioniInCorso) || '—'}</p>
 <h2>Verifiche effettuate</h2>
 <table><tr><th>Controllo</th><th>Esito</th><th>Note</th></tr>
-${righe(verbale.verifiche, (v) => `<tr><td>${esc(testoControllo.get(v.codice) || v.codice)}</td><td>${ESITI_CONTROLLO[v.esito] || ''}</td><td>${esc(v.note)}</td></tr>`)}</table>
+${righe((verbale.verifiche || []).filter((v) => !v.nascosta), (v) => `<tr><td>${esc(testoControllo.get(v.codice) || v.codice)}</td><td>${ESITI_CONTROLLO[v.esito] || ''}</td><td>${esc(v.note)}</td></tr>`)}</table>
 ${verbale.prescrizioniDaVerificare?.length ? `<h2>Verifica delle prescrizioni dei verbali precedenti</h2>
 <table><tr><th>Prescrizione</th><th>Verbale</th><th>Esito</th></tr>
 ${verbale.prescrizioniDaVerificare.map((p) => `<tr><td>${esc(p.descrizione)}</td><td>n. ${esc(p.verbale)}</td><td>${{ risolta: 'Risolta', non_risolta: 'Non risolta' }[p.esito] || 'Non verificata'}</td></tr>`).join('')}</table>` : ''}
@@ -65,8 +72,21 @@ ${verbale.sospensione ? `<h2>Sospensione delle lavorazioni (art. 92 c. 1 lett. f
 <p>Lavorazioni sospese: ${esc(verbale.sospensione.lavorazioni)}<br>Motivo: ${esc(verbale.sospensione.motivo)}<br>Dal: ${dataOraIt(verbale.sospensione.dal)}</p>` : ''}
 ${verbale.segnalazioneCommittente ? `<p><b>Segnalazione al committente / responsabile dei lavori (art. 92 c. 1 lett. e)</b> delle inosservanze riscontrate.</p>` : ''}
 ${verbale.note ? `<h2>Note</h2><p>${esc(verbale.note)}</p>` : ''}
-${firmeVerbale(cantiere, verbale)}`;
+${firmeVerbale(cantiere, verbale)}
+${fotoVerbale(foto)}`;
   return pagina(`Verbale ${verbale.numero}`, corpo);
+}
+
+/**
+ * Documentazione fotografica del verbale: due foto per riga, con numero,
+ * data e ora di scatto e didascalia. foto: [{ src (data URL), scattata, didascalia, luogo }]
+ */
+function fotoVerbale(foto) {
+  if (!foto?.length) return '';
+  return `<div class="foto-v">
+<h2>Documentazione fotografica</h2>
+<div class="griglia-foto">${foto.map((f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption><b>Foto ${i + 1}</b> – ${dataOraIt(f.scattata)}${f.luogo ? ` – ${esc(f.luogo)}` : ''}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`).join('')}</div>
+</div>`;
 }
 
 /**
@@ -86,8 +106,9 @@ ${presenti.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifica)}</td><t
 </div>`;
 }
 
-/** HTML della verifica di idoneità del POS. */
+/** HTML della verifica di idoneità del POS (check list SISTEM; per le verifiche della 0.3 la lista di allora). */
 export function htmlVerificaPos(cantiere, impresa, pos, verifica) {
+  if (verifica.lista === 'v2') return htmlChecklistPos(cantiere, impresa, pos, verifica);
   const voce = new Map((verifica.voci || []).map((v) => [v.codice, v]));
   const corpo = `
 <h1>Verifica di idoneità del POS</h1>
@@ -101,6 +122,169 @@ ${CONTENUTI_POS.map((c) => `<tr><td>${esc(c.codice)}) ${esc(c.testo)}</td><td>${
 ${verifica.prescrizioni ? `<h2>Prescrizioni</h2><p style="white-space:pre-line">${esc(verifica.prescrizioni)}</p>` : ''}
 <table class="firme"><tr><td>Data: ${dataIt(verifica.data)}</td><td>Il Coordinatore per l'esecuzione<br>${persona(cantiere.cse)}</td></tr></table>`;
   return pagina(`Verifica POS ${impresa.ragioneSociale}`, corpo);
+}
+
+// ------------------------------------------------------------ check list e lettera del POS
+
+const righeTesto = (t) => String(t || '').split('\n').map((x) => x.trim()).filter(Boolean);
+
+/** Testo con righe «- ...» trasformate in elenco puntato. */
+function paragrafi(t) {
+  const out = [];
+  let elenco = [];
+  const chiudi = () => { if (elenco.length) out.push(`<ul>${elenco.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`); elenco = []; };
+  for (const r of righeTesto(t)) {
+    if (/^[-•▸]\s+/.test(r)) elenco.push(r.replace(/^[-•▸]\s+/, ''));
+    else { chiudi(); out.push(`<p>${esc(r)}</p>`); }
+  }
+  chiudi();
+  return out.join('');
+}
+
+const STILE_POS = `
+  @page { size: A4; margin: 12mm 14mm; }
+  body { font: 9.5pt/1.35 Arial, sans-serif; color: #111; margin: 0; }
+  table.pag { width: 100%; border-collapse: collapse; }
+  table.pag > thead td { padding: 0 0 4mm; }
+  .testa { border-bottom: 1.5px solid #222; padding-bottom: 2mm; font-size: 9pt; }
+  .testa td { padding: 0 8px 0 0; vertical-align: top; border: none; }
+  .dest { margin: 4mm 0 4mm 46%; font-size: 9pt; }
+  .dest p { margin: 0 0 1.5mm; }
+  h1 { font-size: 11pt; text-align: center; margin: 3mm 0 1mm; }
+  .norma { text-align: center; font-size: 8.5pt; margin: 0 0 3mm; }
+  table.cl { width: 100%; border-collapse: collapse; }
+  table.cl td, table.cl th { border: 1px solid #777; padding: 2px 4px; vertical-align: top; }
+  table.cl th { background: #e8e8e8; font-size: 8.5pt; }
+  table.cl .n { width: 9mm; text-align: left; white-space: nowrap; }
+  table.cl .x { width: 11mm; text-align: center; font-weight: bold; vertical-align: middle; }
+  table.cl tr.sez td { background: #dfe7f5; font-weight: bold; font-size: 8.5pt; }
+  table.cl tr.doc td { background: #f3f3f3; }
+  table.cl tr { page-break-inside: avoid; break-inside: avoid; }
+  .rif { color: #555; font-size: 7.5pt; display: block; }
+  .nota { display: block; font-style: italic; margin-top: 1px; }
+  .sotto { padding-left: 6mm; }
+  .legenda { font-size: 7.5pt; color: #444; margin: 2mm 0 4mm; }
+  table.esito { border-collapse: collapse; margin: 2mm 0; }
+  table.esito td { padding: 2px 10px 2px 0; border: none; vertical-align: top; }
+  .box { display: inline-block; width: 3.2mm; height: 3.2mm; border: 1px solid #222; text-align: center; line-height: 3.2mm; font-size: 8pt; font-weight: bold; margin-right: 1.5mm; vertical-align: -0.5mm; }
+  .linea { border-bottom: 1px solid #444; min-height: 5mm; margin: 1mm 0 3mm; white-space: pre-line; }
+  .firma { display: flex; justify-content: space-between; margin-top: 8mm; break-inside: avoid; page-break-inside: avoid; }
+  .firma .cse { text-align: center; min-width: 70mm; }
+  .firma .cse span { display: block; border-bottom: 1px solid #444; height: 12mm; }
+  .chiusura { break-inside: avoid; page-break-inside: avoid; }
+  .allegato { break-before: page; page-break-before: always; }
+  .allegato h2, .lettera h2 { font-size: 10.5pt; margin: 4mm 0 2mm; }
+  .allegato ol, .lettera ol { padding-left: 6mm; margin: 0; }
+  .allegato li, .lettera li { margin-bottom: 2mm; }
+  .allegato p, .lettera p { margin: 0 0 1.5mm; }
+  ul { margin: 0.5mm 0 1.5mm; padding-left: 5mm; }
+  .lettera { font-size: 10pt; line-height: 1.45; }
+  .lettera .blocco p { margin: 0 0 1mm; }
+  .lettera h1 { text-align: left; font-size: 12pt; }
+`;
+
+function paginaPos(titolo, testa, corpo) {
+  // la testata sta nel <thead>: il browser la ripete su ogni pagina stampata
+  return `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>${esc(titolo)}</title><style>${STILE_POS}</style></head>
+<body><table class="pag"><thead><tr><td>${testa}</td></tr></thead><tbody><tr><td>${corpo}</td></tr></tbody></table></body></html>`;
+}
+
+function testaPos(cantiere) {
+  return `<table class="testa"><tr><td><b>Lavori di:</b></td><td>${esc(cantiere.denominazione)}${cantiere.comune ? ` – ${esc(cantiere.comune)}` : ''}</td></tr>
+<tr><td><b>CSE:</b></td><td>${esc((cantiere.cse?.nome || '').toUpperCase())}</td></tr></table>`;
+}
+
+const X = (cond) => (cond ? 'X' : '');
+const box = (cond) => `<span class="box">${cond ? 'X' : ''}</span>`;
+
+/**
+ * Check list di verifica del POS e dell'idoneità tecnico-professionale
+ * (modello SISTEM), con l'esito e l'allegato delle integrazioni mancanti.
+ * Le voci nascoste non si stampano.
+ */
+export function htmlChecklistPos(cantiere, impresa, pos, verifica) {
+  const voce = new Map((verifica.voci || []).map((v) => [v.codice, v]));
+  const lettera = verifica.lettera || {};
+  const destinatari = [...righeTesto(lettera.destinatari), ...righeTesto(lettera.epc).map((r, i) => (i === 0 && !/^e p\.?c\.?/i.test(r) ? `e p.c. ${r}` : r))];
+  const righe = [];
+  let sezione = '';
+  for (const c of CHECKLIST_POS) {
+    const v = voce.get(c.codice) || {};
+    if (v.nascosta) continue;
+    if (c.sezione !== sezione) {
+      sezione = c.sezione;
+      righe.push(`<tr class="sez"><td colspan="5">${esc(SEZIONI_CHECKLIST[sezione])}</td></tr>`);
+    }
+    righe.push(`<tr><td class="n">${esc(c.codice)}</td><td${c.sotto ? ' class="sotto"' : ''}>${c.sotto ? '- ' : ''}${esc(c.testo)}${c.la ? ' (LA)' : ''}${c.rif ? `<span class="rif">Rif.: ${esc(c.rif)}</span>` : ''}${v.note ? `<span class="nota">▸ ${esc(v.note)}</span>` : ''}</td>
+<td class="x">${X(v.esito === 'si')}</td><td class="x">${X(v.esito === 'no')}</td><td class="x">${X(v.esito === 'np')}</td></tr>`);
+  }
+  const posOk = verifica.esito === 'idoneo' || verifica.esito === 'idoneo_con_prescrizioni';
+  const posNo = verifica.esito === 'non_idoneo';
+  const integrazioni = verifica.integrazioni || [];
+  const corpo = `
+${destinatari.length ? `<div class="dest">${destinatari.map((d) => `<p>${esc(d)}</p>`).join('')}</div>` : ''}
+<h1>VERIFICA IDONEITA’ TECNICO PROFESSIONALE:<br>IMPRESE AFFIDATARIE, SUBAPPALTATRICI E SUBAFFIDATARIE CHE ESEGUONO LAVORI IN CANTIERE</h1>
+<p class="norma">D.lgs. 9 aprile 2008 n. 81 “testo unico della tutela della salute e della sicurezza nei luoghi di lavoro”</p>
+<table class="cl">
+<thead><tr><th colspan="2" style="text-align:left">DOCUMENTAZIONE DITTA:</th><th class="x">SI</th><th class="x">NO</th><th class="x">NON PREVISTO</th></tr></thead>
+<tbody>
+<tr class="doc"><td colspan="5">${esc(verifica.documentazione || `${impresa.ragioneSociale} – POS rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}`)}</td></tr>
+${righe.join('\n')}
+</tbody></table>
+<p class="legenda">LA = richiesta anche ai lavoratori autonomi (All. XVII p. 2).</p>
+<div class="chiusura">
+<table class="esito">
+<tr><td>Idoneità tecnico-professionale (All. XVII)</td><td>${box(verifica.idoneitaTP === 'si')}si</td><td>${box(verifica.idoneitaTP === 'no')}no</td></tr>
+<tr><td>POS idoneo (art. 92 c. 1 lett. b)</td><td>${box(posOk)}si${verifica.esito === 'idoneo_con_prescrizioni' ? ' (con prescrizioni)' : ''}</td><td>${box(posNo)}no perché:</td></tr>
+</table>
+<div class="linea">${esc(posNo ? verifica.motivo : '')}</div>
+<div>da integrare:</div>
+<div class="linea">${esc(verifica.daIntegrare || (integrazioni.length ? 'vedi allegato' : ''))}</div>
+<div class="firma"><div>Data ${dataIt(verifica.data)}</div><div class="cse">Il C.S.E. ${esc(cantiere.cse?.nome || '')}<span></span></div></div>
+</div>
+${integrazioni.length ? `<div class="allegato">
+<h2>ALLEGATO – INTEGRAZIONI ANCORA MANCANTI AL POS ${esc(impresa.ragioneSociale.toUpperCase())} (aggiornato al ${dataIt(verifica.data)})</h2>
+<ol>${integrazioni.map((i) => `<li><b>${esc(i.titolo)}:</b> ${paragrafi(i.testo)}</li>`).join('')}</ol>
+<div class="firma"><div>Data ${dataIt(verifica.data)}</div><div class="cse">Il C.S.E. ${esc(cantiere.cse?.nome || '')}<span></span></div></div>
+</div>` : ''}`;
+  return paginaPos(`Check list POS ${impresa.ragioneSociale}`, testaPos(cantiere), corpo);
+}
+
+/**
+ * Lettera all'impresa: richiesta di integrazioni (se ce ne sono) o
+ * trasmissione dell'esito, con la check list in allegato.
+ */
+export function htmlLetteraPos(cantiere, impresa, pos, verifica) {
+  const l = verifica.lettera || {};
+  const integrazioni = verifica.integrazioni || [];
+  const titolo = `${integrazioni.length ? 'Richiesta integrazioni POS' : 'Esito della verifica del POS'} – ${impresa.ragioneSociale}`;
+  const esitoBase = {
+    idoneo: `Il POS di ${impresa.ragioneSociale} (rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}) è stato verificato idoneo.`,
+    idoneo_con_prescrizioni: `Il POS di ${impresa.ragioneSociale} (rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}) è stato verificato idoneo, con le prescrizioni e le integrazioni che seguono.`,
+    non_idoneo: `Il POS di ${impresa.ragioneSociale} (rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}) non può ancora essere accettato: risulta da integrare secondo l’elenco che segue.`,
+  }[verifica.esito] || '';
+  const corpo = `<div class="lettera">
+<h1>${esc(titolo)}</h1>
+<div class="blocco">
+${l.mittente ? `<p><b>Mittente:</b> ${esc(l.mittente)}</p>` : ''}
+${righeTesto(l.destinatari).map((d) => `<p>${/^spett/i.test(d) ? esc(d).replace(/^(Spett\.le)/i, '<b>$1</b>') : `<b>Spett.le</b> ${esc(d)}`}</p>`).join('')}
+${righeTesto(l.epc).length ? `<p><b>E p.c.</b> ${righeTesto(l.epc).map(esc).join('; ')}</p>` : ''}
+<p><b>Oggetto:</b> ${esc(l.oggetto)}</p>
+</div>
+<h2>Esito della verifica</h2>
+${paragrafi(l.esitoTesto || esitoBase)}
+<p>Il sottoscritto, in qualità di CSE, ha verificato il piano ai sensi dell’art. 92, c. 1, lett. b) del D.Lgs. 81/2008. Riferimenti della verifica: contenuti minimi dell’Allegato XV p. 3.2.1, Allegato XVII${verifica.ai?.documenti?.some((d) => /^PSC/.test(d)) ? ', prescrizioni del PSC' : ''}.</p>
+${verifica.adeguati?.length ? `<p>Risultano adeguati:</p><ul>${verifica.adeguati.map((a) => `<li>${esc(a)}</li>`).join('')}</ul>` : ''}
+${integrazioni.length ? `<h2>Integrazioni richieste</h2><ol>${integrazioni.map((i) => `<li><b>${esc(i.titolo)}.</b> ${paragrafi(i.testo)}</li>`).join('')}</ol>` : ''}
+${l.termini ? `<h2>Termini e modalità</h2>${paragrafi(l.termini)}` : ''}
+<p>Si allega la check list di verifica compilata.</p>
+<div class="chiusura">
+<p>Restando a disposizione per eventuali chiarimenti, si porgono distinti saluti.</p>
+<p>${esc(l.luogo || cantiere.comune || '')}${l.luogo || cantiere.comune ? ', ' : ''}${dataIt(verifica.data)}</p>
+<div class="firma"><div></div><div class="cse">Il Coordinatore per la sicurezza in fase di esecuzione<br>${esc(cantiere.cse?.nome || '')}<span></span></div></div>
+</div>
+</div>`;
+  return paginaPos(titolo, testaPos(cantiere), corpo);
 }
 
 /** Testo degli obblighi del CSE, per l'intestazione dei verbali o la guida. */

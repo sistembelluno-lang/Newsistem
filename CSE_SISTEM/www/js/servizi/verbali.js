@@ -32,12 +32,22 @@ export function prossimoNumero(verbali) {
  */
 export function nuovoVerbaleSopralluogo(verbaliPrecedenti, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO } = {}) {
   const aperte = prescrizioniAperte(verbaliPrecedenti);
+  const nascoste = controlliNascosti(verbaliPrecedenti);
   return nuovoVerbale({
     numero: prossimoNumero(verbaliPrecedenti),
     impresePresenti: imprese.map((i) => i.id),
-    verifiche: controlli.map((c) => ({ codice: c.codice, esito: 'nv', note: '' })),
+    verifiche: controlli.map((c) => ({ codice: c.codice, esito: 'nv', note: '', nascosta: nascoste.has(c.codice) })),
     prescrizioniDaVerificare: aperte.map((p) => ({ ...p, esito: '' })),
   });
+}
+
+/**
+ * Controlli nascosti nell'ultimo verbale: nel verbale nuovo restano nascosti
+ * (sono i controlli che in questo cantiere non interessano).
+ */
+export function controlliNascosti(verbali) {
+  const ultimo = [...verbali].sort((a, b) => confronta(a.data, b.data) || (a.numero - b.numero)).pop();
+  return new Set((ultimo?.verifiche || []).filter((v) => v.nascosta).map((v) => v.codice));
 }
 
 /** Prescrizioni dei verbali precedenti non ancora risolte. */

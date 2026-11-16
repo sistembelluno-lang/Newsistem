@@ -1,7 +1,7 @@
 {
   "name": "cse-sistem",
   "productName": "CSE_SISTEM",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "CSE_SISTEM: documentazione del coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/08)",
   "type": "module",
   "main": "electron/main.cjs",
@@ -18,10 +18,22 @@
   "build": {
     "appId": "it.sistembelluno.csesistem",
     "productName": "CSE_SISTEM",
-    "files": ["electron/**", "www/**"],
-    "directories": { "output": "dist" },
-    "win": { "target": ["portable", "nsis"] },
-    "portable": { "artifactName": "CSE_SISTEM-${version}-portable.exe" },
+    "files": [
+      "electron/**",
+      "www/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "portable",
+        "nsis"
+      ]
+    },
+    "portable": {
+      "artifactName": "CSE_SISTEM-${version}-portable.exe"
+    },
     "nsis": {
       "artifactName": "CSE_SISTEM-${version}-setup.exe",
       "oneClick": false,
@@ -29,6 +41,7 @@
     }
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.8.0",
     "@capacitor/android": "^6.2.0",
     "@capacitor/camera": "^6.1.0",
     "@capacitor/core": "^6.2.0",

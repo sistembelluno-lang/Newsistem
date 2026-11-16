@@ -105,6 +105,7 @@ export function nuovaImpresa(campi = {}) {
     codiceFiscale: '',
     sede: '',
     telefono: '',
+    email: '',
     pec: '',
     datoreLavoro: '',
     rspp: '',
@@ -128,22 +129,40 @@ export function nuovoPos(campi = {}) {
     dataPos: '',      // data del documento
     dataRicezione: oggi(),
     file: '',
+    // documenti arrivati con il POS o dopo (attestati, DURC, visura, ...):
+    // [{ file: 'Allegati rev 0/attestati.pdf', titolo, data }] (file relativo alla cartella POS)
+    allegati: [],
     stato: 'da_verificare', // da_verificare | idoneo | idoneo_con_prescrizioni | non_idoneo
     note: '',
     ...campi,
   });
 }
 
-/** Verifica di idoneità del POS da parte del CSE (art. 92 c. 1 lett. b). */
+/**
+ * Verifica di idoneità del POS da parte del CSE (art. 92 c. 1 lett. b) e
+ * dell'idoneità tecnico-professionale (All. XVII), con la check list SISTEM
+ * (lista 'v2', normativa.js CHECKLIST_POS) e la lettera all'impresa.
+ */
 export function nuovaVerificaPos(campi = {}) {
   return base('verifica_pos', {
     impresa: '',
     pos: '',            // id del POS verificato
     data: oggi(),
-    voci: [],           // [{ codice, esito: 'si'|'no'|'parziale'|'nd', note }]
+    lista: 'v2',
+    voci: [],           // [{ codice, esito: 'si'|'no'|'np'|'', note, nascosta }]
+    documentazione: '', // documenti esaminati, come compare in testa alla check list
+    idoneitaTP: '',     // si | no: idoneità tecnico-professionale (All. XVII)
     esito: '',          // idoneo | idoneo_con_prescrizioni | non_idoneo
-    prescrizioni: '',
+    motivo: '',         // perché il POS non è idoneo
+    daIntegrare: '',    // in breve, sotto l'esito della check list
+    adeguati: [],       // aspetti risultati adeguati (lettera)
+    integrazioni: [],   // [{ titolo, testo }]: allegato della check list e lettera
+    lettera: {          // lettera di trasmissione / richiesta integrazioni
+      mittente: '', destinatari: '', epc: '', oggetto: '', esitoTesto: '', termini: '', luogo: '',
+    },
+    prescrizioni: '',   // (verifiche della versione 0.3)
     trasmessaIl: '',    // data di trasmissione dell'esito all'impresa
+    ai: null,           // { modello, data, documenti: [...] } se compilata con Claude
     note: '',
     ...campi,
   });
@@ -195,12 +214,12 @@ export function nuovoVerbale(campi = {}) {
     presenti: [],           // [{ nome, qualifica, impresa }]
     impresePresenti: [],    // id delle imprese in cantiere
     lavorazioniInCorso: '',
-    verifiche: [],          // [{ codice, esito: 'conforme'|'non_conforme'|'nv', note }]
+    verifiche: [],          // [{ codice, esito: 'conforme'|'non_conforme'|'nv', note, nascosta }] (le nascoste non si stampano)
     nonConformita: [],      // [{ descrizione, impresa, gravita: 'lieve'|'grave'|'pericolo_grave_imminente', foto: [] }]
     prescrizioni: [],       // [{ descrizione, impresa, entro: data }]
     sospensione: null,      // { lavorazioni, motivo, dal } (art. 92 c. 1 lett. f)
     segnalazioneCommittente: false, // art. 92 c. 1 lett. e
-    foto: [],
+    foto: [],               // id delle foto del registro da allegare al verbale
     note: '',
     chiuso: false,          // un verbale chiuso (firmato) non si modifica più
     ...campi,
