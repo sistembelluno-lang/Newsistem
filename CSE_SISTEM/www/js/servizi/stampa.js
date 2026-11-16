@@ -52,6 +52,9 @@ ${righe(verbale.presenti, (p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifi
 <h2>Verifiche effettuate</h2>
 <table><tr><th>Controllo</th><th>Esito</th><th>Note</th></tr>
 ${righe(verbale.verifiche, (v) => `<tr><td>${esc(testoControllo.get(v.codice) || v.codice)}</td><td>${ESITI_CONTROLLO[v.esito] || ''}</td><td>${esc(v.note)}</td></tr>`)}</table>
+${verbale.prescrizioniDaVerificare?.length ? `<h2>Verifica delle prescrizioni dei verbali precedenti</h2>
+<table><tr><th>Prescrizione</th><th>Verbale</th><th>Esito</th></tr>
+${verbale.prescrizioniDaVerificare.map((p) => `<tr><td>${esc(p.descrizione)}</td><td>n. ${esc(p.verbale)}</td><td>${{ risolta: 'Risolta', non_risolta: 'Non risolta' }[p.esito] || 'Non verificata'}</td></tr>`).join('')}</table>` : ''}
 <h2>Non conformità rilevate</h2>
 <table><tr><th>Descrizione</th><th>Impresa</th><th>Gravità</th></tr>
 ${righe(verbale.nonConformita, (n) => `<tr><td>${esc(n.descrizione)}</td><td>${nomeImpresa(n.impresa)}</td><td>${esc(n.gravita)}</td></tr>`)}</table>

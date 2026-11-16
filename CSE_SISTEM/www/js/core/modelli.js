@@ -21,25 +21,33 @@ function base(tipo, campi = {}) {
  * Allegato XII del D.Lgs 81/08) più i dati che servono al CSE.
  */
 export const CAMPI_ANAGRAFICA = [
-  { chiave: 'codice', etichetta: 'Codice cantiere', tipo: 'testo', obbligatorio: true },
-  { chiave: 'denominazione', etichetta: "Denominazione dell'opera", tipo: 'testo', obbligatorio: true },
-  { chiave: 'indirizzo', etichetta: 'Indirizzo del cantiere', tipo: 'testo', rif: 'All. XII p. 2' },
-  { chiave: 'comune', etichetta: 'Comune', tipo: 'testo' },
-  { chiave: 'naturaOpera', etichetta: "Natura dell'opera", tipo: 'testo_lungo', rif: 'All. XII p. 4' },
-  { chiave: 'committenti', etichetta: 'Committente/i (nome e indirizzo)', tipo: 'persone', rif: 'All. XII p. 3' },
-  { chiave: 'responsabileLavori', etichetta: 'Responsabile dei lavori', tipo: 'persona', rif: 'All. XII p. 5' },
-  { chiave: 'csp', etichetta: 'Coordinatore per la progettazione (CSP)', tipo: 'persona', rif: 'All. XII p. 6' },
-  { chiave: 'cse', etichetta: "Coordinatore per l'esecuzione (CSE)", tipo: 'persona', rif: 'All. XII p. 7' },
-  { chiave: 'direttoreLavori', etichetta: 'Direttore dei lavori', tipo: 'persona' },
-  { chiave: 'dataNotifica', etichetta: 'Data della notifica preliminare', tipo: 'data', rif: 'All. XII p. 1' },
-  { chiave: 'inizioLavori', etichetta: 'Data presunta di inizio lavori', tipo: 'data', rif: 'All. XII p. 8' },
-  { chiave: 'durataGiorni', etichetta: 'Durata presunta dei lavori (giorni)', tipo: 'numero', rif: 'All. XII p. 9' },
-  { chiave: 'maxLavoratori', etichetta: 'Numero massimo presunto di lavoratori', tipo: 'numero', rif: 'All. XII p. 10' },
-  { chiave: 'numeroImprese', etichetta: 'Numero previsto di imprese e lavoratori autonomi', tipo: 'numero', rif: 'All. XII p. 11' },
-  { chiave: 'importoLavori', etichetta: 'Ammontare complessivo presunto dei lavori (€)', tipo: 'importo', rif: 'All. XII p. 13' },
-  { chiave: 'titoloEdilizio', etichetta: 'Titolo abilitativo (permesso, SCIA, ...)', tipo: 'testo' },
-  { chiave: 'note', etichetta: 'Note', tipo: 'testo_lungo' },
+  { chiave: 'codice', etichetta: 'Codice cantiere', tipo: 'testo', obbligatorio: true, gruppo: 'opera' },
+  { chiave: 'denominazione', etichetta: "Denominazione dell'opera", tipo: 'testo', obbligatorio: true, gruppo: 'opera' },
+  { chiave: 'indirizzo', etichetta: 'Indirizzo del cantiere', tipo: 'testo', rif: 'All. XII p. 2', gruppo: 'opera' },
+  { chiave: 'comune', etichetta: 'Comune', tipo: 'testo', gruppo: 'opera' },
+  { chiave: 'naturaOpera', etichetta: "Natura dell'opera", tipo: 'testo_lungo', rif: 'All. XII p. 4', gruppo: 'opera' },
+  { chiave: 'committenti', etichetta: 'Committente/i (nome e indirizzo)', tipo: 'persone', etichettaSingola: 'Committente', rif: 'All. XII p. 3', gruppo: 'soggetti' },
+  { chiave: 'responsabileLavori', etichetta: 'Responsabile dei lavori', tipo: 'persona', rif: 'All. XII p. 5', gruppo: 'soggetti' },
+  { chiave: 'csp', etichetta: 'Coordinatore per la progettazione (CSP)', tipo: 'persona', rif: 'All. XII p. 6', gruppo: 'soggetti' },
+  { chiave: 'cse', etichetta: "Coordinatore per l'esecuzione (CSE)", tipo: 'persona', rif: 'All. XII p. 7', gruppo: 'soggetti' },
+  { chiave: 'direttoreLavori', etichetta: 'Direttore dei lavori', tipo: 'persona', gruppo: 'soggetti' },
+  { chiave: 'dataNotifica', etichetta: 'Data della notifica preliminare', tipo: 'data', rif: 'All. XII p. 1', gruppo: 'tempi' },
+  { chiave: 'inizioLavori', etichetta: 'Data presunta di inizio lavori', tipo: 'data', rif: 'All. XII p. 8', gruppo: 'tempi' },
+  { chiave: 'durataGiorni', etichetta: 'Durata presunta dei lavori (giorni)', tipo: 'numero', rif: 'All. XII p. 9', gruppo: 'tempi' },
+  { chiave: 'maxLavoratori', etichetta: 'Numero massimo presunto di lavoratori', tipo: 'numero', rif: 'All. XII p. 10', gruppo: 'tempi' },
+  { chiave: 'numeroImprese', etichetta: 'Numero previsto di imprese e lavoratori autonomi', tipo: 'numero', rif: 'All. XII p. 11', gruppo: 'tempi' },
+  { chiave: 'importoLavori', etichetta: 'Ammontare complessivo presunto dei lavori (€)', tipo: 'importo', rif: 'All. XII p. 13', gruppo: 'tempi' },
+  { chiave: 'titoloEdilizio', etichetta: 'Titolo abilitativo (permesso, SCIA, ...)', tipo: 'testo', gruppo: 'opera' },
+  { chiave: 'note', etichetta: 'Note', tipo: 'testo_lungo', gruppo: 'note' },
 ];
+
+/** Gruppi dell'anagrafica, nell'ordine in cui si mostrano. */
+export const GRUPPI_ANAGRAFICA = {
+  opera: "L'opera",
+  soggetti: 'Soggetti (committente, responsabile dei lavori, coordinatori, DL)',
+  tempi: 'Notifica, tempi e importi',
+  note: 'Note',
+};
 
 export function nuovaPersona(campi = {}) {
   return { nome: '', qualifica: '', indirizzo: '', telefono: '', email: '', pec: '', codiceFiscale: '', ...campi };

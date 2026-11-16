@@ -113,3 +113,13 @@ test('verbale stampato: righe di firma per i presenti e per il CSE', () => {
   // senza presenti: righe vuote da compilare in cantiere
   assert.equal((htmlVerbale(cant, nuovoVerbaleSopralluogo([])).match(/<tr><td><\/td><td><\/td><td><\/td><td><\/td><\/tr>/g) || []).length, 5);
 });
+
+test('verbale stampato: esito delle prescrizioni dei verbali precedenti', () => {
+  const cant = nuovoCantiere({ codice: 'C', denominazione: 'X' });
+  const v1 = { ...nuovoVerbaleSopralluogo([]), data: '2026-11-01', prescrizioni: [{ id: 'p1', descrizione: 'Parapetto vano scala' }] };
+  const v2 = nuovoVerbaleSopralluogo([v1]);
+  v2.prescrizioniDaVerificare[0].esito = 'risolta';
+  const html = htmlVerbale(cant, v2);
+  assert.match(html, /Verifica delle prescrizioni dei verbali precedenti/);
+  assert.match(html, /Parapetto vano scala<\/td><td>n\. 1<\/td><td>Risolta/);
+});

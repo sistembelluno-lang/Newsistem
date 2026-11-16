@@ -10,6 +10,9 @@ const fs = require('fs');
 const fsp = fs.promises;
 const path = require('path');
 
+// date, numeri e calendario sempre in italiano (gg/mm/aaaa), qualunque sia la lingua di Windows
+app.commandLine.appendSwitch('lang', 'it-IT');
+
 const FILE_IMPOSTAZIONI = () => path.join(app.getPath('userData'), 'impostazioni.json');
 
 function impostazioni() {
@@ -151,7 +154,11 @@ function creaFinestra() {
   const win = new BrowserWindow({
     width: 1280,
     height: 860,
+    minWidth: 380,
+    minHeight: 500,
     title: 'CSE_SISTEM',
+    backgroundColor: '#eef2f8',
+    icon: path.join(__dirname, '..', 'www', 'img', 'icona.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,

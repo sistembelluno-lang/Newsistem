@@ -4,8 +4,29 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: **ossatura** (versione 0.1). La logica e la struttura dei dati sono
-pronte e provate; l'interfaccia è essenziale, la grafica verrà dopo.
+Stato: versione **0.2**: logica e dati provati, interfaccia nello **stile
+SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
+chiaro/scuro automatico), uguale su PC e telefono.
+
+## Schermate
+
+- **Cantieri**: una scheda per cantiere; «Nuovo cantiere» prepara la cartella.
+- **Riepilogo** del cantiere: imprese operative, prescrizioni aperte/scadute,
+  verbali, giornale, foto e l'elenco di **cose da fare** (POS da chiedere o
+  verificare, esiti da trasmettere, PSC e notifica mancanti, ...).
+- **Anagrafica** a gruppi (opera, soggetti, notifica e tempi) con le schede
+  complete di committenti, responsabile dei lavori, CSP, CSE e DL.
+- **Progetto, PSC, Notifica**: caricamento con titolo, revisione e data.
+- **Imprese e POS**: situazione di ogni impresa; scheda impresa con i dati del
+  POS (All. XV 3.2.1 lett. a), revisioni e **verifica di idoneità** voce per
+  voce con esito proposto e prescrizioni proposte.
+- **Giornale**: una voce al giorno, a linea del tempo.
+- **Foto**: miniature raggruppate per giorno di scatto; anteprima con
+  didascalia e posizione.
+- **Verbali**: elenco con prescrizioni aperte; verbale completo (presenti,
+  imprese, controlli per gruppo, verifica delle prescrizioni precedenti, non
+  conformità, prescrizioni, sospensione, segnalazione al committente),
+  stampa e **chiusura** (dopo la firma non si modifica più).
 
 ## Cosa gestisce
 
@@ -96,7 +117,7 @@ www/js/
     normativa.js      art. 92, All. XV 3.2.1, controlli del sopralluogo
     stampa.js         HTML dei documenti stampabili (-> PDF)
   moduli/cse.js       le pagine delle funzioni del CSE
-  ui/                 aiuti per l'interfaccia (da rifare con la grafica)
+  ui/                 elementi dell'interfaccia (schede, finestre, icone)
 ```
 
 **Direzione Lavori**: basterà aggiungere `moduli/dl.js` con moduli registrati
@@ -116,7 +137,8 @@ esegue i test e prepara l'eseguibile Windows e l'APK Android.
 
 ## Da fare
 
-- grafica definitiva e moduli completi (persone, imprese, presenti, firme);
+- icona dell'app Android (oggi quella standard) e stampa PDF su Android;
+- elenco dei controlli del sopralluogo personalizzabile;
 - (eventuale) accesso a Google Drive direttamente dall'app Android;
 - modelli di stampa definitivi (verbale, verifica POS, registro fotografico);
 - Direzione Lavori.
