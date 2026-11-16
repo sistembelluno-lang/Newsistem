@@ -23,29 +23,50 @@ function pagina(titolo, corpo) {
   .blocco-firme { page-break-inside: avoid; break-inside: avoid; }
   .righe-firma td { height: 11mm; }
   tr { page-break-inside: avoid; }
-  .foto-v { break-before: page; page-break-before: always; }
-  .griglia-foto { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm 5mm; }
-  .griglia-foto figure { margin: 0; break-inside: avoid; page-break-inside: avoid; }
-  .griglia-foto img { width: 100%; height: 62mm; object-fit: contain; background: #f2f2f2; display: block; }
-  .griglia-foto figcaption { font-size: 9pt; margin-top: 1.5mm; }
+  /* verbale: intestazione come una lettera, destinatari a sinistra e logo a destra */
+  .testa-v { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; margin-bottom: 6mm; }
+  .testa-v .dest { font-size: 9pt; line-height: 1.35; max-width: 62%; }
+  .testa-v .dest p { margin: 0 0 1mm; }
+  .testa-v .logo { width: 55mm; height: 24mm; display: flex; align-items: flex-start; justify-content: flex-end; flex: none; }
+  .testa-v .logo img { max-width: 55mm; max-height: 24mm; object-fit: contain; }
+  table.controlli td, table.controlli th { font-size: 8.5pt; padding: 2px 4px; }
+  table.controlli .c { width: 40%; } table.controlli .e { width: 13%; white-space: nowrap; } table.controlli .n { width: 47%; font-size: 9.5pt; }
+  /* foto: due per pagina, centrate */
+  .foto-p { break-before: page; page-break-before: always; height: 262mm; display: flex; flex-direction: column; justify-content: space-around; align-items: center; }
+  .foto-p h2 { align-self: stretch; margin-top: 0; }
+  .foto-p figure { margin: 0; width: 100%; display: flex; flex-direction: column; align-items: center; break-inside: avoid; page-break-inside: avoid; }
+  .foto-p img { max-width: 170mm; max-height: 105mm; object-fit: contain; display: block; }
+  .foto-p figcaption { font-size: 9.5pt; margin-top: 2mm; text-align: center; max-width: 170mm; }
 </style></head><body>${corpo}</body></html>`;
 }
+
+const responsabile = (c) => (c.responsabileLavoriNonNominato ? 'non nominato' : persona(c.responsabileLavori));
 
 function intestazione(cantiere) {
   return `<table class="intest">
 <tr><td><b>Cantiere</b>: ${esc(cantiere.codice)} – ${esc(cantiere.denominazione)}</td></tr>
 <tr><td><b>Indirizzo</b>: ${esc(cantiere.indirizzo)} ${esc(cantiere.comune)}</td></tr>
 <tr><td><b>Committente</b>: ${(cantiere.committenti || []).map(persona).join('; ') || '—'}</td></tr>
-<tr><td><b>CSE</b>: ${persona(cantiere.cse)} &nbsp; <b>Responsabile dei lavori</b>: ${persona(cantiere.responsabileLavori)}</td></tr>
+<tr><td><b>CSE</b>: ${persona(cantiere.cse)} &nbsp; <b>Responsabile dei lavori</b>: ${responsabile(cantiere)}</td></tr>
 </table>`;
 }
 
+/** Testata del verbale: a sinistra i destinatari (come una lettera), a destra lo spazio del logo. */
+function testaVerbale(verbale, logo) {
+  const dest = String(verbale.destinatari || '').split('\n').map((x) => x.trim()).filter(Boolean);
+  return `<div class="testa-v">
+<div class="dest">${dest.length ? `<p><b>Spett.li</b></p>${dest.map((d) => `<p>${esc(d)}</p>`).join('')}` : ''}</div>
+<div class="logo">${logo ? `<img src="${esc(logo)}" alt="">` : ''}</div>
+</div>`;
+}
+
 /** HTML del verbale di sopralluogo. */
-export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO, foto = [] } = {}) {
+export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO, foto = [], logo = '' } = {}) {
   const nomeImpresa = (id) => esc(imprese.find((i) => i.id === id)?.ragioneSociale || id);
   const testoControllo = new Map(controlli.map((c) => [c.codice, c.testo]));
   const righe = (lista, f) => (lista?.length ? lista.map(f).join('') : '<tr><td colspan="9">Nessuna</td></tr>');
   const corpo = `
+${testaVerbale(verbale, logo)}
 <h1>Verbale di sopralluogo n. ${esc(verbale.numero)} del ${dataIt(verbale.data)}</h1>
 <p class="rif">Coordinatore per la sicurezza in fase di esecuzione – art. 92 D.Lgs 81/2008</p>
 ${intestazione(cantiere)}
@@ -57,8 +78,8 @@ ${righe(verbale.presenti, (p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifi
 <p>${(verbale.impresePresenti || []).map(nomeImpresa).join(', ') || '—'}</p>
 <h2>Lavorazioni in corso</h2><p>${esc(verbale.lavorazioniInCorso) || '—'}</p>
 <h2>Verifiche effettuate</h2>
-<table><tr><th>Controllo</th><th>Esito</th><th>Note</th></tr>
-${righe((verbale.verifiche || []).filter((v) => !v.nascosta), (v) => `<tr><td>${esc(testoControllo.get(v.codice) || v.codice)}</td><td>${ESITI_CONTROLLO[v.esito] || ''}</td><td>${esc(v.note)}</td></tr>`)}</table>
+<table class="controlli"><tr><th class="c">Controllo</th><th class="e">Esito</th><th class="n">Note</th></tr>
+${righe((verbale.verifiche || []).filter((v) => !v.nascosta), (v) => `<tr><td class="c">${esc(testoControllo.get(v.codice) || v.codice)}</td><td class="e">${ESITI_CONTROLLO[v.esito] || ''}</td><td class="n">${esc(v.note)}</td></tr>`)}</table>
 ${verbale.prescrizioniDaVerificare?.length ? `<h2>Verifica delle prescrizioni dei verbali precedenti</h2>
 <table><tr><th>Prescrizione</th><th>Verbale</th><th>Esito</th></tr>
 ${verbale.prescrizioniDaVerificare.map((p) => `<tr><td>${esc(p.descrizione)}</td><td>n. ${esc(p.verbale)}</td><td>${{ risolta: 'Risolta', non_risolta: 'Non risolta' }[p.esito] || 'Non verificata'}</td></tr>`).join('')}</table>` : ''}
@@ -78,15 +99,18 @@ ${fotoVerbale(foto)}`;
 }
 
 /**
- * Documentazione fotografica del verbale: due foto per riga, con numero,
+ * Documentazione fotografica del verbale: due foto per pagina, centrate, con numero,
  * data e ora di scatto (se non è nascosta: scattata vuota) e didascalia. foto: [{ src (data URL), scattata, didascalia, luogo }]
  */
 function fotoVerbale(foto) {
   if (!foto?.length) return '';
-  return `<div class="foto-v">
-<h2>Documentazione fotografica</h2>
-<div class="griglia-foto">${foto.map((f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption>${[`<b>Foto ${i + 1}</b>`, f.scattata ? dataOraIt(f.scattata) : '', f.luogo ? esc(f.luogo) : ''].filter(Boolean).join(' – ')}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`).join('')}</div>
-</div>`;
+  const figura = (f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption>${[`<b>Foto ${i + 1}</b>`, f.scattata ? dataOraIt(f.scattata) : '', f.luogo ? esc(f.luogo) : ''].filter(Boolean).join(' – ')}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`;
+  const pagine = [];
+  for (let i = 0; i < foto.length; i += 2) pagine.push(foto.slice(i, i + 2));
+  return pagine.map((coppia, k) => `<div class="foto-p">
+${k === 0 ? '<h2>Documentazione fotografica</h2>' : ''}
+${coppia.map((f, j) => figura(f, k * 2 + j)).join('\n')}
+</div>`).join('\n');
 }
 
 /**

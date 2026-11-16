@@ -5,7 +5,7 @@
 
 import { registra } from '../core/registro.js';
 import { CAMPI_ANAGRAFICA, GRUPPI_ANAGRAFICA, nuovaImpresa, nuovoPos } from '../core/modelli.js';
-import { SEZIONI, cartellaSezione, nomeSicuro, percorso } from '../core/cartelle.js';
+import { FILE_LOGO, SEZIONI, cartellaSezione, nomeSicuro, percorso } from '../core/cartelle.js';
 import { confronta, dataIt, dataOraIt, isoLocale, oggi } from '../core/date.js';
 import { nuovoId } from '../core/id.js';
 import { h, avviso, bottone, campi, chiedi, conferma, finestra, nota, pill, scheda, tabella, testata, vuoto } from '../ui/dom.js';
@@ -20,7 +20,7 @@ import {
 } from '../servizi/pos.js';
 import { controllaRisposta, MODELLO_CLAUDE, richiestaVerifica } from '../servizi/claude.js';
 import { fotoDelGiorno, nomeFileVoce, nuovaVoce, ordinaVoci } from '../servizi/giornale.js';
-import { chiudi, nomeFileVerbale, numeriDoppi, nuovoVerbaleSopralluogo, prescrizioniAperte } from '../servizi/verbali.js';
+import { chiudi, destinatariVerbale, nomeFileVerbale, numeriDoppi, nuovoVerbaleSopralluogo, prescrizioniAperte } from '../servizi/verbali.js';
 import { htmlChecklistPos, htmlLetteraPos, htmlVerbale } from '../servizi/stampa.js';
 import { CHECKLIST_POS, CONTROLLI_SOPRALLUOGO, ESITI_CHECKLIST, ESITI_CONTROLLO, ESITI_VERIFICA_POS, SEZIONI_CHECKLIST } from '../servizi/normativa.js';
 
@@ -110,15 +110,18 @@ const prova = (f) => async (...a) => {
 
 const TIPO_ESITO_POS = { idoneo: 'ok', idoneo_con_prescrizioni: 'at', non_idoneo: 'ko' };
 const TIPO_VOCE_POS = { si: 'ok', no: 'ko', np: '' };
-const TIPO_CONTROLLO = { conforme: 'ok', non_conforme: 'ko', nv: '' };
+const TIPO_CONTROLLO = { conforme: 'ok', non_conforme: 'ko', da_adeguare: 'at' };
 const GIORNI = ['domenica', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato'];
 const giorno = (data) => GIORNI[new Date(`${data}T12:00`).getDay()];
 
 /** Scelta a segmenti: seg({ si: 'Presente', ... }, valore, onCambia, tipi) */
-function seg(opzioni, valore, onCambia, tipi = {}, bloccato = false) {
+function seg(opzioni, valore, onCambia, tipi = {}, bloccato = false, annullabile = false) {
   const el = h('div', { class: 'seg', role: 'group' });
+  let attuale = valore;
+  // annullabile: toccando di nuovo la scelta attiva la si toglie (esito non compilato)
+  const scegli = (k) => { attuale = annullabile && k === attuale ? '' : k; onCambia(attuale); disegna(attuale); };
   const disegna = (v) => el.replaceChildren(...Object.entries(opzioni).map(([k, t]) =>
-    h('button', { type: 'button', disabled: bloccato, class: `${k === v ? 'on' : ''} ${tipi[k] || ''}`, onclick: () => { onCambia(k); disegna(k); } }, t)));
+    h('button', { type: 'button', disabled: bloccato, class: `${k === v ? 'on' : ''} ${tipi[k] || ''}`, onclick: () => scegli(k) }, t)));
   disegna(valore);
   return el;
 }
@@ -178,7 +181,7 @@ registra({
     const fine = c.inizioLavori && c.durataGiorni ? new Date(new Date(`${c.inizioLavori}T12:00`).getTime() + c.durataGiorni * 864e5) : null;
     const dati = [
       ['Opera', c.denominazione], ['Indirizzo', [c.indirizzo, c.comune].filter(Boolean).join(', ')],
-      ['Committente', (c.committenti || []).map((p) => p.nome).join('; ')], ['Responsabile dei lavori', c.responsabileLavori?.nome],
+      ['Committente', (c.committenti || []).map((p) => p.nome).join('; ')], ['Responsabile dei lavori', c.responsabileLavoriNonNominato ? 'non nominato' : c.responsabileLavori?.nome],
       ['CSP', c.csp?.nome], ['CSE', c.cse?.nome], ['Direttore dei lavori', c.direttoreLavori?.nome],
       ['Notifica preliminare', dataIt(c.dataNotifica)], ['Inizio lavori', dataIt(c.inizioLavori)],
       ['Fine presunta', fine ? dataIt(oggi(fine)) : ''],
@@ -516,7 +519,7 @@ registra({
               h('td', {}, dataIt(p.dataRicezione)),
               h('td', {}, bottone('cartella', `${fr.elaborati.length} elab. · ${fr.allegati.length} all.`, () => finestraDocumenti(ctx, imp, p), 'q sm', { title: 'Elaborati e allegati di questa revisione' }),
                 date.length ? h('span', { class: 'sotto' }, `allegati fino al ${dataIt(date.at(-1))}`) : null),
-              h('td', {}, v?.esito ? pill(ESITI_VERIFICA_POS[v.esito], TIPO_ESITO_POS[v.esito]) : pill('Da verificare', 'at'),
+              h('td', {}, v?.esito ? pill(ESITI_VERIFICA_POS[v.esito], TIPO_ESITO_POS[v.esito]) : pill('Da verificare', 'at'), v?.esterna ? [' ', pill('esterna')] : null,
                 v?.trasmessaIl ? h('span', { class: 'sotto' }, `trasmessa il ${dataIt(v.trasmessaIl)}`) : v?.data ? h('span', { class: 'sotto' }, dataIt(v.data)) : null),
               h('td', { class: 'az' },
                 bottone('apri', 'Apri', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, imp), p.file)), 'sm'),
@@ -554,6 +557,18 @@ function editorIntegrazioni(v, onCambia = () => {}) {
       bottone('', 'Proponi dalle voci «No»', () => { v.integrazioni.push(...integrazioniProposte(v.voci)); disegna(); onCambia(); }, 'q sm')));
   disegna();
   return el;
+}
+
+/** Logo per le stampe (CSE_SISTEM/logo.png, scelto in Impostazioni) come data URL, o ''. */
+async function leggiLogo(ctx) {
+  try {
+    const byte = await ctx.archivio.disco.leggiByte(FILE_LOGO);
+    let s = '';
+    for (let i = 0; i < byte.length; i += 0x8000) s += String.fromCharCode(...byte.subarray(i, i + 0x8000));
+    return `data:image/png;base64,${btoa(s)}`;
+  } catch {
+    return '';
+  }
 }
 
 /** Foto ridotte e lette come data URL per la stampa. */
@@ -729,7 +744,37 @@ registra({
       const ok = await salva();
       avviso('Verifica salvata');
       const html = tipo === 'lettera' ? htmlLetteraPos(ctx.cantiere, impresa, pos, ok) : htmlChecklistPos(ctx.cantiere, impresa, pos, ok);
-      await salvaPdf(ctx, html, percorso(cartellaSezione(cod, 'verifichePos'), `${tipo === 'lettera' ? (ok.integrazioni?.length ? 'Richiesta integrazioni POS' : 'Esito verifica POS') : 'Check list POS'} ${nomeBase}.pdf`));
+      // le stampe vanno nella cartella dell'impresa, sottocartella «Verifica POS_<data>»
+      await salvaPdf(ctx, html, percorso(ctx.archivio.cartellaVerificaPos(cod, impresa, ok.data || oggi()), `${tipo === 'lettera' ? (ok.integrazioni?.length ? 'Richiesta integrazioni POS' : 'Esito verifica POS') : 'Check list POS'} ${nomeBase}.pdf`));
+      ctx.ricarica();
+    });
+
+    // verifica fatta fuori dal programma (da un altro tecnico, su carta, ...): si allega il documento e conta l'esito
+    const esterna = prova(async () => {
+      const [file] = await scegliFile(ctx, { accetta: ACCETTA_DOC, multipli: false });
+      const dati = await chiedi({
+        titolo: 'Verifica esterna del POS',
+        testo: file ? `Documento: ${file.nome}` : 'Nessun documento scelto: si registra solo l’esito.',
+        ok: 'Registra',
+        campi: [
+          { chiave: 'esito', etichetta: 'Esito', tipo: 'scelta', obbligatorio: true, opzioni: ESITI_VERIFICA_POS },
+          { chiave: 'idoneitaTP', etichetta: 'Idoneità tecnico-professionale', tipo: 'scelta', opzioni: { si: 'Sì', no: 'No' } },
+          { chiave: 'data', etichetta: 'Data della verifica', tipo: 'data', obbligatorio: true },
+          { chiave: 'trasmessaIl', etichetta: 'Esito trasmesso all’impresa il', tipo: 'data' },
+          { chiave: 'note', etichetta: 'Chi l’ha fatta, note', tipo: 'testo_lungo' },
+        ],
+        valori: { esito: v.esito, idoneitaTP: v.idoneitaTP, data: v.data || oggi(), trasmessaIl: v.trasmessaIl, note: v.note },
+      });
+      if (!dati) return;
+      Object.assign(v, dati, { esterna: true });
+      if (file) {
+        const cart = ctx.archivio.cartellaVerificaPos(cod, impresa, dati.data);
+        v.fileEsterno = percorso(cart, await ctx.archivio.salvaFile(cart, file.nome, file.byte));
+      }
+      const { partitaDa, avvisiAi, vecchieVoci, ...daSalvare } = v;
+      await ctx.archivio.salvaRegistrazione(cod, 'verifichePos', { ...daSalvare, _file: salvata?._file });
+      bozzeVerifica.delete(posId);
+      avviso('Verifica esterna registrata');
       ctx.ricarica();
     });
 
@@ -743,9 +788,13 @@ registra({
         `Revisione ${pos.revisione} ricevuta il ${dataIt(pos.dataRicezione)} · ${frPos.elaborati.length} elaborat${frPos.elaborati.length === 1 ? 'o' : 'i'}${docAllegati ? ` · ${docAllegati} allegati` : ''} · check list POS e idoneità tecnico-professionale`,
         bottone('apri', 'Apri il POS', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, impresa), pos.file))),
         bottone('cartella', 'Documenti', () => finestraDocumenti(ctx, impresa, pos)),
+        bottone('carica', 'Verifica esterna', esterna),
         claudeBtn),
       bozza ? nota(h('span', {}, h('b', {}, 'Proposta di Claude non ancora salvata. '), `Compilata il ${dataIt(bozza.ai?.data)} leggendo: ${(bozza.ai?.documenti || []).join('; ')}. Controlla ogni voce, correggi dove serve e salva.`), 'info') : null,
       bozza?.avvisiAi?.length ? nota(h('div', {}, h('b', {}, 'Da controllare di persona:'), h('ul', { style: 'margin:4px 0 0' }, bozza.avvisiAi.map((a) => h('li', {}, a))))) : null,
+      v.esterna ? nota(h('span', {}, h('b', {}, `Verifica esterna del ${dataIt(v.data)}: ${ESITI_VERIFICA_POS[v.esito] || 'esito da indicare'}. `),
+        v.note ? `${v.note} ` : '', v.fileEsterno ? h('a', { href: '#', onclick: (e) => { e.preventDefault(); apri(ctx, v.fileEsterno); } }, 'Apri il documento') : '',
+        ' · La check list qui sotto è facoltativa.'), 'info') : null,
       !bozza && v.ai ? nota(`Compilata con il supporto di Claude il ${dataIt(v.ai.data)} e controllata dal CSE.`, 'info') : null,
       !salvata && !bozza && v.partitaDa ? nota('Verifica nuova partita dalla verifica della revisione precedente: aggiorna le voci con i documenti nuovi.', 'info') : null,
       !ctx.servizi.claude ? nota('La verifica con il supporto di Claude si fa dal PC (Windows).', 'info') : null,
@@ -923,7 +972,7 @@ registra({
 // ================================================================== verbali
 async function nuovoVerbaleDa(ctx) {
   const s = await stato(ctx);
-  const v = nuovoVerbaleSopralluogo(s.verbali, { imprese: s.situazione.filter((x) => x.puoLavorare).map((x) => x.impresa) });
+  const v = nuovoVerbaleSopralluogo(s.verbali, { imprese: s.situazione.filter((x) => x.puoLavorare).map((x) => x.impresa), cantiere: ctx.cantiere });
   v.oraInizio = isoLocale().slice(11, 16);
   await ctx.archivio.salvaRegistrazione(ctx.cantiere.codice, 'verbali', v, nomeFileVerbale(v));
   vai(indirizzo(ctx.cantiere.codice, 'verbale', v.id));
@@ -988,6 +1037,13 @@ registra({
       lega('numero', 'numero', 'Numero'), lega('data', 'data', 'Data'),
       lega('oraInizio', 'ora', 'Dalle ore'), lega('oraFine', 'ora', 'Alle ore'),
       lega('lavorazioniInCorso', 'testo_lungo', 'Lavorazioni in corso'));
+    if (!v.destinatari && !blocco) v.destinatari = destinatariVerbale(ctx.cantiere, s.imprese.filter((i) => v.impresePresenti.includes(i.id)));
+    const destinatari = h('div', { class: 'campi', style: 'margin-top:12px' },
+      lega('destinatari', 'testo_lungo', 'Destinatari (uno per riga: in alto a sinistra nel verbale stampato)'),
+      blocco ? null : h('div', {}, bottone('', 'Riproponi dall’anagrafica', () => {
+        v.destinatari = destinatariVerbale(ctx.cantiere, s.imprese.filter((i) => v.impresePresenti.includes(i.id)));
+        destinatari.querySelector('textarea').value = v.destinatari;
+      }, 'q sm')));
     const impresePresenti = s.imprese.length ? [
       h('div', { class: 'rif', style: 'margin:16px 0 8px;font-weight:650' }, 'Imprese presenti in cantiere'),
       h('div', { class: 'campi' }, s.imprese.map((i) => {
@@ -1019,7 +1075,7 @@ registra({
 
     // controlli: quelli nascosti non si vedono (se non si chiede) e non si stampano
     const gruppiControlli = [...new Set(CONTROLLI_SOPRALLUOGO.map((c) => c.gruppo))];
-    for (const c of CONTROLLI_SOPRALLUOGO) if (!v.verifiche.find((x) => x.codice === c.codice)) v.verifiche.push({ codice: c.codice, esito: 'nv', note: '' });
+    for (const c of CONTROLLI_SOPRALLUOGO) if (!v.verifiche.find((x) => x.codice === c.codice)) v.verifiche.push({ codice: c.codice, esito: '', note: '' });
     const controlli = h('tbody');
     const contaNascosti = h('span');
     let mostraNascosti = false;
@@ -1031,7 +1087,7 @@ registra({
         if (!qui.length) return [];
         return [h('tr', { class: 'gr' }, h('td', { colspan: 2 }, g)), ...qui.map(([c, voce]) => h('tr', { class: voce.nascosta ? 'nascosta' : '' },
           h('td', {},
-            h('div', { class: 'controllo' }, h('div', { style: 'padding-top:5px' }, c.testo), seg(ESITI_CONTROLLO, voce.esito, (k) => { voce.esito = k; }, TIPO_CONTROLLO, blocco)),
+            h('div', { class: 'controllo' }, h('div', { style: 'padding-top:5px' }, c.testo), seg(ESITI_CONTROLLO, voce.esito === 'nv' ? '' : voce.esito, (k) => { voce.esito = k; }, TIPO_CONTROLLO, blocco, true)),
             h('input', { type: 'text', value: voce.note || '', readonly: blocco, placeholder: 'Note', oninput: (e) => { voce.note = e.target.value; } })),
           h('td', { class: 'stretta', style: 'vertical-align:top;padding-top:10px' }, blocco ? null
             : bottone(voce.nascosta ? 'occhio' : 'nascosto', '', () => { voce.nascosta = !voce.nascosta; disegnaControlli(); }, 'q sm icona',
@@ -1140,7 +1196,7 @@ registra({
         'Segnalazione delle inosservanze al committente / responsabile dei lavori', h('span', { class: 'rif' }, 'art. 92 c. 1 lett. e')),
     ];
 
-    const nomePdf = () => percorso(cartellaSezione(cod, 'verbali'), `Verbale ${String(v.numero).padStart(3, '0')} del ${v.data}.pdf`);
+    const nomePdf = () => percorso(cartellaSezione(cod, 'verbali'), 'Verbali PDF', `Verbale ${String(v.numero).padStart(3, '0')} del ${v.data}.pdf`);
     const salva = async () => {
       const nome = nomeFileVerbale(v);
       const vecchio = v._file && v._file !== nome ? v._file : null; // numero cambiato: si rinomina il file
@@ -1165,7 +1221,7 @@ registra({
           attesa.remove();
         }
       }
-      await salvaPdf(ctx, htmlVerbale(ctx.cantiere, v, { imprese: s.imprese, foto }), nomePdf());
+      await salvaPdf(ctx, htmlVerbale(ctx.cantiere, v, { imprese: s.imprese, foto, logo: await leggiLogo(ctx) }), nomePdf());
     };
 
     const pulsanti = blocco
@@ -1194,7 +1250,7 @@ registra({
         h('a', { class: 'bottone', href: indirizzo(cod, 'verbali') }, icona('indietro'), 'Verbali')),
       blocco ? nota('Verbale chiuso: non si modifica più. Per correzioni o integrazioni fai un nuovo verbale.', 'info') : null,
       h('div', { class: 'pila' },
-        scheda({ titolo: 'Sopralluogo', ico: 'calendario', corpo: [generali, impresePresenti] }),
+        scheda({ titolo: 'Sopralluogo', ico: 'calendario', corpo: [generali, destinatari, impresePresenti] }),
         scheda({ titolo: 'Presenti', ico: 'persone', azioni: [presenti.aggiungi], tabella: presenti.tabella }),
         daVerificare,
         scheda({ titolo: 'Verifiche effettuate', ico: 'ok', azioni: [contaNascosti], tabella: h('table', { class: 't' }, controlli) }),

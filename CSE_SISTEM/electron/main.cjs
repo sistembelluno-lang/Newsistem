@@ -42,6 +42,44 @@ function assoluto(relativo) {
   return p;
 }
 
+// ------------------------------------------------------------ sincronizzazione
+// Google Drive per desktop scrive nella cartella dei dati i file cambiati sul
+// telefono o su un altro PC: la cartella si osserva e la pagina viene
+// avvisata (si ridisegna da sola se non si sta scrivendo). Le scritture del
+// programma stesso non contano.
+const scrittureRecenti = new Map(); // percorso assoluto -> ora
+const segnaScrittura = (a) => scrittureRecenti.set(path.resolve(a), Date.now());
+let osservatore = null;
+let inAttesa = new Set();
+let timerCambi = null;
+
+function osservaCartella() {
+  try { osservatore?.close(); } catch { /* già chiuso */ }
+  osservatore = null;
+  const radice = path.join(base(), 'CSE_SISTEM');
+  try {
+    fs.mkdirSync(radice, { recursive: true });
+    osservatore = fs.watch(radice, { recursive: true }, (_ev, nome) => {
+      if (!nome || /\.tmp$|~\$|\.~|desktop\.ini$/i.test(nome)) return;
+      const a = path.resolve(radice, nome);
+      // scritture del programma (anche le cartelle create per contenerle)
+      const ora = Date.now();
+      for (const [p, t] of scrittureRecenti) {
+        if (ora - t > 4000) { scrittureRecenti.delete(p); continue; }
+        if (p === a || p.startsWith(a + path.sep) || a.startsWith(p + '.')) return;
+      }
+      inAttesa.add(String(nome).split(path.sep).join('/'));
+      clearTimeout(timerCambi);
+      timerCambi = setTimeout(() => {
+        const cambiati = [...inAttesa];
+        inAttesa = new Set();
+        for (const w of BrowserWindow.getAllWindows()) w.webContents.send('cse:cambiato', cambiati);
+      }, 1500);
+    });
+    osservatore.on('error', () => {});
+  } catch { /* cartella non osservabile (es. disco di rete): resta il pulsante Aggiorna */ }
+}
+
 async function esiste(p) {
   try {
     await fsp.access(p);
@@ -52,9 +90,10 @@ async function esiste(p) {
 }
 
 ipcMain.handle('cse:esiste', (_e, p) => esiste(assoluto(p)));
-ipcMain.handle('cse:creaCartella', (_e, p) => fsp.mkdir(assoluto(p), { recursive: true }));
+ipcMain.handle('cse:creaCartella', (_e, p) => { segnaScrittura(assoluto(p)); return fsp.mkdir(assoluto(p), { recursive: true }); });
 ipcMain.handle('cse:scriviByte', async (_e, p, byte) => {
   const a = assoluto(p);
+  segnaScrittura(a);
   await fsp.mkdir(path.dirname(a), { recursive: true });
   // scrittura sicura: prima un file temporaneo, poi rinomina (niente file a metà)
   const tmp = `${a}.tmp`;
@@ -64,6 +103,7 @@ ipcMain.handle('cse:scriviByte', async (_e, p, byte) => {
 ipcMain.handle('cse:leggiByte', async (_e, p) => new Uint8Array(await fsp.readFile(assoluto(p))));
 ipcMain.handle('cse:scriviTesto', async (_e, p, testo) => {
   const a = assoluto(p);
+  segnaScrittura(a);
   await fsp.mkdir(path.dirname(a), { recursive: true });
   const tmp = `${a}.tmp`;
   await fsp.writeFile(tmp, testo, 'utf8');
@@ -74,7 +114,7 @@ ipcMain.handle('cse:elenca', async (_e, p) => {
   const voci = await fsp.readdir(assoluto(p), { withFileTypes: true });
   return voci.filter((v) => !v.name.endsWith('.tmp')).map((v) => ({ nome: v.name, cartella: v.isDirectory() }));
 });
-ipcMain.handle('cse:elimina', (_e, p) => fsp.rm(assoluto(p), { recursive: true, force: true }));
+ipcMain.handle('cse:elimina', (_e, p) => { segnaScrittura(assoluto(p)); return fsp.rm(assoluto(p), { recursive: true, force: true }); });
 ipcMain.handle('cse:apri', async (_e, p) => {
   const errore = await shell.openPath(assoluto(p));
   if (errore) throw new Error(errore);
@@ -143,6 +183,7 @@ ipcMain.handle('cse:pdfDaHtml', async (_e, html, p) => {
     await win.loadFile(tmp);
     const pdf = await win.webContents.printToPDF({ pageSize: 'A4', printBackground: true });
     const a = assoluto(p);
+    segnaScrittura(a);
     await fsp.mkdir(path.dirname(a), { recursive: true });
     await fsp.writeFile(a, pdf);
     return p;
@@ -176,6 +217,7 @@ function cartelleGoogleDrive() {
 function usaCartella(p) {
   if (!fs.statSync(p).isDirectory()) throw new Error(`Cartella non trovata: ${p}`);
   salvaImpostazioni({ ...impostazioni(), cartellaDati: p });
+  osservaCartella();
   return p;
 }
 
@@ -212,5 +254,8 @@ function creaFinestra() {
   win.loadFile(path.join(__dirname, '..', 'www', 'index.html'));
 }
 
-app.whenReady().then(creaFinestra);
+app.whenReady().then(() => {
+  creaFinestra();
+  osservaCartella();
+});
 app.on('window-all-closed', () => app.quit());

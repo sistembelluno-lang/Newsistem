@@ -26,7 +26,7 @@ pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:1
 <header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
 <main>
 <h1>Guida a CSE_SISTEM</h1>
-<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.5.</p>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.6.</p>
 
 <div class="box"><b class="t">In breve</b>
 CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
@@ -40,14 +40,14 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <h2>1. Scaricare e installare</h2>
 <p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
 <table><tr><th>File</th><th>Per</th><th>Note</th></tr>
-<tr><td><code>CSE_SISTEM-0.5.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
-<tr><td><code>CSE_SISTEM-0.5.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM-0.6.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.6.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
 <tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
 <tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
 
 <h3>Windows</h3>
 <ol class="passi">
-<li>Scarica <code>CSE_SISTEM-0.5.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Scarica <code>CSE_SISTEM-0.6.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
 <li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
 <li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
 </ol>
@@ -83,6 +83,13 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <div class="box att"><b class="t">Lavorare da due dispositivi</b>
 Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quindi non si perde nulla. Conviene però aspettare che la sincronizzazione sia finita prima di passare dal telefono al PC. Se due dispositivi creano un verbale con lo stesso numero prima di essersi sincronizzati, li tiene entrambi e segnala «numeri usati due volte»: cambia il numero di uno dei due prima di chiuderlo.</div>
 
+<h3>Aggiornamento automatico</h3>
+<ul>
+<li><b>Windows</b>: quando Google Drive porta modifiche fatte sul telefono o su un altro PC, la pagina si aggiorna da sola. Se in quel momento stai scrivendo, compare in alto l'avviso <b>«Dati nuovi arrivati da un altro dispositivo»</b> con il pulsante <b>Aggiorna</b>: premilo dopo aver salvato.</li>
+<li><b>Android</b>: tornando su CSE_SISTEM (dopo che l'app di sincronizzazione ha portato i file) la pagina si rilegge da sola, con lo stesso avviso se stai scrivendo.</li>
+<li>Il pulsante <b>Aggiorna</b> (le frecce in alto a destra) rilegge tutto quando vuoi.</li>
+<li>Se lo stesso verbale viene modificato su due dispositivi prima della sincronizzazione, Drive ne fa una copia con «(1)» nel nome: il programma usa la versione più recente.</li>
+</ul>
 <h2 class="salto">3. La finestra in breve</h2>
 <figure><img src="img/cse_riepilogo.jpg" alt=""><figcaption>Riepilogo di un cantiere</figcaption></figure>
 <ul>
@@ -105,6 +112,8 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 </ol>
 <figure class="md"><img src="img/cse_nuovo.jpg" alt=""><figcaption>Nuovo cantiere</figcaption></figure>
 <p>Il nome del CSE e il comune compaiono nei verbali stampati: compilali prima del primo sopralluogo. Lo <b>stato</b> del cantiere (in corso, sospeso, concluso) si cambia nel gruppo «L'opera».</p>
+
+<div class="box"><b class="t">Responsabile dei lavori non nominato</b>Nell'anagrafica spunta «Responsabile dei lavori non nominato»: nelle stampe compare «non nominato» e non viene messo tra i destinatari.</div>
 
 <h2>5. Progetto, PSC e notifica</h2>
 <p>Nelle tre pagine si caricano i documenti: <b>Carica documenti</b>, scegli uno o più file, poi per ognuno indica titolo, revisione, data e autore. Il file viene <b>copiato</b> nella cartella del cantiere (l'originale resta dov'è); le revisioni precedenti restano in elenco. Clicca una riga per aprire il documento con il programma del PC o del telefono.</p>
@@ -154,10 +163,13 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <ul>
 <li><b>Check list PDF</b>: destinatari in alto a destra, «Lavori di» e CSE ripetuti su ogni pagina, le voci con le X nelle colonne SI / NO / NON PREVISTO e le note, l'esito con «no perché» e «da integrare», data e firma; in fondo l'<b>Allegato – integrazioni ancora mancanti</b>.</li>
 <li><b>Lettera PDF</b>: «Richiesta integrazioni POS» (o «Esito della verifica del POS» se non ce ne sono) con mittente, destinatari, per conoscenza, oggetto, esito, aspetti adeguati, integrazioni, termini e firma. I campi della lettera si correggono nella scheda <b>Lettera all'impresa</b>.</li>
-<li>I PDF vanno in <code>05_Verifiche_POS</code>. Quando trasmetti l'esito, scrivi la data in «Esito trasmesso all'impresa il».</li>
+<li>I PDF vanno nella <b>cartella dell'impresa</b>, sottocartella <code>Verifica POS_&lt;data&gt;</code> (es. <code>04_Imprese_e_POS\TRETTEL srl\Verifica POS_2026-11-16</code>). Quando trasmetti l'esito, scrivi la data in «Esito trasmesso all'impresa il».</li>
 </ul>
 <div class="duo"><figure><img src="img/cse_checklist1.jpg" alt=""><figcaption>Check list: prima pagina</figcaption></figure><figure><img src="img/cse_lettera.jpg" alt=""><figcaption>Lettera all'impresa</figcaption></figure></div>
 <p>Finché il POS non è idoneo l'impresa compare in rosso e il riepilogo ricorda cosa fare (richiedere il POS, verificarlo, chiederne la revisione, trasmettere l'esito).</p>
+
+<h3>Verifica fatta all'esterno</h3>
+<p>Se il POS è stato verificato fuori dal programma (da un altro tecnico, su carta, con un altro modello), nella pagina della verifica usa <b>Verifica esterna</b>: scegli il documento della verifica (PDF o immagine), l'esito, l'idoneità tecnico-professionale, la data e una nota su chi l'ha fatta. Il documento va nella cartella <code>Verifica POS_&lt;data&gt;</code> dell'impresa e l'esito vale come quello di una verifica fatta qui (l'impresa può lavorare se il POS è idoneo); nella scheda dell'impresa la verifica è segnata «esterna». La check list resta facoltativa.</p>
 
 <h3>Impostare Claude</h3>
 <ol class="passi">
@@ -183,10 +195,10 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <h2 class="salto">9. Verbali di sopralluogo</h2>
 <ol class="passi">
 <li><b>Nuovo verbale</b> (dalla pagina Verbali o dal Riepilogo). Il verbale è già precompilato: numero progressivo, ora di inizio, imprese con POS idoneo, elenco dei controlli e prescrizioni dei verbali precedenti ancora aperte.</li>
-<li><b>Sopralluogo</b>: data, orari, lavorazioni in corso, imprese presenti (quelle senza POS idoneo sono segnalate).</li>
+<li><b>Sopralluogo</b>: data, orari, lavorazioni in corso, <b>destinatari</b> (uno per riga: committente, responsabile dei lavori, DL, imprese; sono già proposti dall'anagrafica e «Riproponi dall'anagrafica» li ricompone) e imprese presenti (quelle senza POS idoneo sono segnalate).</li>
 <li><b>Presenti</b>: nome, qualifica e impresa di chi partecipa. Se non li scrivi, nella stampa restano righe vuote da compilare a mano in cantiere.</li>
 <li><b>Prescrizioni dei verbali precedenti</b>: per ognuna scegli <i>Risolta</i> o <i>Non risolta</i>. Quelle risolte spariscono dalle prescrizioni aperte.</li>
-<li><b>Verifiche effettuate</b>: per ogni controllo, divisi per gruppo, scegli <i>Conforme</i>, <i>Non conforme</i> o <i>Non verificato</i>, con note.</li>
+<li><b>Verifiche effettuate</b>: per ogni controllo, divisi per gruppo, scegli <i>Conforme</i>, <i>Non conforme</i> o <i>Da adeguare</i>, con le note. Toccando di nuovo l'esito scelto lo togli (nella stampa resta vuoto).</li>
 <li><b>Non conformità</b> e <b>Prescrizioni</b> (con impresa e scadenza «entro il»). Le prescrizioni scadute compaiono in rosso nel riepilogo.</li>
 <li><b>Provvedimenti</b>: sospensione delle singole lavorazioni (art. 92 c. 1 lett. f) e segnalazione al committente o al responsabile dei lavori (art. 92 c. 1 lett. e).</li>
 <li><b>Foto del verbale</b>: <b>Dal registro</b> fa scegliere le foto già scattate (quelle del giorno del verbale sono in cima: tocca per scegliere, tocca di nuovo per togliere); <b>Scatta</b> (telefono) o <b>Carica</b> aggiungono foto nuove, che vanno anche nel registro fotografico. Sotto ogni foto scrivi la <b>didascalia</b> e scegli se lasciare la <b>data di scatto</b> stampata sulla foto: togliendo la spunta si usa la foto senza data e la data sparisce anche dalla didascalia del PDF. La × toglie la foto dal verbale ma non dal registro.</li>
@@ -202,7 +214,7 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <tr><td><b>Stampa</b></td><td>salva e prepara la stampa (vedi capitolo 10), per esempio per una bozza</td></tr>
 <tr><td><b>Chiudi</b></td><td>salva, prepara la stampa da firmare e <b>blocca</b> il verbale: non si modifica più, per correzioni si fa un nuovo verbale</td></tr>
 <tr><td><b>Elimina</b></td><td>(solo su PC, solo per le bozze) cancella il verbale</td></tr></table>
-<p>Il verbale stampato termina con «Letto, confermato e sottoscritto», la data e il comune, una riga di firma per ogni presente e la firma del CSE. Si firma <b>su carta</b>. Dopo le firme c'è la <b>documentazione fotografica</b>: due foto per riga, con numero, data e ora di scatto e didascalia.</p>
+<p>Il verbale stampato comincia <b>come una lettera</b>: in alto a sinistra i destinatari, in alto a destra il <b>logo</b> dello studio (si sceglie una volta in <b>Impostazioni › Logo per le stampe</b>; senza logo resta lo spazio). Nella tabella dei controlli il testo è più piccolo e la colonna delle note più larga. Il verbale termina con «Letto, confermato e sottoscritto», la data e il comune, una riga di firma per ogni presente e la firma del CSE. Si firma <b>su carta</b>. Dopo le firme c'è la <b>documentazione fotografica</b>: <b>due foto per pagina</b>, centrate, con numero, data e ora di scatto (se non è nascosta) e didascalia. I PDF dei verbali vanno nella cartella <code>08_Verbali_sopralluogo\Verbali PDF</code>.</p>
 <figure class="md"><img style="max-height:215mm" src="img/cse_stampa.jpg" alt=""><figcaption>Il verbale stampato</figcaption></figure>
 
 <h2 class="salto">10. Stampa e PDF</h2>
@@ -227,13 +239,15 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
     04_Imprese_e_POS\Edil Rossi S.r.l\POS\
                     POS (una revisione per file) e
                     Allegati rev 0\, Allegati rev 1\, ...
-    05_Verifiche_POS\            verifiche (.json) e PDF
+                    ..\Verifica POS_2026-11-16\  check list, lettera, verifiche esterne
+    05_Verifiche_POS\            verifiche (.json)
     06_Giornale_lavori\          una voce al giorno
     07_Registro_fotografico\
        originali\                foto così come scattate
        timbrate\                 foto con la data in basso a destra
        schede\                   didascalie e dati delle foto
-    08_Verbali_sopralluogo\      verbali (.json) e PDF</pre>
+    08_Verbali_sopralluogo\      verbali (.json)
+       Verbali PDF\              verbali stampati</pre>
 <div class="box att"><b class="t">Attenzione</b>I file <code>.json</code> sono i dati del programma: non modificarli né rinominarli a mano. I PDF, le foto e i documenti si possono invece copiare e inviare liberamente.</div>
 
 <h2 class="salto">12. Problemi frequenti</h2>
@@ -253,5 +267,5 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 
 <div class="box"><b class="t">Versione di prova</b>
 Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
-<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.5 · SISTEM SRL STP</p>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.6 · SISTEM SRL STP</p>
 </main></body></html>

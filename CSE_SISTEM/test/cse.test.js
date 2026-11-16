@@ -4,10 +4,12 @@ import {
   applicaProposta, completaVerifica, descriviDocumentazione, documentiDaEsaminare, esitoProposto, idoneitaProposta, integrazioniProposte,
   letteraProposta, nuovaVerifica, situazionePos, fileRevisione, cartelleRevisione,
 } from '../www/js/servizi/pos.js';
-import { Archivio } from '../www/js/core/archivio.js';
+import { Archivio, unisciCopie } from '../www/js/core/archivio.js';
 import { discoInMemoria } from '../www/js/piattaforme/memoria.js';
 import { controllaRisposta, richiestaVerifica } from '../www/js/servizi/claude.js';
-import { prossimoNumero, nuovoVerbaleSopralluogo, prescrizioniAperte, chiudi, modificabile, controlliNascosti } from '../www/js/servizi/verbali.js';
+import {
+  prossimoNumero, nuovoVerbaleSopralluogo, prescrizioniAperte, chiudi, modificabile, controlliNascosti, destinatariVerbale, responsabileLavori,
+} from '../www/js/servizi/verbali.js';
 import { nuovaVoce, ordinaVoci, voceDelGiorno, fotoDelGiorno } from '../www/js/servizi/giornale.js';
 import { htmlChecklistPos, htmlLetteraPos, htmlVerbale, htmlVerificaPos } from '../www/js/servizi/stampa.js';
 import { CHECKLIST_POS, CONTENUTI_POS, OBBLIGHI_CSE } from '../www/js/servizi/normativa.js';
@@ -312,4 +314,47 @@ test('verbale stampato: esito delle prescrizioni dei verbali precedenti', () => 
   const html = htmlVerbale(cant, v2);
   assert.match(html, /Verifica delle prescrizioni dei verbali precedenti/);
   assert.match(html, /Parapetto vano scala<\/td><td>n\. 1<\/td><td>Risolta/);
+});
+
+test('verbale 0.6: destinatari come una lettera, logo, esiti, note larghe, due foto per pagina', () => {
+  const cant = nuovoCantiere({
+    codice: 'C', denominazione: 'Pista', comune: 'Sappada',
+    committenti: [{ nome: 'PROMOTURISMO FVG', pec: 'promo@pec.it' }],
+    responsabileLavori: { nome: 'ing. Degano' }, responsabileLavoriNonNominato: true,
+    direttoreLavori: { nome: 'ing. Borsatto', email: 'dl@winterplan.it' },
+  });
+  const imp = nuovaImpresa({ ragioneSociale: 'SPIGA S.r.l.', pec: 'spiga@legalmail.it' });
+  assert.equal(responsabileLavori(cant), 'non nominato');
+  assert.equal(destinatariVerbale(cant, [imp]), 'Committente PROMOTURISMO FVG – PEC promo@pec.it\nDirettore dei lavori ing. Borsatto – dl@winterplan.it\nImpresa SPIGA S.r.l. – PEC spiga@legalmail.it',
+    'responsabile non nominato: non è tra i destinatari');
+  const v = nuovoVerbaleSopralluogo([], { imprese: [imp], cantiere: cant });
+  assert.match(v.destinatari, /^Committente PROMOTURISMO FVG/);
+  assert.ok(v.verifiche.every((x) => x.esito === ''), 'esiti da compilare');
+  v.verifiche[0].esito = 'da_adeguare';
+  v.verifiche[0].note = 'Recinzione da completare lato strada';
+  const foto = [1, 2, 3].map((i) => ({ src: `data:,${i}`, scattata: '', didascalia: `F${i}` }));
+  const html = htmlVerbale(cant, v, { imprese: [imp], foto, logo: 'data:image/png;base64,LOGO' });
+  assert.match(html, /<div class="testa-v">\n<div class="dest"><p><b>Spett\.li<\/b><\/p><p>Committente PROMOTURISMO FVG – PEC promo@pec\.it<\/p>/);
+  assert.match(html, /<div class="logo"><img src="data:image\/png;base64,LOGO"/);
+  assert.match(html, /<b>Responsabile dei lavori<\/b>: non nominato/);
+  assert.match(html, /<td class="e">Da adeguare<\/td><td class="n">Recinzione da completare lato strada<\/td>/);
+  assert.equal((html.match(/<div class="foto-p">/g) || []).length, 2, '3 foto: due pagine (2 + 1)');
+  assert.equal((html.match(/Documentazione fotografica/g) || []).length, 1);
+  // senza logo resta lo spazio
+  assert.match(htmlVerbale(cant, v), /<div class="logo"><\/div>/);
+});
+
+test('sincronizzazione: copie di Drive «(1)» della stessa registrazione, si tiene la più recente', () => {
+  const a = { id: 'v1', modificato: '2026-11-16T10:00:00', _file: 'Verbale 001_v1.json', note: 'telefono' };
+  const b = { id: 'v1', modificato: '2026-11-16T10:05:00', _file: 'Verbale 001_v1 (1).json', note: 'PC' };
+  const c = { id: 'v2', modificato: '2026-11-16T09:00:00', _file: 'Verbale 002_v2.json' };
+  assert.deepEqual(unisciCopie([a, b, c]).map((x) => x.note || x.id), ['PC', 'v2']);
+  assert.equal(unisciCopie([{ ...b, modificato: a.modificato }, a])[0]._file, 'Verbale 001_v1.json', 'a parità: l’originale');
+});
+
+test('cartelle: stampe della verifica POS nella cartella dell’impresa', () => {
+  const a = new Archivio(discoInMemoria());
+  const imp = { ...nuovaImpresa({ ragioneSociale: 'TRETTEL srl' }), _cartella: 'TRETTEL srl' };
+  assert.equal(a.cartellaVerificaPos('2026-015', imp, '2026-11-16'), 'CSE_SISTEM/2026-015/04_Imprese_e_POS/TRETTEL srl/Verifica POS_2026-11-16');
+  assert.equal(a.cartellaPos('2026-015', imp), 'CSE_SISTEM/2026-015/04_Imprese_e_POS/TRETTEL srl/POS');
 });

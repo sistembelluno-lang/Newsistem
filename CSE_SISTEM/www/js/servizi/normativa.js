@@ -115,4 +115,5 @@ export const ESITI_VERIFICA_POS = {
 };
 
 export const ESITI_VOCE_POS = { si: 'Presente', parziale: 'Incompleto', no: 'Mancante', nd: 'Non pertinente' };
-export const ESITI_CONTROLLO = { conforme: 'Conforme', non_conforme: 'Non conforme', nv: 'Non verificato' };
+/** Esiti dei controlli del sopralluogo (vuoto = non compilato, non stampato come esito). */
+export const ESITI_CONTROLLO = { conforme: 'Conforme', non_conforme: 'Non conforme', da_adeguare: 'Da adeguare' };

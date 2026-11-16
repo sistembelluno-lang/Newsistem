@@ -15,15 +15,20 @@
 //       04_Imprese_e_POS/
 //         <impresa>/impresa.json      anagrafica impresa
 //         <impresa>/POS/              POS e revisioni (file + scheda .json)
-//       05_Verifiche_POS/             verifiche di idoneità del CSE (.json + .pdf)
+//         <impresa>/Verifica POS_<data>/  check list e lettera in PDF, verifiche esterne
+//       05_Verifiche_POS/             verifiche di idoneità del CSE (.json)
 //       06_Giornale_lavori/           una voce per giorno (.json)
 //       07_Registro_fotografico/
 //         originali/                  foto come scattate
 //         timbrate/                   copie con la data di scatto in basso a destra
 //         schede/                     dati di ogni foto (.json)
-//       08_Verbali_sopralluogo/       verbali (.json + .pdf)
+//       08_Verbali_sopralluogo/       verbali (.json)
+//         Verbali PDF/                verbali stampati
 
 export const RADICE = 'CSE_SISTEM';
+
+/** Logo dello studio per le stampe (comune a tutti i cantieri, sincronizzato con la cartella). */
+export const FILE_LOGO = `${RADICE}/logo.png`;
 
 export const SEZIONI = Object.freeze({
   progetto: { cartella: '01_Progetto', titolo: 'Progetto' },

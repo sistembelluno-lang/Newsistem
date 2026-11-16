@@ -28,6 +28,8 @@ export function serviziElectron(nativo = globalThis.cseNative) {
     scegliCartellaFile: () => nativo.scegliCartellaFile(),
     /** Salva un PDF dall'HTML (stampa del verbale, della verifica, ...). */
     pdfDaHtml: (html, percorsoPdf) => nativo.pdfDaHtml(html, percorsoPdf),
+    /** Avvisa quando Google Drive porta file cambiati altrove. */
+    suCambiamenti: (f) => nativo.suCambiamenti(f),
     cartellaDati: () => nativo.cartellaDati(),
     scegliCartellaDati: () => nativo.scegliCartellaDati(),
     /** Cartelle di Google Drive per desktop trovate sul PC. */

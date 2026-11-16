@@ -98,7 +98,7 @@ export function testoRichiesta({ cantiere, impresa, imprese = [], pos, verifica,
 CANTIERE
 - Opera: ${cantiere.denominazione}${cantiere.comune ? ` – ${cantiere.comune}` : ''}${cantiere.indirizzo ? ` (${cantiere.indirizzo})` : ''}
 - Natura dell'opera: ${cantiere.naturaOpera || '—'}
-- Committente: ${(cantiere.committenti || []).map(persona).join('; ') || '—'} · Responsabile dei lavori: ${persona(cantiere.responsabileLavori)} · DL: ${persona(cantiere.direttoreLavori)}
+- Committente: ${(cantiere.committenti || []).map(persona).join('; ') || '—'} · Responsabile dei lavori: ${cantiere.responsabileLavoriNonNominato ? 'non nominato' : persona(cantiere.responsabileLavori)} · DL: ${persona(cantiere.direttoreLavori)}
 - CSE: ${persona(cantiere.cse)}
 - Inizio lavori: ${dataIt(cantiere.inizioLavori) || '—'} · durata: ${cantiere.durataGiorni ? `${cantiere.durataGiorni} giorni` : '—'}
 - Imprese del cantiere: ${imprese.map((i) => `${i.ragioneSociale} (${i.ruolo}${i.ruolo === 'subappaltatrice' && nomi.get(i.affidataria) ? ` di ${nomi.get(i.affidataria)}` : ''})`).join('; ') || '—'}

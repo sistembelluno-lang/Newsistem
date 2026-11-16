@@ -20,6 +20,12 @@ contextBridge.exposeInMainWorld('cseNative', {
   scegliCartellaDati: chiama('scegliCartellaDati'),
   cartelleGoogleDrive: chiama('cartelleGoogleDrive'),
   usaCartellaDati: chiama('usaCartellaDati'),
+  /** File cambiati nella cartella dei dati da fuori (Google Drive): f(percorsi). */
+  suCambiamenti: (f) => {
+    const ascolta = (_e, percorsi) => f(percorsi);
+    ipcRenderer.on('cse:cambiato', ascolta);
+    return () => ipcRenderer.removeListener('cse:cambiato', ascolta);
+  },
   claudeStato: chiama('claudeStato'),
   claudeSalvaChiave: chiama('claudeSalvaChiave'),
   claudeProva: chiama('claudeProva'),

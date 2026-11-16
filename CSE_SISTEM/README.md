@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.5** (di prova): logica e dati provati, interfaccia nello **stile
+Stato: versione **0.6** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -36,7 +36,9 @@ chiaro/scuro automatico), uguale su PC e telefono.
   conformità, prescrizioni, sospensione, segnalazione al committente),
   **foto scelte dal registro** (o scattate al momento) stampate dopo le firme,
   controlli **nascondibili** (non stampati e ripresi nascosti nel verbale
-  dopo), stampa e **chiusura** (dopo la firma non si modifica più).
+  dopo), esiti *conforme / non conforme / da adeguare*, stampa come una
+  lettera (destinatari a sinistra, logo dello studio a destra), due foto per
+  pagina, PDF in `Verbali PDF`, e **chiusura** (dopo la firma non si modifica più).
 
 ## Cosa gestisce
 
@@ -47,10 +49,11 @@ chiaro/scuro automatico), uguale su PC e telefono.
 | Piano di sicurezza e coordinamento | `02_PSC/` | art. 100, All. XV |
 | Notifica preliminare | `03_Notifica_preliminare/` | art. 99, All. XII |
 | Imprese e loro POS (con revisioni) | `04_Imprese_e_POS/<impresa>/POS/` | All. XV 3.2.1 |
-| Verifiche di idoneità dei POS | `05_Verifiche_POS/` (.json + .pdf) | art. 92 c. 1 lett. b |
+| Verifiche di idoneità dei POS | `05_Verifiche_POS/` (.json); PDF e verifiche esterne in `04_Imprese_e_POS/<impresa>/Verifica POS_<data>/` | art. 92 c. 1 lett. b |
 | Giornale dei lavori | `06_Giornale_lavori/` (una voce al giorno) | |
 | Registro fotografico | `07_Registro_fotografico/` | |
-| Verbali di sopralluogo | `08_Verbali_sopralluogo/` (.json + .pdf) | art. 92 |
+| Verbali di sopralluogo | `08_Verbali_sopralluogo/` (.json), PDF in `Verbali PDF/` | art. 92 |
+| Logo per le stampe | `logo.png` nella cartella `CSE_SISTEM` | |
 
 Ogni cantiere è una **cartella leggibile anche senza il programma**, ordinata
 come un fascicolo. Ogni registrazione (voce di giornale, verifica, verbale,
@@ -77,6 +80,15 @@ Ogni registrazione è un file a sé, quindi lavorare da due dispositivi non fa
 perdere dati. I verbali hanno nel nome anche un identificativo: se due
 dispositivi creano un verbale con lo stesso numero prima della
 sincronizzazione, nessuno si perde e il programma segnala i numeri doppi.
+
+### Sincronizzazione
+
+- **Windows**: la cartella dei dati è osservata (`fs.watch`); quando Google
+  Drive porta file cambiati altrove la pagina si ridisegna, o mostra l'avviso
+  «Dati nuovi» se si sta scrivendo. Le scritture del programma non contano.
+- **Android**: al rientro nell'app si rilegge (stesso avviso se si scrive).
+- Copie di conflitto di Drive («nome (1).json», stesso id): si usa la più
+  recente (`unisciCopie` in `core/archivio.js`).
 
 ### Verbali
 

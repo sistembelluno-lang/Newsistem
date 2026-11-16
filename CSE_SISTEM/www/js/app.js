@@ -10,6 +10,7 @@ import { icona, marchio } from './ui/icone.js';
 import { leggiIndirizzo, indirizzo, vai } from './ui/router.js';
 import { VERSIONE } from './versione.js';
 import { MODELLO_CLAUDE } from './servizi/claude.js';
+import { FILE_LOGO } from './core/cartelle.js';
 import './moduli/cse.js'; // i moduli si registrano da soli
 
 const p = piattaforma();
@@ -96,6 +97,51 @@ async function schedaClaude() {
   });
 }
 
+/** Logo dello studio in alto a destra nei verbali (CSE_SISTEM/logo.png, vale per tutti i cantieri). */
+async function schedaLogo() {
+  const anteprima = h('div', { class: 'logo-anteprima' });
+  try {
+    const byte = await archivio.disco.leggiByte(FILE_LOGO);
+    anteprima.append(h('img', { src: URL.createObjectURL(new Blob([byte], { type: 'image/png' })), alt: 'Logo' }));
+  } catch {
+    anteprima.append(h('span', { class: 'mu' }, 'Nessun logo: nel verbale resta lo spazio vuoto.'));
+  }
+  const scegli = async () => {
+    const files = p.servizi.scegliFile ? await p.servizi.scegliFile({ accetta: 'image/png,image/jpeg,.png,.jpg,.jpeg', multipli: false })
+      : await new Promise((ok) => {
+        const inp = h('input', { type: 'file', accept: 'image/png,image/jpeg' });
+        inp.addEventListener('change', async () => ok(inp.files[0] ? [{ nome: inp.files[0].name, byte: new Uint8Array(await inp.files[0].arrayBuffer()) }] : []));
+        inp.click();
+      });
+    if (!files?.length) return;
+    try {
+      // si salva come PNG, al massimo 800 px di lato
+      const img = await createImageBitmap(new Blob([files[0].byte]));
+      const k = Math.min(1, 800 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k);
+      c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const blob = await new Promise((ok) => c.toBlob(ok, 'image/png'));
+      await archivio.disco.scriviByte(FILE_LOGO, new Uint8Array(await blob.arrayBuffer()));
+      avviso('Logo salvato');
+      disegna();
+    } catch (e) {
+      avviso(`Immagine non leggibile: ${e.message}`, 'errore');
+    }
+  };
+  return scheda({
+    titolo: 'Logo per le stampe', ico: 'foto',
+    corpo: [
+      h('p', { class: 'mu', style: 'margin-top:0' }, 'Compare in alto a destra nei verbali di sopralluogo. Si salva nella cartella dei cantieri, quindi arriva anche sugli altri dispositivi con Google Drive.'),
+      anteprima,
+      h('div', { class: 'azioni', style: 'margin-top:12px;justify-content:flex-start' },
+        bottone('carica', 'Scegli il logo (PNG o JPG)', scegli, 'p'),
+        bottone('cestino', 'Togli', async () => { await archivio.disco.elimina(FILE_LOGO); avviso('Logo tolto'); disegna(); }, 'q d')),
+    ],
+  });
+}
+
 async function paginaImpostazioni() {
   const parti = [];
   if (p.tipo === 'windows') {
@@ -153,6 +199,21 @@ async function paginaImpostazioni() {
   } else {
     parti.push(scheda({ titolo: 'Cartella dei cantieri', ico: 'cartella', corpo: nota('Modalità di prova nel browser: i dati restano in memoria e spariscono chiudendo la pagina.', 'info') }));
   }
+  parti.push(await schedaLogo());
+  parti.push(scheda({
+    titolo: 'Sincronizzazione', ico: 'aggiorna',
+    corpo: [
+      h('p', { style: 'margin-top:0' }, p.tipo === 'windows'
+        ? 'Quando Google Drive porta modifiche fatte sul telefono o su un altro PC, la pagina si aggiorna da sola. Se stai scrivendo, compare in alto l’avviso «Dati nuovi» con il pulsante Aggiorna, così non perdi quello che stai scrivendo.'
+        : p.tipo === 'android'
+          ? 'Quando torni su CSE_SISTEM (dopo che l’app di sincronizzazione ha portato i file da Drive) la pagina si rilegge da sola; se stai scrivendo compare l’avviso «Dati nuovi».'
+          : 'Nella prova nel browser non c’è sincronizzazione.'),
+      h('ul', { class: 'mu', style: 'margin:0' },
+        h('li', {}, 'Ogni registrazione (verbale, voce del giornale, verifica, foto) è un file a sé: due dispositivi non si sovrascrivono.'),
+        h('li', {}, 'Se lo stesso verbale viene modificato su due dispositivi prima della sincronizzazione, Drive ne fa una copia «(1)»: il programma usa la versione più recente.'),
+        h('li', {}, 'Il pulsante ', icona('aggiorna'), ' in alto a destra rilegge tutto quando vuoi.')),
+    ],
+  }));
   parti.push(scheda({
     titolo: 'Informazioni', ico: 'info',
     corpo: h('p', { class: 'mu', style: 'margin:0' }, `CSE_SISTEM ${VERSIONE} · ${RUOLI[ruolo].titolo} · ${{ windows: 'Windows', android: 'Android', prova: 'browser' }[p.tipo]}`, h('br'), 'SISTEM SRL STP'),
@@ -175,6 +236,7 @@ function barra() {
     h('a', { class: 'brand', href: '#/' }, h('span', { class: 'logo' }, marchio()),
       h('div', {}, h('span', { class: 'az' }, 'SISTEM SRL STP'), h('h1', {}, 'CSE_SISTEM'))),
     h('div', { class: 'meta' }, 'Coordinamento sicurezza in esecuzione', h('br'), `D.Lgs 81/2008 · v${VERSIONE}`),
+    h('button', { type: 'button', class: 'tasto', title: 'Aggiorna: rilegge i dati (anche quelli arrivati da Google Drive)', onclick: () => { nascondiNovita(); disegna(); } }, icona('aggiorna')),
     h('a', { class: 'tasto', href: '#/impostazioni', title: 'Impostazioni' }, icona('impostazioni')));
 }
 
@@ -203,6 +265,8 @@ async function disegna() {
     }
     if (mio !== inCorso) return; // nel frattempo si è cambiata pagina
     radice.replaceChildren(barra(), contenuto);
+    sporco = false;
+    nascondiNovita();
   } catch (e) {
     console.error(e);
     if (mio !== inCorso) return;
@@ -210,6 +274,30 @@ async function disegna() {
       scheda({ corpo: vuoto('attenzione', 'Qualcosa non va', e.message, h('a', { class: 'bottone', href: '#/' }, 'Torna ai cantieri')) })));
   }
 }
+
+// ------------------------------------------------------------ dati arrivati da altri dispositivi
+// «sporco»: si sta scrivendo qualcosa nella pagina (non si ridisegna sotto le dita)
+let sporco = false;
+radice.addEventListener('input', () => { sporco = true; });
+radice.addEventListener('change', () => { sporco = true; });
+
+let novita = null;
+function nascondiNovita() {
+  novita?.remove();
+  novita = null;
+}
+function mostraNovita() {
+  if (novita) return;
+  novita = h('div', { class: 'novita', role: 'status' }, icona('aggiorna'),
+    h('span', {}, 'Dati nuovi arrivati da un altro dispositivo.'),
+    bottone('', 'Aggiorna', () => { nascondiNovita(); disegna(); }, 'sm p'),
+    bottone('chiudi', '', nascondiNovita, 'q sm icona', { title: 'Più tardi' }));
+  document.body.append(novita);
+}
+p.servizi.suCambiamenti?.(() => {
+  if (sporco || document.querySelector('dialog[open]')) mostraNovita();
+  else disegna();
+});
 
 window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);

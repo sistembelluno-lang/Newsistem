@@ -30,13 +30,14 @@ export function prossimoNumero(verbali) {
  * idoneo, se passate), lista dei controlli e prescrizioni ancora aperte dei
  * verbali precedenti, da verificare in questo sopralluogo.
  */
-export function nuovoVerbaleSopralluogo(verbaliPrecedenti, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO } = {}) {
+export function nuovoVerbaleSopralluogo(verbaliPrecedenti, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO, cantiere = null } = {}) {
   const aperte = prescrizioniAperte(verbaliPrecedenti);
   const nascoste = controlliNascosti(verbaliPrecedenti);
   return nuovoVerbale({
     numero: prossimoNumero(verbaliPrecedenti),
     impresePresenti: imprese.map((i) => i.id),
-    verifiche: controlli.map((c) => ({ codice: c.codice, esito: 'nv', note: '', nascosta: nascoste.has(c.codice) })),
+    destinatari: cantiere ? destinatariVerbale(cantiere, imprese) : '',
+    verifiche: controlli.map((c) => ({ codice: c.codice, esito: '', note: '', nascosta: nascoste.has(c.codice) })),
     prescrizioniDaVerificare: aperte.map((p) => ({ ...p, esito: '' })),
   });
 }
@@ -64,6 +65,28 @@ export function prescrizioniAperte(verbali) {
     }
   }
   return [...aperte.values()];
+}
+
+/** Responsabile dei lavori per le stampe: nome, «non nominato» o vuoto. */
+export function responsabileLavori(cantiere) {
+  if (cantiere.responsabileLavoriNonNominato) return 'non nominato';
+  const p = cantiere.responsabileLavori;
+  return p?.nome ? `${p.nome}${p.qualifica ? `, ${p.qualifica}` : ''}` : '';
+}
+
+/**
+ * Destinatari proposti per il verbale (come in una lettera): committente,
+ * responsabile dei lavori (se nominato), direttore dei lavori, CSP e le
+ * imprese presenti. Uno per riga; nel verbale si possono correggere.
+ */
+export function destinatariVerbale(cantiere, imprese = []) {
+  const p = (titolo, x) => (x?.nome ? `${titolo} ${x.nome}${x.pec ? ` – PEC ${x.pec}` : x.email ? ` – ${x.email}` : ''}` : '');
+  return [
+    ...(cantiere.committenti || []).map((c) => p('Committente', c)),
+    cantiere.responsabileLavoriNonNominato ? '' : p('Responsabile dei lavori', cantiere.responsabileLavori),
+    p('Direttore dei lavori', cantiere.direttoreLavori),
+    ...imprese.map((i) => `Impresa ${i.ragioneSociale}${i.pec ? ` – PEC ${i.pec}` : i.email ? ` – ${i.email}` : ''}`),
+  ].filter(Boolean).join('\n');
 }
 
 /** Un verbale chiuso (firmato) non si modifica: si fa un nuovo verbale. */

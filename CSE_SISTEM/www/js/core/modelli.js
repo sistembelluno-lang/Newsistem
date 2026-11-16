@@ -27,6 +27,7 @@ export const CAMPI_ANAGRAFICA = [
   { chiave: 'comune', etichetta: 'Comune', tipo: 'testo', gruppo: 'opera' },
   { chiave: 'naturaOpera', etichetta: "Natura dell'opera", tipo: 'testo_lungo', rif: 'All. XII p. 4', gruppo: 'opera' },
   { chiave: 'committenti', etichetta: 'Committente/i (nome e indirizzo)', tipo: 'persone', etichettaSingola: 'Committente', rif: 'All. XII p. 3', gruppo: 'soggetti' },
+  { chiave: 'responsabileLavoriNonNominato', etichetta: 'Responsabile dei lavori non nominato', tipo: 'spunta', largo: true, gruppo: 'soggetti' },
   { chiave: 'responsabileLavori', etichetta: 'Responsabile dei lavori', tipo: 'persona', rif: 'All. XII p. 5', gruppo: 'soggetti' },
   { chiave: 'csp', etichetta: 'Coordinatore per la progettazione (CSP)', tipo: 'persona', rif: 'All. XII p. 6', gruppo: 'soggetti' },
   { chiave: 'cse', etichetta: "Coordinatore per l'esecuzione (CSE)", tipo: 'persona', rif: 'All. XII p. 7', gruppo: 'soggetti' },
@@ -62,6 +63,7 @@ export function nuovoCantiere(campi = {}) {
     naturaOpera: '',
     committenti: [],
     responsabileLavori: nuovaPersona(),
+    responsabileLavoriNonNominato: false,
     csp: nuovaPersona(),
     cse: nuovaPersona(),
     direttoreLavori: nuovaPersona(),
@@ -165,6 +167,8 @@ export function nuovaVerificaPos(campi = {}) {
     },
     prescrizioni: '',   // (verifiche della versione 0.3)
     trasmessaIl: '',    // data di trasmissione dell'esito all'impresa
+    esterna: false,     // verifica fatta fuori dal programma (es. da un altro tecnico): conta l'esito
+    fileEsterno: '',    // il documento della verifica esterna (percorso nella cartella dei dati)
     ai: null,           // { modello, data, documenti: [...] } se compilata con Claude
     note: '',
     ...campi,
@@ -216,9 +220,10 @@ export function nuovoVerbale(campi = {}) {
     oraInizio: '',
     oraFine: '',
     presenti: [],           // [{ nome, qualifica, impresa }]
+    destinatari: '',        // a chi si invia il verbale (uno per riga), in alto a sinistra nella stampa
     impresePresenti: [],    // id delle imprese in cantiere
     lavorazioniInCorso: '',
-    verifiche: [],          // [{ codice, esito: 'conforme'|'non_conforme'|'nv', note, nascosta }] (le nascoste non si stampano)
+    verifiche: [],          // [{ codice, esito: 'conforme'|'non_conforme'|'da_adeguare'|'', note, nascosta }] (le nascoste non si stampano)
     nonConformita: [],      // [{ descrizione, impresa, gravita: 'lieve'|'grave'|'pericolo_grave_imminente', foto: [] }]
     prescrizioni: [],       // [{ descrizione, impresa, entro: data }]
     sospensione: null,      // { lavorazioni, motivo, dal } (art. 92 c. 1 lett. f)

@@ -15,6 +15,25 @@ import {
 import { aggiorna, controlla } from './modelli.js';
 import { isoLocale } from './date.js';
 
+/**
+ * Copie della stessa registrazione (stesso id): Google Drive, quando lo
+ * stesso file cambia su due dispositivi, ne fa una copia «nome (1).json».
+ * Si tiene la più recente (campo modificato); a parità, il nome più corto
+ * (l'originale).
+ */
+export function unisciCopie(oggetti) {
+  const perId = new Map();
+  const senzaId = [];
+  for (const o of oggetti) {
+    if (!o.id) { senzaId.push(o); continue; }
+    const prima = perId.get(o.id);
+    const piuRecente = !prima || String(o.modificato || '') > String(prima.modificato || '')
+      || (String(o.modificato || '') === String(prima.modificato || '') && String(o._file || '').length < String(prima._file || '').length);
+    if (piuRecente) perId.set(o.id, o);
+  }
+  return [...perId.values(), ...senzaId];
+}
+
 export class Archivio {
   /** @param {object} disco operazioni elementari della piattaforma */
   constructor(disco) {
@@ -43,11 +62,14 @@ export class Archivio {
     const out = [];
     for (const v of voci) {
       if (!v.cartella && v.nome.endsWith('.json')) {
-        const o = await this.leggiJson(percorso(cartella, v.nome));
+        let o = null;
+        try {
+          o = await this.leggiJson(percorso(cartella, v.nome));
+        } catch { /* file a metà della sincronizzazione: si rilegge al prossimo aggiornamento */ }
         if (o) out.push({ ...o, _file: v.nome });
       }
     }
-    return out;
+    return unisciCopie(out);
   }
 
   // ------------------------------------------------------------ cantieri
@@ -137,10 +159,19 @@ export class Archivio {
     return this.scriviJson(percorso(cart, 'impresa.json'), dati);
   }
 
-  cartellaPos(codice, impresa) {
-    const cart = impresa._cartella ? percorso(cartellaSezione(codice, 'imprese'), impresa._cartella)
+  /** Cartella dell'impresa (04_Imprese_e_POS/<impresa>). */
+  cartellaDellImpresa(codice, impresa) {
+    return impresa._cartella ? percorso(cartellaSezione(codice, 'imprese'), impresa._cartella)
       : cartellaImpresa(codice, impresa.ragioneSociale);
-    return percorso(cart, 'POS');
+  }
+
+  cartellaPos(codice, impresa) {
+    return percorso(this.cartellaDellImpresa(codice, impresa), 'POS');
+  }
+
+  /** Cartella delle stampe e dei documenti di una verifica: <impresa>/Verifica POS_<data>. */
+  cartellaVerificaPos(codice, impresa, data) {
+    return percorso(this.cartellaDellImpresa(codice, impresa), `Verifica POS_${data}`);
   }
 
   /**

@@ -87,6 +87,15 @@ export function serviziCapacitor(cap = globalThis.Capacitor) {
     async stampa(html, nome) {
       await plugin('Dispositivo', cap).stampa({ html, nome });
     },
+    /**
+     * Su Android l'app di sincronizzazione (Autosync, FolderSync) porta i file
+     * mentre CSE_SISTEM è in secondo piano: al rientro nell'app si rilegge.
+     */
+    suCambiamenti(f) {
+      const rientro = () => { if (document.visibilityState === 'visible') f([]); };
+      document.addEventListener('visibilitychange', rientro);
+      return () => document.removeEventListener('visibilitychange', rientro);
+    },
     /** true se l'app può leggere tutti i file di Documenti/CSE_SISTEM. */
     async permessoFile() {
       return (await plugin('Dispositivo', cap).permessoFile()).concesso;

@@ -270,7 +270,7 @@ export function letteraProposta(cantiere, impresa, imprese, pos, { integrazioni 
   for (const i of imprese) if (i.ruolo === 'affidataria' && !destinatari.includes(i)) destinatari.push(i);
   const epc = [
     ...(cantiere.committenti || []).map((c) => rigaPersona('Committente', c)),
-    rigaPersona('Responsabile dei lavori', cantiere.responsabileLavori),
+    cantiere.responsabileLavoriNonNominato ? '' : rigaPersona('Responsabile dei lavori', cantiere.responsabileLavori),
     rigaPersona('Direttore dei Lavori', cantiere.direttoreLavori),
   ].filter(Boolean);
   const opera = [cantiere.denominazione, cantiere.comune ? `Comune di ${cantiere.comune}` : ''].filter(Boolean).join(' – ');
