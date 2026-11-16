@@ -1,0 +1,226 @@
+// Modelli dei dati: come è fatta ogni registrazione e come se ne crea una nuova.
+//
+// Ogni oggetto salvato porta `tipo` e `versione` dello schema, così i file
+// scritti da una versione vecchia del programma si possono aggiornare
+// (vedi `aggiorna`). I campi delle schede sono descritti anche come elenco
+// (CAMPI_*): la grafica costruirà i moduli da qui, senza ripeterli.
+
+import { nuovoId } from './id.js';
+import { isoLocale, oggi } from './date.js';
+
+export const VERSIONE_SCHEMA = 1;
+
+function base(tipo, campi = {}) {
+  const adesso = isoLocale();
+  return { tipo, versione: VERSIONE_SCHEMA, id: nuovoId(), creato: adesso, modificato: adesso, ...campi };
+}
+
+// ---------------------------------------------------------------- cantiere
+/**
+ * Anagrafica di cantiere: i contenuti della notifica preliminare (art. 99 e
+ * Allegato XII del D.Lgs 81/08) più i dati che servono al CSE.
+ */
+export const CAMPI_ANAGRAFICA = [
+  { chiave: 'codice', etichetta: 'Codice cantiere', tipo: 'testo', obbligatorio: true },
+  { chiave: 'denominazione', etichetta: "Denominazione dell'opera", tipo: 'testo', obbligatorio: true },
+  { chiave: 'indirizzo', etichetta: 'Indirizzo del cantiere', tipo: 'testo', rif: 'All. XII p. 2' },
+  { chiave: 'comune', etichetta: 'Comune', tipo: 'testo' },
+  { chiave: 'naturaOpera', etichetta: "Natura dell'opera", tipo: 'testo_lungo', rif: 'All. XII p. 4' },
+  { chiave: 'committenti', etichetta: 'Committente/i (nome e indirizzo)', tipo: 'persone', rif: 'All. XII p. 3' },
+  { chiave: 'responsabileLavori', etichetta: 'Responsabile dei lavori', tipo: 'persona', rif: 'All. XII p. 5' },
+  { chiave: 'csp', etichetta: 'Coordinatore per la progettazione (CSP)', tipo: 'persona', rif: 'All. XII p. 6' },
+  { chiave: 'cse', etichetta: "Coordinatore per l'esecuzione (CSE)", tipo: 'persona', rif: 'All. XII p. 7' },
+  { chiave: 'direttoreLavori', etichetta: 'Direttore dei lavori', tipo: 'persona' },
+  { chiave: 'dataNotifica', etichetta: 'Data della notifica preliminare', tipo: 'data', rif: 'All. XII p. 1' },
+  { chiave: 'inizioLavori', etichetta: 'Data presunta di inizio lavori', tipo: 'data', rif: 'All. XII p. 8' },
+  { chiave: 'durataGiorni', etichetta: 'Durata presunta dei lavori (giorni)', tipo: 'numero', rif: 'All. XII p. 9' },
+  { chiave: 'maxLavoratori', etichetta: 'Numero massimo presunto di lavoratori', tipo: 'numero', rif: 'All. XII p. 10' },
+  { chiave: 'numeroImprese', etichetta: 'Numero previsto di imprese e lavoratori autonomi', tipo: 'numero', rif: 'All. XII p. 11' },
+  { chiave: 'importoLavori', etichetta: 'Ammontare complessivo presunto dei lavori (€)', tipo: 'importo', rif: 'All. XII p. 13' },
+  { chiave: 'titoloEdilizio', etichetta: 'Titolo abilitativo (permesso, SCIA, ...)', tipo: 'testo' },
+  { chiave: 'note', etichetta: 'Note', tipo: 'testo_lungo' },
+];
+
+export function nuovaPersona(campi = {}) {
+  return { nome: '', qualifica: '', indirizzo: '', telefono: '', email: '', pec: '', codiceFiscale: '', ...campi };
+}
+
+export function nuovoCantiere(campi = {}) {
+  const c = base('cantiere', {
+    codice: '',
+    denominazione: '',
+    indirizzo: '',
+    comune: '',
+    naturaOpera: '',
+    committenti: [],
+    responsabileLavori: nuovaPersona(),
+    csp: nuovaPersona(),
+    cse: nuovaPersona(),
+    direttoreLavori: nuovaPersona(),
+    dataNotifica: '',
+    inizioLavori: '',
+    durataGiorni: null,
+    maxLavoratori: null,
+    numeroImprese: null,
+    importoLavori: null,
+    titoloEdilizio: '',
+    stato: 'in_corso', // in_corso | sospeso | concluso
+    note: '',
+  });
+  return { ...c, ...campi };
+}
+
+// ---------------------------------------------------------------- documenti
+/** Scheda di un documento caricato (progetto, PSC, notifica, POS, ...). */
+export function nuovoDocumento(campi = {}) {
+  return base('documento', {
+    sezione: '',        // progetto | psc | notifica | pos
+    titolo: '',
+    file: '',           // nome del file nella cartella della sezione
+    revisione: '0',
+    data: oggi(),
+    autore: '',
+    note: '',
+    ...campi,
+  });
+}
+
+// ---------------------------------------------------------------- imprese
+/** Impresa esecutrice o lavoratore autonomo (dati del POS, All. XV 3.2.1 lett. a). */
+export function nuovaImpresa(campi = {}) {
+  return base('impresa', {
+    ragioneSociale: '',
+    tipoSoggetto: 'impresa', // impresa | lavoratore_autonomo
+    ruolo: 'esecutrice',     // affidataria | esecutrice | subappaltatrice
+    affidataria: '',         // id dell'impresa affidataria, per le subappaltatrici
+    partitaIva: '',
+    codiceFiscale: '',
+    sede: '',
+    telefono: '',
+    pec: '',
+    datoreLavoro: '',
+    rspp: '',
+    medicoCompetente: '',
+    rls: '',
+    direttoreTecnico: '',
+    capocantiere: '',
+    lavorazioni: '',
+    ingresso: '',   // data di ingresso in cantiere
+    uscita: '',
+    note: '',
+    ...campi,
+  });
+}
+
+/** POS di un'impresa (una revisione = una scheda). */
+export function nuovoPos(campi = {}) {
+  return base('pos', {
+    impresa: '',      // id dell'impresa
+    revisione: '0',
+    dataPos: '',      // data del documento
+    dataRicezione: oggi(),
+    file: '',
+    stato: 'da_verificare', // da_verificare | idoneo | idoneo_con_prescrizioni | non_idoneo
+    note: '',
+    ...campi,
+  });
+}
+
+/** Verifica di idoneità del POS da parte del CSE (art. 92 c. 1 lett. b). */
+export function nuovaVerificaPos(campi = {}) {
+  return base('verifica_pos', {
+    impresa: '',
+    pos: '',            // id del POS verificato
+    data: oggi(),
+    voci: [],           // [{ codice, esito: 'si'|'no'|'parziale'|'nd', note }]
+    esito: '',          // idoneo | idoneo_con_prescrizioni | non_idoneo
+    prescrizioni: '',
+    trasmessaIl: '',    // data di trasmissione dell'esito all'impresa
+    note: '',
+    ...campi,
+  });
+}
+
+// ---------------------------------------------------------------- giornale
+/** Voce del giornale dei lavori del CSE (una per giorno di presenza). */
+export function nuovaVoceGiornale(campi = {}) {
+  return base('voce_giornale', {
+    data: oggi(),
+    oraArrivo: '',
+    oraPartenza: '',
+    meteo: '',
+    imprese: [],        // [{ impresa: id, addetti: n, lavorazioni: '' }]
+    lavorazioni: '',
+    osservazioni: '',
+    disposizioni: '',
+    foto: [],           // id delle foto collegate
+    verbale: '',        // id del verbale redatto quel giorno, se c'è
+    ...campi,
+  });
+}
+
+// ---------------------------------------------------------------- foto
+/** Scheda di una foto del registro fotografico. */
+export function nuovaFoto(campi = {}) {
+  return base('foto', {
+    scattata: '',       // data di scatto (EXIF), ISO locale
+    fonteData: '',      // exif | file | manuale
+    originale: '',      // nome del file in originali/
+    timbrata: '',       // nome del file in timbrate/
+    didascalia: '',
+    luogo: '',
+    imprese: [],
+    larghezza: null,
+    altezza: null,
+    ...campi,
+  });
+}
+
+// ---------------------------------------------------------------- verbali
+/** Verbale di sopralluogo del CSE (art. 92 D.Lgs 81/08). */
+export function nuovoVerbale(campi = {}) {
+  return base('verbale', {
+    numero: null,           // progressivo per cantiere
+    data: oggi(),
+    oraInizio: '',
+    oraFine: '',
+    presenti: [],           // [{ nome, qualifica, impresa }]
+    impresePresenti: [],    // id delle imprese in cantiere
+    lavorazioniInCorso: '',
+    verifiche: [],          // [{ codice, esito: 'conforme'|'non_conforme'|'nv', note }]
+    nonConformita: [],      // [{ descrizione, impresa, gravita: 'lieve'|'grave'|'pericolo_grave_imminente', foto: [] }]
+    prescrizioni: [],       // [{ descrizione, impresa, entro: data }]
+    sospensione: null,      // { lavorazioni, motivo, dal } (art. 92 c. 1 lett. f)
+    segnalazioneCommittente: false, // art. 92 c. 1 lett. e
+    foto: [],
+    note: '',
+    chiuso: false,          // un verbale chiuso (firmato) non si modifica più
+    ...campi,
+  });
+}
+
+// ---------------------------------------------------------------- versioni
+/** Porta un oggetto letto da disco alla versione attuale dello schema. */
+export function aggiorna(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const v = obj.versione || 0;
+  if (v > VERSIONE_SCHEMA) {
+    throw new Error(`Il file è stato scritto da una versione più recente del programma (schema ${v}).`);
+  }
+  // migrazioni future: if (v < 2) { ...; obj.versione = 2; }
+  return { ...obj, versione: VERSIONE_SCHEMA };
+}
+
+/** Controlli minimi prima di salvare; restituisce l'elenco dei problemi. */
+export function controlla(obj) {
+  const errori = [];
+  if (!obj?.tipo) errori.push('Tipo mancante');
+  if (obj?.tipo === 'cantiere') {
+    for (const c of CAMPI_ANAGRAFICA.filter((c) => c.obbligatorio)) {
+      if (!String(obj[c.chiave] ?? '').trim()) errori.push(`${c.etichetta}: obbligatorio`);
+    }
+  }
+  if (obj?.tipo === 'impresa' && !String(obj.ragioneSociale || '').trim()) errori.push('Ragione sociale: obbligatoria');
+  if (obj?.tipo === 'verbale' && obj.chiuso && !obj.numero) errori.push('Un verbale chiuso deve avere un numero');
+  return errori;
+}

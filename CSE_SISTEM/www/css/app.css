@@ -1,0 +1,27 @@
+/* Stile provvisorio: la grafica definitiva verrà dopo. */
+:root { --blu: #1862c4; --arancio: #ff921c; --fondo: #f3f5f8; --bordo: #d5dae2; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 15px/1.45 "Segoe UI", system-ui, Roboto, sans-serif; background: var(--fondo); color: #1c2330; }
+header { display: flex; gap: 12px; align-items: baseline; padding: 10px 16px; background: #0c2244; color: #fff; }
+header h1 { margin: 0; font-size: 18px; }
+section, main > section { padding: 12px 16px; }
+.cantiere { display: flex; min-height: calc(100vh - 44px); }
+.menu { display: flex; flex-direction: column; gap: 4px; padding: 12px; width: 240px; background: #fff; border-right: 1px solid var(--bordo); }
+.menu a { padding: 6px 8px; border-radius: 6px; color: #1c2330; text-decoration: none; }
+.menu a.attivo { background: #dce8fa; }
+main { flex: 1; }
+button { padding: 7px 12px; margin: 4px 4px 8px 0; border: 1px solid var(--bordo); border-radius: 6px; background: #fff; cursor: pointer; }
+.elenco { width: 100%; border-collapse: collapse; background: #fff; }
+.elenco td, .elenco th { border: 1px solid var(--bordo); padding: 5px 8px; text-align: left; }
+tr.attenzione td:first-child { border-left: 4px solid var(--arancio); }
+tr.ok td:first-child { border-left: 4px solid #1a9a3a; }
+.modulo { display: grid; grid-template-columns: minmax(180px, 320px) 1fr; gap: 6px 12px; max-width: 900px; }
+.modulo button { grid-column: 2; justify-self: start; }
+.rif { color: #6b7380; font-size: 0.85em; }
+.avviso { position: fixed; bottom: 16px; right: 16px; padding: 10px 14px; background: #0c2244; color: #fff; border-radius: 8px; }
+.avviso.errore { background: #c0262d; }
+@media (max-width: 700px) {
+  .cantiere { flex-direction: column; }
+  .menu { width: auto; flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 1px solid var(--bordo); }
+  .modulo { grid-template-columns: 1fr; } .modulo button { grid-column: 1; }
+}

@@ -1,0 +1,6 @@
+{
+  "appId": "it.sistembelluno.csesistem",
+  "appName": "CSE_SISTEM",
+  "webDir": "www",
+  "android": { "allowMixedContent": false }
+}

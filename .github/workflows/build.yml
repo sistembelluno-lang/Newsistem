@@ -4,6 +4,10 @@ on:
   push:
     branches: ['**']
     tags: ['v*']
+    # CSE_SISTEM ha la sua compilazione (cse_sistem.yml)
+    paths-ignore:
+      - 'CSE_SISTEM/**'
+      - '.github/workflows/cse_sistem.yml'
   workflow_dispatch:
 
 permissions:

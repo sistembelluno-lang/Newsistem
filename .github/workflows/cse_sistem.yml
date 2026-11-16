@@ -1,0 +1,80 @@
+name: CSE_SISTEM
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'CSE_SISTEM/**'
+      - '.github/workflows/cse_sistem.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cse-sistem-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: CSE_SISTEM
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test test/*.test.js
+
+  windows:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: CSE_SISTEM/package-lock.json
+      - run: npm ci
+      - run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CSE_SISTEM-Windows
+          path: CSE_SISTEM/dist/*.exe
+          if-no-files-found: error
+
+  android:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: CSE_SISTEM/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      # il progetto Android si genera ogni volta dalle pagine in www/
+      - run: npx cap add android
+      - run: node scripts/android-permessi.mjs
+      - run: npx cap sync android
+      - run: ./gradlew assembleDebug
+        working-directory: CSE_SISTEM/android
+      - run: cp android/app/build/outputs/apk/debug/app-debug.apk CSE_SISTEM-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CSE_SISTEM-Android
+          path: CSE_SISTEM/CSE_SISTEM-debug.apk
+          if-no-files-found: error
