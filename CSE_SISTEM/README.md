@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.4** (di prova): logica e dati provati, interfaccia nello **stile
+Stato: versione **0.5** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -18,7 +18,9 @@ chiaro/scuro automatico), uguale su PC e telefono.
   complete di committenti, responsabile dei lavori, CSP, CSE e DL.
 - **Progetto, PSC, Notifica**: caricamento con titolo, revisione e data.
 - **Imprese e POS**: situazione di ogni impresa; scheda impresa con le
-  **revisioni del POS e i loro allegati** (attestati, DURC, visura, ...) e la
+  **revisioni del POS**, ognuna con i suoi **elaborati** (cartella `POS rev N`)
+  e i suoi **allegati** (cartella `Allegati rev N`, anche con sottocartelle;
+  i file copiati a mano nelle cartelle si trovano da soli) e la
   **verifica di idoneità** con la check list SISTEM (A contenuti minimi del POS,
   B idoneità tecnico-professionale All. XVII, C adempimenti del Titolo IV):
   Sì / No / Non previsto, note, voci nascondibili, esito proposto,
@@ -27,7 +29,8 @@ chiaro/scuro automatico), uguale su PC e telefono.
   integrazioni mancanti e **lettera** di richiesta integrazioni / esito.
 - **Giornale**: una voce al giorno, a linea del tempo.
 - **Foto**: miniature raggruppate per giorno di scatto; anteprima con
-  didascalia e posizione.
+  didascalia, posizione e data di scatto nascondibile (si usa l'originale
+  senza la data stampata, anche nei verbali).
 - **Verbali**: elenco con prescrizioni aperte; verbale completo (presenti,
   imprese, controlli per gruppo, verifica delle prescrizioni precedenti, non
   conformità, prescrizioni, sospensione, segnalazione al committente),

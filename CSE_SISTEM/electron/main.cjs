@@ -109,6 +109,31 @@ ipcMain.handle('cse:claudeVerifica', (e, richiesta) => conClaude().verifica(rich
   avanzamento: (testo) => { if (!e.sender.isDestroyed()) e.sender.send('cse:claudeAvanzamento', testo); },
 }));
 
+// cartella intera con le sottocartelle: [{ nome, percorso: 'Cartella/sotto/file.pdf', byte, modificato }]
+ipcMain.handle('cse:scegliCartellaFile', async (e) => {
+  const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender), { title: 'Cartella da copiare (con le sottocartelle)', properties: ['openDirectory'] });
+  if (r.canceled) return [];
+  const radice = r.filePaths[0];
+  const out = [];
+  const giro = async (dir) => {
+    for (const v of await fsp.readdir(dir, { withFileTypes: true })) {
+      if (v.name.startsWith('.') || /^(desktop\.ini|thumbs\.db)$/i.test(v.name)) continue;
+      const a = path.join(dir, v.name);
+      if (v.isDirectory()) await giro(a);
+      else if (v.isFile()) {
+        out.push({
+          nome: v.name,
+          percorso: path.relative(path.dirname(radice), a).split(path.sep).join('/'),
+          byte: new Uint8Array(await fsp.readFile(a)),
+          modificato: (await fsp.stat(a)).mtimeMs,
+        });
+      }
+    }
+  };
+  await giro(radice);
+  return out;
+});
+
 ipcMain.handle('cse:pdfDaHtml', async (_e, html, p) => {
   const win = new BrowserWindow({ show: false, webPreferences: { javascript: false } });
   // file temporaneo invece di un indirizzo data: (che non regge le pagine con le foto, oltre 2 MB)

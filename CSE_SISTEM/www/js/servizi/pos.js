@@ -141,36 +141,98 @@ export function situazionePos(imprese, posTutti, verificheTutte) {
   });
 }
 
-// ------------------------------------------------------------ documenti esaminati
+// ------------------------------------------------------------ elaborati e allegati
+
+/** Cartelle di una revisione dentro la cartella POS dell'impresa. */
+export function cartelleRevisione(pos) {
+  const rev = String(pos.revisione ?? '0').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || '0';
+  return { elaborati: `POS rev ${rev}`, allegati: `Allegati rev ${rev}` };
+}
+
+const senzaEstensione = (f) => f.split('/').pop().replace(/\.[^.]+$/, '');
 
 /**
- * Documenti da esaminare per la revisione `pos`: il file del POS, i suoi
- * allegati e quelli delle revisioni precedenti (attestati, DURC, ... restano
- * validi finché non scadono), più il PSC del cantiere se c'è.
+ * Elenco dei file di una revisione: quelli registrati dal programma più
+ * quelli copiati a mano nella cartella (anche in sottocartelle), che compaiono
+ * da soli. Un file registrato ma non (ancora) presente su disco resta in
+ * elenco con mancante: true (per esempio se Google Drive non l'ha sincronizzato).
+ * @param {Array<{file, titolo, data}>} registrati
+ * @param {string[]} suDisco percorsi relativi alla cartella POS di tutti i file presenti
+ * @param {string} cartella sottocartella della revisione ("Allegati rev 0")
+ * @returns {Array<{ file, titolo, data, gruppo, mancante, trovato }>}
+ */
+export function unisciFile(registrati = [], suDisco = null, cartella = '') {
+  // suDisco null: cartella non letta, i file registrati si considerano presenti
+  const presenti = suDisco ? new Set(suDisco) : null;
+  const out = [];
+  const visti = new Set();
+  const gruppo = (f) => {
+    const dentro = cartella && f.startsWith(`${cartella}/`) ? f.slice(cartella.length + 1) : f;
+    return dentro.includes('/') ? dentro.slice(0, dentro.lastIndexOf('/')) : '';
+  };
+  for (const r of registrati) {
+    if (!r?.file || visti.has(r.file)) continue;
+    visti.add(r.file);
+    out.push({ ...r, titolo: r.titolo || senzaEstensione(r.file), gruppo: gruppo(r.file), mancante: presenti ? !presenti.has(r.file) : false, trovato: false });
+  }
+  if (cartella && suDisco) {
+    for (const f of suDisco) {
+      if (!f.startsWith(`${cartella}/`) || visti.has(f)) continue;
+      visti.add(f);
+      out.push({ file: f, titolo: senzaEstensione(f), data: '', gruppo: gruppo(f), mancante: false, trovato: true });
+    }
+  }
+  return out.sort((x, y) => x.gruppo.localeCompare(y.gruppo, 'it') || 0);
+}
+
+/** Elaborati del POS (almeno il file principale) e allegati della revisione. */
+export function fileRevisione(pos, suDisco = null) {
+  const c = cartelleRevisione(pos);
+  const registrati = pos.elaborati?.length ? pos.elaborati : pos.file ? [{ file: pos.file, titolo: senzaEstensione(pos.file) }] : [];
+  return {
+    elaborati: unisciFile(registrati, suDisco, c.elaborati),
+    allegati: unisciFile(pos.allegati || [], suDisco, c.allegati),
+  };
+}
+
+// ------------------------------------------------------------ documenti esaminati
+
+const LEGGIBILI = /\.(pdf|txt|jpe?g|png|gif|webp)$/i;
+
+/**
+ * Documenti da esaminare per la revisione `pos`: gli elaborati del POS, i
+ * suoi allegati e quelli delle revisioni precedenti (attestati, DURC, ...
+ * restano validi finché non scadono), più il PSC del cantiere se c'è.
+ * Ogni revisione può portare _file = fileRevisione(...) già calcolato.
+ * I file che Claude non sa leggere (es. .docx, .p7m) sono in elenco ma non scelti.
  * Percorsi relativi alla cartella dei dati.
- * @returns {Array<{ percorso, titolo, tipo: 'pos'|'allegato'|'psc', scelto: boolean }>}
+ * @returns {Array<{ percorso, titolo, tipo: 'pos'|'allegato'|'psc', gruppo, scelto, leggibile }>}
  */
 export function documentiDaEsaminare({ cartellaPos, posImpresa, pos, psc = null, percorsoPsc = null }) {
-  const out = [{ percorso: `${cartellaPos}/${pos.file}`, titolo: `POS rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}`, tipo: 'pos', scelto: true }];
+  const fr = (r) => r._fileRev || fileRevisione(r);
+  const voce = (f, tipo, titolo, gruppo = '') => {
+    const leggibile = LEGGIBILI.test(f.file);
+    return { percorso: `${cartellaPos}/${f.file}`, titolo, tipo, gruppo, scelto: leggibile && !f.mancante, leggibile };
+  };
+  const intestazione = `POS rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}`;
+  const el = fr(pos).elaborati;
+  const out = el.map((e) => voce(e, 'pos', el.length > 1 ? `${intestazione} – ${e.titolo}` : intestazione, e.gruppo));
   const fino = posImpresa.indexOf(pos);
   const revisioni = fino >= 0 ? posImpresa.slice(0, fino + 1) : [pos];
   for (const r of [...revisioni].reverse()) {
-    for (const a of r.allegati || []) {
-      out.push({
-        percorso: `${cartellaPos}/${a.file}`,
-        titolo: `${a.titolo || a.file.split('/').pop()}${a.data ? ` (ricevuto il ${dataIt(a.data)})` : ''}${r.id !== pos.id ? ` – con la rev. ${r.revisione}` : ''}`,
-        tipo: 'allegato',
-        scelto: true,
-      });
+    for (const a of fr(r).allegati) {
+      out.push(voce(a, 'allegato',
+        `${a.gruppo ? `${a.gruppo}/` : ''}${a.titolo}${a.data ? ` (ricevuto il ${dataIt(a.data)})` : ''}${r.id !== pos.id ? ` – con la rev. ${r.revisione}` : ''}`,
+        a.gruppo));
     }
   }
-  if (psc && percorsoPsc) out.push({ percorso: percorsoPsc, titolo: `${/^PSC\b/i.test(psc.titolo) ? '' : 'PSC '}${psc.titolo}${psc.revisione ? ` rev. ${psc.revisione}` : ''}${psc.data ? ` del ${dataIt(psc.data)}` : ''}`, tipo: 'psc', scelto: true });
+  if (psc && percorsoPsc) out.push({ percorso: percorsoPsc, titolo: `${/^PSC\b/i.test(psc.titolo) ? '' : 'PSC '}${psc.titolo}${psc.revisione ? ` rev. ${psc.revisione}` : ''}${psc.data ? ` del ${dataIt(psc.data)}` : ''}`, tipo: 'psc', gruppo: '', scelto: true, leggibile: true });
   return out;
 }
 
 /** Riga «Documentazione ditta» della check list: «X – POS rev. 00 del ... + attestati del ...». */
 export function descriviDocumentazione(impresa, pos) {
-  const allegati = (pos.allegati || []).map((a) => a.data).filter(Boolean).sort();
+  const allegati = (pos._fileRev?.allegati || pos.allegati || []).map((a) => a.data).filter(Boolean).sort();
   const ultimi = allegati.length ? ` + allegati del ${dataIt(allegati.at(-1))}` : '';
   const lav = impresa.lavorazioni ? ` (${impresa.lavorazioni.split('\n')[0].slice(0, 80)})` : '';
   return `${impresa.ragioneSociale}${lav} – POS rev. ${pos.revisione}${pos.dataPos ? ` del ${dataIt(pos.dataPos)}` : ''}${ultimi}`;

@@ -143,6 +143,38 @@ export class Archivio {
     return percorso(cart, 'POS');
   }
 
+  /**
+   * Tutti i file di una cartella e delle sue sottocartelle, come percorsi
+   * relativi alla cartella ("Attestati/primo soccorso.pdf"). Si saltano i
+   * file nascosti, i temporanei e le schede .json del programma.
+   */
+  async elencaFile(cartella) {
+    if (!(await this.disco.esiste(cartella))) return [];
+    const out = [];
+    const giro = async (rel) => {
+      for (const v of await this.disco.elenca(percorso(cartella, rel))) {
+        if (v.nome.startsWith('.') || v.nome.endsWith('.tmp') || /^desktop\.ini$|^thumbs\.db$/i.test(v.nome)) continue;
+        const r = rel ? `${rel}/${v.nome}` : v.nome;
+        if (v.cartella) await giro(r);
+        else if (!v.nome.endsWith('.json')) out.push(r);
+      }
+    };
+    await giro('');
+    return out.sort((a, b) => a.localeCompare(b, 'it'));
+  }
+
+  /**
+   * Copia un file mantenendo le sottocartelle del percorso relativo
+   * ("Attestati/Rossi/primo soccorso.pdf"). Restituisce il percorso usato.
+   */
+  async salvaFileInCartelle(cartella, relativo, byte) {
+    const parti = String(relativo).split(/[\\/]/).filter(Boolean);
+    const nome = parti.pop();
+    const sotto = parti.map((x) => nomeSicuro(x)).join('/');
+    const finale = await this.salvaFile(percorso(cartella, sotto), nome, byte);
+    return sotto ? `${sotto}/${finale}` : finale;
+  }
+
   // ------------------------------------------------------------ varie
   async apri(p) {
     return this.disco.apri(p);

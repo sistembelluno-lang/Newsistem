@@ -24,6 +24,8 @@ export function serviziElectron(nativo = globalThis.cseNative) {
   return {
     /** Fa scegliere uno o più file dal PC: [{ nome, byte, modificato }]. */
     scegliFile: (filtri) => nativo.scegliFile(filtri),
+    /** Fa scegliere una cartella e ne restituisce tutti i file, sottocartelle comprese. */
+    scegliCartellaFile: () => nativo.scegliCartellaFile(),
     /** Salva un PDF dall'HTML (stampa del verbale, della verifica, ...). */
     pdfDaHtml: (html, percorsoPdf) => nativo.pdfDaHtml(html, percorsoPdf),
     cartellaDati: () => nativo.cartellaDati(),

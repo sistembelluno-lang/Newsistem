@@ -26,7 +26,7 @@ pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:1
 <header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
 <main>
 <h1>Guida a CSE_SISTEM</h1>
-<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.4.</p>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.5.</p>
 
 <div class="box"><b class="t">In breve</b>
 CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
@@ -40,14 +40,14 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <h2>1. Scaricare e installare</h2>
 <p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
 <table><tr><th>File</th><th>Per</th><th>Note</th></tr>
-<tr><td><code>CSE_SISTEM-0.4.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
-<tr><td><code>CSE_SISTEM-0.4.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM-0.5.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.5.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
 <tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
 <tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
 
 <h3>Windows</h3>
 <ol class="passi">
-<li>Scarica <code>CSE_SISTEM-0.4.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Scarica <code>CSE_SISTEM-0.5.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
 <li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
 <li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
 </ol>
@@ -114,11 +114,18 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <ol class="passi">
 <li><b>Nuova impresa</b>: ragione sociale, impresa o lavoratore autonomo, ruolo (affidataria, esecutrice, subappaltatrice) e, per i subappalti, l'impresa affidataria.</li>
 <li>Nella <b>scheda dell'impresa</b> completa i dati (sede, PEC, e-mail, datore di lavoro, direttore tecnico, capocantiere, RSPP, medico competente, RLS, lavorazioni, date di ingresso e uscita). Sede, PEC ed e-mail finiscono nei destinatari della lettera.</li>
-<li><b>Carica POS</b>: scegli il PDF ricevuto e indica revisione, data e data di ricezione. Subito dopo il programma chiede se sono arrivati anche gli <b>allegati</b> (attestati di formazione, idoneità sanitarie, DURC, visura, DVR, dichiarazioni): sceglili tutti insieme e indica la data di ricezione.</li>
-<li>Quando l'impresa manda un <b>aggiornamento</b>: se è un POS nuovo usa <b>Nuova revisione</b>; se manda solo documenti (es. gli attestati mancanti) aggiungili alla revisione con il pulsante della colonna <b>Allegati</b>. Le revisioni vecchie restano in elenco come «superata».</li>
+<li><b>Carica POS</b>: scegli il file del POS, oppure <b>tutti gli elaborati</b> di cui è composto (relazione, schede delle fasi, planimetrie, ...), e indica revisione, data e data di ricezione. Si apre subito la finestra <b>Documenti</b> della revisione per aggiungere gli allegati.</li>
+<li>Nella finestra <b>Documenti</b> (pulsante nella colonna «Documenti» della revisione):
+<ul>
+<li><b>Aggiungi elaborati</b>: altri file del POS;</li>
+<li><b>Aggiungi file</b>: allegati, anche molti insieme (attestati, idoneità sanitarie, DURC, visura, DVR, dichiarazioni), con la data di ricezione;</li>
+<li><b>Aggiungi cartella</b> (su PC): copia una cartella intera così come l'ha mandata l'impresa, <b>con le sue sottocartelle</b>; gli allegati restano raggruppati per cartella;</li>
+<li>l'icona della <b>cartella</b> apre in Esplora risorse le cartelle <code>POS rev N</code> e <code>Allegati rev N</code>: i file che copi lì a mano (anche da Google Drive) <b>compaiono da soli</b>, con «nella cartella» al posto della data. <b>Aggiorna</b> rilegge le cartelle.</li>
+</ul></li>
+<li>Quando l'impresa manda un <b>aggiornamento</b>: se è un POS nuovo usa <b>Nuova revisione</b>; se manda solo documenti aggiungili nei <b>Documenti</b> della revisione. Le revisioni vecchie restano in elenco come «superata».</li>
 </ol>
 <figure><img src="img/cse_impresa.jpg" alt=""><figcaption>Scheda dell'impresa: revisioni del POS, allegati e verifiche</figcaption></figure>
-<figure class="md"><img src="img/cse_allegati.jpg" alt=""><figcaption>Allegati di una revisione: si aprono, si tolgono, se ne aggiungono altri</figcaption></figure>
+<figure><img src="img/cse_allegati.jpg" alt=""><figcaption>Documenti di una revisione: elaborati del POS e allegati raggruppati per cartella</figcaption></figure>
 
 <h3>La check list</h3>
 <p><b>Verifica ora</b> apre la check list SISTEM, la stessa del modello cartaceo: <b>A</b> contenuti minimi del POS (Allegato XV 3.2.1), <b>B</b> idoneità tecnico-professionale (Allegato XVII), <b>C</b> ulteriori adempimenti (Titolo IV). Per ogni voce scegli <i>Sì</i>, <i>No</i> o <i>Non previsto</i> e scrivi la nota che verrà stampata sotto la voce (es. «Regolare, scadenza 11/02/2027.»).</p>
@@ -131,7 +138,7 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 </ul>
 
 <h3>Verifica con Claude (su PC)</h3>
-<p><b>Verifica con Claude</b> fa leggere a Claude il POS, i suoi allegati (anche quelli delle revisioni precedenti) e il PSC del cantiere. Prima scegli quali documenti mandare; dopo qualche minuto la check list è compilata voce per voce con le note, l'esito, le integrazioni con le condizioni operative e i testi della lettera.</p>
+<p><b>Verifica con Claude</b> fa leggere a Claude tutti gli elaborati del POS, i suoi allegati (anche quelli delle revisioni precedenti, cartelle comprese) e il PSC del cantiere. Prima scegli quali documenti mandare (<b>Tutti</b> / <b>Nessuno</b>, oppure uno per uno; i file in formati che Claude non legge sono segnalati e non si possono scegliere); dopo qualche minuto la check list è compilata voce per voce con le note, l'esito, le integrazioni con le condizioni operative e i testi della lettera.</p>
 <figure class="md"><img src="img/cse_claude_documenti.jpg" alt=""><figcaption>Scelta dei documenti da far leggere a Claude</figcaption></figure>
 <figure><img src="img/cse_verificapos.jpg" alt=""><figcaption>La proposta di Claude, da controllare e salvare</figcaption></figure>
 <div class="box att"><b class="t">La proposta va controllata</b>Finché non premi <b>Salva</b> (o uno dei PDF) la proposta non è salvata; con <b>Scarta la proposta</b> torni alla verifica di prima. Leggi i punti segnalati «Da controllare di persona» (documenti illeggibili, dubbi). La responsabilità della verifica resta del CSE.</div>
@@ -169,7 +176,7 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <li>La <b>data di scatto</b> si legge dalla foto stessa (dati EXIF). Le foto sono <b>ordinate per data di scatto</b> e raggruppate per giorno, anche se caricate in un altro momento.</li>
 <li>Su ogni foto la data e l'ora di scatto vengono stampate <b>in basso a destra</b>. L'originale resta intatto in <code>originali</code>; la copia con la data è in <code>timbrate</code>.</li>
 <li>Una foto senza data di scatto (per esempio inviata con WhatsApp) prende la data del file e viene segnata con <span class="pill">!</span>: verificala.</li>
-<li>Tocca una foto per vederla in grande e aggiungere <b>didascalia</b> e <b>posizione in cantiere</b>.</li>
+<li>Tocca una foto per vederla in grande e aggiungere <b>didascalia</b> e <b>posizione in cantiere</b>. Con <b>Nascondi la data di scatto</b> nel registro e nei verbali si usa la foto senza la data stampata (la data resta nei dati della foto, per l'ordinamento); queste foto hanno il simbolo dell'occhio barrato.</li>
 </ul>
 <figure><img src="img/cse_foto.jpg" alt=""><figcaption>Foto raggruppate per giorno di scatto</figcaption></figure>
 
@@ -182,11 +189,11 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <li><b>Verifiche effettuate</b>: per ogni controllo, divisi per gruppo, scegli <i>Conforme</i>, <i>Non conforme</i> o <i>Non verificato</i>, con note.</li>
 <li><b>Non conformità</b> e <b>Prescrizioni</b> (con impresa e scadenza «entro il»). Le prescrizioni scadute compaiono in rosso nel riepilogo.</li>
 <li><b>Provvedimenti</b>: sospensione delle singole lavorazioni (art. 92 c. 1 lett. f) e segnalazione al committente o al responsabile dei lavori (art. 92 c. 1 lett. e).</li>
-<li><b>Foto del verbale</b>: <b>Dal registro</b> fa scegliere le foto già scattate (quelle del giorno del verbale sono in cima: tocca per scegliere, tocca di nuovo per togliere); <b>Scatta</b> (telefono) o <b>Carica</b> aggiungono foto nuove, che vanno anche nel registro fotografico. La × toglie la foto dal verbale ma non dal registro. Toccando una foto si scrive la didascalia.</li>
+<li><b>Foto del verbale</b>: <b>Dal registro</b> fa scegliere le foto già scattate (quelle del giorno del verbale sono in cima: tocca per scegliere, tocca di nuovo per togliere); <b>Scatta</b> (telefono) o <b>Carica</b> aggiungono foto nuove, che vanno anche nel registro fotografico. Sotto ogni foto scrivi la <b>didascalia</b> e scegli se lasciare la <b>data di scatto</b> stampata sulla foto: togliendo la spunta si usa la foto senza data e la data sparisce anche dalla didascalia del PDF. La × toglie la foto dal verbale ma non dal registro.</li>
 </ol>
 <h3>Nascondere i controlli che non servono</h3>
 <p>Nelle <b>Verifiche effettuate</b> l'<b>occhio barrato</b> accanto a un controllo lo nasconde: non compare nel verbale stampato (per esempio i ponteggi in un cantiere che non li ha). «Mostra nascosti» li fa rivedere. Il verbale successivo li tiene già nascosti.</p>
-<figure class="md"><img src="img/cse_verbale_foto.jpg" alt=""><figcaption>Foto scelte per il verbale</figcaption></figure>
+<figure class="md"><img src="img/cse_verbale_foto.jpg" alt=""><figcaption>Foto del verbale con didascalia; nella seconda la data è nascosta</figcaption></figure>
 <figure><img src="img/cse_verbale1.jpg" alt=""><figcaption>Inizio del verbale</figcaption></figure>
 <figure><img src="img/cse_verbale2.jpg" alt=""><figcaption>Verifiche effettuate, divise per gruppo</figcaption></figure>
 <h3>Salvare, stampare, chiudere</h3>
@@ -246,5 +253,5 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 
 <div class="box"><b class="t">Versione di prova</b>
 Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
-<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.4 · SISTEM SRL STP</p>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.5 · SISTEM SRL STP</p>
 </main></body></html>

@@ -128,7 +128,10 @@ export function nuovoPos(campi = {}) {
     revisione: '0',
     dataPos: '',      // data del documento
     dataRicezione: oggi(),
-    file: '',
+    file: '',         // primo elaborato (per aprire il POS con un clic)
+    // il POS può essere composto da più elaborati: [{ file: 'POS rev 1/Relazione.pdf', titolo }]
+    // (file relativi alla cartella POS; quelli copiati a mano in «POS rev N» si trovano da soli)
+    elaborati: [],
     // documenti arrivati con il POS o dopo (attestati, DURC, visura, ...):
     // [{ file: 'Allegati rev 0/attestati.pdf', titolo, data }] (file relativo alla cartella POS)
     allegati: [],
@@ -196,6 +199,7 @@ export function nuovaFoto(campi = {}) {
     timbrata: '',       // nome del file in timbrate/
     didascalia: '',
     luogo: '',
+    nascondiData: false, // true: nel registro e nei verbali si usa la foto senza la data stampata
     imprese: [],
     larghezza: null,
     altezza: null,

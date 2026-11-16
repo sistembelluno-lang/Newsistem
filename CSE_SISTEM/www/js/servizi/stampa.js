@@ -79,13 +79,13 @@ ${fotoVerbale(foto)}`;
 
 /**
  * Documentazione fotografica del verbale: due foto per riga, con numero,
- * data e ora di scatto e didascalia. foto: [{ src (data URL), scattata, didascalia, luogo }]
+ * data e ora di scatto (se non è nascosta: scattata vuota) e didascalia. foto: [{ src (data URL), scattata, didascalia, luogo }]
  */
 function fotoVerbale(foto) {
   if (!foto?.length) return '';
   return `<div class="foto-v">
 <h2>Documentazione fotografica</h2>
-<div class="griglia-foto">${foto.map((f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption><b>Foto ${i + 1}</b> – ${dataOraIt(f.scattata)}${f.luogo ? ` – ${esc(f.luogo)}` : ''}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`).join('')}</div>
+<div class="griglia-foto">${foto.map((f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption>${[`<b>Foto ${i + 1}</b>`, f.scattata ? dataOraIt(f.scattata) : '', f.luogo ? esc(f.luogo) : ''].filter(Boolean).join(' – ')}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`).join('')}</div>
 </div>`;
 }
 

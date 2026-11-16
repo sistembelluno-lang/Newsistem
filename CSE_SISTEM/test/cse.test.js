@@ -2,8 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   applicaProposta, completaVerifica, descriviDocumentazione, documentiDaEsaminare, esitoProposto, idoneitaProposta, integrazioniProposte,
-  letteraProposta, nuovaVerifica, situazionePos,
+  letteraProposta, nuovaVerifica, situazionePos, fileRevisione, cartelleRevisione,
 } from '../www/js/servizi/pos.js';
+import { Archivio } from '../www/js/core/archivio.js';
+import { discoInMemoria } from '../www/js/piattaforme/memoria.js';
 import { controllaRisposta, richiestaVerifica } from '../www/js/servizi/claude.js';
 import { prossimoNumero, nuovoVerbaleSopralluogo, prescrizioniAperte, chiudi, modificabile, controlliNascosti } from '../www/js/servizi/verbali.js';
 import { nuovaVoce, ordinaVoci, voceDelGiorno, fotoDelGiorno } from '../www/js/servizi/giornale.js';
@@ -79,6 +81,37 @@ test('verifica POS: documenti da esaminare (POS, allegati di tutte le revisioni,
   assert.equal(documentiDaEsaminare({ cartellaPos: 'X/POS', posImpresa: [p0, p1], pos: p0 }).length, 2);
   assert.equal(descriviDocumentazione(nuovaImpresa({ ragioneSociale: 'TRETTEL s.r.l.', lavorazioni: 'esbosco con gru a cavo' }), p1),
     'TRETTEL s.r.l. (esbosco con gru a cavo) – POS rev. 1 del 09/11/2026 + allegati del 09/11/2026');
+});
+
+test('POS in più elaborati e molti allegati, anche in cartelle e copiati a mano', async () => {
+  const a = new Archivio(discoInMemoria());
+  const cart = 'CSE_SISTEM/C/04_Imprese_e_POS/Trettel/POS';
+  const pos = nuovoPos({ revisione: '00', file: 'POS rev 00/Relazione.pdf', elaborati: [{ file: 'POS rev 00/Relazione.pdf', titolo: 'Relazione' }, { file: 'POS rev 00/Schede.pdf', titolo: 'Schede' }] });
+  assert.deepEqual(cartelleRevisione(pos), { elaborati: 'POS rev 00', allegati: 'Allegati rev 00' });
+  const b = new Uint8Array([1]);
+  await a.salvaFile(`${cart}/POS rev 00`, 'Relazione.pdf', b);
+  // cartella intera con sottocartelle: si mantiene la struttura
+  assert.equal(await a.salvaFileInCartelle(`${cart}/Allegati rev 00`, 'Attestati/Primo soccorso/Rossi.pdf', b), 'Attestati/Primo soccorso/Rossi.pdf');
+  pos.allegati = [{ file: 'Allegati rev 00/Attestati/Primo soccorso/Rossi.pdf', titolo: 'Rossi', data: '2026-11-09' }];
+  // file copiati a mano (Esplora risorse, Drive): elaborato e allegati in una sottocartella
+  await a.disco.scriviByte(`${cart}/POS rev 00/Planimetria.pdf`, b);
+  await a.disco.scriviByte(`${cart}/Allegati rev 00/DURC.pdf`, b);
+  await a.disco.scriviByte(`${cart}/Allegati rev 00/Visure/visura.docx`, b);
+  await a.disco.scriviByte(`${cart}/Allegati rev 00/desktop.ini`, b);
+  const suDisco = await a.elencaFile(cart);
+  assert.ok(!suDisco.some((f) => f.endsWith('desktop.ini')));
+  const fr = fileRevisione(pos, suDisco);
+  assert.deepEqual(fr.elaborati.map((e) => [e.titolo, e.mancante, e.trovato]), [['Relazione', false, false], ['Schede', true, false], ['Planimetria', false, true]]);
+  assert.deepEqual(fr.allegati.map((x) => [x.gruppo, x.titolo, x.data]), [['', 'DURC', ''], ['Attestati/Primo soccorso', 'Rossi', '2026-11-09'], ['Visure', 'visura', '']]);
+  pos._fileRev = fr;
+  const docs = documentiDaEsaminare({ cartellaPos: cart, posImpresa: [pos], pos });
+  assert.deepEqual(docs.filter((d) => d.tipo === 'pos').map((d) => [d.titolo, d.scelto]), [
+    ['POS rev. 00 – Relazione', true], ['POS rev. 00 – Schede', false], ['POS rev. 00 – Planimetria', true],
+  ], 'elaborato non ancora sincronizzato: non scelto');
+  const visura = docs.find((d) => d.titolo.startsWith('Visure/visura'));
+  assert.equal(visura.leggibile, false, 'un .docx Claude non lo legge');
+  assert.equal(visura.scelto, false);
+  assert.match(docs.find((d) => d.gruppo === 'Attestati/Primo soccorso').titolo, /^Attestati\/Primo soccorso\/Rossi \(ricevuto il 09\/11\/2026\)$/);
 });
 
 test('lettera: destinatari, per conoscenza, oggetto dai dati del cantiere', () => {
@@ -233,6 +266,9 @@ test('verbale: controlli nascosti non stampati e ripresi nel verbale dopo; foto 
   assert.match(conFoto, /Documentazione fotografica[\s\S]*<img src="data:image\/jpeg;base64,AAA"[\s\S]*<b>Foto 1<\/b> – 08\/11\/2026 10:15<br>Parapetto &lt;lato nord&gt;/);
   assert.ok(conFoto.indexOf('Letto, confermato e sottoscritto') < conFoto.indexOf('Documentazione fotografica'), 'le foto dopo le firme');
   assert.ok(!htmlVerbale(cant, v2).includes('Documentazione fotografica'));
+  // data di scatto nascosta: nella didascalia restano numero e testo
+  const senzaData = htmlVerbale(cant, v2, { foto: [{ src: 'data:,', scattata: '', didascalia: 'Ingresso' }] });
+  assert.match(senzaData, /<figcaption><b>Foto 1<\/b><br>Ingresso<\/figcaption>/);
 });
 
 test('registro dei moduli: ruoli e ordine (pronto per la Direzione Lavori)', () => {

@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('cseNative', {
   elimina: chiama('elimina'),
   apri: chiama('apri'),
   scegliFile: chiama('scegliFile'),
+  scegliCartellaFile: chiama('scegliCartellaFile'),
   pdfDaHtml: chiama('pdfDaHtml'),
   cartellaDati: chiama('cartellaDati'),
   scegliCartellaDati: chiama('scegliCartellaDati'),

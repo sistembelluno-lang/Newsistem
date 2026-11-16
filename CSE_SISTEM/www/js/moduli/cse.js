@@ -15,7 +15,7 @@ import { caricaDocumento, elencoDocumenti, percorsoDocumento } from '../servizi/
 import { importaFoto, ordinaFoto, perGiorno } from '../servizi/foto.js';
 import { timbraFoto } from '../servizi/timbro.js';
 import {
-  applicaProposta, completaVerifica, descriviDocumentazione, documentiDaEsaminare, esitoProposto, idoneitaProposta, integrazioniProposte,
+  applicaProposta, cartelleRevisione, completaVerifica, descriviDocumentazione, fileRevisione, documentiDaEsaminare, esitoProposto, idoneitaProposta, integrazioniProposte,
   letteraProposta, nuovaVerifica, posInOrdine, situazionePos, verificaDelPos,
 } from '../servizi/pos.js';
 import { controllaRisposta, MODELLO_CLAUDE, richiestaVerifica } from '../servizi/claude.js';
@@ -34,7 +34,14 @@ function stato(ctx) {
       const a = ctx.archivio;
       const imprese = await a.elencoImprese(cod);
       const pos = [];
-      for (const imp of imprese) pos.push(...(await a.leggiTutti(a.cartellaPos(cod, imp))).filter((x) => x.tipo === 'pos'));
+      for (const imp of imprese) {
+        const cart = a.cartellaPos(cod, imp);
+        const qui = (await a.leggiTutti(cart)).filter((x) => x.tipo === 'pos');
+        if (!qui.length) continue;
+        const suDisco = await a.elencaFile(cart); // elaborati e allegati, anche copiati a mano nelle cartelle
+        for (const p of qui) p._fileRev = fileRevisione(p, suDisco);
+        pos.push(...qui);
+      }
       const verifiche = await a.registrazioni(cod, 'verifichePos');
       const verbali = (await a.registrazioni(cod, 'verbali')).sort((x, y) => (y.numero - x.numero) || confronta(y.data, x.data));
       const documenti = {};
@@ -303,79 +310,147 @@ function pillSituazione(x) {
 
 const ACCETTA_DOC = '.pdf,application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png';
 
+/** Fa scegliere una cartella (con le sottocartelle): [{ nome, percorso: 'Cartella/sotto/file.pdf', byte, modificato }]. */
+async function scegliCartella(ctx) {
+  if (ctx.servizi.scegliCartellaFile) return ctx.servizi.scegliCartellaFile();
+  return new Promise((ok) => {
+    const inp = h('input', { type: 'file', webkitdirectory: true, multiple: true });
+    inp.addEventListener('change', async () => {
+      const out = [];
+      for (const f of inp.files) out.push({ nome: f.name, percorso: f.webkitRelativePath || f.name, byte: new Uint8Array(await f.arrayBuffer()), modificato: f.lastModified });
+      ok(out);
+    });
+    inp.click();
+  });
+}
+
+const salvaSchedaPos = (ctx, impresa, pos) => ctx.archivio.scriviJson(percorso(ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa), pos._file || `${pos.file}.json`), pos);
+
+/**
+ * Copia file nella cartella della revisione (elaborati o allegati) e li
+ * registra. I file scelti con una cartella mantengono le sottocartelle.
+ */
+async function salvaNellaRevisione(ctx, impresa, pos, tipo, files, data) {
+  const cartPos = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
+  const sotto = cartelleRevisione(pos)[tipo];
+  const lista = tipo === 'elaborati'
+    ? (pos.elaborati = pos.elaborati?.length ? pos.elaborati : pos.file ? [{ file: pos.file, titolo: pos.file.split('/').pop().replace(/\.[^.]+$/, '') }] : [])
+    : (pos.allegati = pos.allegati || []);
+  const attesa = files.length > 3 ? avviso(`Copia di ${files.length} file…`) : null;
+  try {
+    for (const f of files) {
+      const rel = await ctx.archivio.salvaFileInCartelle(percorso(cartPos, sotto), f.percorso || f.nome, f.byte);
+      lista.push({ file: `${sotto}/${rel}`, titolo: rel.split('/').pop().replace(/\.[^.]+$/, ''), ...(data ? { data } : {}) });
+    }
+  } finally {
+    attesa?.remove();
+  }
+  if (tipo === 'elaborati' && !pos.file) pos.file = lista[0]?.file || '';
+  return files.length;
+}
+
 async function caricaPos(ctx, impresa, posImpresa) {
-  const [f] = await scegliFile(ctx, { accetta: '.pdf,application/pdf', multipli: false });
-  if (!f) return false;
+  const files = await scegliFile(ctx, { accetta: ACCETTA_DOC, multipli: true });
+  if (!files.length) return false;
   const dati = await chiedi({
-    titolo: `POS di ${impresa.ragioneSociale}`, testo: f.nome, ok: 'Carica',
+    titolo: `POS di ${impresa.ragioneSociale}`,
+    testo: files.length === 1 ? files[0].nome : `${files.length} elaborati: ${files.map((f) => f.nome).join(', ')}`,
+    ok: 'Carica',
     campi: [
-      { chiave: 'revisione', etichetta: 'Revisione', tipo: 'testo' },
+      { chiave: 'revisione', etichetta: 'Revisione', tipo: 'testo', obbligatorio: true },
       { chiave: 'dataPos', etichetta: 'Data del POS', tipo: 'data' },
       { chiave: 'dataRicezione', etichetta: 'Ricevuto il', tipo: 'data', obbligatorio: true },
     ],
     valori: { revisione: String(posImpresa.length), dataRicezione: oggi() },
+    controlla: (d) => (posImpresa.some((p) => String(p.revisione) === String(d.revisione)) ? `La revisione ${d.revisione} c’è già: per aggiungere elaborati o allegati usa il pulsante «Documenti» di quella revisione.` : null),
   });
   if (!dati) return false;
   const cart = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
-  const nome = await ctx.archivio.salvaFile(cart, f.nome, f.byte);
-  const pos = { ...nuovoPos({ impresa: impresa.id, file: nome, ...dati }), _file: `${nome}.json` };
+  const pos = { ...nuovoPos({ impresa: impresa.id, ...dati }) };
+  await salvaNellaRevisione(ctx, impresa, pos, 'elaborati', files);
+  pos._file = `${cartelleRevisione(pos).elaborati}.json`;
   await ctx.archivio.scriviJson(percorso(cart, pos._file), pos);
-  if (await conferma('Allegati del POS', 'Sono arrivati anche allegati (attestati di formazione, idoneità sanitarie, DURC, visura, DVR, dichiarazioni, ...)? Puoi aggiungerli anche dopo, dalla scheda dell’impresa.', 'Carica gli allegati')) {
-    await caricaAllegati(ctx, impresa, pos);
-  }
   avviso('POS caricato: ora va verificato');
+  finestraDocumenti(ctx, impresa, pos, { nuovo: true });
   return true;
 }
 
-/** Aggiunge allegati a una revisione del POS (nella cartella «Allegati rev N»). */
-async function caricaAllegati(ctx, impresa, pos) {
-  const files = await scegliFile(ctx, { accetta: ACCETTA_DOC, multipli: true });
-  if (!files.length) return 0;
-  const dati = await chiedi({
-    titolo: `Allegati al POS rev. ${pos.revisione}`,
-    testo: files.length === 1 ? files[0].nome : `${files.length} file`,
-    ok: 'Carica',
-    campi: [{ chiave: 'data', etichetta: 'Ricevuti il', tipo: 'data', obbligatorio: true }],
-    valori: { data: oggi() },
+/**
+ * Finestra con tutti i documenti di una revisione: elaborati del POS e
+ * allegati (anche in sottocartelle, anche copiati a mano nella cartella).
+ */
+function finestraDocumenti(ctx, impresa, pos, { nuovo = false } = {}) {
+  const cartPos = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
+  const cartelle = cartelleRevisione(pos);
+  const corpo = h('div', {}, h('div', { class: 'caricamento' }));
+  let cambiato = nuovo;
+  const togli = (tipo, f) => prova(async () => {
+    if (!(await conferma('Togliere il file?', `${f.titolo}: il file viene eliminato dalla cartella del cantiere.`, 'Togli', true))) return;
+    await ctx.archivio.disco.elimina(percorso(cartPos, f.file));
+    if (tipo === 'elaborati') {
+      pos.elaborati = (pos.elaborati?.length ? pos.elaborati : [{ file: pos.file }]).filter((x) => x.file !== f.file);
+      if (pos.file === f.file) pos.file = pos.elaborati[0]?.file || '';
+    } else pos.allegati = (pos.allegati || []).filter((x) => x.file !== f.file);
+    await salvaSchedaPos(ctx, impresa, pos);
+    cambiato = true;
+    disegna();
   });
-  if (!dati) return 0;
-  const cartPos = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
-  const sotto = `Allegati rev ${nomeSicuro(pos.revisione, '0')}`;
-  pos.allegati = pos.allegati || [];
-  for (const f of files) {
-    const nome = await ctx.archivio.salvaFile(percorso(cartPos, sotto), f.nome, f.byte);
-    pos.allegati.push({ file: `${sotto}/${nome}`, titolo: nome.replace(/\.[^.]+$/, ''), data: dati.data });
+  const righe = (tipo, lista) => {
+    const out = [];
+    let gruppo = null;
+    for (const f of lista) {
+      if (f.gruppo !== gruppo) {
+        gruppo = f.gruppo;
+        if (gruppo) out.push(h('tr', { class: 'gr' }, h('td', { colspan: 3 }, icona('cartella'), ' ', gruppo)));
+      }
+      out.push(h('tr', {},
+        h('td', { style: gruppo ? 'padding-left:28px' : null }, h('b', {}, f.titolo), h('span', { class: 'sotto' }, f.file.split('/').pop(), f.mancante ? [' · ', pill('non ancora sincronizzato', 'at')] : null)),
+        h('td', { class: 'stretta' }, f.data ? dataIt(f.data) : f.trovato ? h('span', { class: 'mu' }, 'nella cartella') : ''),
+        h('td', { class: 'az' },
+          bottone('apri', '', () => apri(ctx, percorso(cartPos, f.file)), 'sm icona', { title: 'Apri' }),
+          bottone('cestino', '', togli(tipo, f), 'q sm icona', { title: 'Togli' }))));
+    }
+    return out;
+  };
+  const chiediData = async (n) => (await chiedi({
+    titolo: `Allegati al POS rev. ${pos.revisione}`, testo: `${n} file`, ok: 'Carica',
+    campi: [{ chiave: 'data', etichetta: 'Ricevuti il', tipo: 'data', obbligatorio: true }], valori: { data: oggi() },
+  }))?.data;
+  const aggiungi = (tipo, daCartella) => prova(async () => {
+    const files = daCartella ? await scegliCartella(ctx) : await scegliFile(ctx, { accetta: ACCETTA_DOC, multipli: true });
+    if (!files.length) return;
+    const data = tipo === 'allegati' ? await chiediData(files.length) : null;
+    if (tipo === 'allegati' && !data) return;
+    await salvaNellaRevisione(ctx, impresa, pos, tipo, files, data);
+    await salvaSchedaPos(ctx, impresa, pos);
+    avviso(files.length === 1 ? 'File caricato' : `${files.length} file caricati`);
+    cambiato = true;
+    disegna();
+  });
+  const suPc = ctx.piattaforma === 'windows';
+  const puoCartella = ctx.piattaforma !== 'android';
+  async function disegna() {
+    const fr = fileRevisione(pos, await ctx.archivio.elencaFile(cartPos));
+    pos._fileRev = fr;
+    corpo.replaceChildren(
+      h('h3', { class: 'tit-doc' }, icona('psc'), `Elaborati del POS (${fr.elaborati.length})`,
+        h('span', { class: 'azioni' }, bottone('carica', 'Aggiungi elaborati', aggiungi('elaborati', false), 'sm'),
+          suPc ? bottone('cartella', '', prova(async () => { await ctx.archivio.disco.creaCartella(percorso(cartPos, cartelle.elaborati)); await apri(ctx, percorso(cartPos, cartelle.elaborati)); }), 'q sm icona', { title: `Apri la cartella «${cartelle.elaborati}»` }) : null)),
+      fr.elaborati.length ? h('div', { class: 'tw', style: 'box-shadow:none' }, h('table', { class: 't' }, h('tbody', {}, righe('elaborati', fr.elaborati))))
+        : h('p', { class: 'mu' }, 'Nessun elaborato.'),
+      h('h3', { class: 'tit-doc' }, icona('carica'), `Allegati (${fr.allegati.length})`,
+        h('span', { class: 'azioni' }, bottone('carica', 'Aggiungi file', aggiungi('allegati', false), 'sm'),
+          puoCartella ? bottone('cartella', 'Aggiungi cartella', aggiungi('allegati', true), 'sm', { title: 'Copia una cartella intera, con le sue sottocartelle' }) : null,
+          suPc ? bottone('cartella', '', prova(async () => { await ctx.archivio.disco.creaCartella(percorso(cartPos, cartelle.allegati)); await apri(ctx, percorso(cartPos, cartelle.allegati)); }), 'q sm icona', { title: `Apri la cartella «${cartelle.allegati}»` }) : null)),
+      fr.allegati.length ? h('div', { class: 'tw', style: 'box-shadow:none' }, h('table', { class: 't' }, h('tbody', {}, righe('allegati', fr.allegati))))
+        : vuoto('carica', 'Nessun allegato', 'Attestati di formazione, idoneità sanitarie, DURC, visura, DVR, dichiarazioni: anche molti file o cartelle intere.'),
+      h('p', { class: 'mu piccolo', style: 'margin-top:12px' }, `I file si possono anche copiare direttamente nelle cartelle «${cartelle.elaborati}» e «${cartelle.allegati}» della cartella POS dell’impresa (da Esplora risorse o Google Drive): il programma li trova da solo.`));
   }
-  await ctx.archivio.scriviJson(percorso(cartPos, pos._file || `${pos.file}.json`), pos);
-  avviso(files.length === 1 ? 'Allegato caricato' : `${files.length} allegati caricati`);
-  return files.length;
-}
-
-/** Finestra con gli allegati di una revisione: apri, togli, aggiungi. */
-function finestraAllegati(ctx, impresa, pos) {
-  const cartPos = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
-  const corpo = h('div');
-  let cambiato = false;
-  const disegna = () => corpo.replaceChildren(pos.allegati?.length
-    ? h('div', { class: 'tw', style: 'box-shadow:none' }, tabella(['Allegato', 'Ricevuto', ''], pos.allegati.map((a, i) => h('tr', {},
-      h('td', {}, h('b', {}, a.titolo), h('span', { class: 'sotto' }, a.file.split('/').pop())),
-      h('td', { class: 'stretta' }, dataIt(a.data)),
-      h('td', { class: 'az' },
-        bottone('apri', 'Apri', () => apri(ctx, percorso(cartPos, a.file)), 'sm'),
-        bottone('cestino', '', prova(async () => {
-          if (!(await conferma('Togliere l’allegato?', `${a.titolo}: il file viene eliminato dalla cartella del cantiere.`, 'Togli', true))) return;
-          await ctx.archivio.disco.elimina(percorso(cartPos, a.file));
-          pos.allegati.splice(i, 1);
-          await ctx.archivio.scriviJson(percorso(cartPos, pos._file || `${pos.file}.json`), pos);
-          cambiato = true;
-          disegna();
-        }), 'q sm icona', { title: 'Togli' }))))))
-    : vuoto('carica', 'Nessun allegato', 'Attestati di formazione, idoneità sanitarie, DURC, visura camerale, DVR, dichiarazioni: quello che l’impresa ha mandato con il POS o dopo.'));
-  disegna();
-  const { dlg } = finestra(`Allegati al POS rev. ${pos.revisione} – ${impresa.ragioneSociale}`, corpo, [
-    bottone('carica', 'Aggiungi allegati', prova(async () => { if (await caricaAllegati(ctx, impresa, pos)) { cambiato = true; disegna(); } }), 'p'),
+  disegna().catch((e) => avviso(e.message, 'errore'));
+  const { dlg } = finestra(`Documenti del POS rev. ${pos.revisione} – ${impresa.ragioneSociale}`, corpo, [
+    bottone('', 'Aggiorna', () => disegna(), 'q', { title: 'Rileggi le cartelle (file copiati a mano)' }),
   ], 'grande');
-  dlg.addEventListener('close', () => { if (cambiato) ctx.ricarica(); });
+  dlg.addEventListener('close', () => { if (cambiato || pos._fileRev) ctx.ricarica(); });
 }
 
 registra({
@@ -402,7 +477,7 @@ registra({
       s.situazione.length
         ? h('div', { class: 'tw' }, tabella(['Impresa', 'POS', 'Verifica', 'Da fare'], s.situazione.map((x) => h('tr', { class: 'cliccabile', onclick: () => vai(indirizzo(cod, 'impresa', x.impresa.id)) },
           h('td', {}, h('b', {}, x.impresa.ragioneSociale), h('span', { class: 'sotto' }, ruolo(x.impresa))),
-          h('td', {}, x.pos ? `rev. ${x.pos.revisione}` : '—', x.pos ? h('span', { class: 'sotto' }, `ricevuto il ${dataIt(x.pos.dataRicezione)}${x.pos.allegati?.length ? ` · ${x.pos.allegati.length} allegati` : ''}`) : null),
+          h('td', {}, x.pos ? `rev. ${x.pos.revisione}` : '—', x.pos ? h('span', { class: 'sotto' }, `ricevuto il ${dataIt(x.pos.dataRicezione)}${x.pos._fileRev?.allegati.length ? ` · ${x.pos._fileRev.allegati.length} allegati` : ''}`) : null),
           h('td', {}, pillSituazione(x), x.verifica?.data ? h('span', { class: 'sotto' }, dataIt(x.verifica.data)) : null),
           h('td', {}, x.daFare || h('span', { class: 'mu' }, '—'))))))
         : scheda({ corpo: vuoto('imprese', 'Nessuna impresa', 'Aggiungi le imprese affidatarie, esecutrici e i lavoratori autonomi: per ognuna si caricano il POS e la verifica.', bottone('piu', 'Nuova impresa', nuova, 'p')) }));
@@ -432,13 +507,15 @@ registra({
       h('div', { class: 'pila' },
         scheda({
           titolo: 'Piano operativo di sicurezza: revisioni e allegati', ico: 'psc', azioni: [caricaBtn],
-          tabella: posImpresa.length ? tabella(['Revisione', 'Ricevuto', 'Allegati', 'Verifica', ''], posImpresa.map((p, i) => {
+          tabella: posImpresa.length ? tabella(['Revisione', 'Ricevuto', 'Documenti', 'Verifica', ''], posImpresa.map((p, i) => {
             const v = verificaDelPos(s.verifiche, p.id);
+            const fr = p._fileRev || fileRevisione(p);
+            const date = fr.allegati.map((a) => a.data).filter(Boolean).sort();
             return h('tr', { class: i ? 'superata' : '' },
-              h('td', {}, h('b', {}, `rev. ${p.revisione}`), i ? [' ', pill('superata')] : null, h('span', { class: 'sotto' }, p.file, p.dataPos ? ` · del ${dataIt(p.dataPos)}` : '')),
+              h('td', {}, h('b', {}, `rev. ${p.revisione}`), i ? [' ', pill('superata')] : null, h('span', { class: 'sotto' }, p.dataPos ? `del ${dataIt(p.dataPos)}` : '')),
               h('td', {}, dataIt(p.dataRicezione)),
-              h('td', {}, bottone('carica', p.allegati?.length ? `${p.allegati.length}` : 'Aggiungi', () => finestraAllegati(ctx, imp, p), 'q sm', { title: 'Allegati di questa revisione' }),
-                p.allegati?.length ? h('span', { class: 'sotto' }, `ultimo ${dataIt(p.allegati.map((a) => a.data).sort().at(-1))}`) : null),
+              h('td', {}, bottone('cartella', `${fr.elaborati.length} elab. · ${fr.allegati.length} all.`, () => finestraDocumenti(ctx, imp, p), 'q sm', { title: 'Elaborati e allegati di questa revisione' }),
+                date.length ? h('span', { class: 'sotto' }, `allegati fino al ${dataIt(date.at(-1))}`) : null),
               h('td', {}, v?.esito ? pill(ESITI_VERIFICA_POS[v.esito], TIPO_ESITO_POS[v.esito]) : pill('Da verificare', 'at'),
                 v?.trasmessaIl ? h('span', { class: 'sotto' }, `trasmessa il ${dataIt(v.trasmessaIl)}`) : v?.data ? h('span', { class: 'sotto' }, dataIt(v.data)) : null),
               h('td', { class: 'az' },
@@ -504,14 +581,36 @@ async function verificaConClaude(ctx, { s, impresa, pos, posImpresa, v }) {
   const docs = documentiDaEsaminare({
     cartellaPos: ctx.archivio.cartellaPos(cod, impresa), posImpresa, pos, psc, percorsoPsc: psc ? percorsoDocumento(cod, psc) : null,
   });
-  const elenco = h('div', { class: 'pila', style: 'gap:6px' }, docs.map((d) => h('label', { class: 'spunta' },
-    h('input', { type: 'checkbox', checked: d.scelto, onchange: (e) => { d.scelto = e.target.checked; } }),
-    h('span', {}, d.titolo, h('span', { class: 'rif' }, ` · ${{ pos: 'POS', allegato: 'allegato', psc: 'piano di sicurezza e coordinamento' }[d.tipo]}`)))));
+  const caselle = [];
+  const conta = h('span', { class: 'mu piccolo' });
+  const aggiornaConta = () => { conta.textContent = `${docs.filter((d) => d.scelto).length} di ${docs.length} documenti scelti`; };
+  const riga = (d) => {
+    const c = h('input', { type: 'checkbox', checked: d.scelto, disabled: !d.leggibile, onchange: (e) => { d.scelto = e.target.checked; aggiornaConta(); } });
+    caselle.push([c, d]);
+    return h('label', { class: 'spunta', style: d.gruppo ? 'padding-left:22px' : null }, c,
+      h('span', {}, d.gruppo && d.titolo.startsWith(`${d.gruppo}/`) ? d.titolo.slice(d.gruppo.length + 1) : d.titolo, h('span', { class: 'rif' }, ` · ${{ pos: 'POS', allegato: 'allegato', psc: 'piano di sicurezza e coordinamento' }[d.tipo]}`),
+        d.leggibile ? null : [' ', pill('formato non leggibile da Claude', 'at')]));
+  };
+  const righeDoc = [];
+  let gruppo = null;
+  for (const d of docs) {
+    if (d.tipo === 'allegato' && d.gruppo !== gruppo) {
+      gruppo = d.gruppo;
+      if (gruppo) righeDoc.push(h('div', { class: 'rif', style: 'font-weight:650;margin-top:4px' }, icona('cartella'), ' ', gruppo));
+    }
+    righeDoc.push(riga(d));
+  }
+  const tutti = (v) => () => { for (const [c, d] of caselle) if (d.leggibile) { c.checked = v; d.scelto = v; } aggiornaConta(); };
+  aggiornaConta();
+  const elenco = [
+    h('div', { class: 'azioni', style: 'justify-content:flex-start;margin-bottom:8px' }, bottone('ok', 'Tutti', tutti(true), 'q sm'), bottone('chiudi', 'Nessuno', tutti(false), 'q sm'), conta),
+    h('div', { class: 'pila elenco-doc', style: 'gap:6px' }, righeDoc),
+  ];
   const ok = await chiedi({
     titolo: 'Verifica con Claude',
     testo: 'Claude legge i documenti scelti, compila la check list voce per voce, propone l’esito, le integrazioni e i testi della lettera. Controlla tutto prima di firmare: la responsabilità della verifica resta del CSE.',
     ok: 'Avvia la verifica',
-    contenuto: [elenco, nota(psc ? 'Con il PSC la verifica è più completa ma più lunga e costosa (fino a 600 pagine in tutto per richiesta).' : 'Nessun PSC caricato nel cantiere: Claude non potrà controllare la coerenza con il PSC.', 'info')],
+    contenuto: [...elenco, nota(psc ? 'Con il PSC la verifica è più completa ma più lunga e costosa (fino a 600 pagine in tutto per richiesta).' : 'Nessun PSC caricato nel cantiere: Claude non potrà controllare la coerenza con il PSC.', 'info')],
   });
   if (!ok) return;
   const scelti = docs.filter((d) => d.scelto);
@@ -637,12 +736,13 @@ registra({
     const claudeBtn = ctx.servizi.claude
       ? bottone('claude', 'Verifica con Claude', prova(() => verificaConClaude(ctx, { s, impresa, pos, posImpresa, v })), 'p')
       : null;
-    const docAllegati = (pos.allegati || []).length;
+    const frPos = pos._fileRev || fileRevisione(pos);
+    const docAllegati = frPos.allegati.length;
     return h('div', {},
       testata(`Verifica del POS – ${impresa.ragioneSociale}`,
-        `Revisione ${pos.revisione} ricevuta il ${dataIt(pos.dataRicezione)}${docAllegati ? ` · ${docAllegati} allegati` : ''} · check list POS e idoneità tecnico-professionale`,
+        `Revisione ${pos.revisione} ricevuta il ${dataIt(pos.dataRicezione)} · ${frPos.elaborati.length} elaborat${frPos.elaborati.length === 1 ? 'o' : 'i'}${docAllegati ? ` · ${docAllegati} allegati` : ''} · check list POS e idoneità tecnico-professionale`,
         bottone('apri', 'Apri il POS', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, impresa), pos.file))),
-        bottone('carica', 'Allegati', () => finestraAllegati(ctx, impresa, pos)),
+        bottone('cartella', 'Documenti', () => finestraDocumenti(ctx, impresa, pos)),
         claudeBtn),
       bozza ? nota(h('span', {}, h('b', {}, 'Proposta di Claude non ancora salvata. '), `Compilata il ${dataIt(bozza.ai?.data)} leggendo: ${(bozza.ai?.documenti || []).join('; ')}. Controlla ogni voce, correggi dove serve e salva.`), 'info') : null,
       bozza?.avvisiAi?.length ? nota(h('div', {}, h('b', {}, 'Da controllare di persona:'), h('ul', { style: 'margin:4px 0 0' }, bozza.avvisiAi.map((a) => h('li', {}, a))))) : null,
@@ -741,13 +841,19 @@ async function leggiFoto(ctx, p) {
   return urlFoto.get(p);
 }
 
-const percorsoFoto = (ctx, f) => percorso(cartellaSezione(ctx.cantiere.codice, 'foto'), 'timbrate', f.timbrata);
+/** File della foto da mostrare e stampare: con la data stampata, oppure l'originale se la data è nascosta. */
+const percorsoFoto = (ctx, f) => percorso(cartellaSezione(ctx.cantiere.codice, 'foto'), ...(f.nascondiData ? ['originali', f.originale] : ['timbrate', f.timbrata]));
+
+/** Salva la scheda di una foto (didascalia, data nascosta, ...) nel registro. */
+const salvaFoto = (ctx, f) => ctx.archivio.salvaRegistrazione(ctx.cantiere.codice, 'foto', f);
 
 function miniatura(ctx, f, alClic = null) {
   const el = h('button', { type: 'button', class: 'foto', onclick: () => (alClic ? alClic() : apriFoto(ctx, f)), title: f.didascalia || dataOraIt(f.scattata) },
     h('span', { class: 'attesa' }, icona('foto')),
     h('span', { class: 'ora' }, String(f.scattata).slice(11, 16)),
-    f.fonteData !== 'exif' ? h('span', { class: 'attenz pill at', title: 'Data di scatto non presente nella foto: è la data del file' }, '!') : null);
+    f.fonteData !== 'exif' ? h('span', { class: 'attenz pill at', title: 'Data di scatto non presente nella foto: è la data del file' }, '!') : null,
+    f.didascalia ? h('span', { class: 'dida' }, f.didascalia) : null,
+    f.nascondiData ? h('span', { class: 'senza-data', title: 'Data di scatto nascosta: si usa la foto senza la data stampata' }, icona('nascosto')) : null);
   const carica = async () => {
     try {
       el.querySelector('.attesa')?.replaceWith(h('img', { src: await leggiFoto(ctx, percorsoFoto(ctx, f)), alt: f.didascalia || '', loading: 'lazy' }));
@@ -767,6 +873,7 @@ function apriFoto(ctx, f) {
   const dati = campi([
     { chiave: 'didascalia', etichetta: 'Didascalia', tipo: 'testo', largo: true },
     { chiave: 'luogo', etichetta: 'Posizione in cantiere', tipo: 'testo', largo: true },
+    { chiave: 'nascondiData', etichetta: 'Nascondi la data di scatto (nel registro e nei verbali si usa la foto senza la data stampata)', tipo: 'spunta', largo: true },
   ], f);
   const { chiudi: chiudiF } = finestra(`${giorno(f.scattata)} ${dataOraIt(f.scattata)}`, [
     imm,
@@ -937,11 +1044,17 @@ registra({
 
     // foto del verbale: scelte dal registro fotografico, oppure scattate / caricate adesso
     v.foto = (v.foto || []).filter((id) => s.foto.some((f) => f.id === id));
-    const grigliaFoto = h('div', { class: 'foto-griglia' });
+    const grigliaFoto = h('div', { class: 'didascalie' });
     const disegnaFoto = () => grigliaFoto.replaceChildren(...(v.foto.length
       ? v.foto.map((id) => {
         const f = s.foto.find((x) => x.id === id);
-        // aprendo la foto (per la didascalia) la pagina si ricarica: prima si salva il verbale
+        // didascalia e data: si salvano subito nella scheda della foto (valgono anche nel registro)
+        const aggiornaFoto = prova(async (campi) => {
+          Object.assign(f, campi);
+          Object.assign(f, await salvaFoto(ctx, f));
+          disegnaFoto();
+        });
+        const cella = h('div', { class: 'cella' });
         const el = miniatura(ctx, f, blocco ? null : prova(async () => { await salva(); apriFoto(ctx, f); }));
         if (!blocco) {
           el.append(h('span', {
@@ -949,10 +1062,12 @@ registra({
             onclick: (e) => { e.stopPropagation(); v.foto = v.foto.filter((x) => x !== id); disegnaFoto(); },
           }, icona('chiudi')));
         }
-        if (f.didascalia) el.append(h('span', { class: 'dida' }, f.didascalia));
-        return el;
+        cella.append(el,
+          h('input', { type: 'text', value: f.didascalia || '', placeholder: 'Didascalia', readonly: blocco, onchange: (e) => aggiornaFoto({ didascalia: e.target.value.trim() }) }),
+          h('label', { class: 'spunta' }, h('input', { type: 'checkbox', checked: !f.nascondiData, disabled: blocco, onchange: (e) => aggiornaFoto({ nascondiData: !e.target.checked }) }), 'Data di scatto sulla foto'));
+        return cella;
       })
-      : [h('p', { class: 'mu', style: 'margin:0' }, blocco ? 'Nessuna foto' : 'Nessuna foto: sceglile dal registro fotografico o scattale adesso. Nel PDF vanno dopo le firme, due per riga, con data e didascalia.')]));
+      : [h('p', { class: 'mu', style: 'margin:0' }, blocco ? 'Nessuna foto' : 'Nessuna foto: sceglile dal registro fotografico o scattale adesso. Nel PDF vanno dopo le firme, due per riga, con la didascalia (e la data, se non la nascondi).')]));
     disegnaFoto();
     const aggiungiFoto = (schede) => {
       for (const f of schede) {
@@ -1043,7 +1158,7 @@ registra({
           for (const id of v.foto) {
             const f = s.foto.find((x) => x.id === id);
             try {
-              foto.push({ src: await immagineStampa(ctx, percorsoFoto(ctx, f)), scattata: f.scattata, didascalia: f.didascalia, luogo: f.luogo });
+              foto.push({ src: await immagineStampa(ctx, percorsoFoto(ctx, f)), scattata: f.nascondiData ? '' : f.scattata, didascalia: f.didascalia, luogo: f.luogo });
             } catch { /* file della foto non ancora sincronizzato */ }
           }
         } finally {
