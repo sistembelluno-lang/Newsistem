@@ -443,6 +443,32 @@ async function caricaPos(ctx, impresa, posImpresa) {
 }
 
 /**
+ * Verifica senza POS: si registra la revisione senza file (il POS si può
+ * aggiungere dopo da «Documenti») e si apre la verifica, dove si può
+ * registrare una verifica esterna con il suo documento o compilare la check list.
+ */
+async function verificaSenzaPos(ctx, impresa, posImpresa) {
+  const dati = await chiedi({
+    titolo: `Verifica senza POS – ${impresa.ragioneSociale}`,
+    testo: 'Si registra la verifica anche se il POS non è caricato nel programma (es. verifica fatta da altri, POS consegnato su carta). Il POS si può aggiungere dopo dal pulsante «Documenti».',
+    ok: 'Continua',
+    campi: [
+      { chiave: 'revisione', etichetta: 'Revisione del POS', tipo: 'testo', obbligatorio: true },
+      { chiave: 'dataPos', etichetta: 'Data del POS', tipo: 'data' },
+      { chiave: 'dataRicezione', etichetta: 'Ricevuto il', tipo: 'data' },
+    ],
+    valori: { revisione: String(posImpresa.length), dataRicezione: oggi() },
+    controlla: (d) => (posImpresa.some((p) => String(p.revisione) === String(d.revisione)) ? `La revisione ${d.revisione} c’è già: aprila dalla scheda dell’impresa.` : null),
+  });
+  if (!dati) return;
+  const cart = ctx.archivio.cartellaPos(ctx.cantiere.codice, impresa);
+  const pos = { ...nuovoPos({ impresa: impresa.id, ...dati, file: '' }) };
+  pos._file = `${cartelleRevisione(pos).elaborati}.json`;
+  await ctx.archivio.scriviJson(percorso(cart, pos._file), pos);
+  vai(indirizzo(ctx.cantiere.codice, 'verifica', impresa.id, pos.id));
+}
+
+/**
  * Finestra con tutti i documenti di una revisione: elaborati del POS e
  * allegati (anche in sottocartelle, anche copiati a mano nella cartella).
  */
@@ -569,25 +595,26 @@ registra({
       ctx.ricarica();
     });
     const caricaBtn = bottone('carica', posImpresa.length ? 'Nuova revisione' : 'Carica POS', prova(async () => { if (await caricaPos(ctx, imp, posImpresa)) ctx.ricarica(); }), posImpresa.length ? 'sm' : 'p sm');
+    const senzaPosBtn = bottone('psc', 'Verifica senza POS', prova(() => verificaSenzaPos(ctx, imp, posImpresa)), 'q sm', { title: 'Registra una verifica anche se il POS non è caricato nel programma' });
     return h('div', {},
       testata(imp.ragioneSociale, x.daFare ? `Da fare: ${x.daFare}` : 'POS verificato e trasmesso', pillSituazione(x),
         h('a', { class: 'bottone', href: indirizzo(cod, 'imprese') }, icona('indietro'), 'Imprese')),
       h('div', { class: 'pila' },
         scheda({
-          titolo: 'Piano operativo di sicurezza: revisioni e allegati', ico: 'psc', azioni: [caricaBtn],
+          titolo: 'Piano operativo di sicurezza: revisioni e allegati', ico: 'psc', azioni: [senzaPosBtn, caricaBtn],
           tabella: posImpresa.length ? tabella(['Revisione', 'Ricevuto', 'Documenti', 'Verifica', ''], posImpresa.map((p, i) => {
             const v = verificaDelPos(s.verifiche, p.id);
             const fr = p._fileRev || fileRevisione(p);
             const date = fr.allegati.map((a) => a.data).filter(Boolean).sort();
             return h('tr', { class: i ? 'superata' : '' },
-              h('td', {}, h('b', {}, `rev. ${p.revisione}`), i ? [' ', pill('superata')] : null, h('span', { class: 'sotto' }, p.dataPos ? `del ${dataIt(p.dataPos)}` : '')),
+              h('td', {}, h('b', {}, `rev. ${p.revisione}`), i ? [' ', pill('superata')] : null, !p.file && !fr.elaborati.length ? [' ', pill('POS non caricato')] : null, h('span', { class: 'sotto' }, p.dataPos ? `del ${dataIt(p.dataPos)}` : '')),
               h('td', {}, dataIt(p.dataRicezione)),
               h('td', {}, bottone('cartella', `${fr.elaborati.length} elab. · ${fr.allegati.length} all.`, () => finestraDocumenti(ctx, imp, p), 'q sm', { title: 'Elaborati e allegati di questa revisione' }),
                 date.length ? h('span', { class: 'sotto' }, `allegati fino al ${dataIt(date.at(-1))}`) : null),
               h('td', {}, v?.esito ? pill(ESITI_VERIFICA_POS[v.esito], TIPO_ESITO_POS[v.esito]) : pill('Da verificare', 'at'), v?.esterna ? [' ', pill('esterna')] : null,
                 v?.trasmessaIl ? h('span', { class: 'sotto' }, `trasmessa il ${dataIt(v.trasmessaIl)}`) : v?.data ? h('span', { class: 'sotto' }, dataIt(v.data)) : null),
               h('td', { class: 'az' },
-                bottone('apri', 'Apri', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, imp), p.file)), 'sm'),
+                p.file ? bottone('apri', 'Apri', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, imp), p.file)), 'sm') : null,
                 bottone('psc', v ? 'Verifica' : 'Verifica ora', () => vai(indirizzo(cod, 'verifica', imp.id, p.id)), v || i ? 'sm' : 'p sm')));
           })) : null,
           corpo: posImpresa.length ? null : vuoto('psc', 'POS non ancora ricevuto', 'Carica il PDF del POS ricevuto dall’impresa e i suoi allegati: poi si fa la verifica di idoneità. Gli aggiornamenti si caricano come nuove revisioni.'),
@@ -714,7 +741,8 @@ async function verificaConClaude(ctx, { s, impresa, pos, posImpresa, v }) {
       }
     }
   }
-  if (!scelti.some((d) => d.tipo === 'pos')) return avviso('Scegli almeno il POS', 'errore');
+  if (!scelti.length) return avviso('Scegli almeno un documento', 'errore');
+  if (!docs.some((d) => d.tipo === 'pos')) avviso('POS non caricato: Claude verifica solo gli allegati scelti', 'info');
 
   const testo = h('p', { style: 'margin:0' }, 'Preparazione…');
   const inizio = Date.now();
@@ -873,7 +901,7 @@ registra({
     return h('div', {},
       testata(`Verifica del POS – ${impresa.ragioneSociale}`,
         `Revisione ${pos.revisione} ricevuta il ${dataIt(pos.dataRicezione)} · ${frPos.elaborati.length} elaborat${frPos.elaborati.length === 1 ? 'o' : 'i'}${docAllegati ? ` · ${docAllegati} allegati` : ''} · check list POS e idoneità tecnico-professionale`,
-        bottone('apri', 'Apri il POS', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, impresa), pos.file))),
+        pos.file ? bottone('apri', 'Apri il POS', () => apri(ctx, percorso(ctx.archivio.cartellaPos(cod, impresa), pos.file))) : null,
         bottone('cartella', 'Documenti', () => finestraDocumenti(ctx, impresa, pos)),
         bottone('carica', 'Verifica esterna', esterna),
         claudeBtn),
@@ -884,6 +912,7 @@ registra({
         ' · La check list qui sotto è facoltativa.'), 'info') : null,
       !bozza && v.ai ? nota(`Compilata con il supporto di Claude il ${dataIt(v.ai.data)} e controllata dal CSE.`, 'info') : null,
       !salvata && !bozza && v.partitaDa ? nota('Verifica nuova partita dalla verifica della revisione precedente: aggiorna le voci con i documenti nuovi.', 'info') : null,
+      !pos.file && !frPos.elaborati.length ? nota(h('span', {}, h('b', {}, 'POS non caricato. '), 'Puoi registrare una ', h('b', {}, 'Verifica esterna'), ' (con il documento della verifica) oppure compilare la check list qui sotto. Il POS si può aggiungere dopo con «Documenti».'), 'info') : null,
       !ctx.servizi.claude ? nota('La verifica con il supporto di Claude si fa dal PC (Windows).', 'info') : null,
       h('div', { class: 'pila' },
         scheda({ titolo: 'Documentazione ditta', ico: 'notifica', corpo: h('label', { class: 'campo' }, 'Come compare in testa alla check list', testoLegato(v, 'documentazione')) }),
