@@ -7,6 +7,8 @@ function norm(p) {
 
 export function discoInMemoria() {
   const file = new Map();      // percorso -> Uint8Array
+  const date = new Map();      // percorso -> ultima modifica (ms)
+  let orologio = Date.now();
   const cartelle = new Set(['']);
   const enc = new TextEncoder();
   const dec = new TextDecoder();
@@ -31,6 +33,12 @@ export function discoInMemoria() {
       p = norm(p);
       creaGenitori(p);
       file.set(p, new Uint8Array(byte));
+      orologio = Math.max(orologio + 1, Date.now());
+      date.set(p, orologio);
+    },
+    async info(p) {
+      p = norm(p);
+      return file.has(p) ? { size: file.get(p).length, mtime: date.get(p) } : null;
     },
     async leggiByte(p) {
       p = norm(p);

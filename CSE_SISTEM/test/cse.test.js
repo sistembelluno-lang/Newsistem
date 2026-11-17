@@ -358,3 +358,148 @@ test('cartelle: stampe della verifica POS nella cartella dell’impresa', () => 
   assert.equal(a.cartellaVerificaPos('2026-015', imp, '2026-11-16'), 'CSE_SISTEM/2026-015/04_Imprese_e_POS/TRETTEL srl/Verifica POS_2026-11-16');
   assert.equal(a.cartellaPos('2026-015', imp), 'CSE_SISTEM/2026-015/04_Imprese_e_POS/TRETTEL srl/POS');
 });
+
+// ------------------------------------------------------------ Google Drive
+import { md5, clientDrive } from '../www/js/servizi/drive.js';
+import { sincronizza, creaSincronizzatore, descriviRiepilogo, FILE_STATO } from '../www/js/servizi/sincro.js';
+import { createHash } from 'node:crypto';
+
+/** Google Drive finto, in memoria: cartelle e file con id, md5 e cestino. */
+function driveFinto() {
+  const voci = new Map([['root', { id: 'root', name: 'Il mio Drive', cartella: true, parents: [] }]]);
+  let n = 0;
+  const nuovoId = () => `id${++n}`;
+  const d = {
+    voci,
+    chiamate: [],
+    async elenca(id) { return [...voci.values()].filter((v) => v.parents[0] === id && !v.cestino).map((v) => ({ ...v, md5Checksum: v.md5, mimeType: v.cartella ? 'application/vnd.google-apps.folder' : 'application/pdf', size: v.byte?.length })); },
+    async cartella(nome, padre, crea = true) {
+      const c = [...voci.values()].find((v) => v.cartella && v.name === nome && v.parents[0] === padre && !v.cestino);
+      return c ? c.id : crea ? d.creaCartella(nome, padre) : null;
+    },
+    async creaCartella(nome, padre) { const id = nuovoId(); voci.set(id, { id, name: nome, cartella: true, parents: [padre] }); return id; },
+    async scarica(id) { d.chiamate.push(`scarica ${voci.get(id).name}`); return voci.get(id).byte; },
+    async carica({ nome, idPadre, id, byte }) {
+      d.chiamate.push(`carica ${nome}`);
+      const v = id ? voci.get(id) : { id: nuovoId(), name: nome, parents: [idPadre] };
+      Object.assign(v, { byte, md5: md5(byte) });
+      voci.set(v.id, v);
+      return { id: v.id, md5Checksum: v.md5 };
+    },
+    async cestina(id) { d.chiamate.push(`cestina ${voci.get(id).name}`); voci.get(id).cestino = true; },
+    /** scrive un file «da un altro dispositivo» (percorso sotto CSE_SISTEM) */
+    async scriviDaFuori(rel, testo) {
+      let padre = await d.cartella('CSE_SISTEM', 'root');
+      const parti = rel.split('/');
+      const nome = parti.pop();
+      for (const p of parti) padre = await d.cartella(p, padre);
+      const esiste = [...voci.values()].find((v) => !v.cartella && v.name === nome && v.parents[0] === padre && !v.cestino);
+      const byte = new TextEncoder().encode(testo);
+      if (esiste) Object.assign(esiste, { byte, md5: md5(byte) });
+      else { const id = nuovoId(); voci.set(id, { id, name: nome, parents: [padre], byte, md5: md5(byte) }); }
+    },
+    leggiDaFuori(rel) {
+      const nome = rel.split('/').pop();
+      const v = [...voci.values()].find((x) => !x.cartella && x.name === nome && !x.cestino);
+      return v ? new TextDecoder().decode(v.byte) : null;
+    },
+  };
+  return d;
+}
+
+test('MD5 come quello di Google Drive', () => {
+  for (const t of ['', 'a', 'CSE_SISTEM', 'x'.repeat(55), 'y'.repeat(56), 'z'.repeat(64), 'w'.repeat(1000)]) {
+    const b = new TextEncoder().encode(t);
+    assert.equal(md5(b), createHash('md5').update(b).digest('hex'), `md5 di ${t.length} caratteri`);
+  }
+});
+
+test('Google Drive: sincronizzazione nei due sensi, eliminazioni, conflitti, sicurezza', async () => {
+  const disco = discoInMemoria();
+  const drive = driveFinto();
+  const t = (s) => new TextEncoder().encode(s);
+  await disco.scriviByte('CSE_SISTEM/C1/cantiere.json', t('{"id":"c1"}'));
+  await disco.scriviByte('CSE_SISTEM/C1/08_Verbali_sopralluogo/Verbale 001_a.json', t('{"n":1}'));
+  await disco.scriviByte('CSE_SISTEM/.sincro-drive.json', t('{}'));
+  await drive.scriviDaFuori('C1/07_Registro_fotografico/originali/foto.jpg', 'FOTO-PC');
+  await drive.scriviDaFuori('C1/cantiere.json', '{"id":"c1"}'); // uguale: non si tocca
+
+  // 1) prima sincronizzazione: si carica quello che manca su Drive, si scarica quello che manca qui
+  let e = await sincronizza({ disco, drive, stato: {} });
+  assert.deepEqual(e.riepilogo, { scaricati: 1, caricati: 1, eliminatiQui: 0, eliminatiSuDrive: 0, conflitti: 0, errori: [] });
+  assert.equal(new TextDecoder().decode(await disco.leggiByte('CSE_SISTEM/C1/07_Registro_fotografico/originali/foto.jpg')), 'FOTO-PC');
+  assert.equal(drive.leggiDaFuori('C1/08_Verbali_sopralluogo/Verbale 001_a.json'), '{"n":1}');
+  assert.ok(!drive.chiamate.some((c) => c.includes('.sincro-drive')), 'il file di stato non va su Drive');
+  assert.deepEqual(e.cambiatiQui, ['C1/07_Registro_fotografico/originali/foto.jpg']);
+
+  // 2) niente di nuovo: nessun trasferimento
+  drive.chiamate.length = 0;
+  e = await sincronizza({ disco, drive, stato: e.stato });
+  assert.equal(descriviRiepilogo(e.riepilogo), 'tutto già allineato');
+  assert.deepEqual(drive.chiamate, []);
+
+  // 3) modifica sul PC -> scaricata; modifica sul telefono -> caricata
+  await drive.scriviDaFuori('C1/cantiere.json', '{"id":"c1","nome":"dal PC"}');
+  await disco.scriviByte('CSE_SISTEM/C1/08_Verbali_sopralluogo/Verbale 001_a.json', t('{"n":1,"note":"telefono"}'));
+  e = await sincronizza({ disco, drive, stato: e.stato });
+  assert.equal(e.riepilogo.scaricati, 1);
+  assert.equal(e.riepilogo.caricati, 1);
+  assert.match(new TextDecoder().decode(await disco.leggiByte('CSE_SISTEM/C1/cantiere.json')), /dal PC/);
+  assert.match(drive.leggiDaFuori('C1/08_Verbali_sopralluogo/Verbale 001_a.json'), /telefono/);
+
+  // 4) eliminazioni: sul telefono -> cestino di Drive; su Drive -> eliminato qui
+  await disco.elimina('CSE_SISTEM/C1/08_Verbali_sopralluogo/Verbale 001_a.json');
+  const foto = [...drive.voci.values()].find((v) => v.name === 'foto.jpg');
+  foto.cestino = true;
+  e = await sincronizza({ disco, drive, stato: e.stato });
+  assert.equal(e.riepilogo.eliminatiSuDrive, 1);
+  assert.equal(e.riepilogo.eliminatiQui, 1);
+  assert.equal(drive.leggiDaFuori('C1/08_Verbali_sopralluogo/Verbale 001_a.json'), null);
+  assert.equal(await disco.esiste('CSE_SISTEM/C1/07_Registro_fotografico/originali/foto.jpg'), false);
+
+  // 5) conflitto: lo stesso file cambiato da tutte e due le parti -> si tengono entrambi
+  await drive.scriviDaFuori('C1/cantiere.json', '{"id":"c1","v":"PC"}');
+  await disco.scriviByte('CSE_SISTEM/C1/cantiere.json', t('{"id":"c1","v":"telefono"}'));
+  e = await sincronizza({ disco, drive, stato: e.stato, adesso: () => new Date(2026, 10, 17, 9, 5) });
+  assert.equal(e.riepilogo.conflitti, 1);
+  assert.match(new TextDecoder().decode(await disco.leggiByte('CSE_SISTEM/C1/cantiere.json')), /"PC"/);
+  assert.match(new TextDecoder().decode(await disco.leggiByte('CSE_SISTEM/C1/cantiere (conflitto telefono 2026-11-17 09-05).json')), /telefono/);
+  assert.match(drive.leggiDaFuori('C1/cantiere (conflitto telefono 2026-11-17 09-05).json'), /telefono/);
+
+  // 6) sicurezza: cartella di Drive vuota dopo una sincronizzazione piena -> non si cancella niente
+  const statoPieno = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`x${i}.json`, { id: `q${i}`, md5: 'm', size: 1, mtime: 1 }]));
+  for (const v of drive.voci.values()) if (!v.cartella) v.cestino = true;
+  await assert.rejects(sincronizza({ disco, drive, stato: { ...e.stato, ...statoPieno } }), /risulta vuota/);
+  assert.equal(await disco.esiste('CSE_SISTEM/C1/cantiere.json'), true);
+});
+
+test('Google Drive: sincronizzatore (stato salvato, collegamento, una sola sincronizzazione alla volta)', async () => {
+  const disco = discoInMemoria();
+  const drive = driveFinto();
+  await disco.scriviTesto('CSE_SISTEM/C1/cantiere.json', '{"id":"c1"}');
+  let consenso = false;
+  const tokenDrive = async ({ interattivo }) => {
+    if (interattivo) consenso = true;
+    return consenso ? { token: 'T' } : { serveConsenso: true };
+  };
+  const s = creaSincronizzatore({ disco, tokenDrive, creaDrive: () => drive });
+  assert.equal((await s.leggi()).collegato, false);
+  assert.equal(await s.sincronizza(), null, 'non collegato: non fa niente');
+  const eventi = [];
+  s.suEventi((ev) => eventi.push(ev.tipo));
+  const [a, b] = [s.collega('CSE_SISTEM'), s.sincronizza()];
+  await a;
+  await b;
+  const c = JSON.parse(await disco.leggiTesto(FILE_STATO));
+  assert.equal(c.collegato, true);
+  assert.ok(c.file['C1/cantiere.json'].id);
+  assert.match(c.esito, /1 caricato/);
+  assert.equal(drive.leggiDaFuori('C1/cantiere.json'), '{"id":"c1"}');
+  assert.ok(eventi.includes('fine'));
+  // il client REST: token rinnovato dopo un 401
+  let chiesto = 0;
+  const risposte = [{ status: 401, ok: false, text: async () => '' }, { status: 200, ok: true, json: async () => ({ files: [] }) }];
+  const cl = clientDrive(async (rinnova) => { chiesto++; return rinnova ? 'nuovo' : 'vecchio'; }, async (_u, o) => { assert.match(o.headers.Authorization, /Bearer (vecchio|nuovo)/); return risposte.shift(); });
+  assert.deepEqual(await cl.elenca('root'), []);
+  assert.equal(chiesto, 2);
+});

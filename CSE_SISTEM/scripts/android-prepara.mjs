@@ -1,5 +1,6 @@
 // Completa il progetto Android generato da "npx cap add android":
-//  - aggiunge il plugin nativo "Dispositivo" (stampa, permesso sui file) (android-extra/DispositivoPlugin.java)
+//  - aggiunge il plugin nativo "Dispositivo" (stampa, permesso sui file, accesso a Google Drive) (android-extra/DispositivoPlugin.java)
+//    con la libreria play-services-auth;
 //    e lo registra in MainActivity;
 //  - mette icona e schermata di avvio di CSE_SISTEM (android-extra/res);
 //  - scrive nel programma il numero di versione di package.json.
@@ -29,10 +30,13 @@ public class MainActivity extends BridgeActivity {
 // icone e schermata di avvio (stesse cartelle e nomi del progetto generato)
 fs.cpSync('android-extra/res', 'android/app/src/main/res', { recursive: true });
 
-// versione
+// versione e libreria Google per l'accesso a Drive (scelta dell'account e permesso)
 const [a, b, c] = pkg.version.split('.').map(Number);
 const gradle = 'android/app/build.gradle';
 let g = fs.readFileSync(gradle, 'utf8');
+if (!g.includes('play-services-auth')) {
+  g = g.replace(/dependencies\s*\{/, (m) => `${m}\n    implementation 'com.google.android.gms:play-services-auth:21.2.0'`);
+}
 g = g.replace(/versionCode \d+/, `versionCode ${a * 10000 + b * 100 + c}`).replace(/versionName "[^"]*"/, `versionName "${pkg.version}"`);
 fs.writeFileSync(gradle, g);
 

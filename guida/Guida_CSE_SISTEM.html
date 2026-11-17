@@ -26,7 +26,7 @@ pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:1
 <header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
 <main>
 <h1>Guida a CSE_SISTEM</h1>
-<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.6.</p>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.7.</p>
 
 <div class="box"><b class="t">In breve</b>
 CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
@@ -40,14 +40,14 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <h2>1. Scaricare e installare</h2>
 <p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
 <table><tr><th>File</th><th>Per</th><th>Note</th></tr>
-<tr><td><code>CSE_SISTEM-0.6.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
-<tr><td><code>CSE_SISTEM-0.6.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM-0.7.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.7.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
 <tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
 <tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
 
 <h3>Windows</h3>
 <ol class="passi">
-<li>Scarica <code>CSE_SISTEM-0.6.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Scarica <code>CSE_SISTEM-0.7.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
 <li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
 <li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
 </ol>
@@ -83,10 +83,37 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <div class="box att"><b class="t">Lavorare da due dispositivi</b>
 Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quindi non si perde nulla. Conviene però aspettare che la sincronizzazione sia finita prima di passare dal telefono al PC. Se due dispositivi creano un verbale con lo stesso numero prima di essersi sincronizzati, li tiene entrambi e segnala «numeri usati due volte»: cambia il numero di uno dei due prima di chiuderlo.</div>
 
+<h3>Telefono: collegamento diretto con Google Drive (consigliato)</h3>
+<p>Dalla versione 0.7 l'app Android si collega <b>direttamente</b> a Google Drive: non servono più Autosync o FolderSync. I cantieri restano anche sul telefono (si lavora senza rete) e CSE_SISTEM li allinea da solo con la cartella <code>Il mio Drive/CSE_SISTEM</code>, la stessa che il PC vede con Google Drive per desktop.</p>
+<ol class="passi">
+<li>Sul telefono apri <b>Impostazioni › Google Drive: collegamento diretto</b>.</li>
+<li>Controlla la <b>cartella su Google Drive</b> (di solito <code>CSE_SISTEM</code>, cioè quella usata sul PC) e tocca <b>Collega Google Drive</b>.</li>
+<li>Scegli l'account Google dello studio e consenti l'accesso a Drive. Parte la prima sincronizzazione: i cantieri che sono su Drive arrivano sul telefono, quelli che sono solo sul telefono vanno su Drive. I file uguali non si ricopiano.</li>
+<li>Se usavi Autosync o FolderSync per questa cartella, <b>disattivalo</b>.</li>
+</ol>
+<p>Poi la sincronizzazione è automatica: all'apertura, quando torni nell'app, qualche secondo dopo ogni salvataggio e ogni 3 minuti; le frecce in alto la fanno partire subito (girano mentre lavora).</p>
+<table><tr><th>Caso</th><th>Cosa succede</th></tr>
+<tr><td>File cambiato solo sul telefono, o solo sul PC</td><td>passa dall'altra parte</td></tr>
+<tr><td>File eliminato da una parte</td><td>viene eliminato anche dall'altra; su Drive finisce nel cestino (recuperabile per 30 giorni)</td></tr>
+<tr><td>Stesso file cambiato da tutte e due le parti</td><td>si tengono entrambi: quella del telefono diventa una copia «(conflitto telefono data ora)»; per verbali e altri dati del programma vale la versione più recente</td></tr>
+<tr><td>La cartella su Drive risulta vuota all'improvviso (spostata, eliminata)</td><td>la sincronizzazione si ferma e <b>non cancella niente</b> sul telefono</td></tr></table>
+
+<h3>Collegare Google Drive: preparazione (una volta sola)</h3>
+<p>Perché Google accetti l'app (che non è nel Play Store) bisogna registrarla una volta in un progetto Google Cloud, con l'account Google dello studio. Non c'è niente da inserire poi nel programma.</p>
+<ol class="passi">
+<li>Vai su <a href="https://console.cloud.google.com">console.cloud.google.com</a> e crea un progetto (es. «CSE SISTEM»).</li>
+<li><b>API e servizi › Libreria</b>: cerca <b>Google Drive API</b> e premi <b>Abilita</b>.</li>
+<li><b>Google Auth Platform</b> (o «Schermata consenso OAuth»): nome app <i>CSE_SISTEM</i>, e-mail di assistenza, pubblico <b>Esterno</b>, e-mail di contatto. In <b>Accesso ai dati</b> aggiungi l'ambito <code>https://www.googleapis.com/auth/drive</code>. In <b>Pubblico › Utenti di prova</b> aggiungi gli indirizzi Gmail di chi userà l'app.</li>
+<li><b>Client › Crea client</b>, tipo <b>Android</b>:
+<ul><li>nome del pacchetto: <code>it.sistembelluno.csesistem</code></li>
+<li>impronta SHA-1: <code>F0:74:47:B0:72:6C:56:0C:16:81:AB:FB:31:9B:42:26:67:F1:33:C4</code></li></ul></li>
+</ol>
+<div class="box att"><b class="t">In prova: ogni 7 giorni</b>Finché l'app è «In prova» Google chiede di rinnovare il permesso ogni 7 giorni: nelle Impostazioni compare «Google Drive va ricollegato» e basta toccare <b>Ricollega</b>. Per non doverlo più fare, in <b>Pubblico</b> premi <b>Pubblica app</b>: alla prima autorizzazione Google mostra «App non verificata» (è normale per un'app interna): <b>Avanzate › Vai a CSE_SISTEM</b>.</div>
+
 <h3>Aggiornamento automatico</h3>
 <ul>
 <li><b>Windows</b>: quando Google Drive porta modifiche fatte sul telefono o su un altro PC, la pagina si aggiorna da sola. Se in quel momento stai scrivendo, compare in alto l'avviso <b>«Dati nuovi arrivati da un altro dispositivo»</b> con il pulsante <b>Aggiorna</b>: premilo dopo aver salvato.</li>
-<li><b>Android</b>: tornando su CSE_SISTEM (dopo che l'app di sincronizzazione ha portato i file) la pagina si rilegge da sola, con lo stesso avviso se stai scrivendo.</li>
+<li><b>Android</b>: con Google Drive collegato, quello che arriva da Drive compare da solo (con lo stesso avviso se stai scrivendo).</li>
 <li>Il pulsante <b>Aggiorna</b> (le frecce in alto a destra) rilegge tutto quando vuoi.</li>
 <li>Se lo stesso verbale viene modificato su due dispositivi prima della sincronizzazione, Drive ne fa una copia con «(1)» nel nome: il programma usa la versione più recente.</li>
 </ul>
@@ -254,7 +281,9 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <table><tr><th>Problema</th><th>Cosa fare</th></tr>
 <tr><td>Windows non avvia il programma («Windows ha protetto il PC»)</td><td><b>Ulteriori informazioni › Esegui comunque</b> (capitolo 1).</td></tr>
 <tr><td>Il telefono non installa l'APK</td><td>Consenti l'installazione da quella fonte (browser o File); se c'è già una versione con firma diversa, disinstallala prima: i cantieri in Documenti restano.</td></tr>
-<tr><td>Sul telefono non vedo i cantieri del PC</td><td>Controlla che Autosync abbia sincronizzato e che CSE_SISTEM abbia <b>Accesso a tutti i file</b> (Impostazioni del programma).</td></tr>
+<tr><td>Sul telefono non vedo i cantieri del PC</td><td>Impostazioni › Google Drive: deve essere «Collegato» con la stessa cartella usata sul PC; tocca <b>Sincronizza ora</b> e leggi l'eventuale errore.</td></tr>
+<tr><td>«Google non riconosce ancora l'app»</td><td>Manca la preparazione in Google Cloud, oppure nome del pacchetto o impronta SHA-1 sono scritti male (vedi «Collegare Google Drive: preparazione»).</td></tr>
+<tr><td>«Google Drive va ricollegato»</td><td>Il permesso è scaduto (app «In prova», ogni 7 giorni): Impostazioni › <b>Ricollega</b>.</td></tr>
 <tr><td>Sul PC non vedo i cantieri del telefono</td><td>In Impostazioni deve essere in uso la cartella di Google Drive; attendi la sincronizzazione di Drive per desktop.</td></tr>
 <tr><td>«Numeri usati due volte» nei verbali</td><td>Due verbali creati su dispositivi diversi prima della sincronizzazione: apri uno dei due, cambia il numero e salva.</td></tr>
 <tr><td>Una foto ha il segno <span class="pill">!</span></td><td>La foto non conteneva la data di scatto (foto inoltrate, screenshot): verifica la data.</td></tr>
@@ -267,5 +296,5 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 
 <div class="box"><b class="t">Versione di prova</b>
 Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
-<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.6 · SISTEM SRL STP</p>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.7 · SISTEM SRL STP</p>
 </main></body></html>

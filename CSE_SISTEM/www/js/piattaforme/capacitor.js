@@ -42,6 +42,11 @@ export function discoCapacitor(cap = globalThis.Capacitor) {
     async esiste(p) {
       return (await stat(p)) !== null;
     },
+    /** { size, mtime } di un file (per la sincronizzazione con Google Drive), o null. */
+    async info(p) {
+      const s = await stat(p);
+      return s && s.type !== 'directory' ? { size: Number(s.size || 0), mtime: Number(s.mtime || 0) } : null;
+    },
     async creaCartella(p) {
       if (await stat(p)) return;
       await fs.mkdir({ path: p, directory, recursive: true });
@@ -99,6 +104,22 @@ export function serviziCapacitor(cap = globalThis.Capacitor) {
     /** true se l'app può leggere tutti i file di Documenti/CSE_SISTEM. */
     async permessoFile() {
       return (await plugin('Dispositivo', cap).permessoFile()).concesso;
+    },
+    /**
+     * Token per Google Drive (scelta dell'account e permesso con interattivo:
+     * true, solo la prima volta): { token } oppure { serveConsenso: true }.
+     */
+    async tokenDrive({ interattivo = false } = {}) {
+      try {
+        return await plugin('Dispositivo', cap).tokenDrive({ interattivo });
+      } catch (e) {
+        const m = String(e?.message || e);
+        // 10 = DEVELOPER_ERROR: l'app non è registrata nel progetto Google Cloud (nome del pacchetto e impronta SHA-1)
+        if (/(^|\D)10(\D|$)/.test(m) || /DEVELOPER_ERROR/i.test(m)) {
+          throw new Error('Google non riconosce ancora l’app: va registrata una volta nel progetto Google Cloud (vedi la guida, «Collegare Google Drive»).');
+        }
+        throw new Error(m);
+      }
     },
     /** Apre le impostazioni di Android per concedere «Accesso a tutti i file». */
     async apriPermessoFile() {

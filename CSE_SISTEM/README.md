@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.6** (di prova): logica e dati provati, interfaccia nello **stile
+Stato: versione **0.7** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -86,7 +86,20 @@ sincronizzazione, nessuno si perde e il programma segnala i numeri doppi.
 - **Windows**: la cartella dei dati è osservata (`fs.watch`); quando Google
   Drive porta file cambiati altrove la pagina si ridisegna, o mostra l'avviso
   «Dati nuovi» se si sta scrivendo. Le scritture del programma non contano.
-- **Android**: al rientro nell'app si rilegge (stesso avviso se si scrive).
+- **Android**: collegamento **diretto con Google Drive** (API REST v3,
+  `www/js/servizi/drive.js`): il token arriva dal plugin nativo
+  (`DispositivoPlugin.tokenDrive`, Google Identity AuthorizationClient, libreria
+  `play-services-auth`), la sincronizzazione nei due sensi è in
+  `www/js/servizi/sincro.js` (stato in `CSE_SISTEM/.sincro-drive.json`,
+  confronto con dimensione/data locali e MD5 di Drive, eliminazioni nel cestino,
+  copie di conflitto, blocco se una delle due cartelle risulta vuota). Parte
+  all'avvio, al rientro nell'app, dopo ogni salvataggio e ogni 3 minuti.
+  Serve un client OAuth **Android** nel progetto Google Cloud dello studio:
+  pacchetto `it.sistembelluno.csesistem`, SHA-1 della chiave
+  `android-extra/debug.keystore`
+  `F0:74:47:B0:72:6C:56:0C:16:81:AB:FB:31:9B:42:26:67:F1:33:C4`, ambito
+  `https://www.googleapis.com/auth/drive`, Drive API abilitata.
+- **Android senza collegamento**: al rientro nell'app si rilegge (stesso avviso se si scrive).
 - Copie di conflitto di Drive («nome (1).json», stesso id): si usa la più
   recente (`unisciCopie` in `core/archivio.js`).
 
@@ -188,7 +201,6 @@ le nuove versioni si installano sopra le vecchie.
 ## Da fare
 
 - elenco dei controlli del sopralluogo personalizzabile;
-- (eventuale) accesso a Google Drive direttamente dall'app Android;
 - modelli di stampa definitivi (verbale, registro fotografico);
 - verifica con Claude anche da Android;
 - Direzione Lavori.

@@ -10,11 +10,28 @@ import { icona, marchio } from './ui/icone.js';
 import { leggiIndirizzo, indirizzo, vai } from './ui/router.js';
 import { VERSIONE } from './versione.js';
 import { MODELLO_CLAUDE } from './servizi/claude.js';
-import { FILE_LOGO } from './core/cartelle.js';
+import { FILE_LOGO, RADICE } from './core/cartelle.js';
+import { clientDrive } from './servizi/drive.js';
+import { creaSincronizzatore } from './servizi/sincro.js';
 import './moduli/cse.js'; // i moduli si registrano da soli
 
 const p = piattaforma();
-const archivio = new Archivio(p.disco);
+
+// Android: collegamento diretto con Google Drive. Ogni scrittura del programma
+// fa partire (dopo qualche secondo) una sincronizzazione; il sincronizzatore
+// usa il disco «nudo», così le sue scritture non ne fanno partire altre.
+const sincro = p.tipo === 'android' && p.servizi.tokenDrive
+  ? creaSincronizzatore({ disco: p.disco, tokenDrive: p.servizi.tokenDrive, creaDrive: (t) => clientDrive(t) })
+  : null;
+function conAvviso(disco, f) {
+  return {
+    ...disco,
+    async scriviByte(...a) { await disco.scriviByte(...a); f(); },
+    async scriviTesto(...a) { await disco.scriviTesto(...a); f(); },
+    async elimina(...a) { await disco.elimina(...a); f(); },
+  };
+}
+const archivio = new Archivio(sincro ? conAvviso(p.disco, () => sincro.pianifica()) : p.disco);
 const ruolo = 'cse'; // in futuro: scelta tra CSE e DL
 const radice = document.getElementById('app');
 
@@ -142,6 +159,47 @@ async function schedaLogo() {
   });
 }
 
+/** Android: collegamento diretto con Google Drive. */
+async function schedaDrive() {
+  const c = await sincro.leggi();
+  const percorso = h('input', { type: 'text', value: c.percorso || RADICE, placeholder: RADICE });
+  const stato = h('div');
+  const disegnaStato = (cc) => stato.replaceChildren(...[
+    h('p', { style: 'margin:0 0 8px' }, cc.collegato ? pill('Collegato', 'ok') : pill('Non collegato', 'at'),
+      cc.collegato ? ` Cartella: Il mio Drive/${cc.percorso}` : ''),
+    cc.ultima ? h('p', { class: 'mu', style: 'margin:0 0 6px' }, `Ultima sincronizzazione: ${new Date(cc.ultima).toLocaleString('it-IT')} – ${cc.esito}`) : null,
+    cc.errore ? nota(cc.errore, 'ko') : null].filter(Boolean));
+  disegnaStato(c);
+  const ascolta = async () => disegnaStato(await sincro.leggi());
+  document.addEventListener('cse-sincro', ascolta);
+  const avanz = h('p', { class: 'mu piccolo', style: 'margin:6px 0 0' });
+  const via = sincro.suEventi((ev) => { if (ev.tipo === 'avanzamento') avanz.textContent = ev.testo; if (ev.tipo === 'fine' || ev.tipo === 'errore') avanz.textContent = ''; });
+  window.addEventListener('hashchange', () => { document.removeEventListener('cse-sincro', ascolta); via(); }, { once: true });
+  const collega = async () => {
+    try {
+      avviso('Scegli l’account Google e consenti l’accesso a Drive');
+      await sincro.collega(percorso.value.trim().replace(/^\/+|\/+$/g, '') || RADICE);
+      avviso(`Google Drive collegato: ${(await sincro.leggi()).esito}`);
+    } catch (e) {
+      avviso(e.message, 'errore');
+    }
+    disegna();
+  };
+  return scheda({
+    titolo: 'Google Drive: collegamento diretto', ico: 'aggiorna',
+    corpo: [
+      h('p', { class: 'mu', style: 'margin-top:0' }, 'CSE_SISTEM tiene i cantieri sul telefono (si lavora anche senza rete) e li allinea da solo con la cartella di Google Drive che il PC vede con «Google Drive per desktop». Non serve più Autosync o FolderSync: se lo usavi per questa cartella, disattivalo.'),
+      stato,
+      h('label', { class: 'campo', style: 'margin-top:10px' }, 'Cartella su Google Drive (dentro «Il mio Drive»)', percorso),
+      h('div', { class: 'azioni', style: 'margin-top:12px;justify-content:flex-start' },
+        bottone('aggiorna', c.collegato ? 'Ricollega / cambia cartella' : 'Collega Google Drive', collega, c.collegato ? '' : 'p'),
+        c.collegato ? bottone('aggiorna', 'Sincronizza ora', aggiornaOra, 'p') : null,
+        c.collegato ? bottone('chiudi', 'Scollega', async () => { await sincro.scollega(); avviso('Google Drive scollegato: i cantieri restano sul telefono'); disegna(); }, 'q d') : null),
+      avanz,
+    ],
+  });
+}
+
 async function paginaImpostazioni() {
   const parti = [];
   if (p.tipo === 'windows') {
@@ -171,6 +229,7 @@ async function paginaImpostazioni() {
     }));
     parti.push(await schedaClaude());
   } else if (p.tipo === 'android') {
+    if (sincro) parti.push(await schedaDrive());
     const concesso = await p.servizi.permessoFile().catch(() => true);
     parti.push(scheda({
       titolo: 'Accesso ai file', ico: 'lucchetto',
@@ -189,7 +248,7 @@ async function paginaImpostazioni() {
       titolo: 'Cartella dei cantieri', ico: 'cartella',
       corpo: [
         h('p', {}, 'Sul telefono i cantieri stanno in ', h('code', {}, 'Documenti/CSE_SISTEM'), '.'),
-        h('p', { class: 'mu' }, 'Per averli anche su Google Drive collega questa cartella alla stessa cartella di Drive usata sul PC con un’app di sincronizzazione:'),
+        h('p', { class: 'mu' }, 'Il modo consigliato per averli anche su Google Drive è il collegamento diretto qui sopra. In alternativa (senza collegamento diretto) si può usare un’app di sincronizzazione:'),
         h('ol', {},
           h('li', {}, 'installa «Autosync per Google Drive» (o FolderSync) dal Play Store;'),
           h('li', {}, 'crea una coppia di cartelle: sul telefono ', h('code', {}, 'Documenti/CSE_SISTEM'), ', su Drive ', h('code', {}, 'Il mio Drive/CSE_SISTEM'), ', sincronizzazione in due direzioni;'),
@@ -206,7 +265,7 @@ async function paginaImpostazioni() {
       h('p', { style: 'margin-top:0' }, p.tipo === 'windows'
         ? 'Quando Google Drive porta modifiche fatte sul telefono o su un altro PC, la pagina si aggiorna da sola. Se stai scrivendo, compare in alto l’avviso «Dati nuovi» con il pulsante Aggiorna, così non perdi quello che stai scrivendo.'
         : p.tipo === 'android'
-          ? 'Quando torni su CSE_SISTEM (dopo che l’app di sincronizzazione ha portato i file da Drive) la pagina si rilegge da sola; se stai scrivendo compare l’avviso «Dati nuovi».'
+          ? 'Con Google Drive collegato, CSE_SISTEM sincronizza da solo: all’apertura, quando torni nell’app, qualche secondo dopo ogni salvataggio e ogni 3 minuti. Quello che arriva da Drive compare da solo; se stai scrivendo compare l’avviso «Dati nuovi».'
           : 'Nella prova nel browser non c’è sincronizzazione.'),
       h('ul', { class: 'mu', style: 'margin:0' },
         h('li', {}, 'Ogni registrazione (verbale, voce del giornale, verifica, foto) è un file a sé: due dispositivi non si sovrascrivono.'),
@@ -236,7 +295,7 @@ function barra() {
     h('a', { class: 'brand', href: '#/' }, h('span', { class: 'logo' }, marchio()),
       h('div', {}, h('span', { class: 'az' }, 'SISTEM SRL STP'), h('h1', {}, 'CSE_SISTEM'))),
     h('div', { class: 'meta' }, 'Coordinamento sicurezza in esecuzione', h('br'), `D.Lgs 81/2008 · v${VERSIONE}`),
-    h('button', { type: 'button', class: 'tasto', title: 'Aggiorna: rilegge i dati (anche quelli arrivati da Google Drive)', onclick: () => { nascondiNovita(); disegna(); } }, icona('aggiorna')),
+    h('button', { type: 'button', class: `tasto aggiorna ${sincro?.inCorso() ? 'gira' : ''}`, title: sincro ? 'Sincronizza con Google Drive e rileggi i dati' : 'Aggiorna: rilegge i dati (anche quelli arrivati da Google Drive)', onclick: aggiornaOra }, icona('aggiorna')),
     h('a', { class: 'tasto', href: '#/impostazioni', title: 'Impostazioni' }, icona('impostazioni')));
 }
 
@@ -294,10 +353,49 @@ function mostraNovita() {
     bottone('chiudi', '', nascondiNovita, 'q sm icona', { title: 'Più tardi' }));
   document.body.append(novita);
 }
-p.servizi.suCambiamenti?.(() => {
+/** Dati cambiati da fuori: si ridisegna, oppure si avvisa se si sta scrivendo. */
+function datiCambiati() {
   if (sporco || document.querySelector('dialog[open]')) mostraNovita();
   else disegna();
+}
+
+async function driveCollegato() {
+  return !!(sincro && (await sincro.leggi()).collegato);
+}
+
+/** Pulsante Aggiorna: con Google Drive collegato sincronizza, altrimenti rilegge. */
+async function aggiornaOra() {
+  nascondiNovita();
+  if (await driveCollegato()) {
+    try {
+      const e = await sincro.sincronizza();
+      avviso(e ? `Google Drive: ${(await sincro.leggi()).esito}` : 'Google Drive sincronizzato');
+    } catch (err) {
+      avviso(err.message, 'errore');
+    }
+  }
+  disegna();
+}
+
+p.servizi.suCambiamenti?.(async () => {
+  // Android al rientro nell'app: con Drive collegato si sincronizza (e si ridisegna se è arrivato qualcosa)
+  if (await driveCollegato()) sincro.sincronizza().catch(() => {});
+  else datiCambiati();
 });
+
+if (sincro) {
+  sincro.suEventi((ev) => {
+    const tasto = document.querySelector('.appbar .tasto.aggiorna');
+    if (ev.tipo === 'inizio') tasto?.classList.add('gira');
+    if (ev.tipo === 'fine' || ev.tipo === 'errore') tasto?.classList.remove('gira');
+    if (ev.tipo === 'fine' && ev.cambiatiQui.length) datiCambiati();
+    if (ev.tipo === 'fine' || ev.tipo === 'errore') document.dispatchEvent(new CustomEvent('cse-sincro', { detail: ev }));
+  });
+  driveCollegato().then((si) => { if (si) sincro.sincronizza().catch(() => {}); });
+  setInterval(async () => {
+    if (document.visibilityState === 'visible' && await driveCollegato()) sincro.sincronizza().catch(() => {});
+  }, 3 * 60 * 1000);
+}
 
 window.addEventListener('hashchange', () => {
   window.scrollTo(0, 0);
