@@ -77,6 +77,11 @@ jobs:
       - run: ./gradlew assembleDebug
         working-directory: CSE_SISTEM/android
       - run: cp android/app/build/outputs/apk/debug/app-debug.apk CSE_SISTEM.apk
+      # l'APK deve avere l'impronta registrata in Google Cloud (accesso a Google Drive)
+      - name: Controllo della firma dell'APK
+        run: |
+          keytool -printcert -jarfile CSE_SISTEM.apk | tee firma.txt
+          grep -q "F0:74:47:B0:72:6C:56:0C:16:81:AB:FB:31:9B:42:26:67:F1:33:C4" firma.txt
       - uses: actions/upload-artifact@v4
         with:
           name: CSE_SISTEM-Android

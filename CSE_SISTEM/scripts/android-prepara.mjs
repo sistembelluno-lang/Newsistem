@@ -34,6 +34,20 @@ fs.cpSync('android-extra/res', 'android/app/src/main/res', { recursive: true });
 const [a, b, c] = pkg.version.split('.').map(Number);
 const gradle = 'android/app/build.gradle';
 let g = fs.readFileSync(gradle, 'utf8');
+// firma sempre con la stessa chiave del progetto (android-extra/debug.keystore):
+// così l'impronta SHA-1 registrata in Google Cloud resta valida e ogni nuova
+// versione si installa sopra la precedente
+if (!g.includes('android-extra/debug.keystore')) {
+  g = g.replace(/android\s*\{/, (m) => `${m}
+    signingConfigs {
+        debug {
+            storeFile file('../../android-extra/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }`);
+}
 if (!g.includes('play-services-auth')) {
   g = g.replace(/dependencies\s*\{/, (m) => `${m}\n    implementation 'com.google.android.gms:play-services-auth:21.2.0'`);
 }
