@@ -20,7 +20,7 @@ import {
 } from '../servizi/pos.js';
 import { controllaRisposta, MODELLO_CLAUDE, richiestaVerifica } from '../servizi/claude.js';
 import { fotoDelGiorno, nomeFileVoce, nuovaVoce, ordinaVoci } from '../servizi/giornale.js';
-import { chiudi, destinatariVerbale, nomeFileVerbale, numeriDoppi, nuovoVerbaleSopralluogo, prescrizioniAperte } from '../servizi/verbali.js';
+import { chiudi, destinatariVerbale, tipoVerbale, titoloVerbale, nomeFileVerbale, numeriDoppi, nuovoVerbaleSopralluogo, prescrizioniAperte } from '../servizi/verbali.js';
 import { htmlChecklistPos, htmlLetteraPos, htmlVerbale } from '../servizi/stampa.js';
 import { CHECKLIST_POS, CONTROLLI_SOPRALLUOGO, ESITI_CHECKLIST, ESITI_CONTROLLO, ESITI_VERIFICA_POS, SEZIONI_CHECKLIST } from '../servizi/normativa.js';
 
@@ -979,7 +979,7 @@ async function nuovoVerbaleDa(ctx) {
 }
 
 registra({
-  id: 'verbali', titolo: 'Verbali di sopralluogo', titoloBreve: 'Verbali', ruolo: 'cse', ordine: 60, sezione: 'verbali', icona: 'verbali',
+  id: 'verbali', titolo: 'Verbali di sopralluogo e coordinamento', titoloBreve: 'Verbali', ruolo: 'cse', ordine: 60, sezione: 'verbali', icona: 'verbali',
   conta: async (ctx) => (await stato(ctx)).aperte.length,
   async disegna(ctx) {
     const cod = ctx.cantiere.codice;
@@ -988,7 +988,7 @@ registra({
     const doppi = numeriDoppi(s.verbali);
     const nomi = new Map(s.imprese.map((i) => [i.id, i.ragioneSociale]));
     return h('div', {},
-      testata('Verbali di sopralluogo', 'Art. 92 D.Lgs 81/08 · si compilano qui e si stampano per la firma su carta', nuovo()),
+      testata('Verbali di sopralluogo e coordinamento', 'Art. 92 D.Lgs 81/08 · si compilano qui e si stampano per la firma su carta', nuovo()),
       doppi.length ? nota(`Numeri usati due volte (${doppi.join(', ')}): probabilmente verbali creati su due dispositivi prima della sincronizzazione. Rinumerali prima di chiuderli.`, 'ko') : null,
       s.aperte.length ? h('div', { style: 'margin-bottom:16px' }, scheda({
         titolo: `Prescrizioni aperte (${s.aperte.length})`, ico: 'attenzione',
@@ -1001,7 +1001,7 @@ registra({
         ? h('div', { class: 'tw' }, tabella(['N.', 'Data', 'Contenuto', 'Stato'], s.verbali.map((v) => h('tr', { class: 'cliccabile', onclick: () => vai(indirizzo(cod, 'verbale', v.id)) },
           h('td', { class: 'stretta' }, h('b', {}, v.numero), doppi.includes(v.numero) ? [' ', pill('doppio', 'ko')] : null),
           h('td', { class: 'stretta' }, dataIt(v.data)),
-          h('td', {}, v.lavorazioniInCorso || h('span', { class: 'mu' }, '—'),
+          h('td', {}, tipoVerbale(v).coordinamento ? [pill(tipoVerbale(v).sopralluogo ? 'Sopralluogo e coordinamento' : 'Coordinamento', 'ac'), ' '] : null, v.lavorazioniInCorso || h('span', { class: 'mu' }, '—'),
             h('span', { class: 'sotto' }, [
               v.nonConformita?.length ? `${v.nonConformita.length} non conformità` : '',
               v.prescrizioni?.length ? `${v.prescrizioni.length} prescrizioni` : '',
@@ -1032,6 +1032,41 @@ registra({
       el.addEventListener('change', aggiorna);
       return el;
     };
+
+    // tipo del verbale: sopralluogo, coordinamento o entrambi
+    let schedaVerifiche = null; // creata più sotto, con la tabella dei controlli
+    const schedaCoordinamento = scheda({
+      titolo: 'Coordinamento', ico: 'persone',
+      corpo: [h('p', { class: 'mu', style: 'margin-top:0' }, 'Riunione di coordinamento tra le imprese e i lavoratori autonomi (art. 92 c. 1 lett. c): argomenti trattati, interferenze, sfasamenti, accordi presi.'),
+        lega('argomentiCoordinamento', 'testo_lungo', 'Argomenti trattati e accordi presi')],
+    });
+    const aggiornaTipo = () => {
+      const t = tipoVerbale(v);
+      if (schedaVerifiche) schedaVerifiche.hidden = !t.sopralluogo;
+      schedaCoordinamento.hidden = !t.coordinamento;
+      document.querySelector('.titolo-verbale')?.replaceChildren(`${titoloVerbale(v)} n. ${v.numero}`);
+    };
+    const spuntaTipo = (chiave, testo, rif) => h('label', { class: 'spunta' }, h('input', {
+      type: 'checkbox', checked: tipoVerbale(v)[chiave], disabled: blocco,
+      onchange: (e) => {
+        v[chiave] = e.target.checked;
+        // almeno uno dei due: togliendo l'ultimo si passa all'altro
+        if (!v.sopralluogo && !v.coordinamento) {
+          const altro = chiave === 'sopralluogo' ? 'coordinamento' : 'sopralluogo';
+          v[altro] = true;
+          sceltaTipo.querySelector(`input[data-tipo="${altro}"]`).checked = true;
+        }
+        aggiornaTipo();
+      },
+      dataset: { tipo: chiave },
+    }), testo, h('span', { class: 'rif' }, rif));
+    const sceltaTipo = h('div', { class: 'tipo-verbale' },
+      spuntaTipo('sopralluogo', 'Sopralluogo', 'art. 92 c. 1 lett. a'),
+      spuntaTipo('coordinamento', 'Coordinamento', 'art. 92 c. 1 lett. c'));
+    const t0 = tipoVerbale(v);
+    v.sopralluogo = t0.sopralluogo;
+    v.coordinamento = t0.coordinamento;
+    schedaCoordinamento.hidden = !t0.coordinamento;
 
     const generali = h('div', { class: 'campi' },
       lega('numero', 'numero', 'Numero'), lega('data', 'data', 'Data'),
@@ -1097,6 +1132,8 @@ registra({
       contaNascosti.replaceChildren(n ? bottone(mostraNascosti ? 'nascosto' : 'occhio', mostraNascosti ? 'Togli i nascosti' : `Mostra nascosti (${n})`, () => { mostraNascosti = !mostraNascosti; disegnaControlli(); }, 'q sm') : '');
     };
     disegnaControlli();
+    schedaVerifiche = scheda({ titolo: 'Verifiche effettuate (sopralluogo)', ico: 'ok', azioni: [contaNascosti], tabella: h('table', { class: 't' }, controlli) });
+    schedaVerifiche.hidden = !tipoVerbale(v).sopralluogo;
 
     // foto del verbale: scelte dal registro fotografico, oppure scattate / caricate adesso
     v.foto = (v.foto || []).filter((id) => s.foto.some((f) => f.id === id));
@@ -1245,15 +1282,16 @@ registra({
 
     return h('div', {},
       h('datalist', { id: elencoImprese }, s.imprese.map((i) => h('option', { value: i.ragioneSociale }))),
-      testata(`Verbale di sopralluogo n. ${v.numero}`, `${giorno(v.data)} ${dataIt(v.data)} · ${ctx.cantiere.denominazione}`,
+      testata(h('span', { class: 'titolo-verbale' }, `${titoloVerbale(v)} n. ${v.numero}`), `${giorno(v.data)} ${dataIt(v.data)} · ${ctx.cantiere.denominazione}`,
         blocco ? pill('Chiuso', 'ok') : pill('In bozza', 'at'),
         h('a', { class: 'bottone', href: indirizzo(cod, 'verbali') }, icona('indietro'), 'Verbali')),
       blocco ? nota('Verbale chiuso: non si modifica più. Per correzioni o integrazioni fai un nuovo verbale.', 'info') : null,
       h('div', { class: 'pila' },
-        scheda({ titolo: 'Sopralluogo', ico: 'calendario', corpo: [generali, destinatari, impresePresenti] }),
+        scheda({ titolo: 'Dati del verbale', ico: 'calendario', corpo: [sceltaTipo, generali, destinatari, impresePresenti] }),
+        schedaCoordinamento,
         scheda({ titolo: 'Presenti', ico: 'persone', azioni: [presenti.aggiungi], tabella: presenti.tabella }),
         daVerificare,
-        scheda({ titolo: 'Verifiche effettuate', ico: 'ok', azioni: [contaNascosti], tabella: h('table', { class: 't' }, controlli) }),
+        schedaVerifiche,
         scheda({ titolo: 'Non conformità rilevate', ico: 'attenzione', azioni: [nc.aggiungi], tabella: nc.tabella }),
         scheda({ titolo: 'Prescrizioni', ico: 'verbali', azioni: [prescr.aggiungi], tabella: prescr.tabella }),
         scheda({ titolo: 'Provvedimenti', ico: 'psc', corpo: provvedimenti }),

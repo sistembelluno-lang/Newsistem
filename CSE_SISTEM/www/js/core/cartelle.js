@@ -38,7 +38,7 @@ export const SEZIONI = Object.freeze({
   verifichePos: { cartella: '05_Verifiche_POS', titolo: 'Verifiche dei POS' },
   giornale: { cartella: '06_Giornale_lavori', titolo: 'Giornale dei lavori' },
   foto: { cartella: '07_Registro_fotografico', titolo: 'Registro fotografico' },
-  verbali: { cartella: '08_Verbali_sopralluogo', titolo: 'Verbali di sopralluogo' },
+  verbali: { cartella: '08_Verbali_sopralluogo', titolo: 'Verbali di sopralluogo e coordinamento' },
 });
 
 /** Sezioni che sono semplici raccolte di documenti caricati (con scheda). */

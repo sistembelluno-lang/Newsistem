@@ -220,6 +220,9 @@ export function nuovoVerbale(campi = {}) {
     oraInizio: '',
     oraFine: '',
     presenti: [],           // [{ nome, qualifica, impresa }]
+    sopralluogo: true,      // tipo di verbale: sopralluogo (art. 92 c. 1 lett. a), coordinamento (lett. c) o entrambi
+    coordinamento: false,
+    argomentiCoordinamento: '', // riunione di coordinamento: argomenti trattati, accordi, sfasamenti
     destinatari: '',        // a chi si invia il verbale (uno per riga), in alto a sinistra nella stampa
     impresePresenti: [],    // id delle imprese in cantiere
     lavorazioniInCorso: '',

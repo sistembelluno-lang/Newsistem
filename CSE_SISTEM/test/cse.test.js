@@ -503,3 +503,22 @@ test('Google Drive: sincronizzatore (stato salvato, collegamento, una sola sincr
   assert.deepEqual(await cl.elenca('root'), []);
   assert.equal(chiesto, 2);
 });
+
+test('verbale di sopralluogo e/o coordinamento', async () => {
+  const { tipoVerbale, titoloVerbale } = await import('../www/js/servizi/verbali.js');
+  const cant = nuovoCantiere({ codice: 'C', denominazione: 'X' });
+  const v = nuovoVerbaleSopralluogo([]);
+  assert.equal(titoloVerbale(v), 'Verbale di sopralluogo');
+  assert.equal(titoloVerbale({ ...v, coordinamento: true }), 'Verbale di sopralluogo e coordinamento');
+  assert.equal(titoloVerbale({ ...v, sopralluogo: false, coordinamento: true }), 'Verbale di coordinamento');
+  assert.deepEqual(tipoVerbale({ sopralluogo: false, coordinamento: false }), { sopralluogo: true, coordinamento: false }, 'senza spunte: sopralluogo');
+  assert.deepEqual(tipoVerbale({}), { sopralluogo: true, coordinamento: false }, 'verbali delle versioni precedenti');
+  const solo = htmlVerbale(cant, { ...v, sopralluogo: false, coordinamento: true, argomentiCoordinamento: 'Sfasamento esbosco / scavi' });
+  assert.match(solo, /<h1>Verbale di coordinamento n\. 1/);
+  assert.match(solo, /<span class="box-v"><\/span> Sopralluogo[\s\S]*<span class="box-v">X<\/span> Coordinamento/);
+  assert.match(solo, /Coordinamento \(art\. 92 c\. 1 lett\. c\)<\/h2>\n<p style="white-space:pre-line">Sfasamento esbosco \/ scavi/);
+  assert.ok(!solo.includes('Verifiche effettuate'), 'solo coordinamento: niente controlli');
+  const entrambi = htmlVerbale(cant, { ...v, coordinamento: true });
+  assert.match(entrambi, /Verbale di sopralluogo e coordinamento n\. 1/);
+  assert.ok(entrambi.includes('Verifiche effettuate') && entrambi.includes('Coordinamento (art. 92'));
+});

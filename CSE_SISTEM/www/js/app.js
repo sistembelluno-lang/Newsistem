@@ -159,6 +159,21 @@ async function schedaLogo() {
   });
 }
 
+/** Impronta SHA-1 della chiave con cui è firmato l'APK (android-extra/debug.keystore). */
+const SHA1_APP = 'F0:74:47:B0:72:6C:56:0C:16:81:AB:FB:31:9B:42:26:67:F1:33:C4';
+
+/** Pulsante «Copia» per un testo (impronta, nome del pacchetto). */
+function copia(testo) {
+  return bottone('', 'Copia', async () => {
+    try {
+      await navigator.clipboard.writeText(testo);
+      avviso('Copiato');
+    } catch {
+      avviso('Copia non riuscita: tieni premuto sul testo per selezionarlo', 'errore');
+    }
+  }, 'q sm');
+}
+
 /** Android: collegamento diretto con Google Drive. */
 async function schedaDrive() {
   const c = await sincro.leggi();
@@ -190,6 +205,16 @@ async function schedaDrive() {
     corpo: [
       h('p', { class: 'mu', style: 'margin-top:0' }, 'CSE_SISTEM tiene i cantieri sul telefono (si lavora anche senza rete) e li allinea da solo con la cartella di Google Drive che il PC vede con «Google Drive per desktop». Non serve più Autosync o FolderSync: se lo usavi per questa cartella, disattivalo.'),
       stato,
+      c.collegato ? null : h('details', { class: 'preparazione', open: !!c.errore && /riconosce/.test(c.errore) },
+        h('summary', {}, 'Prima volta: preparazione in Google Cloud (una sola volta, meglio dal PC)'),
+        h('ol', {},
+          h('li', {}, 'Su ', h('b', {}, 'console.cloud.google.com'), ', con l’account Google dello studio, crea un progetto (es. «CSE SISTEM»).'),
+          h('li', {}, h('b', {}, 'API e servizi › Libreria'), ': cerca «Google Drive API» e premi ', h('b', {}, 'Abilita'), '.'),
+          h('li', {}, h('b', {}, 'Google Auth Platform'), ' (o «Schermata consenso OAuth»): nome app CSE_SISTEM, pubblico ', h('b', {}, 'Esterno'), '; in «Accesso ai dati» aggiungi l’ambito ', h('code', {}, 'https://www.googleapis.com/auth/drive'), '; in «Pubblico › Utenti di prova» aggiungi il tuo indirizzo Gmail.'),
+          h('li', {}, h('b', {}, 'Client › Crea client › Android'), ', con questi due dati:',
+            h('div', { class: 'dato' }, 'Nome del pacchetto: ', h('code', {}, 'it.sistembelluno.csesistem'), copia('it.sistembelluno.csesistem')),
+            h('div', { class: 'dato' }, 'Impronta SHA-1: ', h('code', {}, SHA1_APP), copia(SHA1_APP))),
+          h('li', {}, 'Torna qui e tocca ', h('b', {}, 'Collega Google Drive'), '.'))),
       h('label', { class: 'campo', style: 'margin-top:10px' }, 'Cartella su Google Drive (dentro «Il mio Drive»)', percorso),
       h('div', { class: 'azioni', style: 'margin-top:12px;justify-content:flex-start' },
         bottone('aggiorna', c.collegato ? 'Ricollega / cambia cartella' : 'Collega Google Drive', collega, c.collegato ? '' : 'p'),
@@ -211,6 +236,19 @@ async function paginaImpostazioni() {
       disegna();
     };
     const suDrive = drive.includes(attuale);
+    // i tre passi per avere gli stessi cantieri su PC e telefono, con lo stato di ognuno
+    const passo = (fatto, titolo, testo, ...azioni) => h('li', { class: fatto ? 'fatto' : '' },
+      h('span', { class: 'segno' }, fatto ? icona('ok') : ''), h('div', {}, h('b', {}, titolo), h('p', {}, testo), azioni.length ? h('div', { class: 'azioni', style: 'justify-content:flex-start' }, azioni) : null));
+    parti.push(scheda({
+      titolo: 'PC e telefono: come sincronizzare', ico: 'aggiorna',
+      corpo: h('ol', { class: 'passi-sincro' },
+        passo(drive.length > 0, '1. Google Drive per desktop su questo PC',
+          drive.length ? `Trovato: ${drive.join(', ')}.` : 'Installa «Google Drive per desktop» (gratuito, da google.com/drive/download) e accedi con l’account Google dello studio: comparirà il disco «Il mio Drive».'),
+        passo(suDrive, '2. Cantieri nella cartella di Google Drive',
+          suDrive ? `I cantieri stanno in ${attuale}\\CSE_SISTEM: Google Drive li copia online da solo.` : 'Qui sotto, in «Cartella dei cantieri», premi «Usa questa» accanto alla cartella di Google Drive. I cantieri già presenti vanno copiati a mano in quella cartella (Esplora risorse).'),
+        passo(false, '3. Sul telefono: collegamento diretto',
+          'Installa l’APK, poi sul telefono apri Impostazioni › Google Drive › «Collega Google Drive» e scegli lo stesso account. La prima volta serve la preparazione in Google Cloud (si fa da PC, una volta sola): i passi sono nell’app del telefono e nella guida, capitolo 2.')),
+    }));
     parti.push(scheda({
       titolo: 'Cartella dei cantieri', ico: 'cartella',
       corpo: [

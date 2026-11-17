@@ -26,7 +26,7 @@ pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:1
 <header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
 <main>
 <h1>Guida a CSE_SISTEM</h1>
-<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.7.</p>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.8.</p>
 
 <div class="box"><b class="t">In breve</b>
 CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
@@ -40,14 +40,14 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <h2>1. Scaricare e installare</h2>
 <p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
 <table><tr><th>File</th><th>Per</th><th>Note</th></tr>
-<tr><td><code>CSE_SISTEM-0.7.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
-<tr><td><code>CSE_SISTEM-0.7.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM-0.8.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.8.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
 <tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
 <tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
 
 <h3>Windows</h3>
 <ol class="passi">
-<li>Scarica <code>CSE_SISTEM-0.7.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Scarica <code>CSE_SISTEM-0.8.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
 <li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
 <li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
 </ol>
@@ -83,6 +83,12 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <div class="box att"><b class="t">Lavorare da due dispositivi</b>
 Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quindi non si perde nulla. Conviene però aspettare che la sincronizzazione sia finita prima di passare dal telefono al PC. Se due dispositivi creano un verbale con lo stesso numero prima di essersi sincronizzati, li tiene entrambi e segnala «numeri usati due volte»: cambia il numero di uno dei due prima di chiuderlo.</div>
 
+<div class="box ok"><b class="t">La sincronizzazione in tre passi</b>
+<ol style="margin:4px 0 0">
+<li><b>PC</b>: installa «Google Drive per desktop» e accedi con l'account dello studio; in CSE_SISTEM › Impostazioni premi <b>Usa questa</b> accanto a «Il mio Drive».</li>
+<li><b>Google Cloud</b> (una volta sola, dal PC): registra l'app come spiegato qui sotto in «Collegare Google Drive: preparazione».</li>
+<li><b>Telefono</b>: CSE_SISTEM › Impostazioni › <b>Collega Google Drive</b>, con lo stesso account.</li>
+</ol>Le Impostazioni del PC mostrano quali passi sono fatti (cerchio verde) e quali mancano; quelle del telefono hanno i passi della preparazione con il pulsante <b>Copia</b> per i due dati da inserire.</div>
 <h3>Telefono: collegamento diretto con Google Drive (consigliato)</h3>
 <p>Dalla versione 0.7 l'app Android si collega <b>direttamente</b> a Google Drive: non servono più Autosync o FolderSync. I cantieri restano anche sul telefono (si lavora senza rete) e CSE_SISTEM li allinea da solo con la cartella <code>Il mio Drive/CSE_SISTEM</code>, la stessa che il PC vede con Google Drive per desktop.</p>
 <ol class="passi">
@@ -219,7 +225,8 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 </ul>
 <figure><img src="img/cse_foto.jpg" alt=""><figcaption>Foto raggruppate per giorno di scatto</figcaption></figure>
 
-<h2 class="salto">9. Verbali di sopralluogo</h2>
+<h2 class="salto">9. Verbali di sopralluogo e coordinamento</h2>
+<p>In cima al verbale spunta <b>Sopralluogo</b>, <b>Coordinamento</b> o tutti e due: il titolo diventa «Verbale di sopralluogo», «Verbale di coordinamento» o «Verbale di sopralluogo e coordinamento», e nella stampa le due caselle risultano barrate. Con <i>Coordinamento</i> compare la scheda per gli <b>argomenti trattati e gli accordi presi</b> (art. 92 c. 1 lett. c); con solo <i>Coordinamento</i> la tabella dei controlli del sopralluogo non c’è.</p>
 <ol class="passi">
 <li><b>Nuovo verbale</b> (dalla pagina Verbali o dal Riepilogo). Il verbale è già precompilato: numero progressivo, ora di inizio, imprese con POS idoneo, elenco dei controlli e prescrizioni dei verbali precedenti ancora aperte.</li>
 <li><b>Sopralluogo</b>: data, orari, lavorazioni in corso, <b>destinatari</b> (uno per riga: committente, responsabile dei lavori, DL, imprese; sono già proposti dall'anagrafica e «Riproponi dall'anagrafica» li ricompone) e imprese presenti (quelle senza POS idoneo sono segnalate).</li>
@@ -296,5 +303,5 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 
 <div class="box"><b class="t">Versione di prova</b>
 Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
-<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.7 · SISTEM SRL STP</p>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.8 · SISTEM SRL STP</p>
 </main></body></html>

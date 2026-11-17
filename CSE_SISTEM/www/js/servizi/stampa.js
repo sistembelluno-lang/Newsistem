@@ -4,6 +4,7 @@
 // La grafica definitiva dei modelli verrà dopo: qui c'è la struttura.
 
 import { dataIt, dataOraIt } from '../core/date.js';
+import { tipoVerbale, titoloVerbale } from './verbali.js';
 import {
   CHECKLIST_POS, CONTROLLI_SOPRALLUOGO, CONTENUTI_POS, ESITI_CONTROLLO, ESITI_VERIFICA_POS, ESITI_VOCE_POS, OBBLIGHI_CSE, SEZIONI_CHECKLIST,
 } from './normativa.js';
@@ -24,6 +25,7 @@ function pagina(titolo, corpo) {
   .righe-firma td { height: 11mm; }
   tr { page-break-inside: avoid; }
   /* verbale: intestazione come una lettera, destinatari a sinistra e logo a destra */
+  .tipo-v { margin: 0 0 3mm; } .box-v { display: inline-block; width: 3.5mm; height: 3.5mm; border: 1px solid #222; text-align: center; line-height: 3.5mm; font-size: 8.5pt; font-weight: bold; vertical-align: -0.6mm; }
   .testa-v { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; margin-bottom: 6mm; }
   .testa-v .dest { font-size: 9pt; line-height: 1.35; max-width: 62%; }
   .testa-v .dest p { margin: 0 0 1mm; }
@@ -65,21 +67,25 @@ export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTR
   const nomeImpresa = (id) => esc(imprese.find((i) => i.id === id)?.ragioneSociale || id);
   const testoControllo = new Map(controlli.map((c) => [c.codice, c.testo]));
   const righe = (lista, f) => (lista?.length ? lista.map(f).join('') : '<tr><td colspan="9">Nessuna</td></tr>');
+  const tipo = tipoVerbale(verbale);
   const corpo = `
 ${testaVerbale(verbale, logo)}
-<h1>Verbale di sopralluogo n. ${esc(verbale.numero)} del ${dataIt(verbale.data)}</h1>
+<h1>${titoloVerbale(verbale)} n. ${esc(verbale.numero)} del ${dataIt(verbale.data)}</h1>
 <p class="rif">Coordinatore per la sicurezza in fase di esecuzione – art. 92 D.Lgs 81/2008</p>
+<p class="tipo-v"><span class="box-v">${tipo.sopralluogo ? 'X' : ''}</span> Sopralluogo <span class="rif">(art. 92 c. 1 lett. a)</span> &nbsp;&nbsp;&nbsp; <span class="box-v">${tipo.coordinamento ? 'X' : ''}</span> Coordinamento <span class="rif">(art. 92 c. 1 lett. c)</span></p>
 ${intestazione(cantiere)}
-<p>Sopralluogo dalle ore ${esc(verbale.oraInizio) || '—'} alle ore ${esc(verbale.oraFine) || '—'}.</p>
+<p>Dalle ore ${esc(verbale.oraInizio) || '—'} alle ore ${esc(verbale.oraFine) || '—'}.</p>
 <h2>Presenti</h2>
 <table><tr><th>Nome</th><th>Qualifica</th><th>Impresa</th></tr>
 ${righe(verbale.presenti, (p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifica)}</td><td>${esc(p.impresa)}</td></tr>`)}</table>
 <h2>Imprese presenti in cantiere</h2>
 <p>${(verbale.impresePresenti || []).map(nomeImpresa).join(', ') || '—'}</p>
 <h2>Lavorazioni in corso</h2><p>${esc(verbale.lavorazioniInCorso) || '—'}</p>
-<h2>Verifiche effettuate</h2>
+${tipo.coordinamento ? `<h2>Coordinamento (art. 92 c. 1 lett. c)</h2>
+<p style="white-space:pre-line">${esc(verbale.argomentiCoordinamento) || '—'}</p>` : ''}
+${tipo.sopralluogo ? `<h2>Verifiche effettuate</h2>
 <table class="controlli"><tr><th class="c">Controllo</th><th class="e">Esito</th><th class="n">Note</th></tr>
-${righe((verbale.verifiche || []).filter((v) => !v.nascosta), (v) => `<tr><td class="c">${esc(testoControllo.get(v.codice) || v.codice)}</td><td class="e">${ESITI_CONTROLLO[v.esito] || ''}</td><td class="n">${esc(v.note)}</td></tr>`)}</table>
+${righe((verbale.verifiche || []).filter((v) => !v.nascosta), (v) => `<tr><td class="c">${esc(testoControllo.get(v.codice) || v.codice)}</td><td class="e">${ESITI_CONTROLLO[v.esito] || ''}</td><td class="n">${esc(v.note)}</td></tr>`)}</table>` : ''}
 ${verbale.prescrizioniDaVerificare?.length ? `<h2>Verifica delle prescrizioni dei verbali precedenti</h2>
 <table><tr><th>Prescrizione</th><th>Verbale</th><th>Esito</th></tr>
 ${verbale.prescrizioniDaVerificare.map((p) => `<tr><td>${esc(p.descrizione)}</td><td>n. ${esc(p.verbale)}</td><td>${{ risolta: 'Risolta', non_risolta: 'Non risolta' }[p.esito] || 'Non verificata'}</td></tr>`).join('')}</table>` : ''}
@@ -95,7 +101,7 @@ ${verbale.segnalazioneCommittente ? `<p><b>Segnalazione al committente / respons
 ${verbale.note ? `<h2>Note</h2><p>${esc(verbale.note)}</p>` : ''}
 ${firmeVerbale(cantiere, verbale)}
 ${fotoVerbale(foto)}`;
-  return pagina(`Verbale ${verbale.numero}`, corpo);
+  return pagina(`${titoloVerbale(verbale)} ${verbale.numero}`, corpo);
 }
 
 /**

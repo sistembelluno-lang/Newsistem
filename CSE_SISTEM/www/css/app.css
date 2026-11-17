@@ -361,3 +361,18 @@ h3.tit-doc .azioni { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap
 
 .appbar .tasto.gira .ico { animation: gira 1s linear infinite; }
 @keyframes gira { to { transform: rotate(360deg); } }
+
+.tipo-verbale { display: flex; gap: 10px 26px; flex-wrap: wrap; padding: 10px 12px; margin-bottom: 14px; border: 1px solid var(--bd); border-radius: 12px; background: var(--hd); }
+.tipo-verbale label.spunta { font-weight: 650; }
+
+ol.passi-sincro { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+ol.passi-sincro li { display: flex; gap: 12px; align-items: flex-start; }
+ol.passi-sincro .segno { flex: none; width: 26px; height: 26px; border-radius: 99px; border: 2px solid var(--bd); display: flex; align-items: center; justify-content: center; }
+ol.passi-sincro li.fatto .segno { background: var(--ok); border-color: var(--ok); color: #fff; }
+ol.passi-sincro p { margin: 2px 0 0; color: var(--mu); font-size: 13.5px; }
+details.preparazione { margin: 8px 0; padding: 8px 12px; border: 1px solid var(--bd); border-radius: 12px; background: var(--hd); }
+details.preparazione summary { cursor: pointer; font-weight: 650; }
+details.preparazione ol { padding-left: 20px; font-size: 13.5px; }
+details.preparazione li { margin: 6px 0; }
+details.preparazione .dato { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+details.preparazione code { word-break: break-all; }

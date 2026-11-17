@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.7** (di prova): logica e dati provati, interfaccia nello **stile
+Stato: versione **0.8** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -31,7 +31,7 @@ chiaro/scuro automatico), uguale su PC e telefono.
 - **Foto**: miniature raggruppate per giorno di scatto; anteprima con
   didascalia, posizione e data di scatto nascondibile (si usa l'originale
   senza la data stampata, anche nei verbali).
-- **Verbali**: elenco con prescrizioni aperte; verbale completo (presenti,
+- **Verbali di sopralluogo e coordinamento** (si spunta l’uno, l’altro o entrambi): elenco con prescrizioni aperte; verbale completo (presenti,
   imprese, controlli per gruppo, verifica delle prescrizioni precedenti, non
   conformità, prescrizioni, sospensione, segnalazione al committente),
   **foto scelte dal registro** (o scattate al momento) stampate dopo le firme,

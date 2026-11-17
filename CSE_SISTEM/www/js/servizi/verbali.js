@@ -67,6 +67,22 @@ export function prescrizioniAperte(verbali) {
   return [...aperte.values()];
 }
 
+/**
+ * Tipo del verbale: sopralluogo, coordinamento o entrambi (un verbale senza
+ * spunte vale come sopralluogo, come quelli delle versioni precedenti).
+ */
+export function tipoVerbale(v) {
+  const coordinamento = !!v.coordinamento;
+  const sopralluogo = v.sopralluogo !== false || !coordinamento;
+  return { sopralluogo, coordinamento };
+}
+
+/** «Verbale di sopralluogo», «Verbale di coordinamento», «Verbale di sopralluogo e coordinamento». */
+export function titoloVerbale(v) {
+  const t = tipoVerbale(v);
+  return `Verbale di ${[t.sopralluogo ? 'sopralluogo' : '', t.coordinamento ? 'coordinamento' : ''].filter(Boolean).join(' e ')}`;
+}
+
 /** Responsabile dei lavori per le stampe: nome, «non nominato» o vuoto. */
 export function responsabileLavori(cantiere) {
   if (cantiere.responsabileLavoriNonNominato) return 'non nominato';
