@@ -11,7 +11,9 @@ import { nuovoId } from '../core/id.js';
 import { h, avviso, bottone, campi, chiedi, conferma, finestra, nota, pill, scheda, tabella, testata, vuoto } from '../ui/dom.js';
 import { icona } from '../ui/icone.js';
 import { indirizzo, vai } from '../ui/router.js';
-import { caricaDocumento, elencoDocumenti, percorsoDocumento } from '../servizi/documenti.js';
+import { caricaDocumento, elencoDocumenti, eliminaDocumento, percorsoDocumento } from '../servizi/documenti.js';
+import { estraiP7m, nomeEstratto } from '../servizi/p7m.js';
+import { anteprima } from '../servizi/anteprime.js';
 import { importaFoto, ordinaFoto, perGiorno } from '../servizi/foto.js';
 import { timbraFoto } from '../servizi/timbro.js';
 import {
@@ -45,7 +47,7 @@ function stato(ctx) {
       const verifiche = await a.registrazioni(cod, 'verifichePos');
       const verbali = (await a.registrazioni(cod, 'verbali')).sort((x, y) => (y.numero - x.numero) || confronta(y.data, x.data));
       const documenti = {};
-      for (const s of ['progetto', 'psc', 'notifica']) documenti[s] = await elencoDocumenti(a, cod, s);
+      for (const s of ['progetto', 'psc', 'notifica', 'ricevuti']) documenti[s] = await elencoDocumenti(a, cod, s);
       return {
         imprese, pos, verifiche, verbali, documenti,
         situazione: situazionePos(imprese, pos, verifiche),
@@ -74,10 +76,25 @@ async function scegliFile(ctx, { accetta = '*', multipli = true } = {}) {
 
 async function apri(ctx, p) {
   try {
+    if (/\.p7m$/i.test(p)) p = await estraiPerAprire(ctx, p, true);
     await ctx.archivio.apri(p);
   } catch (e) {
     avviso(e.message, 'errore');
   }
+}
+
+/**
+ * File firmato (.p7m): si estrae il documento (di solito il PDF) in una
+ * cartella nascosta accanto, «.p7m-aperti» (non va in elenco né su Drive), e
+ * si restituisce il suo percorso.
+ */
+async function estraiPerAprire(ctx, p, mostraFirma = false) {
+  const i = p.lastIndexOf('/');
+  const e = estraiP7m(await ctx.archivio.disco.leggiByte(p));
+  const dest = percorso(p.slice(0, i), '.p7m-aperti', nomeEstratto(p.slice(i + 1), e.estensione));
+  await ctx.archivio.disco.scriviByte(dest, e.byte);
+  if (mostraFirma && e.firmatari.length) avviso(`Firmato digitalmente da: ${e.firmatari.join(', ')}`);
+  return dest;
 }
 
 /** Salva l'HTML in PDF nella cartella indicata (dove la piattaforma lo permette). */
@@ -248,17 +265,33 @@ registra({
 });
 
 // ================================================================== documenti
-const ICONE_DOC = { progetto: 'progetto', psc: 'psc', notifica: 'notifica' };
-const TITOLI_BREVI = { progetto: 'Progetto', psc: 'PSC', notifica: 'Notifica preliminare' };
+const ICONE_DOC = { progetto: 'progetto', psc: 'psc', notifica: 'notifica', ricevuti: 'carica' };
+const TITOLI_BREVI = { progetto: 'Progetto', psc: 'PSC', notifica: 'Notifica preliminare', ricevuti: 'Documenti ricevuti' };
 const SPIEGAZIONI = {
   progetto: 'Elaborati di progetto: tavole, relazioni, computo. Ogni revisione resta in archivio.',
   psc: 'Piano di sicurezza e coordinamento (art. 100 e Allegato XV) con i suoi aggiornamenti.',
   notifica: 'Notifica preliminare (art. 99) e suoi aggiornamenti; copia da affiggere in cantiere.',
+  ricevuti: 'Quello che arriva durante i lavori: verbali di coordinamento tra imprese, disegni, comunicazioni, certificati. Si possono allegare ai verbali (con l’anteprima della prima pagina).',
+};
+const CATEGORIE_RICEVUTI = {
+  verbale_imprese: 'Verbale di coordinamento tra imprese', disegno: 'Disegno / elaborato', comunicazione: 'Comunicazione',
+  certificato: 'Certificato / dichiarazione', altro: 'Altro',
 };
 
-for (const [i, sezione] of ['progetto', 'psc', 'notifica'].entries()) {
+/** Chi ha firmato un file .p7m (vuoto se non è firmato o non si legge). */
+function firmatariDi(f) {
+  if (!/\.p7m$/i.test(f.nome)) return [];
+  try {
+    return estraiP7m(f.byte).firmatari;
+  } catch {
+    return [];
+  }
+}
+
+for (const [i, sezione] of ['progetto', 'psc', 'notifica', 'ricevuti'].entries()) {
+  const ricevuti = sezione === 'ricevuti';
   registra({
-    id: sezione, titolo: SEZIONI[sezione].titolo, titoloBreve: TITOLI_BREVI[sezione], ruolo: 'cse', ordine: 20 + i, sezione, icona: ICONE_DOC[sezione],
+    id: sezione, titolo: SEZIONI[sezione].titolo, titoloBreve: TITOLI_BREVI[sezione], ruolo: 'cse', ordine: ricevuti ? 25 : 20 + i, sezione, icona: ICONE_DOC[sezione],
     async disegna(ctx) {
       const cod = ctx.cantiere.codice;
       const docs = (await stato(ctx)).documenti[sezione];
@@ -266,30 +299,46 @@ for (const [i, sezione] of ['progetto', 'psc', 'notifica'].entries()) {
         let n = 0;
         for (const f of await scegliFile(ctx)) {
           const dati = await chiedi({
-            titolo: 'Carica documento', testo: f.nome, ok: 'Carica',
-            campi: [
+            titolo: ricevuti ? 'Documento ricevuto' : 'Carica documento', testo: f.nome, ok: 'Carica',
+            campi: ricevuti ? [
+              { chiave: 'titolo', etichetta: 'Titolo', tipo: 'testo', obbligatorio: true, largo: true },
+              { chiave: 'categoria', etichetta: 'Tipo', tipo: 'scelta', vuota: false, opzioni: CATEGORIE_RICEVUTI },
+              { chiave: 'data', etichetta: 'Data del documento', tipo: 'data' },
+              { chiave: 'autore', etichetta: 'Inviato da', tipo: 'testo', largo: true },
+              { chiave: 'note', etichetta: 'Note', tipo: 'testo_lungo' },
+            ] : [
               { chiave: 'titolo', etichetta: 'Titolo', tipo: 'testo', obbligatorio: true, largo: true },
               { chiave: 'revisione', etichetta: 'Revisione', tipo: 'testo' },
               { chiave: 'data', etichetta: 'Data del documento', tipo: 'data' },
               { chiave: 'autore', etichetta: 'Redatto da', tipo: 'testo', largo: true },
             ],
-            valori: { titolo: f.nome.replace(/\.[^.]+$/, ''), revisione: '0', data: oggi() },
+            valori: { titolo: nomeEstratto(f.nome, '').replace(/\.[^.]+$/, ''), revisione: '0', data: oggi(), categoria: 'verbale_imprese' },
           });
           if (!dati) continue;
-          await caricaDocumento(ctx.archivio, cod, sezione, f, dati);
+          await caricaDocumento(ctx.archivio, cod, sezione, f, { ...dati, firmatari: firmatariDi(f) });
           n++;
         }
         if (n) avviso(n === 1 ? 'Documento caricato' : `${n} documenti caricati`);
         ctx.ricarica();
       });
+      const elimina = (d) => prova(async (e) => {
+        e?.stopPropagation?.();
+        if (!(await conferma('Eliminare il documento?', `${d.titolo}: il file viene eliminato dalla cartella del cantiere. I verbali già stampati non cambiano.`, 'Elimina', true))) return;
+        await eliminaDocumento(ctx.archivio, cod, d);
+        avviso('Documento eliminato');
+        ctx.ricarica();
+      });
+      const firma = (d) => (d.firmatari?.length || /\.p7m$/i.test(d.file) ? pill(d.firmatari?.length ? `firmato: ${d.firmatari.join(', ')}` : 'firmato', 'ac') : null);
       return h('div', {},
         testata(SEZIONI[sezione].titolo, SPIEGAZIONI[sezione], bottone('carica', 'Carica documenti', carica, 'p')),
         docs.length
-          ? h('div', { class: 'tw' }, tabella(['Documento', 'Rev.', 'Data', ''], docs.map((d) => h('tr', { class: 'cliccabile', onclick: () => apri(ctx, percorsoDocumento(cod, d)) },
-            h('td', {}, h('b', {}, d.titolo), h('span', { class: 'sotto' }, d.file, d.autore ? ` · ${d.autore}` : '')),
-            h('td', { class: 'stretta' }, d.revisione), h('td', { class: 'stretta' }, dataIt(d.data)),
-            h('td', { class: 'az' }, bottone('apri', 'Apri', (e) => { e.stopPropagation(); apri(ctx, percorsoDocumento(cod, d)); }, 'sm'))))))
-          : scheda({ corpo: vuoto(ICONE_DOC[sezione], 'Nessun documento', 'I file vengono copiati nella cartella del cantiere; l’originale resta dov’è.', bottone('carica', 'Carica documenti', carica, 'p')) }));
+          ? h('div', { class: 'tw' }, tabella(['Documento', ricevuti ? 'Tipo' : 'Rev.', 'Data', ''], docs.map((d) => h('tr', { class: 'cliccabile', onclick: () => apri(ctx, percorsoDocumento(cod, d)) },
+            h('td', {}, h('b', {}, d.titolo), ' ', firma(d), h('span', { class: 'sotto' }, d.file, d.autore ? ` · ${d.autore}` : '', d.note ? ` · ${d.note}` : '')),
+            h('td', { class: ricevuti ? '' : 'stretta' }, ricevuti ? CATEGORIE_RICEVUTI[d.categoria] || '' : d.revisione), h('td', { class: 'stretta' }, dataIt(d.data)),
+            h('td', { class: 'az' },
+              bottone('apri', 'Apri', (e) => { e.stopPropagation(); apri(ctx, percorsoDocumento(cod, d)); }, 'sm'),
+              bottone('cestino', '', elimina(d), 'q sm icona', { title: 'Elimina' }))))))
+          : scheda({ corpo: vuoto(ICONE_DOC[sezione], 'Nessun documento', 'I file vengono copiati nella cartella del cantiere; l’originale resta dov’è. Si possono caricare anche file firmati .p7m.', bottone('carica', 'Carica documenti', carica, 'p')) }));
     },
   });
 }
@@ -326,7 +375,7 @@ function pillSituazione(x) {
   return pill('POS mancante', 'ko');
 }
 
-const ACCETTA_DOC = '.pdf,application/pdf,image/jpeg,image/png,.jpg,.jpeg,.png';
+const ACCETTA_DOC = '.pdf,application/pdf,.p7m,image/jpeg,image/png,.jpg,.jpeg,.png';
 
 /** Fa scegliere una cartella (con le sottocartelle): [{ nome, percorso: 'Cartella/sotto/file.pdf', byte, modificato }]. */
 async function scegliCartella(ctx) {
@@ -422,7 +471,8 @@ function finestraDocumenti(ctx, impresa, pos, { nuovo = false } = {}) {
         if (gruppo) out.push(h('tr', { class: 'gr' }, h('td', { colspan: 3 }, icona('cartella'), ' ', gruppo)));
       }
       out.push(h('tr', {},
-        h('td', { style: gruppo ? 'padding-left:28px' : null }, h('b', {}, f.titolo), h('span', { class: 'sotto' }, f.file.split('/').pop(), f.mancante ? [' · ', pill('non ancora sincronizzato', 'at')] : null)),
+        h('td', { style: gruppo ? 'padding-left:28px' : null }, h('b', {}, f.titolo), /\.p7m$/i.test(f.file) ? [' ', pill('firmato .p7m', 'ac')] : null,
+          h('span', { class: 'sotto' }, f.file.split('/').pop(), f.mancante ? [' · ', pill('non ancora sincronizzato', 'at')] : null)),
         h('td', { class: 'stretta' }, f.data ? dataIt(f.data) : f.trovato ? h('span', { class: 'mu' }, 'nella cartella') : ''),
         h('td', { class: 'az' },
           bottone('apri', '', () => apri(ctx, percorso(cartPos, f.file)), 'sm icona', { title: 'Apri' }),
@@ -586,6 +636,16 @@ async function leggiLogo(ctx) {
   }
 }
 
+const anteprimeUI = new Map(); // percorso -> Promise<anteprima piccola>
+
+/** Anteprima di un documento caricato (prima pagina, immagine, .p7m). */
+function anteprimaDocumento(ctx, d, larghezza = 360) {
+  const p = percorsoDocumento(ctx.cantiere.codice, d);
+  const chiave = `${p}|${larghezza}|${d.modificato || ''}`;
+  if (!anteprimeUI.has(chiave)) anteprimeUI.set(chiave, ctx.archivio.disco.leggiByte(p).then((b) => anteprima(b, d.file, { larghezza })));
+  return anteprimeUI.get(chiave);
+}
+
 /** Foto ridotte e lette come data URL per la stampa. */
 async function immagineStampa(ctx, p, lato = 1400) {
   const byte = await ctx.archivio.disco.leggiByte(p);
@@ -644,6 +704,16 @@ async function verificaConClaude(ctx, { s, impresa, pos, posImpresa, v }) {
   });
   if (!ok) return;
   const scelti = docs.filter((d) => d.scelto);
+  // i file firmati (.p7m) si aprono e si invia il documento contenuto
+  for (const d of scelti) {
+    if (/\.p7m$/i.test(d.percorso)) {
+      try {
+        d.percorso = await estraiPerAprire(ctx, d.percorso);
+      } catch (e) {
+        return avviso(`${d.titolo}: ${e.message}`, 'errore');
+      }
+    }
+  }
   if (!scelti.some((d) => d.tipo === 'pos')) return avviso('Scegli almeno il POS', 'errore');
 
   const testo = h('p', { style: 'margin:0' }, 'Preparazione…');
@@ -932,6 +1002,14 @@ function miniatura(ctx, f, alClic = null) {
   return el;
 }
 
+/** Elimina una foto dal registro: originale, copia con la data e scheda. */
+async function eliminaFoto(ctx, f) {
+  const cart = cartellaSezione(ctx.cantiere.codice, 'foto');
+  if (f.originale) await ctx.archivio.disco.elimina(percorso(cart, 'originali', f.originale));
+  if (f.timbrata) await ctx.archivio.disco.elimina(percorso(cart, 'timbrate', f.timbrata));
+  await ctx.archivio.eliminaRegistrazione(ctx.cantiere.codice, 'foto', f);
+}
+
 function apriFoto(ctx, f) {
   const p = percorsoFoto(ctx, f);
   const imm = h('div', { class: 'anteprima' }, h('div', { class: 'caricamento' }));
@@ -947,6 +1025,13 @@ function apriFoto(ctx, f) {
     h('div', { style: 'margin-top:12px' }, dati.el),
     h('p', { class: 'mu piccolo' }, `${f.timbrata} · originale ${f.originale}`),
   ], [
+    bottone('cestino', 'Elimina', prova(async () => {
+      if (!(await conferma('Eliminare la foto?', 'La foto viene tolta dal registro fotografico e dai verbali in bozza (anche l’originale). I verbali già stampati non cambiano.', 'Elimina', true))) return;
+      await eliminaFoto(ctx, f);
+      avviso('Foto eliminata');
+      chiudiF();
+      ctx.ricarica();
+    }), 'q d'),
     bottone('apri', 'Apri', () => apri(ctx, p)),
     bottone('salva', 'Salva', prova(async () => {
       await ctx.archivio.salvaRegistrazione(ctx.cantiere.codice, 'foto', { ...f, ...dati.leggi() });
@@ -976,12 +1061,39 @@ registra({
     });
     const scatta = () => (ctx.servizi.scatta ? bottone('scatta', 'Scatta foto', prova(async () => importa([await ctx.servizi.scatta()])), 'p') : null);
     const carica = () => bottone('carica', 'Carica foto', prova(async () => importa(ctx.servizi.scegliFoto ? await ctx.servizi.scegliFoto() : await scegliFile(ctx, { accetta: 'image/jpeg' }))), ctx.servizi.scatta ? '' : 'p');
+    // eliminazione di più foto: si toccano per sceglierle, poi «Elimina»
+    let scelte = null;
+    const barraScelta = h('div', { class: 'barra-scelta', hidden: true });
+    const griglie = h('div');
+    const disegnaGriglie = () => griglie.replaceChildren(...gruppi.map((g) => h('div', { class: 'giorno-foto' },
+      h('h3', {}, icona('calendario'), `${giorno(g.giorno)} ${dataIt(g.giorno)}`, h('span', { class: 'mu piccolo', style: 'font-weight:500' }, `· ${g.foto.length} foto`)),
+      h('div', { class: 'foto-griglia' }, g.foto.map((f) => {
+        if (!scelte) return miniatura(ctx, f);
+        const el = miniatura(ctx, f, () => { if (scelte.has(f)) scelte.delete(f); else scelte.add(f); el.classList.toggle('scelta'); aggiornaBarra(); });
+        el.append(h('span', { class: 'spunta-foto' }, icona('ok')));
+        if (scelte.has(f)) el.classList.add('scelta');
+        return el;
+      })))));
+    const aggiornaBarra = () => {
+      barraScelta.hidden = !scelte;
+      if (!scelte) return;
+      barraScelta.replaceChildren(h('span', {}, scelte.size ? `${scelte.size} foto scelte` : 'Tocca le foto da eliminare'),
+        bottone('chiudi', 'Annulla', () => { scelte = null; aggiornaBarra(); disegnaGriglie(); }, 'q sm'),
+        bottone('cestino', `Elimina${scelte.size ? ` (${scelte.size})` : ''}`, prova(async () => {
+          if (!scelte.size) return;
+          if (!(await conferma(`Eliminare ${scelte.size} foto?`, 'Le foto vengono tolte dal registro fotografico e dai verbali in bozza (anche gli originali). L’operazione non si annulla.', 'Elimina', true))) return;
+          for (const f of scelte) await eliminaFoto(ctx, f);
+          avviso(`${scelte.size} foto eliminate`);
+          ctx.ricarica();
+        }), 'd sm'));
+    };
+    disegnaGriglie();
+    const scegli = gruppi.length ? bottone('cestino', 'Elimina foto', () => { scelte = new Set(); aggiornaBarra(); disegnaGriglie(); }, 'q') : null;
     return h('div', {},
-      testata('Registro fotografico', 'Ordinate per data di scatto, stampata in basso a destra su ogni foto (l’originale resta intatto)', carica(), scatta()),
+      testata('Registro fotografico', 'Ordinate per data di scatto, stampata in basso a destra su ogni foto (l’originale resta intatto)', scegli, carica(), scatta()),
+      barraScelta,
       gruppi.length
-        ? gruppi.map((g) => h('div', { class: 'giorno-foto' },
-          h('h3', {}, icona('calendario'), `${giorno(g.giorno)} ${dataIt(g.giorno)}`, h('span', { class: 'mu piccolo', style: 'font-weight:500' }, `· ${g.foto.length} foto`)),
-          h('div', { class: 'foto-griglia' }, g.foto.map((f) => miniatura(ctx, f)))))
+        ? griglie
         : scheda({ corpo: vuoto('foto', 'Nessuna foto', ctx.servizi.scatta ? 'Scatta le foto dal telefono o caricale dalla galleria.' : 'Carica le foto (JPEG) dal PC: la data di scatto si legge dalla foto.', carica(), scatta()) }));
   },
 });
@@ -1220,6 +1332,45 @@ registra({
         }, 'p'),
       ], 'grande');
     };
+    // documenti allegati (ricevuti, progetto, PSC, notifica): anteprima della prima pagina, stampata su A4
+    const tuttiDoc = ['ricevuti', 'progetto', 'psc', 'notifica'].flatMap((sz) => (s.documenti[sz] || []).map((d) => ({ ...d, sezione: sz })));
+    const docDi = (r) => tuttiDoc.find((d) => d.sezione === r.sezione && d.file === r.file);
+    v.documenti = (v.documenti || []).filter(docDi);
+    const grigliaDoc = h('div', { class: 'documenti-v' });
+    const disegnaDoc = () => grigliaDoc.replaceChildren(...(v.documenti.length
+      ? v.documenti.map((r) => {
+        const d = docDi(r);
+        const img = h('div', { class: 'foglio' }, h('div', { class: 'caricamento' }));
+        anteprimaDocumento(ctx, d).then((a) => img.replaceChildren(a.src ? h('img', { src: a.src, alt: '' }) : h('span', { class: 'mu piccolo' }, 'Anteprima non disponibile')))
+          .catch(() => img.replaceChildren(h('span', { class: 'mu piccolo' }, 'Anteprima non disponibile (si apre toccandolo)')));
+        return h('div', { class: 'doc-v' },
+          h('button', { type: 'button', class: 'q', onclick: () => apri(ctx, percorsoDocumento(cod, d)), title: 'Apri il documento' }, img),
+          h('b', {}, d.titolo), h('span', { class: 'mu piccolo' }, [SEZIONI[d.sezione].titolo, d.categoria ? CATEGORIE_RICEVUTI[d.categoria] : '', dataIt(d.data)].filter(Boolean).join(' · ')),
+          blocco ? null : bottone('chiudi', 'Togli', () => { v.documenti = v.documenti.filter((x) => x !== r); disegnaDoc(); }, 'q sm'));
+      })
+      : [h('p', { class: 'mu', style: 'margin:0' }, blocco ? 'Nessun documento allegato' : 'Nessun documento: scegli tra i documenti ricevuti (verbali tra imprese, disegni, ...) o quelli di progetto, PSC e notifica. Nel PDF compaiono come anteprima della prima pagina, due per foglio.')]));
+    disegnaDoc();
+    const scegliDocumenti = () => {
+      const scelte = new Set(v.documenti.map((r) => `${r.sezione}|${r.file}`));
+      const gruppiDoc = ['ricevuti', 'progetto', 'psc', 'notifica'].filter((sz) => s.documenti[sz]?.length);
+      const corpo = gruppiDoc.length ? gruppiDoc.map((sz) => h('div', { style: 'margin-bottom:14px' },
+        h('h3', { class: 'tit-doc' }, icona(ICONE_DOC[sz]), SEZIONI[sz].titolo),
+        h('div', { class: 'pila', style: 'gap:6px' }, s.documenti[sz].map((d) => h('label', { class: 'spunta' },
+          h('input', { type: 'checkbox', checked: scelte.has(`${sz}|${d.file}`), onchange: (e) => { if (e.target.checked) scelte.add(`${sz}|${d.file}`); else scelte.delete(`${sz}|${d.file}`); } }),
+          h('span', {}, d.titolo, h('span', { class: 'rif' }, ` · ${[d.categoria ? CATEGORIE_RICEVUTI[d.categoria] : '', dataIt(d.data), d.file].filter(Boolean).join(' · ')}`)))))))
+        : vuoto('carica', 'Nessun documento caricato', 'Carica i documenti nella sezione «Documenti ricevuti» del cantiere.');
+      const { chiudi: chiudiF } = finestra('Documenti da allegare al verbale', corpo, [
+        bottone('ok', 'Usa i documenti scelti', () => {
+          const prima = v.documenti.filter((r) => scelte.has(`${r.sezione}|${r.file}`));
+          const nuovi = [...scelte].map((k) => { const [sezione, ...f] = k.split('|'); return { sezione, file: f.join('|') }; })
+            .filter((r) => !prima.some((x) => x.sezione === r.sezione && x.file === r.file));
+          v.documenti = [...prima, ...nuovi];
+          disegnaDoc();
+          chiudiF();
+        }, 'p'),
+      ], 'grande');
+    };
+
     const azioniFoto = blocco ? [] : [
       bottone('foto', 'Dal registro', scegliDalRegistro, 'sm'),
       ctx.servizi.scatta ? bottone('scatta', 'Scatta', prova(async () => importa([await ctx.servizi.scatta()])), 'sm') : null,
@@ -1275,17 +1426,42 @@ registra({
           attesa.remove();
         }
       }
-      await salvaPdf(ctx, htmlVerbale(ctx.cantiere, v, { imprese: s.imprese, foto, logo: await leggiLogo(ctx) }), nomePdf());
+      const documenti = [];
+      if (v.documenti.length) {
+        const attesa = avviso('Preparazione delle anteprime dei documenti…');
+        try {
+          for (const r of v.documenti) {
+            const d = docDi(r);
+            let a = { src: '', pagine: 0, firmatari: d.firmatari || [] };
+            try {
+              a = await anteprimaDocumento(ctx, d, 1100);
+            } catch { /* documento non leggibile: resta il riquadro con il nome */ }
+            documenti.push({
+              src: a.src, titolo: d.titolo, file: d.file,
+              dettagli: [d.categoria ? CATEGORIE_RICEVUTI[d.categoria] : SEZIONI[d.sezione].titolo, d.data ? `del ${dataIt(d.data)}` : '', d.autore ? `inviato da ${d.autore}` : '',
+                a.pagine > 1 ? `${a.pagine} pagine` : '', (a.firmatari?.length ? `firmato digitalmente da ${a.firmatari.join(', ')}` : '')].filter(Boolean).join(' – '),
+            });
+          }
+        } finally {
+          attesa.remove();
+        }
+      }
+      await salvaPdf(ctx, htmlVerbale(ctx.cantiere, v, { imprese: s.imprese, foto, documenti, logo: await leggiLogo(ctx) }), nomePdf());
     };
 
+    const elimina = bottone('cestino', 'Elimina', prova(async () => {
+      const testo = blocco
+        ? `Il verbale n. ${v.numero} è chiuso (firmato). Eliminarlo comunque? Il PDF già creato resta nella cartella «PDF in uscita». L’operazione non si annulla.`
+        : `Verbale n. ${v.numero} in bozza. L’operazione non si annulla.`;
+      if (!(await conferma('Eliminare il verbale?', testo, 'Elimina', true))) return;
+      await ctx.archivio.eliminaRegistrazione(cod, 'verbali', v);
+      avviso('Verbale eliminato');
+      vai(indirizzo(cod, 'verbali'));
+    }), 'q d');
     const pulsanti = blocco
-      ? [bottone('stampa', 'Stampa / PDF', prova(stampa), 'p')]
+      ? [elimina, bottone('stampa', 'Stampa / PDF', prova(stampa), 'p')]
       : [
-        bottone('cestino', 'Elimina', prova(async () => {
-          if (!(await conferma('Eliminare il verbale?', `Verbale n. ${v.numero} in bozza. L’operazione non si annulla.`, 'Elimina', true))) return;
-          await ctx.archivio.eliminaRegistrazione(cod, 'verbali', v);
-          vai(indirizzo(cod, 'verbali'));
-        }), 'q d solo-pc'),
+        elimina,
         bottone('salva', 'Salva', prova(async () => { await salva(); avviso('Verbale salvato'); ctx.ricarica(); })),
         bottone('stampa', 'Stampa', prova(async () => { await salva(); await stampa(); })),
         bottone('lucchetto', 'Chiudi', prova(async () => {
@@ -1313,6 +1489,7 @@ registra({
         scheda({ titolo: 'Prescrizioni', ico: 'verbali', azioni: [prescr.aggiungi], tabella: prescr.tabella }),
         scheda({ titolo: 'Provvedimenti', ico: 'psc', corpo: provvedimenti }),
         scheda({ titolo: `Foto del verbale${v.foto.length ? ` (${v.foto.length})` : ''}`, ico: 'foto', azioni: azioniFoto, corpo: grigliaFoto }),
+        scheda({ titolo: 'Documenti allegati', ico: 'carica', azioni: blocco ? [] : [bottone('carica', 'Scegli documenti', scegliDocumenti, 'sm')], corpo: grigliaDoc }),
         scheda({ titolo: 'Note', corpo: lega('note', 'testo_lungo', 'Altre annotazioni') })),
       barraSalva(blocco ? 'Da firmare su carta' : `Salvato ${dataOraIt(letto.modificato)}`, pulsanti));
   },

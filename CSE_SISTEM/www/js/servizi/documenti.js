@@ -23,6 +23,13 @@ export async function elencoDocumenti(archivio, codice, sezione) {
     .sort((a, b) => confronta(b.data, a.data) || confronta(b.creato, a.creato));
 }
 
+/** Elimina un documento caricato (file e scheda). */
+export async function eliminaDocumento(archivio, codice, doc) {
+  const cart = cartellaSezione(codice, doc.sezione);
+  await archivio.disco.elimina(percorso(cart, doc.file));
+  await archivio.disco.elimina(percorso(cart, doc._file || `${doc.file}.json`));
+}
+
 /** Percorso del file di un documento (per aprirlo con il programma del sistema). */
 export function percorsoDocumento(codice, doc) {
   return percorso(cartellaSezione(codice, doc.sezione), doc.file);

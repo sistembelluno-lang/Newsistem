@@ -39,6 +39,8 @@ function pagina(titolo, corpo) {
   .foto-p figure { margin: 0; width: 100%; display: flex; flex-direction: column; align-items: center; break-inside: avoid; page-break-inside: avoid; }
   .foto-p img { max-width: 170mm; max-height: 105mm; object-fit: contain; display: block; }
   .foto-p figcaption { font-size: 9.5pt; margin-top: 2mm; text-align: center; max-width: 170mm; }
+  .foto-p figure.doc img { border: 1px solid #888; box-shadow: 1.5mm 1.5mm 0 #ddd; max-height: 112mm; }
+  .foto-p .senza { width: 80mm; height: 105mm; border: 1px dashed #888; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 9pt; color: #555; padding: 4mm; }
 </style></head><body>${corpo}</body></html>`;
 }
 
@@ -63,7 +65,7 @@ function testaVerbale(verbale, logo) {
 }
 
 /** HTML del verbale di sopralluogo. */
-export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO, foto = [], logo = '' } = {}) {
+export function htmlVerbale(cantiere, verbale, { imprese = [], controlli = CONTROLLI_SOPRALLUOGO, foto = [], documenti = [], logo = '' } = {}) {
   const nomeImpresa = (id) => esc(imprese.find((i) => i.id === id)?.ragioneSociale || id);
   const testoControllo = new Map(controlli.map((c) => [c.codice, c.testo]));
   const righe = (lista, f) => (lista?.length ? lista.map(f).join('') : '<tr><td colspan="9">Nessuna</td></tr>');
@@ -100,7 +102,8 @@ ${verbale.sospensione ? `<h2>Sospensione delle lavorazioni (art. 92 c. 1 lett. f
 ${verbale.segnalazioneCommittente ? `<p><b>Segnalazione al committente / responsabile dei lavori (art. 92 c. 1 lett. e)</b> delle inosservanze riscontrate.</p>` : ''}
 ${verbale.note ? `<h2>Note</h2><p>${esc(verbale.note)}</p>` : ''}
 ${firmeVerbale(cantiere, verbale)}
-${fotoVerbale(foto)}`;
+${fotoVerbale(foto)}
+${documentiVerbale(documenti)}`;
   return pagina(`${titoloVerbale(verbale)} ${verbale.numero}`, corpo);
 }
 
@@ -116,6 +119,21 @@ function fotoVerbale(foto) {
   return pagine.map((coppia, k) => `<div class="foto-p">
 ${k === 0 ? '<h2>Documentazione fotografica</h2>' : ''}
 ${coppia.map((f, j) => figura(f, k * 2 + j)).join('\n')}
+</div>`).join('\n');
+}
+
+/**
+ * Documenti allegati al verbale: anteprima della prima pagina, due per
+ * foglio, con titolo e dettagli. documenti: [{ src (data URL o ''), titolo, file, dettagli }]
+ */
+function documentiVerbale(documenti) {
+  if (!documenti?.length) return '';
+  const figura = (d, i) => `<figure class="doc">${d.src ? `<img src="${esc(d.src)}" alt="">` : `<div class="senza">Anteprima non disponibile<br>${esc(d.file)}</div>`}<figcaption><b>Allegato ${i + 1}</b> – ${esc(d.titolo)}${d.dettagli ? `<br>${esc(d.dettagli)}` : ''}</figcaption></figure>`;
+  const pagine = [];
+  for (let i = 0; i < documenti.length; i += 2) pagine.push(documenti.slice(i, i + 2));
+  return pagine.map((coppia, k) => `<div class="foto-p">
+${k === 0 ? '<h2>Documenti allegati</h2>' : ''}
+${coppia.map((d, j) => figura(d, k * 2 + j)).join('\n')}
 </div>`).join('\n');
 }
 

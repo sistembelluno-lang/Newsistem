@@ -217,7 +217,7 @@ test('stampe: verbale e verifica POS', () => {
   const imp = nuovaImpresa({ ragioneSociale: 'Edil Rossi' });
   const verb = { ...nuovoVerbaleSopralluogo([], { imprese: [imp] }), sospensione: { lavorazioni: 'Ponteggio lato nord', motivo: 'Parapetti assenti', dal: '2026-11-16T10:00:00' } };
   const html = htmlVerbale(cant, verb, { imprese: [imp] });
-  assert.match(html, /Verbale di sopralluogo n\. 1/);
+  assert.match(html, /Verbale di sopralluogo e coordinamento n\. 1/);
   assert.match(html, /Scuola &lt;media&gt;/, 'testo protetto');
   assert.match(html, /Edil Rossi/);
   assert.match(html, /art\. 92 c\. 1 lett\. f/);
@@ -508,17 +508,66 @@ test('verbale di sopralluogo e/o coordinamento', async () => {
   const { tipoVerbale, titoloVerbale } = await import('../www/js/servizi/verbali.js');
   const cant = nuovoCantiere({ codice: 'C', denominazione: 'X' });
   const v = nuovoVerbaleSopralluogo([]);
-  assert.equal(titoloVerbale(v), 'Verbale di sopralluogo');
-  assert.equal(titoloVerbale({ ...v, coordinamento: true }), 'Verbale di sopralluogo e coordinamento');
-  assert.equal(titoloVerbale({ ...v, sopralluogo: false, coordinamento: true }), 'Verbale di coordinamento');
+  // titolo sempre uguale; le caselle dicono di che cosa si tratta
+  for (const x of [v, { ...v, coordinamento: true }, { ...v, sopralluogo: false, coordinamento: true }]) assert.equal(titoloVerbale(x), 'Verbale di sopralluogo e coordinamento');
   assert.deepEqual(tipoVerbale({ sopralluogo: false, coordinamento: false }), { sopralluogo: true, coordinamento: false }, 'senza spunte: sopralluogo');
   assert.deepEqual(tipoVerbale({}), { sopralluogo: true, coordinamento: false }, 'verbali delle versioni precedenti');
   const solo = htmlVerbale(cant, { ...v, sopralluogo: false, coordinamento: true, argomentiCoordinamento: 'Sfasamento esbosco / scavi' });
-  assert.match(solo, /<h1>Verbale di coordinamento n\. 1/);
+  assert.match(solo, /<h1>Verbale di sopralluogo e coordinamento n\. 1/);
   assert.match(solo, /<span class="box-v"><\/span> Sopralluogo[\s\S]*<span class="box-v">X<\/span> Coordinamento/);
   assert.match(solo, /Coordinamento \(art\. 92 c\. 1 lett\. c\)<\/h2>\n<p style="white-space:pre-line">Sfasamento esbosco \/ scavi/);
   assert.ok(!solo.includes('Verifiche effettuate'), 'solo coordinamento: niente controlli');
   const entrambi = htmlVerbale(cant, { ...v, coordinamento: true });
   assert.match(entrambi, /Verbale di sopralluogo e coordinamento n\. 1/);
   assert.ok(entrambi.includes('Verifiche effettuate') && entrambi.includes('Coordinamento (art. 92'));
+});
+
+test('file firmati .p7m: documento estratto e firmatari (DER, BER, doppia firma, Base64)', async () => {
+  const { estraiP7m, eP7m, nomeEstratto } = await import('../www/js/servizi/p7m.js');
+  const { readFileSync } = await import('node:fs');
+  const leggiF = (n) => new Uint8Array(readFileSync(new URL(`./dati/${n}`, import.meta.url)));
+  const originale = leggiF('originale.pdf');
+  for (const [nome, firme, livelli] of [['firmato.pdf.p7m', ['MARIO ROSSI'], 1], ['firmato_ber.pdf.p7m', ['MARIO ROSSI'], 1], ['base64.pdf.p7m', ['MARIO ROSSI'], 1], ['doppia.pdf.p7m.p7m', ['LUCIA BIANCHI', 'MARIO ROSSI'], 2]]) {
+    const b = leggiF(nome);
+    assert.ok(eP7m(b), nome);
+    const e = estraiP7m(b);
+    assert.deepEqual(Buffer.from(e.byte), Buffer.from(originale), `${nome}: documento identico all'originale`);
+    assert.equal(e.estensione, '.pdf');
+    assert.deepEqual(e.firmatari, firme, nome);
+    assert.equal(e.livelli, livelli);
+  }
+  assert.ok(!eP7m(originale));
+  assert.throws(() => estraiP7m(originale), /non è una busta firmata/);
+  assert.equal(nomeEstratto('POS Trettel.pdf.p7m'), 'POS Trettel.pdf');
+  assert.equal(nomeEstratto('Allegati/doppia.pdf.p7m.p7m'), 'doppia.pdf');
+  assert.equal(nomeEstratto('DURC.p7m', '.pdf'), 'DURC.pdf');
+});
+
+test('verbale: documenti allegati con anteprima, due per foglio', () => {
+  const cant = nuovoCantiere({ codice: 'C', denominazione: 'X' });
+  const v = nuovoVerbaleSopralluogo([]);
+  const documenti = [
+    { src: 'data:image/jpeg;base64,DOC1', titolo: 'Verbale riunione SPIGA / TRETTEL', file: 'riunione.pdf', dettagli: 'Verbale di coordinamento tra imprese – del 12/11/2026 – 3 pagine' },
+    { src: '', titolo: 'Planimetria', file: 'tavola.dwg', dettagli: 'Disegno / elaborato' },
+    { src: 'data:image/jpeg;base64,DOC3', titolo: 'Comunicazione RUP', file: 'pec.pdf.p7m', dettagli: 'firmato digitalmente da MARIO ROSSI' },
+  ];
+  const html = htmlVerbale(cant, v, { documenti });
+  assert.equal((html.match(/<h2>Documenti allegati<\/h2>/g) || []).length, 1);
+  assert.equal((html.match(/<figure class="doc">/g) || []).length, 3);
+  assert.equal((html.match(/<div class="foto-p">/g) || []).length, 2, 'tre documenti: due fogli');
+  assert.match(html, /<figure class="doc"><img src="data:image\/jpeg;base64,DOC1" alt=""><figcaption><b>Allegato 1<\/b> – Verbale riunione SPIGA \/ TRETTEL<br>Verbale di coordinamento tra imprese – del 12\/11\/2026 – 3 pagine/);
+  assert.match(html, /<div class="senza">Anteprima non disponibile<br>tavola\.dwg<\/div>/);
+});
+
+test('documenti ricevuti: caricamento ed eliminazione', async () => {
+  const { caricaDocumento, elencoDocumenti, eliminaDocumento } = await import('../www/js/servizi/documenti.js');
+  const a = new Archivio(discoInMemoria());
+  const d = await caricaDocumento(a, 'C', 'ricevuti', { nome: 'riunione.pdf', byte: new Uint8Array([1]) }, { titolo: 'Riunione', categoria: 'verbale_imprese' });
+  assert.equal(d.categoria, 'verbale_imprese');
+  const elenco = await elencoDocumenti(a, 'C', 'ricevuti');
+  assert.deepEqual(elenco.map((x) => x.titolo), ['Riunione']);
+  assert.ok(await a.disco.esiste('CSE_SISTEM/C/10_Documenti_ricevuti/riunione.pdf'));
+  await eliminaDocumento(a, 'C', elenco[0]);
+  assert.deepEqual(await elencoDocumenti(a, 'C', 'ricevuti'), []);
+  assert.ok(!(await a.disco.esiste('CSE_SISTEM/C/10_Documenti_ricevuti/riunione.pdf')));
 });

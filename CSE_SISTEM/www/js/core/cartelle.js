@@ -24,6 +24,7 @@
 //         schede/                     dati di ogni foto (.json)
 //       08_Verbali_sopralluogo/       verbali (.json)
 //       09_PDF_in_uscita/             tutti i PDF prodotti: verbali, check list e lettere dei POS
+//       10_Documenti_ricevuti/        documenti che arrivano (verbali tra imprese, disegni, comunicazioni, ...)
 
 export const RADICE = 'CSE_SISTEM';
 
@@ -40,10 +41,11 @@ export const SEZIONI = Object.freeze({
   foto: { cartella: '07_Registro_fotografico', titolo: 'Registro fotografico' },
   verbali: { cartella: '08_Verbali_sopralluogo', titolo: 'Verbali di sopralluogo e coordinamento' },
   pdf: { cartella: '09_PDF_in_uscita', titolo: 'PDF in uscita' },
+  ricevuti: { cartella: '10_Documenti_ricevuti', titolo: 'Documenti ricevuti' },
 });
 
 /** Sezioni che sono semplici raccolte di documenti caricati (con scheda). */
-export const SEZIONI_DOCUMENTI = ['progetto', 'psc', 'notifica'];
+export const SEZIONI_DOCUMENTI = ['progetto', 'psc', 'notifica', 'ricevuti'];
 
 /** Nome di file/cartella sicuro su Windows e Android. */
 export function nomeSicuro(testo, ripiego = 'senza_nome') {

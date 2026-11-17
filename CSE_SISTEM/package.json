@@ -1,7 +1,7 @@
 {
   "name": "cse-sistem",
   "productName": "CSE_SISTEM",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "CSE_SISTEM: documentazione del coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/08)",
   "type": "module",
   "main": "electron/main.cjs",

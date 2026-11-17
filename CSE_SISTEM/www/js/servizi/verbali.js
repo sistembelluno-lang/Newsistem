@@ -77,10 +77,10 @@ export function tipoVerbale(v) {
   return { sopralluogo, coordinamento };
 }
 
-/** «Verbale di sopralluogo», «Verbale di coordinamento», «Verbale di sopralluogo e coordinamento». */
-export function titoloVerbale(v) {
-  const t = tipoVerbale(v);
-  return `Verbale di ${[t.sopralluogo ? 'sopralluogo' : '', t.coordinamento ? 'coordinamento' : ''].filter(Boolean).join(' e ')}`;
+/** Titolo del verbale (sempre «Verbale di sopralluogo e coordinamento»). */
+export function titoloVerbale() {
+  // titolo unico; le caselle Sopralluogo / Coordinamento dicono di che cosa si tratta
+  return 'Verbale di sopralluogo e coordinamento';
 }
 
 /** Responsabile dei lavori per le stampe: nome, «non nominato» o vuoto. */

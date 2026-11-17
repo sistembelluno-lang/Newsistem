@@ -26,7 +26,7 @@ pre{background:var(--hd);border:1px solid var(--bd);border-radius:10px;padding:1
 <header><div class="brand"><span class="logo"><svg viewBox="0 0 32 32"><path d="M22.5 9.6C20.9 7.9 18.6 7 16.1 7c-4 0-6.9 2.1-6.9 5.2 0 6.7 13.8 3.8 13.8 10.4 0 3.1-2.9 5.4-7.2 5.4-2.8 0-5.2-1-7-2.9" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"/><circle cx="25.2" cy="6.8" r="2.2" fill="#fde68a"/></svg></span><div><span class="az">SISTEM SRL STP</span><b>CSE_SISTEM</b></div></div></header>
 <main>
 <h1>Guida a CSE_SISTEM</h1>
-<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.8.3.</p>
+<p>Documentazione del Coordinatore per la sicurezza in fase di esecuzione (D.Lgs 81/2008), su PC Windows e telefono Android. Versione di prova 0.9.</p>
 
 <div class="box"><b class="t">In breve</b>
 CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifica preliminare, imprese con i loro POS e le verifiche di idoneità, giornale dei lavori, registro fotografico (con la data di scatto stampata sulle foto) e verbali di sopralluogo da stampare e firmare. Ogni cantiere è una normale cartella: con Google Drive la vedono sia il PC sia il telefono.</div>
@@ -40,14 +40,14 @@ CSE_SISTEM tiene in ordine, per ogni cantiere: anagrafica, progetto, PSC, notifi
 <h2>1. Scaricare e installare</h2>
 <p>Tutti i file sono nella pagina della versione su GitHub, sotto <b>Assets</b>:</p>
 <table><tr><th>File</th><th>Per</th><th>Note</th></tr>
-<tr><td><code>CSE_SISTEM-0.8.3-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
-<tr><td><code>CSE_SISTEM-0.8.3-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
+<tr><td><code>CSE_SISTEM-0.9.0-portable.exe</code></td><td>Windows 10/11</td><td>si avvia con un doppio clic, senza installazione (comodo per provarlo)</td></tr>
+<tr><td><code>CSE_SISTEM-0.9.0-setup.exe</code></td><td>Windows 10/11</td><td>installa il programma con l'icona nel menu Start e sul desktop</td></tr>
 <tr><td><code>CSE_SISTEM.apk</code></td><td>Android</td><td>da scaricare e installare direttamente sul telefono</td></tr>
 <tr><td><code>Guida_CSE_SISTEM.pdf</code></td><td>tutti</td><td>questa guida</td></tr></table>
 
 <h3>Windows</h3>
 <ol class="passi">
-<li>Scarica <code>CSE_SISTEM-0.8.3-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
+<li>Scarica <code>CSE_SISTEM-0.9.0-portable.exe</code> (oppure il <code>setup.exe</code>).</li>
 <li>Fai doppio clic. Il programma non è ancora firmato digitalmente, quindi Windows può mostrare «<i>Windows ha protetto il PC</i>»: clicca <b>Ulteriori informazioni</b> e poi <b>Esegui comunque</b>. Succede solo la prima volta.</li>
 <li>Al primo avvio i cantieri vanno in <code>Documenti\CSE_SISTEM</code>. Per usare Google Drive vai subito in <b>Impostazioni</b> (capitolo 2).</li>
 </ol>
@@ -148,7 +148,9 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 
 <div class="box"><b class="t">Responsabile dei lavori non nominato</b>Nell'anagrafica spunta «Responsabile dei lavori non nominato»: nelle stampe compare «non nominato» e non viene messo tra i destinatari.</div>
 
-<h2>5. Progetto, PSC e notifica</h2>
+<h2>5. Progetto, PSC, notifica e documenti ricevuti</h2>
+<p><b>Documenti ricevuti</b>: tutto quello che arriva durante i lavori (verbali di coordinamento tra imprese, disegni, comunicazioni, certificati). Carica i file, indica titolo, tipo, data e chi li ha inviati; si possono allegare ai verbali. Vanno in <code>10_Documenti_ricevuti</code>. Il cestino accanto a un documento lo elimina.</p>
+<div class="box"><b class="t">File firmati .p7m</b>Documenti, POS e allegati possono essere anche file firmati digitalmente <code>.p7m</code> (anche con doppia firma). Con <b>Apri</b> il programma estrae il PDF firmato e lo apre, indicando chi ha firmato; la verifica con Claude legge il PDF contenuto.</div>
 <p>Nelle tre pagine si caricano i documenti: <b>Carica documenti</b>, scegli uno o più file, poi per ognuno indica titolo, revisione, data e autore. Il file viene <b>copiato</b> nella cartella del cantiere (l'originale resta dov'è); le revisioni precedenti restano in elenco. Clicca una riga per aprire il documento con il programma del PC o del telefono.</p>
 
 <h2 class="salto">6. Imprese, POS e verifica di idoneità</h2>
@@ -221,12 +223,13 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <li>La <b>data di scatto</b> si legge dalla foto stessa (dati EXIF). Le foto sono <b>ordinate per data di scatto</b> e raggruppate per giorno, anche se caricate in un altro momento.</li>
 <li>Su ogni foto la data e l'ora di scatto vengono stampate <b>in basso a destra</b>. L'originale resta intatto in <code>originali</code>; la copia con la data è in <code>timbrate</code>.</li>
 <li>Una foto senza data di scatto (per esempio inviata con WhatsApp) prende la data del file e viene segnata con <span class="pill">!</span>: verificala.</li>
+<li><b>Eliminare</b>: apri la foto e premi <b>Elimina</b>; per eliminarne più insieme premi <b>Elimina foto</b> in alto, tocca le foto da eliminare e conferma. Le foto eliminate spariscono anche dai verbali in bozza.</li>
 <li>Tocca una foto per vederla in grande e aggiungere <b>didascalia</b> e <b>posizione in cantiere</b>. Con <b>Nascondi la data di scatto</b> nel registro e nei verbali si usa la foto senza la data stampata (la data resta nei dati della foto, per l'ordinamento); queste foto hanno il simbolo dell'occhio barrato.</li>
 </ul>
 <figure><img src="img/cse_foto.jpg" alt=""><figcaption>Foto raggruppate per giorno di scatto</figcaption></figure>
 
 <h2 class="salto">9. Verbali di sopralluogo e coordinamento</h2>
-<p>In cima al verbale spunta <b>Sopralluogo</b>, <b>Coordinamento</b> o tutti e due: il titolo diventa «Verbale di sopralluogo», «Verbale di coordinamento» o «Verbale di sopralluogo e coordinamento», e nella stampa le due caselle risultano barrate. Con <i>Coordinamento</i> compare la scheda per gli <b>argomenti trattati e gli accordi presi</b> (art. 92 c. 1 lett. c); con solo <i>Coordinamento</i> la tabella dei controlli del sopralluogo non c’è.</p>
+<p>Il titolo è sempre <b>«Verbale di sopralluogo e coordinamento»</b>. In cima al verbale spunta <b>Sopralluogo</b>, <b>Coordinamento</b> o tutti e due: nella stampa le caselle risultano barrate. Con <i>Coordinamento</i> compare la scheda per gli <b>argomenti trattati e gli accordi presi</b> (art. 92 c. 1 lett. c); con solo <i>Coordinamento</i> la tabella dei controlli del sopralluogo non c’è.</p>
 <ol class="passi">
 <li><b>Nuovo verbale</b> (dalla pagina Verbali o dal Riepilogo). Il verbale è già precompilato: numero progressivo, ora di inizio, imprese con POS idoneo, elenco dei controlli e prescrizioni dei verbali precedenti ancora aperte.</li>
 <li><b>Sopralluogo</b>: data, orari, lavorazioni in corso, <b>destinatari</b> (uno per riga: committente, responsabile dei lavori, DL, imprese; sono già proposti dall'anagrafica e «Riproponi dall'anagrafica» li ricompone) e imprese presenti (quelle senza POS idoneo sono segnalate).</li>
@@ -237,6 +240,11 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 <li><b>Provvedimenti</b>: sospensione delle singole lavorazioni (art. 92 c. 1 lett. f) e segnalazione al committente o al responsabile dei lavori (art. 92 c. 1 lett. e).</li>
 <li><b>Foto del verbale</b>: <b>Dal registro</b> fa scegliere le foto già scattate (quelle del giorno del verbale sono in cima: tocca per scegliere, tocca di nuovo per togliere); <b>Scatta</b> (telefono) o <b>Carica</b> aggiungono foto nuove, che vanno anche nel registro fotografico. Sotto ogni foto scrivi la <b>didascalia</b> e scegli se lasciare la <b>data di scatto</b> stampata sulla foto: togliendo la spunta si usa la foto senza data e la data sparisce anche dalla didascalia del PDF. La × toglie la foto dal verbale ma non dal registro.</li>
 </ol>
+<h3>Documenti allegati al verbale</h3>
+<p>Nella scheda <b>Documenti allegati</b> premi <b>Scegli documenti</b> e spunta quelli da allegare: documenti ricevuti (verbali tra imprese, disegni, comunicazioni) o di progetto, PSC e notifica. Nel verbale li vedi come piccoli fogli; nel PDF compaiono dopo le foto come <b>anteprima della prima pagina</b>, due per foglio A4, con titolo, tipo, data, numero di pagine e, per i file firmati, chi ha firmato. Toccando un documento lo apri.</p>
+<h3>Eliminare un verbale</h3>
+<p><b>Elimina</b> nella barra in basso, anche sul telefono. Un verbale chiuso (firmato) si può eliminare dopo una seconda conferma; il PDF già creato resta in <code>09_PDF_in_uscita</code>.</p>
+
 <h3>Nascondere i controlli che non servono</h3>
 <p>Nelle <b>Verifiche effettuate</b> l'<b>occhio barrato</b> accanto a un controllo lo nasconde: non compare nel verbale stampato (per esempio i ponteggi in un cantiere che non li ha). «Mostra nascosti» li fa rivedere. Il verbale successivo li tiene già nascosti.</p>
 <figure class="md"><img src="img/cse_verbale_foto.jpg" alt=""><figcaption>Foto del verbale con didascalia; nella seconda la data è nascosta</figcaption></figure>
@@ -303,5 +311,5 @@ Ogni voce (verbale, voce di giornale, foto, verifica) è un file separato, quind
 
 <div class="box"><b class="t">Versione di prova</b>
 Questa è la prima versione da provare sul campo. Segnala tutto ciò che non torna o che manca (voci dei verbali, campi dell'anagrafica, testi delle stampe): le prossime versioni li terranno in conto. In seguito il programma si estenderà alla <b>Direzione Lavori</b>.</div>
-<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.8.3 · SISTEM SRL STP</p>
+<p style="color:var(--mu);font-size:12.5px;margin-top:24px">CSE_SISTEM 0.9 · SISTEM SRL STP</p>
 </main></body></html>

@@ -84,7 +84,9 @@ export function nuovoCantiere(campi = {}) {
 /** Scheda di un documento caricato (progetto, PSC, notifica, POS, ...). */
 export function nuovoDocumento(campi = {}) {
   return base('documento', {
-    sezione: '',        // progetto | psc | notifica | pos
+    sezione: '',        // progetto | psc | notifica | ricevuti
+    categoria: '',      // documenti ricevuti: verbale tra imprese, disegno, comunicazione, ...
+    firmatari: [],      // file firmati (.p7m): chi ha firmato
     titolo: '',
     file: '',           // nome del file nella cartella della sezione
     revisione: '0',
@@ -232,6 +234,7 @@ export function nuovoVerbale(campi = {}) {
     sospensione: null,      // { lavorazioni, motivo, dal } (art. 92 c. 1 lett. f)
     segnalazioneCommittente: false, // art. 92 c. 1 lett. e
     foto: [],               // id delle foto del registro da allegare al verbale
+    documenti: [],          // documenti allegati al verbale: [{ sezione, file }] (anteprima della prima pagina nella stampa)
     note: '',
     chiuso: false,          // un verbale chiuso (firmato) non si modifica più
     ...campi,

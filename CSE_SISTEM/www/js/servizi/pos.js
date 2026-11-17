@@ -197,7 +197,7 @@ export function fileRevisione(pos, suDisco = null) {
 
 // ------------------------------------------------------------ documenti esaminati
 
-const LEGGIBILI = /\.(pdf|txt|jpe?g|png|gif|webp)$/i;
+const LEGGIBILI = /\.(pdf|txt|jpe?g|png|gif|webp|p7m)$/i; // i .p7m si aprono prima di inviarli
 
 /**
  * Documenti da esaminare per la revisione `pos`: gli elaborati del POS, i

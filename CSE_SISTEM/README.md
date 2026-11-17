@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.8.3** (di prova): logica e dati provati, interfaccia nello **stile
+Stato: versione **0.9** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -54,6 +54,7 @@ chiaro/scuro automatico), uguale su PC e telefono.
 | Registro fotografico | `07_Registro_fotografico/` | |
 | Verbali di sopralluogo e coordinamento | `08_Verbali_sopralluogo/` (.json) | art. 92 |
 | PDF in uscita (verbali, check list e lettere dei POS) | `09_PDF_in_uscita/` (le check list anche nella cartella dell'impresa) | |
+| Documenti ricevuti (verbali tra imprese, disegni, ...) | `10_Documenti_ricevuti/` | |
 | Logo per le stampe | `logo.png` nella cartella `CSE_SISTEM` | |
 
 Ogni cantiere è una **cartella leggibile anche senza il programma**, ordinata
@@ -174,6 +175,9 @@ www/js/
     verbali.js        numerazione, controlli, prescrizioni aperte
     normativa.js      art. 92, check list POS (All. XV, XVII), controlli del sopralluogo
     stampa.js         HTML dei documenti stampabili (-> PDF)
+    p7m.js            file firmati .p7m: documento contenuto e firmatari
+    anteprime.js      anteprima della prima pagina (pdf.js in www/vendor/pdfjs)
+    drive.js, sincro.js  Google Drive (app Android)
   moduli/cse.js       le pagine delle funzioni del CSE
   ui/                 elementi dell'interfaccia (schede, finestre, icone)
 ```

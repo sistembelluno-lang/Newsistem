@@ -376,3 +376,12 @@ details.preparazione ol { padding-left: 20px; font-size: 13.5px; }
 details.preparazione li { margin: 6px 0; }
 details.preparazione .dato { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
 details.preparazione code { word-break: break-all; }
+
+/* ---------------------------------------------------------------- documenti nel verbale, scelta foto */
+.documenti-v { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 14px; }
+.doc-v { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.doc-v > button { padding: 0; border: 0; background: none; box-shadow: none; width: 100%; }
+.doc-v .foglio { width: 100%; aspect-ratio: 210 / 297; display: flex; align-items: center; justify-content: center; background: #fff; border: 1px solid var(--bd); border-radius: 4px; box-shadow: 3px 3px 0 var(--hd), var(--sh); overflow: hidden; }
+.doc-v .foglio img { width: 100%; height: 100%; object-fit: contain; }
+.barra-scelta { position: sticky; top: 70px; z-index: 5; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 14px; border-radius: 14px; background: var(--card); border: 1px solid var(--bd); box-shadow: var(--sh); }
+.barra-scelta > span { margin-right: auto; font-weight: 650; }
