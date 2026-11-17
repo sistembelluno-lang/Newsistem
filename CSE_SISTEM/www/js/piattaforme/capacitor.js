@@ -118,6 +118,9 @@ export function serviziCapacitor(cap = globalThis.Capacitor) {
         if (/(^|\D)10(\D|$)/.test(m) || /DEVELOPER_ERROR/i.test(m)) {
           throw new Error('Google non riconosce ancora l’app: va registrata una volta nel progetto Google Cloud (vedi la guida, «Collegare Google Drive»).');
         }
+        if (/annullato|codice Google 16|codice 0\b/i.test(m)) {
+          throw new Error(`${m}. Se non hai annullato tu: Google ha bloccato l’accesso. Controlla in Google Cloud › Google Auth Platform › Pubblico che l’account scelto sia tra gli «Utenti di prova», oppure premi «Pubblica app».`);
+        }
         throw new Error(m);
       }
     },

@@ -98,15 +98,20 @@ public class DispositivoPlugin extends Plugin {
         PluginCall call = getSavedCall();
         if (call == null) return;
         freeSavedCall();
-        if (resultCode != Activity.RESULT_OK || data == null) {
-            call.reject("Accesso a Google Drive annullato");
+        if (data == null) {
+            // la finestra di Google si è chiusa senza risposta: annullata, oppure bloccata da Google
+            call.reject("Accesso a Google Drive annullato (Google non ha risposto, codice " + resultCode + ")");
             return;
         }
         try {
             AuthorizationResult r = Identity.getAuthorizationClient(getActivity()).getAuthorizationResultFromIntent(data);
+            if (r.getAccessToken() == null) {
+                call.reject("Accesso a Google Drive non concesso (nessun token, codice " + resultCode + ")");
+                return;
+            }
             call.resolve(conToken(r));
         } catch (ApiException e) {
-            call.reject("Accesso a Google Drive non concesso (" + e.getStatusCode() + ")");
+            call.reject("Accesso a Google Drive non concesso: codice Google " + e.getStatusCode() + (e.getMessage() != null ? " – " + e.getMessage() : ""));
         }
     }
 
