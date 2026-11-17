@@ -81,10 +81,20 @@ async function apri(ctx, p) {
 }
 
 /** Salva l'HTML in PDF nella cartella indicata (dove la piattaforma lo permette). */
-async function salvaPdf(ctx, html, p) {
+/**
+ * PDF di un documento. Su Windows va nella cartella «09_PDF_in_uscita» del
+ * cantiere (copie: altre cartelle dove lasciarne una copia, es. quella
+ * dell'impresa) e si apre; su Android si apre la finestra di stampa.
+ */
+async function salvaPdf(ctx, html, nome, copie = []) {
+  const p = percorso(cartellaSezione(ctx.cantiere.codice, 'pdf'), nome);
   if (ctx.servizi.pdfDaHtml) {
     await ctx.servizi.pdfDaHtml(html, p);
-    avviso(`PDF salvato: ${p.split('/').pop()}`);
+    if (copie.length) {
+      const byte = await ctx.archivio.disco.leggiByte(p);
+      for (const c of copie) await ctx.archivio.disco.scriviByte(percorso(c, nome), byte);
+    }
+    avviso(`PDF salvato in «PDF in uscita»: ${nome}`);
     await apri(ctx, p);
   } else if (ctx.servizi.stampa) {
     // Android: finestra di stampa del telefono (stampante o «Salva come PDF»)
@@ -190,6 +200,11 @@ registra({
     return h('div', {},
       testata(c.denominazione, `${c.codice}${c.comune ? ` · ${c.comune}` : ''}`,
         ctx.servizi.scatta ? bottone('scatta', 'Foto', () => vai(indirizzo(cod, 'foto'))) : null,
+        ctx.piattaforma === 'windows' ? bottone('cartella', 'PDF in uscita', prova(async () => {
+          const p = cartellaSezione(cod, 'pdf');
+          await ctx.archivio.disco.creaCartella(p);
+          await apri(ctx, p);
+        }), '', { title: 'Apri la cartella con tutti i PDF di questo cantiere (verbali, check list e lettere dei POS)' }) : null,
         bottone('verbali', 'Nuovo verbale', prova(() => nuovoVerbaleDa(ctx)), 'p')),
       h('div', { class: 'kpi' },
         kpi(s.imprese.length && operative === s.imprese.length ? 'ok' : 'at', indirizzo(cod, 'imprese'), 'Imprese operative', `${operative}/${s.imprese.length}`, 'con POS idoneo'),
@@ -745,7 +760,9 @@ registra({
       avviso('Verifica salvata');
       const html = tipo === 'lettera' ? htmlLetteraPos(ctx.cantiere, impresa, pos, ok) : htmlChecklistPos(ctx.cantiere, impresa, pos, ok);
       // le stampe vanno nella cartella dell'impresa, sottocartella «Verifica POS_<data>»
-      await salvaPdf(ctx, html, percorso(ctx.archivio.cartellaVerificaPos(cod, impresa, ok.data || oggi()), `${tipo === 'lettera' ? (ok.integrazioni?.length ? 'Richiesta integrazioni POS' : 'Esito verifica POS') : 'Check list POS'} ${nomeBase}.pdf`));
+      // in «PDF in uscita» e, come copia, nella cartella dell'impresa (sottocartella «Verifica POS_<data>»)
+      await salvaPdf(ctx, html, `${tipo === 'lettera' ? (ok.integrazioni?.length ? 'Richiesta integrazioni POS' : 'Esito verifica POS') : 'Check list POS'} ${nomeBase}.pdf`,
+        [ctx.archivio.cartellaVerificaPos(cod, impresa, ok.data || oggi())]);
       ctx.ricarica();
     });
 
@@ -1233,7 +1250,7 @@ registra({
         'Segnalazione delle inosservanze al committente / responsabile dei lavori', h('span', { class: 'rif' }, 'art. 92 c. 1 lett. e')),
     ];
 
-    const nomePdf = () => percorso(cartellaSezione(cod, 'verbali'), 'Verbali PDF', `Verbale ${String(v.numero).padStart(3, '0')} del ${v.data}.pdf`);
+    const nomePdf = () => `${titoloVerbale(v)} ${String(v.numero).padStart(3, '0')} del ${v.data}.pdf`;
     const salva = async () => {
       const nome = nomeFileVerbale(v);
       const vecchio = v._file && v._file !== nome ? v._file : null; // numero cambiato: si rinomina il file

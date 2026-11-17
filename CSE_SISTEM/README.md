@@ -4,7 +4,7 @@ Documentazione del **Coordinatore per la sicurezza in fase di esecuzione**
 (D.Lgs 81/2008), su **Windows** e **Android** con lo stesso programma.
 In futuro si estenderà alla **Direzione Lavori**.
 
-Stato: versione **0.8** (di prova): logica e dati provati, interfaccia nello **stile
+Stato: versione **0.8.1** (di prova): logica e dati provati, interfaccia nello **stile
 SISTEM** (lo stesso di CONTROLLO_SISTEM: barra con il marchio, schede, tema
 chiaro/scuro automatico), uguale su PC e telefono.
 
@@ -38,7 +38,7 @@ chiaro/scuro automatico), uguale su PC e telefono.
   controlli **nascondibili** (non stampati e ripresi nascosti nel verbale
   dopo), esiti *conforme / non conforme / da adeguare*, stampa come una
   lettera (destinatari a sinistra, logo dello studio a destra), due foto per
-  pagina, PDF in `Verbali PDF`, e **chiusura** (dopo la firma non si modifica più).
+  pagina, PDF in `09_PDF_in_uscita`, e **chiusura** (dopo la firma non si modifica più).
 
 ## Cosa gestisce
 
@@ -52,7 +52,8 @@ chiaro/scuro automatico), uguale su PC e telefono.
 | Verifiche di idoneità dei POS | `05_Verifiche_POS/` (.json); PDF e verifiche esterne in `04_Imprese_e_POS/<impresa>/Verifica POS_<data>/` | art. 92 c. 1 lett. b |
 | Giornale dei lavori | `06_Giornale_lavori/` (una voce al giorno) | |
 | Registro fotografico | `07_Registro_fotografico/` | |
-| Verbali di sopralluogo | `08_Verbali_sopralluogo/` (.json), PDF in `Verbali PDF/` | art. 92 |
+| Verbali di sopralluogo e coordinamento | `08_Verbali_sopralluogo/` (.json) | art. 92 |
+| PDF in uscita (verbali, check list e lettere dei POS) | `09_PDF_in_uscita/` (le check list anche nella cartella dell'impresa) | |
 | Logo per le stampe | `logo.png` nella cartella `CSE_SISTEM` | |
 
 Ogni cantiere è una **cartella leggibile anche senza il programma**, ordinata

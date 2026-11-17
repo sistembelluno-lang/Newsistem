@@ -23,7 +23,7 @@
 //         timbrate/                   copie con la data di scatto in basso a destra
 //         schede/                     dati di ogni foto (.json)
 //       08_Verbali_sopralluogo/       verbali (.json)
-//         Verbali PDF/                verbali stampati
+//       09_PDF_in_uscita/             tutti i PDF prodotti: verbali, check list e lettere dei POS
 
 export const RADICE = 'CSE_SISTEM';
 
@@ -39,6 +39,7 @@ export const SEZIONI = Object.freeze({
   giornale: { cartella: '06_Giornale_lavori', titolo: 'Giornale dei lavori' },
   foto: { cartella: '07_Registro_fotografico', titolo: 'Registro fotografico' },
   verbali: { cartella: '08_Verbali_sopralluogo', titolo: 'Verbali di sopralluogo e coordinamento' },
+  pdf: { cartella: '09_PDF_in_uscita', titolo: 'PDF in uscita' },
 });
 
 /** Sezioni che sono semplici raccolte di documenti caricati (con scheda). */
