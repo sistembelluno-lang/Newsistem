@@ -5,7 +5,7 @@
 import { estraiP7m } from './p7m.js';
 
 let pdfjs = null;
-async function caricaPdfjs() {
+export async function caricaPdfjs() {
   if (!pdfjs) {
     pdfjs = await import('../../vendor/pdfjs/pdf.min.mjs');
     pdfjs.GlobalWorkerOptions.workerSrc = new URL('../../vendor/pdfjs/pdf.worker.min.mjs', import.meta.url).href;

@@ -14,6 +14,7 @@ import { indirizzo, vai } from '../ui/router.js';
 import { caricaDocumento, elencoDocumenti, eliminaDocumento, percorsoDocumento } from '../servizi/documenti.js';
 import { estraiP7m, nomeEstratto } from '../servizi/p7m.js';
 import { anteprima } from '../servizi/anteprime.js';
+import { mostraDocumento, visualizzabile } from '../ui/visore.js';
 import { importaFoto, ordinaFoto, perGiorno } from '../servizi/foto.js';
 import { timbraFoto } from '../servizi/timbro.js';
 import {
@@ -76,7 +77,26 @@ async function scegliFile(ctx, { accetta = '*', multipli = true } = {}) {
 
 async function apri(ctx, p) {
   try {
-    if (/\.p7m$/i.test(p)) p = await estraiPerAprire(ctx, p, true);
+    const originale = p;
+    let nota = '';
+    if (/\.p7m$/i.test(p)) {
+      const e = estraiP7m(await ctx.archivio.disco.leggiByte(p));
+      nota = e.firmatari.length ? `Firmato digitalmente da: ${e.firmatari.join(', ')}` : 'File firmato digitalmente';
+      p = await estraiPerAprire(ctx, p);
+    }
+    // sul telefono PDF e immagini si guardano dentro l'app, senza scaricarli
+    if (ctx.piattaforma === 'android' && visualizzabile(p)) {
+      const nome = p.split('/').pop();
+      await mostraDocumento({
+        titolo: nome, nome, nota, byte: await ctx.archivio.disco.leggiByte(p),
+        azioni: [
+          bottone('apri', 'Apri con…', () => ctx.archivio.apri(p).catch((e) => avviso(e.message, 'errore')), 'q sm', { title: 'Apri con un’altra app del telefono' }),
+          ctx.archivio.disco.condividi ? bottone('carica', 'Condividi', () => ctx.archivio.disco.condividi(originale).catch(() => {}), 'q sm') : null,
+        ].filter(Boolean),
+      });
+      return;
+    }
+    if (nota) avviso(nota);
     await ctx.archivio.apri(p);
   } catch (e) {
     avviso(e.message, 'errore');

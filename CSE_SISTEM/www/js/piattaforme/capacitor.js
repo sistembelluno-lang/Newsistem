@@ -74,8 +74,18 @@ export function discoCapacitor(cap = globalThis.Capacitor) {
       if (s.type === 'directory') await fs.rmdir({ path: p, directory, recursive: true });
       else await fs.deleteFile({ path: p, directory });
     },
+    /** Apre il file con l'app adatta del telefono (senza «Condividi»); se non si può, lo condivide. */
     async apri(p) {
-      // si condivide il file: Android propone l'app adatta (lettore PDF, galleria, ...)
+      try {
+        await plugin('Dispositivo', cap).apriConApp({ percorso: p });
+      } catch (e) {
+        if (/non c'è un'app/.test(String(e?.message))) throw e;
+        const { uri } = await fs.getUri({ path: p, directory });
+        await plugin('Share', cap).share({ url: uri });
+      }
+    },
+    /** Menu «Condividi» di Android (per mandare il file via e-mail, WhatsApp, ...). */
+    async condividi(p) {
       const { uri } = await fs.getUri({ path: p, directory });
       await plugin('Share', cap).share({ url: uri });
     },

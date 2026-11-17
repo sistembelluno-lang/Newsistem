@@ -11,6 +11,10 @@ package it.sistembelluno.csesistem;
 //    (www/js/servizi/drive.js) legge e scrive la cartella CSE_SISTEM di Drive.
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
+import android.webkit.MimeTypeMap;
+import androidx.core.content.FileProvider;
+import java.io.File;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
@@ -148,6 +152,35 @@ public class DispositivoPlugin extends Plugin {
             });
             wv.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
         });
+    }
+
+    /**
+     * Apre un file della cartella Documenti con l'app adatta (visore PDF,
+     * Word, ...), senza passare dal menu «Condividi».
+     * { percorso: 'CSE_SISTEM/...' } relativo a Documenti.
+     */
+    @PluginMethod
+    public void apriConApp(PluginCall call) {
+        String percorso = call.getString("percorso", "");
+        try {
+            File f = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), percorso);
+            if (!f.exists()) {
+                call.reject("File non trovato: " + percorso);
+                return;
+            }
+            Uri uri = FileProvider.getUriForFile(getContext(), getContext().getPackageName() + ".fileprovider", f);
+            String est = MimeTypeMap.getFileExtensionFromUrl(Uri.fromFile(f).toString());
+            String tipo = est != null ? MimeTypeMap.getSingleton().getMimeTypeFromExtension(est.toLowerCase()) : null;
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, tipo != null ? tipo : "*/*");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+            call.resolve();
+        } catch (ActivityNotFoundException e) {
+            call.reject("Sul telefono non c'è un'app per aprire questo tipo di file");
+        } catch (Exception e) {
+            call.reject("File non apribile: " + e.getMessage());
+        }
     }
 
     /** { concesso: true/false } — su Android 10 e precedenti basta il permesso normale. */
