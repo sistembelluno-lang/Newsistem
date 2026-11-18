@@ -182,6 +182,12 @@ function righe(lista, colonne, { nuova = () => ({}), testoAggiungi = 'Aggiungi',
   const corpo = h('tbody');
   const cella = (r, c) => {
     const aggiorna = (e) => { r[c.chiave] = e.target.value; };
+    if (c.tipo === 'spunta') {
+      // spunta: vale true finché non si toglie (es. «Firma» dei presenti)
+      return h('label', { class: 'spunta', style: 'justify-content:center' }, h('input', {
+        type: 'checkbox', checked: r[c.chiave] !== false, disabled: bloccato, onchange: (e) => { r[c.chiave] = e.target.checked; },
+      }));
+    }
     if (c.tipo === 'scelta') {
       return h('select', { disabled: bloccato, onchange: aggiorna }, h('option', { value: '' }, '—'),
         Object.entries(c.opzioni).map(([k, t]) => h('option', { value: k, selected: r[c.chiave] === k }, t)));
@@ -194,7 +200,8 @@ function righe(lista, colonne, { nuova = () => ({}), testoAggiungi = 'Aggiungi',
     : [h('tr', {}, h('td', { colspan: colonne.length + 1, class: 'mu' }, vuota))]));
   disegna();
   return {
-    tabella: tabella([...colonne.map((c) => c.etichetta), ''], corpo),
+    // (non tabella(): il corpo è già un <tbody>, dentro un altro le colonne non si allineano)
+    tabella: h('table', { class: 't' }, h('thead', {}, h('tr', {}, [...colonne.map((c) => h('th', { style: c.larghezza ? `width:${c.larghezza}` : null }, c.etichetta)), h('th', { class: 'stretta' })])), corpo),
     aggiungi: bloccato ? null : bottone('piu', testoAggiungi, () => { lista.push(nuova()); disegna(); corpo.querySelector('tr:last-child input')?.focus(); }, 'sm'),
   };
 }
@@ -1252,7 +1259,7 @@ registra({
       lega('lavorazioniInCorso', 'testo_lungo', 'Lavorazioni in corso'));
     if (!v.destinatari && !blocco) v.destinatari = destinatariVerbale(ctx.cantiere, s.imprese.filter((i) => v.impresePresenti.includes(i.id)));
     const destinatari = h('div', { class: 'campi', style: 'margin-top:12px' },
-      lega('destinatari', 'testo_lungo', 'Destinatari (uno per riga: in alto a sinistra nel verbale stampato)'),
+      lega('destinatari', 'testo_lungo', 'Destinatari (uno per riga: in alto a destra nel verbale stampato, sotto «Spett.li»)'),
       blocco ? null : h('div', {}, bottone('', 'Riproponi dall’anagrafica', () => {
         v.destinatari = destinatariVerbale(ctx.cantiere, s.imprese.filter((i) => v.impresePresenti.includes(i.id)));
         destinatari.querySelector('textarea').value = v.destinatari;
@@ -1271,8 +1278,9 @@ registra({
     const presenti = righe(v.presenti, [
       { chiave: 'nome', etichetta: 'Nome e cognome' },
       { chiave: 'qualifica', etichetta: 'Qualifica', suggerimento: 'capocantiere, preposto…' },
-      { chiave: 'impresa', etichetta: 'Impresa', elenco: elencoImprese },
-    ], { testoAggiungi: 'Aggiungi', bloccato: blocco, vuota: 'Nessuno: nella stampa restano righe vuote da compilare a mano' });
+      { chiave: 'impresa', etichetta: 'Impresa/Ente', elenco: elencoImprese },
+      { chiave: 'firma', etichetta: 'Firma', tipo: 'spunta', larghezza: '60px' },
+    ], { nuova: () => ({ nome: '', qualifica: '', impresa: '', firma: true }), testoAggiungi: 'Aggiungi', bloccato: blocco, vuota: 'Nessuno: nella stampa restano righe vuote da compilare a mano' });
 
     const nc = righe(v.nonConformita, [
       { chiave: 'descrizione', etichetta: 'Descrizione', larghezza: '50%' },

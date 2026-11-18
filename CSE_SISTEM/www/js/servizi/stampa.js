@@ -23,13 +23,16 @@ function pagina(titolo, corpo) {
   .rif { color: #555; font-size: 9pt; }
   .blocco-firme { page-break-inside: avoid; break-inside: avoid; }
   .righe-firma td { height: 11mm; }
+  .note-v { margin-top: 6mm; font-size: 8.5pt; font-weight: bold; font-style: italic; }
+  .note-v p { margin: 0 0 1mm; }
+  .note-v .tit { text-align: center; text-decoration: underline; font-style: italic; font-size: 9.5pt; }
   tr { page-break-inside: avoid; }
   /* verbale: intestazione come una lettera, destinatari a sinistra e logo a destra */
   .tipo-v { margin: 0 0 3mm; } .box-v { display: inline-block; width: 3.5mm; height: 3.5mm; border: 1px solid #222; text-align: center; line-height: 3.5mm; font-size: 8.5pt; font-weight: bold; vertical-align: -0.6mm; }
   .testa-v { display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm; margin-bottom: 6mm; }
-  .testa-v .dest { font-size: 9pt; line-height: 1.35; max-width: 62%; }
+  .testa-v .dest { font-size: 9pt; line-height: 1.35; max-width: 58%; margin-left: auto; }
   .testa-v .dest p { margin: 0 0 1mm; }
-  .testa-v .logo { width: 55mm; height: 24mm; display: flex; align-items: flex-start; justify-content: flex-end; flex: none; }
+  .testa-v .logo { width: 55mm; height: 24mm; display: flex; align-items: flex-start; justify-content: flex-start; flex: none; }
   .testa-v .logo img { max-width: 55mm; max-height: 24mm; object-fit: contain; }
   table.controlli td, table.controlli th { font-size: 8.5pt; padding: 2px 4px; }
   table.controlli .c { width: 40%; } table.controlli .e { width: 13%; white-space: nowrap; } table.controlli .n { width: 47%; font-size: 9.5pt; }
@@ -55,12 +58,12 @@ function intestazione(cantiere) {
 </table>`;
 }
 
-/** Testata del verbale: a sinistra i destinatari (come una lettera), a destra lo spazio del logo. */
+/** Testata del verbale: a sinistra lo spazio del logo, a destra «Spett.li» e i destinatari (come una lettera). */
 function testaVerbale(verbale, logo) {
   const dest = String(verbale.destinatari || '').split('\n').map((x) => x.trim()).filter(Boolean);
   return `<div class="testa-v">
-<div class="dest">${dest.length ? `<p><b>Spett.li</b></p>${dest.map((d) => `<p>${esc(d)}</p>`).join('')}` : ''}</div>
 <div class="logo">${logo ? `<img src="${esc(logo)}" alt="">` : ''}</div>
+<div class="dest">${dest.length ? `<p><b>Spett.li</b></p>${dest.map((d) => `<p>${esc(d)}</p>`).join('')}` : ''}</div>
 </div>`;
 }
 
@@ -78,7 +81,7 @@ ${testaVerbale(verbale, logo)}
 ${intestazione(cantiere)}
 <p>Dalle ore ${esc(verbale.oraInizio) || '—'} alle ore ${esc(verbale.oraFine) || '—'}.</p>
 <h2>Presenti</h2>
-<table><tr><th>Nome</th><th>Qualifica</th><th>Impresa</th></tr>
+<table><tr><th>Nome</th><th>Qualifica</th><th>Impresa/Ente</th></tr>
 ${righe(verbale.presenti, (p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifica)}</td><td>${esc(p.impresa)}</td></tr>`)}</table>
 <h2>Imprese presenti in cantiere</h2>
 <p>${(verbale.impresePresenti || []).map(nomeImpresa).join(', ') || '—'}</p>
@@ -142,15 +145,20 @@ ${coppia.map((d, j) => figura(d, k * 2 + j)).join('\n')}
  * ogni presente (con spazio sufficiente) e il CSE. Se l'elenco dei presenti è
  * vuoto si lasciano righe in bianco da compilare in cantiere.
  */
+/** Note finali del verbale, sotto la firma del coordinatore. */
+export const NOTE_VERBALE = 'Le imprese si impegnano a trasmettere copia del presente verbale al proprio rappresentante dei lavoratori per la sicurezza, se lo stesso è stato redatto ai sensi del D. Lgs. 81/2008 e s.m.i. In assenza di eventuali osservazioni e/o comunicazioni fatte pervenire al sottoscritto (Dl e/o Cse) entro 48 ore dal ricevimento del presente verbale, lo stesso si intende letto ed approvato.';
+
 function firmeVerbale(cantiere, verbale) {
-  const presenti = verbale.presenti?.length ? verbale.presenti : Array.from({ length: 5 }, () => ({}));
+  // firmano solo i presenti con la spunta «Firma» (senza elenco: righe vuote da compilare in cantiere)
+  const presenti = verbale.presenti?.length ? verbale.presenti.filter((p) => p.firma !== false) : Array.from({ length: 5 }, () => ({}));
   return `<div class="blocco-firme">
 <h2>Letto, confermato e sottoscritto</h2>
 <p>${dataIt(verbale.data)}, ${esc(cantiere.comune) || '__________'}</p>
-<table class="righe-firma"><tr><th style="width:30%">Nome e cognome</th><th style="width:20%">Qualifica</th><th style="width:20%">Impresa</th><th>Firma</th></tr>
+${presenti.length ? `<table class="righe-firma"><tr><th style="width:30%">Nome e cognome</th><th style="width:20%">Qualifica</th><th style="width:20%">Impresa/Ente</th><th>Firma</th></tr>
 ${presenti.map((p) => `<tr><td>${esc(p.nome)}</td><td>${esc(p.qualifica)}</td><td>${esc(p.impresa)}</td><td></td></tr>`).join('')}
-</table>
+</table>` : ''}
 <table class="firme"><tr><td></td><td>Il Coordinatore per l'esecuzione<br>${persona(cantiere.cse)}<br><br>______________________________</td></tr></table>
+<div class="note-v"><p class="tit">NOTE:</p><p>${esc(NOTE_VERBALE)}</p></div>
 </div>`;
 }
 

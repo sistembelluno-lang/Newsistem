@@ -334,8 +334,7 @@ test('verbale 0.6: destinatari come una lettera, logo, esiti, note larghe, due f
   v.verifiche[0].note = 'Recinzione da completare lato strada';
   const foto = [1, 2, 3].map((i) => ({ src: `data:,${i}`, scattata: '', didascalia: `F${i}` }));
   const html = htmlVerbale(cant, v, { imprese: [imp], foto, logo: 'data:image/png;base64,LOGO' });
-  assert.match(html, /<div class="testa-v">\n<div class="dest"><p><b>Spett\.li<\/b><\/p><p>Committente PROMOTURISMO FVG – PEC promo@pec\.it<\/p>/);
-  assert.match(html, /<div class="logo"><img src="data:image\/png;base64,LOGO"/);
+  assert.match(html, /<div class="testa-v">\n<div class="logo"><img src="data:image\/png;base64,LOGO" alt=""><\/div>\n<div class="dest"><p><b>Spett\.li<\/b><\/p><p>Committente PROMOTURISMO FVG – PEC promo@pec\.it<\/p>/, 'logo a sinistra, destinatari a destra');
   assert.match(html, /<b>Responsabile dei lavori<\/b>: non nominato/);
   assert.match(html, /<td class="e">Da adeguare<\/td><td class="n">Recinzione da completare lato strada<\/td>/);
   assert.equal((html.match(/<div class="foto-p">/g) || []).length, 2, '3 foto: due pagine (2 + 1)');
@@ -570,4 +569,23 @@ test('documenti ricevuti: caricamento ed eliminazione', async () => {
   await eliminaDocumento(a, 'C', elenco[0]);
   assert.deepEqual(await elencoDocumenti(a, 'C', 'ricevuti'), []);
   assert.ok(!(await a.disco.esiste('CSE_SISTEM/C/10_Documenti_ricevuti/riunione.pdf')));
+});
+
+test('verbale: firmano solo i presenti spuntati, Impresa/Ente, note finali', () => {
+  const cant = nuovoCantiere({ codice: 'C', denominazione: 'X', cse: { nome: 'Ing. Rech' } });
+  const v = { ...nuovoVerbaleSopralluogo([]), presenti: [
+    { nome: 'Mario Rossi', qualifica: 'Capocantiere', impresa: 'SPIGA', firma: true },
+    { nome: 'Anna Verdi', qualifica: 'RUP', impresa: 'PROMOTURISMO FVG', firma: false },
+    { nome: 'Luca Neri', qualifica: 'Preposto', impresa: 'TRETTEL' }, // senza campo: firma
+  ] };
+  const html = htmlVerbale(cant, v);
+  const firme = html.slice(html.indexOf('Letto, confermato e sottoscritto'));
+  assert.match(html, /<th>Impresa\/Ente<\/th>/);
+  assert.match(html, /Anna Verdi<\/td><td>RUP<\/td><td>PROMOTURISMO FVG/, 'tra i presenti c’è');
+  assert.ok(!firme.includes('Anna Verdi'), 'ma non firma');
+  assert.ok(firme.includes('Mario Rossi') && firme.includes('Luca Neri'));
+  assert.match(firme, /Il Coordinatore per l'esecuzione[\s\S]*<div class="note-v"><p class="tit">NOTE:<\/p><p>Le imprese si impegnano a trasmettere copia del presente verbale[\s\S]*entro 48 ore dal ricevimento del presente verbale, lo stesso si intende letto ed approvato\.<\/p><\/div>/);
+  // nessuno firma: resta solo il coordinatore
+  const nessuno = htmlVerbale(cant, { ...v, presenti: v.presenti.map((p) => ({ ...p, firma: false })) });
+  assert.ok(!nessuno.includes('class="righe-firma"'));
 });
