@@ -51,7 +51,7 @@ export async function timbraFoto(byteJpeg, isoScatto, qualita = 0.9) {
   // fondo scuro semitrasparente: la data si legge su qualsiasi foto
   ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
   ctx.fillRect(l.riquadro.x, l.riquadro.y, l.riquadro.w, l.riquadro.h);
-  ctx.fillStyle = '#ffb000';
+  ctx.fillStyle = '#ffe600'; // giallo ben visibile sul riquadro scuro
   ctx.textAlign = 'right';
   ctx.textBaseline = 'bottom';
   ctx.fillText(l.testo, l.x, l.y);

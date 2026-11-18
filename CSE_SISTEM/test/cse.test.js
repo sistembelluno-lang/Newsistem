@@ -265,7 +265,8 @@ test('verbale: controlli nascosti non stampati e ripresi nel verbale dopo; foto 
   const v2 = nuovoVerbaleSopralluogo([v1]);
   assert.equal(v2.verifiche.find((x) => x.codice === 'S05').nascosta, true, 'resta nascosto nel verbale nuovo');
   const conFoto = htmlVerbale(cant, v2, { foto: [{ src: 'data:image/jpeg;base64,AAA', scattata: '2026-11-08T10:15:00', didascalia: 'Parapetto <lato nord>' }] });
-  assert.match(conFoto, /Documentazione fotografica[\s\S]*<img src="data:image\/jpeg;base64,AAA"[\s\S]*<b>Foto 1<\/b> – 08\/11\/2026 10:15<br>Parapetto &lt;lato nord&gt;/);
+  assert.match(conFoto, /Documentazione fotografica[\s\S]*<img src="data:image\/jpeg;base64,AAA"[\s\S]*<b>Foto 1<\/b><br>Parapetto &lt;lato nord&gt;/);
+  assert.ok(!conFoto.includes('08/11/2026 10:15'), 'data e ora solo sulla foto, non nella didascalia');
   assert.ok(conFoto.indexOf('Letto, confermato e sottoscritto') < conFoto.indexOf('Documentazione fotografica'), 'le foto dopo le firme');
   assert.ok(!htmlVerbale(cant, v2).includes('Documentazione fotografica'));
   // data di scatto nascosta: nella didascalia restano numero e testo

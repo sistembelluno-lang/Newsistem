@@ -111,12 +111,13 @@ ${documentiVerbale(documenti)}`;
 }
 
 /**
- * Documentazione fotografica del verbale: due foto per pagina, centrate, con numero,
+ * Documentazione fotografica del verbale: due foto per pagina, centrate, con numero
  * data e ora di scatto (se non è nascosta: scattata vuota) e didascalia. foto: [{ src (data URL), scattata, didascalia, luogo }]
  */
 function fotoVerbale(foto) {
   if (!foto?.length) return '';
-  const figura = (f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption>${[`<b>Foto ${i + 1}</b>`, f.scattata ? dataOraIt(f.scattata) : '', f.luogo ? esc(f.luogo) : ''].filter(Boolean).join(' – ')}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`;
+  // la data e l'ora di scatto sono stampate in giallo sulla foto: nella didascalia solo numero, posizione e testo
+  const figura = (f, i) => `<figure><img src="${esc(f.src)}" alt=""><figcaption>${[`<b>Foto ${i + 1}</b>`, f.luogo ? esc(f.luogo) : ''].filter(Boolean).join(' – ')}${f.didascalia ? `<br>${esc(f.didascalia)}` : ''}</figcaption></figure>`;
   const pagine = [];
   for (let i = 0; i < foto.length; i += 2) pagine.push(foto.slice(i, i + 2));
   return pagine.map((coppia, k) => `<div class="foto-p">

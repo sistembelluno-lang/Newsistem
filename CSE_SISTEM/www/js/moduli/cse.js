@@ -1346,7 +1346,7 @@ registra({
           h('label', { class: 'spunta' }, h('input', { type: 'checkbox', checked: !f.nascondiData, disabled: blocco, onchange: (e) => aggiornaFoto({ nascondiData: !e.target.checked }) }), 'Data di scatto sulla foto'));
         return cella;
       })
-      : [h('p', { class: 'mu', style: 'margin:0' }, blocco ? 'Nessuna foto' : 'Nessuna foto: sceglile dal registro fotografico o scattale adesso. Nel PDF vanno dopo le firme, due per riga, con la didascalia (e la data, se non la nascondi).')]));
+      : [h('p', { class: 'mu', style: 'margin:0' }, blocco ? 'Nessuna foto' : 'Nessuna foto: sceglile dal registro fotografico o scattale adesso. Nel PDF vanno dopo le firme, due per pagina, con la didascalia; data e ora sono stampate in giallo sulla foto (se non le nascondi).')]));
     disegnaFoto();
     const aggiungiFoto = (schede) => {
       for (const f of schede) {
